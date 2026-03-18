@@ -1491,6 +1491,509 @@ create trigger trg_vet_case_progress
     for each row execute function public.fn_vet_case_progress_on_diagnosis();
 
 -- ============================================================
+-- SECTION 6b: BUSINESS RPCs (Slice 1 — Sick Calf)
+-- RPC-26: rpc_add_vet_diagnosis
+-- RPC-27: rpc_add_vet_recommendation
+-- NEW (D-F11-1): rpc_get_vet_case_detail
+-- ============================================================
+
+-- -------------------------------------------------------
+-- RPC-26: rpc_add_vet_diagnosis
+-- Dok 3 §6.2: Adds a diagnosis to an existing VetCase.
+-- FSM: if status='open', trigger fn_vet_case_progress_on_diagnosis
+--       auto-transitions to 'in_progress' (existing trigger on vet_diagnoses INSERT).
+-- Event: vet.case.diagnosed
+-- -------------------------------------------------------
+create or replace function public.rpc_add_vet_diagnosis(
+    p_organization_id   uuid,
+    p_vet_case_id       uuid,
+    p_disease_id        uuid        default null,
+    p_diagnosis_text    text        default null,
+    p_confidence_pct    int         default null,
+    p_source            text        default 'ai_analysis',
+    p_is_final          boolean     default false,
+    p_diagnosed_by      uuid        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_diagnosis_id  uuid;
+    v_case_org_id   uuid;
+    v_confidence    numeric(3,2);
+begin
+    -- 1. Verify VetCase exists and belongs to p_organization_id
+    select organization_id into v_case_org_id
+    from public.vet_cases
+    where id = p_vet_case_id;
+
+    if v_case_org_id is null then
+        raise exception 'VET_CASE_NOT_FOUND: vet_case_id=% not found', p_vet_case_id;
+    end if;
+
+    if v_case_org_id != p_organization_id then
+        raise exception 'VET_CASE_ORG_MISMATCH: vet_case belongs to different organization';
+    end if;
+
+    -- 2. Validate confidence_pct (0-100 → 0.00-1.00)
+    if p_confidence_pct is not null then
+        if p_confidence_pct < 0 or p_confidence_pct > 100 then
+            raise exception 'INVALID_CONFIDENCE: confidence_pct must be 0-100, got %', p_confidence_pct;
+        end if;
+        v_confidence := p_confidence_pct::numeric / 100.0;
+    end if;
+
+    -- 3. Validate source
+    if p_source not in ('ai_analysis', 'ai_rag', 'expert_confirmed', 'expert_override') then
+        raise exception 'INVALID_SOURCE: source must be ai_analysis|ai_rag|expert_confirmed|expert_override, got %', p_source;
+    end if;
+
+    -- 4. Insert diagnosis (APPEND-ONLY per Dok 1)
+    insert into public.vet_diagnoses (
+        vet_case_id,
+        disease_id,
+        confidence,
+        source,
+        is_final,
+        diagnosed_by,
+        diagnosed_at,
+        notes
+    ) values (
+        p_vet_case_id,
+        p_disease_id,
+        v_confidence,
+        p_source,
+        p_is_final,
+        p_diagnosed_by,
+        now(),
+        p_diagnosis_text
+    )
+    returning id into v_diagnosis_id;
+
+    -- 5. Publish event: vet.case.diagnosed
+    insert into public.platform_events (
+        event_type, entity_type, entity_id,
+        organization_id, actor_type, payload
+    ) values (
+        'vet.case.diagnosed',
+        'vet_diagnosis',
+        v_diagnosis_id,
+        p_organization_id,
+        case when p_diagnosed_by is not null then 'user' else 'system' end,
+        jsonb_build_object(
+            'vet_case_id', p_vet_case_id,
+            'disease_id', p_disease_id,
+            'confidence_pct', p_confidence_pct,
+            'source', p_source,
+            'is_final', p_is_final
+        )
+    );
+
+    -- Note: VetCase FSM open→in_progress handled by existing trigger
+    -- trg_vet_case_progress (fn_vet_case_progress_on_diagnosis)
+
+    return v_diagnosis_id;
+end;
+$$;
+comment on function public.rpc_add_vet_diagnosis(uuid, uuid, uuid, text, int, text, boolean, uuid) is
+    'RPC-26 (Dok 3 §6.2): Add diagnosis to VetCase.
+     Validates ownership via p_organization_id (P-AI-2).
+     confidence_pct 0-100 converted to 0.00-1.00 for DB column.
+     FSM open→in_progress handled by trigger fn_vet_case_progress_on_diagnosis.
+     APPEND-ONLY: diagnoses are never edited, only added (D56).
+     Event: vet.case.diagnosed.';
+
+-- -------------------------------------------------------
+-- RPC-27: rpc_add_vet_recommendation
+-- Dok 3 §6.3: Adds treatment recommendation to VetCase.
+-- D98: If treatment has withdrawal_period > 0 → trigger
+--       fn_create_health_restriction_from_rec auto-creates health_restriction.
+-- P-AI-4: dosage_note accepted as-is (compliance validation in AI layer).
+-- Event: vet.recommendation.added
+-- -------------------------------------------------------
+create or replace function public.rpc_add_vet_recommendation(
+    p_organization_id       uuid,
+    p_vet_case_id           uuid,
+    p_recommendation_type   text        default 'medication',
+    p_treatment_id          uuid        default null,
+    p_vet_product_id        uuid        default null,
+    p_dosage_note           text        default null,
+    p_application_method    text        default null,
+    p_duration_days         int         default null,
+    p_priority              int         default 2,
+    p_notes                 text        default null,
+    p_source                text        default 'ai_generated',
+    p_created_by            uuid        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_recommendation_id uuid;
+    v_case_org_id       uuid;
+    v_dosage_info       jsonb := null;
+    v_withdrawal_days   int := 0;
+    v_product_withdrawal_meat int;
+    v_product_withdrawal_milk int;
+    v_treatment         record;
+    v_product           record;
+begin
+    -- 1. Verify VetCase exists and belongs to p_organization_id
+    select organization_id into v_case_org_id
+    from public.vet_cases
+    where id = p_vet_case_id;
+
+    if v_case_org_id is null then
+        raise exception 'VET_CASE_NOT_FOUND: vet_case_id=% not found', p_vet_case_id;
+    end if;
+
+    if v_case_org_id != p_organization_id then
+        raise exception 'VET_CASE_ORG_MISMATCH: vet_case belongs to different organization';
+    end if;
+
+    -- 2. Validate recommendation_type
+    if p_recommendation_type not in (
+        'medication', 'isolation', 'nutrition_change', 'monitoring',
+        'notify_authorities', 'expert_visit', 'lab_test', 'culling'
+    ) then
+        raise exception 'INVALID_RECOMMENDATION_TYPE: got %', p_recommendation_type;
+    end if;
+
+    -- 3. Validate source
+    if p_source not in ('ai_generated', 'expert_created', 'protocol_auto') then
+        raise exception 'INVALID_SOURCE: source must be ai_generated|expert_created|protocol_auto, got %', p_source;
+    end if;
+
+    -- 4. Validate priority
+    if p_priority not in (1, 2, 3) then
+        raise exception 'INVALID_PRIORITY: priority must be 1|2|3, got %', p_priority;
+    end if;
+
+    -- 5. Build dosage_info snapshot (D92) if treatment_id provided
+    if p_treatment_id is not null then
+        select t.*, vp.brand_name, vp.active_substance,
+               vp.withdrawal_period_meat_days, vp.withdrawal_period_milk_days
+        into v_treatment
+        from public.treatments t
+        join public.vet_products vp on vp.id = t.vet_product_id
+        where t.id = p_treatment_id;
+
+        if v_treatment.id is null then
+            raise exception 'TREATMENT_NOT_FOUND: treatment_id=% not found', p_treatment_id;
+        end if;
+
+        -- D92: immutable snapshot
+        v_dosage_info := jsonb_build_object(
+            'drug_name',                    v_treatment.brand_name,
+            'active_substance',             v_treatment.active_substance,
+            'dosage_per_kg',                v_treatment.dosage_per_kg,
+            'dosage_unit',                  v_treatment.dosage_unit,
+            'administration_route',         coalesce(p_application_method, v_treatment.administration_route),
+            'frequency_hours',              v_treatment.frequency_hours,
+            'duration_days',                coalesce(p_duration_days, v_treatment.duration_days),
+            'withdrawal_period_days',       v_treatment.withdrawal_period_days,
+            'snapshot_date',                current_date,
+            'treatment_status_at_snapshot', v_treatment.status,
+            'treatment_id',                 p_treatment_id
+        );
+
+        v_withdrawal_days := v_treatment.withdrawal_period_days;
+
+    elsif p_vet_product_id is not null then
+        -- Look up withdrawal from vet_products directly (no treatment record)
+        select withdrawal_period_meat_days, withdrawal_period_milk_days,
+               brand_name, active_substance
+        into v_product
+        from public.vet_products
+        where id = p_vet_product_id;
+
+        if v_product is null then
+            raise exception 'VET_PRODUCT_NOT_FOUND: vet_product_id=% not found', p_vet_product_id;
+        end if;
+
+        v_dosage_info := jsonb_build_object(
+            'drug_name',                    v_product.brand_name,
+            'active_substance',             v_product.active_substance,
+            'administration_route',         p_application_method,
+            'duration_days',                p_duration_days,
+            'withdrawal_period_days',       greatest(v_product.withdrawal_period_meat_days,
+                                                     v_product.withdrawal_period_milk_days),
+            'snapshot_date',                current_date,
+            'vet_product_id',               p_vet_product_id
+        );
+
+        v_withdrawal_days := greatest(v_product.withdrawal_period_meat_days,
+                                      v_product.withdrawal_period_milk_days);
+    end if;
+
+    -- 6. Build text_ru (required column)
+    -- Combine dosage_note + notes into text_ru for display
+    declare
+        v_text_ru text;
+    begin
+        v_text_ru := coalesce(p_dosage_note, '');
+        if p_notes is not null and p_notes != '' then
+            if v_text_ru != '' then
+                v_text_ru := v_text_ru || '. ' || p_notes;
+            else
+                v_text_ru := p_notes;
+            end if;
+        end if;
+        if v_text_ru = '' then
+            v_text_ru := p_recommendation_type; -- fallback
+        end if;
+
+        -- 7. Insert recommendation
+        insert into public.vet_recommendations (
+            vet_case_id,
+            recommendation_type,
+            priority,
+            text_ru,
+            source,
+            treatment_id,
+            dosage_info,
+            created_by
+        ) values (
+            p_vet_case_id,
+            p_recommendation_type,
+            p_priority,
+            v_text_ru,
+            p_source,
+            p_treatment_id,
+            v_dosage_info,
+            p_created_by
+        )
+        returning id into v_recommendation_id;
+    end;
+
+    -- 8. Publish event: vet.recommendation.added
+    insert into public.platform_events (
+        event_type, entity_type, entity_id,
+        organization_id, actor_type, payload
+    ) values (
+        'vet.recommendation.added',
+        'vet_recommendation',
+        v_recommendation_id,
+        p_organization_id,
+        case when p_created_by is not null then 'user' else 'system' end,
+        jsonb_build_object(
+            'vet_case_id', p_vet_case_id,
+            'recommendation_type', p_recommendation_type,
+            'treatment_id', p_treatment_id,
+            'withdrawal_period_days', v_withdrawal_days,
+            'has_health_restriction', (v_withdrawal_days > 0 and p_recommendation_type = 'medication')
+        )
+    );
+
+    -- Note: health_restriction auto-created by trigger
+    -- trg_health_restriction_from_rec (fn_create_health_restriction_from_rec)
+    -- if recommendation_type='medication' and dosage_info.withdrawal_period_days > 0
+
+    return v_recommendation_id;
+end;
+$$;
+comment on function public.rpc_add_vet_recommendation(uuid, uuid, text, uuid, uuid, text, text, int, int, text, text, uuid) is
+    'RPC-27 (Dok 3 §6.3): Add treatment recommendation to VetCase.
+     D92: dosage_info = immutable snapshot from treatments + vet_products.
+     D98: health_restriction auto-created by trigger fn_create_health_restriction_from_rec
+          when recommendation_type=medication and withdrawal_period_days > 0.
+     P-AI-4: dosage_note accepted as-is — numeric dosage validation is in AI compliance layer.
+     Events: vet.recommendation.added.
+     If health_restriction created: vet.health_restriction.created (from trigger).';
+
+-- -------------------------------------------------------
+-- NEW (D-F11-1): rpc_get_vet_case_detail
+-- Farmer Cabinet F11: full vet case with diagnoses, recommendations,
+-- health_restrictions, and consultation_request in one RPC call.
+-- JWT-compatible: farmer calls this, not service_role only.
+-- -------------------------------------------------------
+create or replace function public.rpc_get_vet_case_detail(
+    p_organization_id   uuid,
+    p_vet_case_id       uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_result        jsonb;
+    v_case          record;
+    v_diagnoses     jsonb;
+    v_recommendations jsonb;
+    v_restrictions  jsonb;
+    v_consultation  jsonb;
+    v_herd_group    jsonb;
+    v_farm_name     text;
+begin
+    -- 1. Fetch VetCase with ownership check
+    select vc.*, f.name as farm_name
+    into v_case
+    from public.vet_cases vc
+    join public.farms f on f.id = vc.farm_id
+    where vc.id = p_vet_case_id
+      and vc.organization_id = p_organization_id;
+
+    if v_case is null then
+        raise exception 'VET_CASE_NOT_FOUND: vet_case_id=% not found for organization=%',
+            p_vet_case_id, p_organization_id;
+    end if;
+
+    -- 2. Herd group info (nullable)
+    if v_case.herd_group_id is not null then
+        select jsonb_build_object(
+            'id', hg.id,
+            'category_name', ac.name_ru,
+            'head_count', hg.head_count
+        )
+        into v_herd_group
+        from public.herd_groups hg
+        left join public.animal_categories ac on ac.id = hg.animal_category_id
+        where hg.id = v_case.herd_group_id;
+    else
+        v_herd_group := null;
+    end if;
+
+    -- 3. Diagnoses (ordered by created_at)
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', vd.id,
+            'disease_name', coalesce(d.name_ru, 'Неизвестное заболевание'),
+            'confidence_pct', case when vd.confidence is not null
+                              then round(vd.confidence * 100)::int
+                              else null end,
+            'source', vd.source,
+            'is_final', vd.is_final,
+            'notes', vd.notes,
+            'created_at', vd.created_at
+        ) order by vd.created_at
+    ), '[]'::jsonb)
+    into v_diagnoses
+    from public.vet_diagnoses vd
+    left join public.diseases d on d.id = vd.disease_id
+    where vd.vet_case_id = p_vet_case_id;
+
+    -- 4. Recommendations (ordered by priority, created_at)
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', vr.id,
+            'type', vr.recommendation_type,
+            'treatment_name', coalesce(t.name_ru, vp_direct.brand_name),
+            'application_method', coalesce(
+                vr.dosage_info->>'administration_route',
+                t.administration_route
+            ),
+            'duration_days', coalesce(
+                (vr.dosage_info->>'duration_days')::int,
+                t.duration_days
+            ),
+            'dosage_note', vr.text_ru,
+            'withdrawal_days', coalesce(
+                (vr.dosage_info->>'withdrawal_period_days')::int,
+                0
+            ),
+            'notes', case when vr.text_ru != vr.recommendation_type
+                     then vr.text_ru else null end,
+            'source', vr.source,
+            'is_completed', vr.is_completed,
+            'created_at', vr.created_at
+        ) order by vr.priority, vr.created_at
+    ), '[]'::jsonb)
+    into v_recommendations
+    from public.vet_recommendations vr
+    left join public.treatments t on t.id = vr.treatment_id
+    left join public.vet_products vp_direct on vp_direct.id = (
+        select vp2.id from public.vet_products vp2
+        where vp2.id::text = vr.dosage_info->>'vet_product_id'
+        limit 1
+    )
+    where vr.vet_case_id = p_vet_case_id;
+
+    -- 5. Active health_restrictions for the herd_group (if any)
+    if v_case.herd_group_id is not null then
+        select coalesce(jsonb_agg(
+            jsonb_build_object(
+                'restriction_type', hr.restriction_type,
+                'reason', hr.reason_text,
+                'expires_at', hr.ends_at
+            ) order by hr.ends_at
+        ), '[]'::jsonb)
+        into v_restrictions
+        from public.health_restrictions hr
+        where hr.herd_group_id = v_case.herd_group_id
+          and hr.organization_id = p_organization_id
+          and now() < hr.ends_at;  -- active restrictions only
+    else
+        v_restrictions := '[]'::jsonb;
+    end if;
+
+    -- 6. Consultation request (if escalated)
+    if v_case.consultation_request_id is not null then
+        select jsonb_build_object(
+            'id', cr.id,
+            'status', cr.status,
+            'expert_name', u.full_name
+        )
+        into v_consultation
+        from public.consultation_requests cr
+        left join public.expert_profiles ep on ep.id = cr.expert_profile_id
+        left join public.users u on u.id = ep.user_id
+        where cr.id = v_case.consultation_request_id;
+    else
+        v_consultation := null;
+    end if;
+
+    -- 7. Build result
+    v_result := jsonb_build_object(
+        'case_id',              v_case.id,
+        'farm_id',              v_case.farm_id,
+        'farm_name',            v_case.farm_name,
+        'herd_group',           v_herd_group,
+        'status',               v_case.status,
+        'severity',             v_case.severity,
+        'symptoms_text',        v_case.symptoms_text,
+        'symptoms_structured',  v_case.symptoms_structured,
+        'affected_heads',       v_case.affected_head_count,
+        'created_at',           v_case.created_at,
+        'created_via',          v_case.created_via,
+        'resolved_at',          v_case.resolved_at,
+        'resolution_notes',     v_case.resolution_notes,
+        'diagnoses',            v_diagnoses,
+        'recommendations',      v_recommendations,
+        'health_restrictions',  v_restrictions,
+        'consultation_request', v_consultation
+    );
+
+    return v_result;
+end;
+$$;
+comment on function public.rpc_get_vet_case_detail(uuid, uuid) is
+    'D-F11-1 (Slice 1): Full vet case detail for Farmer Cabinet F11.
+     Returns case + diagnoses + recommendations + health_restrictions + consultation in one call.
+     JWT-compatible: farmer calls via supabase.rpc(), ownership checked via p_organization_id.
+     Replaces direct table reads — single RPC for entire screen (P9 farmer-centric).
+     Read-only (stable).';
+
+-- -------------------------------------------------------
+-- rpc_name_registry entries for Slice 1 vet RPCs
+-- -------------------------------------------------------
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_add_vet_diagnosis',       'rpc_add_vet_diagnosis',    null, 'd04_vet.sql', 'RPC-26: Add diagnosis to VetCase (Slice 1)'),
+    ('rpc_add_vet_recommendation',  'rpc_add_vet_recommendation', null, 'd04_vet.sql', 'RPC-27: Add treatment recommendation (Slice 1, D98 health_restriction via trigger)'),
+    ('rpc_get_vet_case_detail',     null,                       null, 'd04_vet.sql', 'D-F11-1: Full vet case detail for F11 (Slice 1, CEO decision)')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        created_in     = excluded.created_in,
+        notes          = excluded.notes;
+
+-- ============================================================
 -- SECTION 7: CLOSE DEFERRED FK FROM 001_kernel.sql
 -- D58: consultation_requests.vet_case_id → vet_cases(id)
 -- Был намеренно отложен в 001_kernel.sql (forward reference).

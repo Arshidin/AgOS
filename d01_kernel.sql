@@ -2334,116 +2334,6 @@ comment on function public.release_conversation_lock(bigint) is
      ФУНКЦИЯ СОХРАНЕНА для совместимости — вызов безопасен, ничего не делает.
      ❌ НЕ использовать в новом коде.';
 
--- ============================================================
--- PATCH 6: Dedup RPC — атомарный INSERT (C-2, C-5)
---
--- C-2: public. схема (не rpc.)
--- C-5: Требует ai_messages.whatsapp_message_id (Patch 2 выше)
--- Заменяет SELECT→INSERT (race condition) атомарным INSERT ON CONFLICT.
--- ============================================================
-
-create or replace function public.insert_user_message_dedup(
-    p_conversation_id     uuid,
-    p_content             text,
-    p_whatsapp_message_id text
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-    v_id             uuid;
-    v_seq            int;
-begin
-    -- Получить следующий sequence_number для этого conversation
-    select coalesce(max(sequence_number), 0) + 1
-    into   v_seq
-    from   public.ai_messages
-    where  conversation_id = p_conversation_id;
-
-    -- Атомарный INSERT: ON CONFLICT DO NOTHING устраняет race condition.
-    -- Два одновременных webhook с одним message_id → только один INSERT.
-    insert into public.ai_messages (
-        conversation_id,
-        role,
-        content_type,
-        content_text,
-        whatsapp_message_id,
-        sequence_number
-    )
-    values (
-        p_conversation_id,
-        'user',
-        'text',
-        p_content,
-        p_whatsapp_message_id,
-        v_seq
-    )
-    on conflict (whatsapp_message_id) do nothing
-    returning id into v_id;
-
-    -- v_id IS NULL → конфликт (дубль), сообщение уже обработано
-    return jsonb_build_object(
-        'is_new',      v_id is not null,
-        'message_id',  v_id
-    );
-end;
-$$;
-
-comment on function public.insert_user_message_dedup(uuid, text, text) is
-    'C-2/C-5/D129: Атомарный dedup через INSERT ON CONFLICT.
-     Возвращает {is_new: true, message_id: uuid} если новое сообщение.
-     Возвращает {is_new: false, message_id: null} если дубль (уже обработан).
-     Вызывающий Gateway: if not result.data["is_new"]: return (прекратить обработку).
-     Заменяет SELECT→INSERT паттерн (race condition при параллельных webhook).
-     Требует: ai_messages.whatsapp_message_id + UNIQUE INDEX (Patch 2).';
-
--- ============================================================
--- PATCH 7: Notification dispatch RPCs (C-2, C-6, L-4)
---
--- claim_pending_notifications: атомарный batch с SKIP LOCKED
--- mark_notification_sent / mark_notification_failed: статус после отправки
--- ============================================================
-
--- ── claim_pending_notifications ─────────────────────────────
-create or replace function public.claim_pending_notifications(
-    p_batch_size int     default 50,
-    p_worker_id  text    default 'local'
-)
-returns setof public.notifications
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-begin
-    return query
-    update public.notifications
-    set    locked_by = p_worker_id,
-           locked_at = now()
-    where  id in (
-        select id
-        from   public.notifications
-        where  delivery_status = 'pending'
-          and  scheduled_for   <= now()
-          and  (locked_by is null
-                or locked_at < now() - interval '10 minutes')  -- stale lock
-        order by scheduled_for
-        limit  p_batch_size
-        for update skip locked   -- пропустить строки захваченные другим воркером
-    )
-    returning *;
-end;
-$$;
-
-comment on function public.claim_pending_notifications(int, text) is
-    'C-2/C-6/D127: Атомарно захватить batch уведомлений для отправки.
-     FOR UPDATE SKIP LOCKED: безопасно при нескольких инстансах Gateway.
-     Stale lock: если locked_at < now()-10min → воркер упал, можно захватить.
-     p_batch_size=50: backpressure (не флудить WhatsApp API).
-     p_worker_id: FLY_MACHINE_ID или "local" — для диагностики.
-     Требует: notifications.locked_by + locked_at (Patch 3).';
-
 -- ── mark_notification_sent ───────────────────────────────────
 create or replace function public.mark_notification_sent(
     p_notification_id uuid
@@ -2469,37 +2359,6 @@ comment on function public.mark_notification_sent(uuid) is
     'C-2/L-4: Отметить уведомление как отправленное.
      Освобождает locked_by/locked_at — notification больше не захвачена.
      Вызывается после успешного send_proactive_message().';
-
--- ── mark_notification_failed ─────────────────────────────────
-create or replace function public.mark_notification_failed(
-    p_notification_id uuid,
-    p_error           text
-)
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-begin
-    -- L-4: Функция не существовала — создаём.
-    update public.notifications
-    set    delivery_status = 'failed',
-           failed_at       = now(),
-           error_text      = p_error,
-           retry_count     = retry_count + 1,
-           locked_by       = null,    -- освободить lock (другой воркер попробует retry)
-           locked_at       = null,
-           updated_at      = now()
-    where  id = p_notification_id;
-end;
-$$;
-
-comment on function public.mark_notification_failed(uuid, text) is
-    'C-2/L-4: Отметить уведомление как неуспешное.
-     Сохраняет error_text для диагностики.
-     Инкрементирует retry_count.
-     Освобождает lock — при следующем dispatch цикле можно повторить.
-     Вызывается в except блоке send_proactive_message().';
 
 -- ============================================================
 -- PATCH 8: invalidate_ai_context RPC (L-6)
@@ -3342,3 +3201,831 @@ create index if not exists idx_rpc_registry_dok5
 -- ============================================================
 -- Fixes:
 --   D-NEW-1  fn_my_org_ids() DB hit on every RLS row → JWT claims fast path
+-- NOTE: Migration 015 content was truncated during consolidation.
+-- TODO: Restore fn_auth_custom_claims + embedding_queue from original file.
+-- ============================================================
+
+
+-- ============================================================
+-- SECTION: SLICE 1 — Sick Calf RPCs
+-- Date: 2026-03-18
+-- RPCs: RPC-01, RPC-02, RPC-04, RPC-05, RPC-05b, RPC-40
+-- Dok 3 §2 (Identity), §3 (Farm), §9 (Platform)
+-- ============================================================
+
+-- ============================================================
+-- RPC-01: rpc_register_organization
+-- Dok 3 §2.1 | Callers: [WEB] [AI]
+-- Atomic: Organization + OrganizationTypeAssignment + UserOrganizationRole + Farm (if farmer) + Membership
+-- CEO Decision D-F01-3: supports org_types from schema CHECK (farmer, mpk, supplier, consultant, other)
+-- CEO Decision D-F01-2: Auth is OTP; user already authenticated before this RPC
+-- ============================================================
+create or replace function public.rpc_register_organization(
+    p_organization_id   uuid,       -- ignored for this RPC; included for P-AI-2 signature consistency
+    p_org_type          text,
+    p_name              text,
+    p_bin               text        default null,
+    p_region_id         uuid        default null,
+    p_phone             text        default null,
+    p_invited_by        uuid        default null,
+    p_role_data         jsonb       default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_user_id       uuid;
+    v_org_id        uuid;
+    v_farm_id       uuid;
+    v_membership_id uuid;
+begin
+    -- Resolve current user
+    v_user_id := public.fn_current_user_id();
+    if v_user_id is null then
+        raise exception 'AUTH_REQUIRED: user not authenticated'
+            using errcode = 'P0001';
+    end if;
+
+    -- Validate org_type against schema CHECK values
+    if p_org_type not in ('farmer', 'mpk', 'supplier', 'consultant', 'other') then
+        raise exception 'INVALID_ORG_TYPE: % is not a valid org_type', p_org_type
+            using errcode = 'P0001';
+    end if;
+
+    -- Check BIN uniqueness (if provided)
+    if p_bin is not null then
+        if exists (select 1 from public.organizations where bin_iin = p_bin and is_active = true) then
+            raise exception 'BIN_DUPLICATE: organization with BIN % already exists', p_bin
+                using errcode = 'P0001';
+        end if;
+    end if;
+
+    -- 1. Create Organization
+    insert into public.organizations (
+        legal_name,
+        bin_iin,
+        region_id,
+        phone
+    ) values (
+        p_name,
+        p_bin,
+        p_region_id,
+        p_phone
+    )
+    returning id into v_org_id;
+
+    -- 2. Create OrganizationTypeAssignment
+    insert into public.organization_type_assignments (
+        organization_id,
+        org_type,
+        assigned_by
+    ) values (
+        v_org_id,
+        p_org_type,
+        v_user_id
+    );
+
+    -- 3. Create UserOrganizationRole (owner)
+    insert into public.user_organization_roles (
+        user_id,
+        organization_id,
+        role,
+        is_primary
+    ) values (
+        v_user_id,
+        v_org_id,
+        'owner',
+        true
+    );
+
+    -- 4. Create Membership record (level = registered, D3)
+    insert into public.memberships (
+        organization_id,
+        org_type,
+        level
+    ) values (
+        v_org_id,
+        p_org_type,
+        'registered'
+    )
+    returning id into v_membership_id;
+
+    -- 5. Auto-create Farm if org_type = 'farmer'
+    if p_org_type = 'farmer' then
+        insert into public.farms (
+            organization_id,
+            name,
+            region_id,
+            is_primary,
+            data_source
+        ) values (
+            v_org_id,
+            coalesce(p_role_data->>'farm_name', p_name || ' — ферма'),
+            p_region_id,
+            true,
+            'registration'
+        )
+        returning id into v_farm_id;
+    end if;
+
+    -- 6. Emit event: identity.organization.registered
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'identity.organization.registered',
+        'organizations',
+        v_org_id,
+        v_org_id,
+        'farmer',
+        v_user_id,
+        jsonb_build_object(
+            'org_type', p_org_type,
+            'name', p_name,
+            'farm_id', v_farm_id,
+            'invited_by', p_invited_by,
+            'role_data', p_role_data
+        ),
+        true
+    );
+
+    return jsonb_build_object(
+        'org_id',  v_org_id,
+        'farm_id', v_farm_id
+    );
+end;
+$$;
+
+comment on function public.rpc_register_organization(uuid, text, text, text, uuid, text, uuid, jsonb) is
+    'RPC-01 | Dok 3 §2.1 | Slice 1
+     Atomic registration: Organization + TypeAssignment + UserOrganizationRole(owner) + Membership(registered) + Farm(if farmer).
+     D-F01-2: User authenticated via OTP before this call.
+     D-F01-3: org_types from schema CHECK (farmer, mpk, supplier, consultant, other).
+     p_role_data jsonb: role-specific fields stored in platform_events payload (not in org table — no metadata column exists).
+     DEFECT FLAG: CEO decision D-F01-3 mentions services/feed_producer org_types that do not exist in schema CHECK.
+     Error codes: BIN_DUPLICATE, INVALID_ORG_TYPE, AUTH_REQUIRED.
+     Event: identity.organization.registered (is_audit=true).';
+
+
+-- ============================================================
+-- RPC-02: rpc_submit_membership_application
+-- Dok 3 §2.2 | Callers: [WEB] [AI]
+-- Creates MembershipApplication with status='submitted'
+-- ============================================================
+create or replace function public.rpc_submit_membership_application(
+    p_organization_id   uuid,
+    p_membership_type   text,
+    p_notes             text    default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_membership_id     uuid;
+    v_current_level     text;
+    v_application_id    uuid;
+    v_to_level          text;
+begin
+    -- Validate membership_type
+    if p_membership_type not in ('associate', 'full', 'premium', 'honorary') then
+        raise exception 'INVALID_MEMBERSHIP_TYPE: % is not valid', p_membership_type
+            using errcode = 'P0001';
+    end if;
+
+    -- Find existing membership for this org
+    select id, level
+    into   v_membership_id, v_current_level
+    from   public.memberships
+    where  organization_id = p_organization_id
+    limit  1;
+
+    if v_membership_id is null then
+        raise exception 'NO_MEMBERSHIP: organization % has no membership record', p_organization_id
+            using errcode = 'P0001';
+    end if;
+
+    -- Check: already active at a real membership level (beyond registered)
+    if v_current_level not in ('registered', 'observer') then
+        raise exception 'ALREADY_ACTIVE: organization already has active membership level %', v_current_level
+            using errcode = 'P0001';
+    end if;
+
+    -- Check: no pending application exists
+    if exists (
+        select 1 from public.membership_applications
+        where  organization_id = p_organization_id
+          and  status in ('submitted', 'under_review')
+    ) then
+        raise exception 'PENDING_EXISTS: an application is already pending for this organization'
+            using errcode = 'P0001';
+    end if;
+
+    -- Determine target level: observer (first step from registered)
+    v_to_level := 'observer';
+
+    -- Create application
+    insert into public.membership_applications (
+        membership_id,
+        organization_id,
+        from_level,
+        to_level,
+        status,
+        reviewer_notes,
+        supporting_docs
+    ) values (
+        v_membership_id,
+        p_organization_id,
+        v_current_level,
+        v_to_level,
+        'submitted',
+        p_notes,
+        null
+    )
+    returning id into v_application_id;
+
+    -- Emit event: identity.membership_application.submitted
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'identity.membership_application.submitted',
+        'membership_applications',
+        v_application_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'from_level', v_current_level,
+            'to_level', v_to_level,
+            'membership_type', p_membership_type,
+            'notes', p_notes
+        ),
+        true
+    );
+
+    return v_application_id;
+end;
+$$;
+
+comment on function public.rpc_submit_membership_application(uuid, text, text) is
+    'RPC-02 | Dok 3 §2.2 | Slice 1
+     Submit membership application: status=submitted, from_level=current, to_level=observer.
+     p_membership_type stored in event payload (informational — actual levels follow FSM).
+     Error codes: ALREADY_ACTIVE, PENDING_EXISTS, NO_MEMBERSHIP, INVALID_MEMBERSHIP_TYPE.
+     Event: identity.membership_application.submitted (is_audit=true).';
+
+
+-- ============================================================
+-- RPC-04: rpc_get_my_context
+-- Dok 3 §2 (implicit) | Callers: [WEB] [AI]
+-- Returns full user context for cabinet initialization
+-- STABLE read function — no side effects
+-- ============================================================
+create or replace function public.rpc_get_my_context(
+    p_organization_id   uuid    default null     -- optional: specific org context; null = all
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+stable
+as $$
+declare
+    v_user_id   uuid;
+    v_result    jsonb;
+begin
+    v_user_id := public.fn_current_user_id();
+    if v_user_id is null then
+        raise exception 'AUTH_REQUIRED: user not authenticated'
+            using errcode = 'P0001';
+    end if;
+
+    select jsonb_build_object(
+        'user_id', v_user_id,
+        'organizations', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'id', o.id,
+                'legal_name', o.legal_name,
+                'bin_iin', o.bin_iin,
+                'region_id', o.region_id,
+                'phone', o.phone,
+                'role', uor.role,
+                'is_primary', uor.is_primary,
+                'org_types', (
+                    select coalesce(jsonb_agg(ota.org_type), '[]'::jsonb)
+                    from public.organization_type_assignments ota
+                    where ota.organization_id = o.id
+                )
+            ))
+            from public.user_organization_roles uor
+            join public.organizations o on o.id = uor.organization_id and o.is_active = true
+            where uor.user_id = v_user_id
+              and (p_organization_id is null or o.id = p_organization_id)
+        ), '[]'::jsonb),
+        'farms', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'id', f.id,
+                'organization_id', f.organization_id,
+                'name', f.name,
+                'region_id', f.region_id,
+                'shelter_type', f.shelter_type,
+                'calving_system', f.calving_system,
+                'total_area_ha', f.total_area_ha,
+                'is_primary', f.is_primary,
+                'activity_types', (
+                    select coalesce(jsonb_agg(fat.activity_type), '[]'::jsonb)
+                    from public.farm_activity_types fat
+                    where fat.farm_id = f.id
+                )
+            ))
+            from public.farms f
+            join public.user_organization_roles uor2 on uor2.organization_id = f.organization_id
+            where uor2.user_id = v_user_id
+              and f.is_active = true
+              and (p_organization_id is null or f.organization_id = p_organization_id)
+        ), '[]'::jsonb),
+        'memberships', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'id', m.id,
+                'organization_id', m.organization_id,
+                'org_type', m.org_type,
+                'level', m.level,
+                'level_changed_at', m.level_changed_at
+            ))
+            from public.memberships m
+            join public.user_organization_roles uor3 on uor3.organization_id = m.organization_id
+            where uor3.user_id = v_user_id
+              and (p_organization_id is null or m.organization_id = p_organization_id)
+        ), '[]'::jsonb),
+        'active_restrictions', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                'id', rr.id,
+                'organization_id', rr.organization_id,
+                'restriction_type', rr.restriction_type,
+                'reason', rr.reason,
+                'created_at', rr.created_at
+            ))
+            from public.restriction_records rr
+            join public.user_organization_roles uor4 on uor4.organization_id = rr.organization_id
+            where uor4.user_id = v_user_id
+              and rr.lifted_at is null
+              and (p_organization_id is null or rr.organization_id = p_organization_id)
+        ), '[]'::jsonb)
+    ) into v_result;
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_my_context(uuid) is
+    'RPC-04 | Dok 3 §2 | Slice 1
+     Full user context for cabinet initialization (F01, F02, F10 page load).
+     STABLE: no side effects, safe to cache per transaction.
+     Returns: { user_id, organizations[], farms[], memberships[], active_restrictions[] }
+     p_organization_id optional — null returns all orgs, uuid filters to one.
+     Used by both Web Cabinet and AI Gateway context loading.';
+
+
+-- ============================================================
+-- RPC-05: rpc_upsert_farm
+-- Dok 3 §3.1 | Callers: [WEB] [AI]
+-- Creates or updates Farm record
+-- p_farm_id=null → INSERT, p_farm_id=uuid → UPDATE
+-- ============================================================
+create or replace function public.rpc_upsert_farm(
+    p_organization_id   uuid,
+    p_farm_id           uuid        default null,
+    p_name              text        default null,
+    p_region_id         uuid        default null,
+    p_shelter_type      text        default null,
+    p_calving_system    text        default null,
+    p_total_area_ha     numeric     default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_farm_id       uuid;
+    v_event_type    text;
+begin
+    if p_farm_id is null then
+        -- CREATE new farm
+        if p_name is null then
+            raise exception 'NAME_REQUIRED: farm name is required for creation'
+                using errcode = 'P0001';
+        end if;
+
+        insert into public.farms (
+            organization_id,
+            name,
+            region_id,
+            shelter_type,
+            calving_system,
+            total_area_ha,
+            data_source,
+            is_primary
+        ) values (
+            p_organization_id,
+            p_name,
+            p_region_id,
+            p_shelter_type,
+            p_calving_system,
+            p_total_area_ha,
+            'platform',
+            -- is_primary = true only if this is the first farm for the org
+            not exists (select 1 from public.farms where organization_id = p_organization_id and is_active = true)
+        )
+        returning id into v_farm_id;
+
+        v_event_type := 'farm.farm.created';
+    else
+        -- UPDATE existing farm — ownership check
+        if not exists (
+            select 1 from public.farms
+            where id = p_farm_id and organization_id = p_organization_id and is_active = true
+        ) then
+            raise exception 'FARM_NOT_FOUND: farm % does not belong to organization %', p_farm_id, p_organization_id
+                using errcode = 'P0001';
+        end if;
+
+        update public.farms
+        set    name           = coalesce(p_name, name),
+               region_id      = coalesce(p_region_id, region_id),
+               shelter_type   = coalesce(p_shelter_type, shelter_type),
+               calving_system = coalesce(p_calving_system, calving_system),
+               total_area_ha  = coalesce(p_total_area_ha, total_area_ha)
+        where  id = p_farm_id
+          and  organization_id = p_organization_id;
+
+        v_farm_id := p_farm_id;
+        v_event_type := 'farm.farm.updated';
+    end if;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        v_event_type,
+        'farms',
+        v_farm_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'name', p_name,
+            'region_id', p_region_id,
+            'shelter_type', p_shelter_type,
+            'calving_system', p_calving_system,
+            'total_area_ha', p_total_area_ha
+        ),
+        false
+    );
+
+    return v_farm_id;
+end;
+$$;
+
+comment on function public.rpc_upsert_farm(uuid, uuid, text, uuid, text, text, numeric) is
+    'RPC-05 | Dok 3 §3.1 | Slice 1
+     Create or update farm. p_farm_id=null → INSERT, p_farm_id=uuid → UPDATE.
+     Ownership check: farm must belong to p_organization_id.
+     Idempotent UPDATE: only non-null params overwrite (COALESCE pattern).
+     First farm for an org gets is_primary=true automatically.
+     Events: farm.farm.created | farm.farm.updated.';
+
+
+-- ============================================================
+-- RPC-05b: rpc_set_farm_activity_types
+-- Dok 3 §3 | Callers: [WEB] [AI]
+-- Sets activity types for a farm (full replacement, idempotent)
+-- farm_activity_types is a junction table: (farm_id, activity_type)
+-- ============================================================
+create or replace function public.rpc_set_farm_activity_types(
+    p_organization_id       uuid,
+    p_farm_id               uuid,
+    p_activity_types        text[]      -- array of activity_type values
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_inserted  text[];
+    v_removed   text[];
+    v_existing  text[];
+begin
+    -- Ownership check: farm must belong to org
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FARM_NOT_FOUND: farm % does not belong to organization %', p_farm_id, p_organization_id
+            using errcode = 'P0001';
+    end if;
+
+    -- Get current activity types
+    select array_agg(activity_type)
+    into   v_existing
+    from   public.farm_activity_types
+    where  farm_id = p_farm_id;
+
+    v_existing := coalesce(v_existing, array[]::text[]);
+
+    -- Compute delta: what to remove (existing but not in new set)
+    select array_agg(e)
+    into   v_removed
+    from   unnest(v_existing) as e
+    where  e != all(p_activity_types);
+
+    v_removed := coalesce(v_removed, array[]::text[]);
+
+    -- Compute delta: what to insert (in new set but not existing)
+    select array_agg(n)
+    into   v_inserted
+    from   unnest(p_activity_types) as n
+    where  n != all(v_existing);
+
+    v_inserted := coalesce(v_inserted, array[]::text[]);
+
+    -- Remove old
+    if array_length(v_removed, 1) > 0 then
+        delete from public.farm_activity_types
+        where  farm_id = p_farm_id
+          and  activity_type = any(v_removed);
+    end if;
+
+    -- Insert new
+    if array_length(v_inserted, 1) > 0 then
+        insert into public.farm_activity_types (farm_id, activity_type)
+        select p_farm_id, unnest(v_inserted)
+        on conflict (farm_id, activity_type) do nothing;
+    end if;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'farm.farm_activity_types.updated',
+        'farm_activity_types',
+        p_farm_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'inserted', to_jsonb(v_inserted),
+            'removed', to_jsonb(v_removed),
+            'current', to_jsonb(p_activity_types)
+        ),
+        false
+    );
+
+    return jsonb_build_object(
+        'inserted', to_jsonb(v_inserted),
+        'removed',  to_jsonb(v_removed)
+    );
+end;
+$$;
+
+comment on function public.rpc_set_farm_activity_types(uuid, uuid, text[]) is
+    'RPC-05b | Dok 3 §3 | Slice 1
+     Set activity types for a farm (full replacement).
+     Idempotent: accepts full set, computes delta (inserted/removed).
+     Valid activity_types: cow_calf, finishing, dairy, breeding, mixed (schema CHECK).
+     Ownership check: farm must belong to p_organization_id.
+     Event: farm.farm_activity_types.updated.';
+
+
+-- ============================================================
+-- RPC-40: rpc_start_ai_conversation
+-- Dok 3 §9.1 | Callers: [AI]
+-- Creates AIConversation record for a farm
+-- This function is in d01 (platform domain), NOT d07
+-- ============================================================
+create or replace function public.rpc_start_ai_conversation(
+    p_organization_id   uuid,
+    p_farm_id           uuid        default null,
+    p_phone             text        default null,
+    p_language          text        default 'ru'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_user_id       uuid;
+    v_conv_id       uuid;
+    v_context       jsonb;
+begin
+    -- Resolve user: from JWT or by phone
+    v_user_id := public.fn_current_user_id();
+
+    -- If called by AI Gateway (service_role), resolve by phone
+    if v_user_id is null and p_phone is not null then
+        select u.id into v_user_id
+        from   public.users u
+        where  u.phone = p_phone and u.is_active = true
+        limit  1;
+    end if;
+
+    if v_user_id is null then
+        raise exception 'USER_NOT_FOUND: cannot resolve user for conversation'
+            using errcode = 'P0001';
+    end if;
+
+    -- Validate organization ownership
+    if not exists (
+        select 1 from public.user_organization_roles
+        where user_id = v_user_id and organization_id = p_organization_id
+    ) then
+        raise exception 'ORG_NOT_FOUND: user does not belong to organization %', p_organization_id
+            using errcode = 'P0001';
+    end if;
+
+    -- Validate language
+    if p_language not in ('ru', 'kk') then
+        p_language := 'ru';
+    end if;
+
+    -- Check for existing active conversation (reuse if within 24h window)
+    select id into v_conv_id
+    from   public.ai_conversations
+    where  organization_id = p_organization_id
+      and  user_id = v_user_id
+      and  is_active = true
+      and  session_expires_at > now()
+    order by created_at desc
+    limit 1;
+
+    if v_conv_id is not null then
+        -- Reuse existing active conversation
+        -- Update active_farm_id if a new farm is specified
+        if p_farm_id is not null then
+            update public.ai_conversations
+            set    active_farm_id = p_farm_id
+            where  id = v_conv_id;
+        end if;
+    else
+        -- Create new conversation
+        insert into public.ai_conversations (
+            organization_id,
+            user_id,
+            channel,
+            current_role,
+            active_farm_id,
+            detected_language,
+            session_started_at,
+            session_expires_at
+        ) values (
+            p_organization_id,
+            v_user_id,
+            'whatsapp',
+            'consultant',
+            p_farm_id,
+            p_language,
+            now(),
+            now() + interval '24 hours'
+        )
+        returning id into v_conv_id;
+    end if;
+
+    -- Load context via rpc_get_ai_farm_context if farm_id is set
+    -- NOTE: rpc_get_ai_farm_context is defined in d07_ai_gateway.sql
+    -- We call it here only if it exists; otherwise return minimal context
+    if p_farm_id is not null then
+        begin
+            select public.rpc_get_ai_farm_context(p_organization_id, p_farm_id)
+            into   v_context;
+        exception when undefined_function then
+            -- d07 not yet deployed; return minimal context
+            v_context := jsonb_build_object(
+                'farm_id', p_farm_id,
+                'note', 'full context not available — d07 not deployed'
+            );
+        end;
+    else
+        v_context := jsonb_build_object(
+            'note', 'no farm specified'
+        );
+    end if;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'platform.ai_conversation.started',
+        'ai_conversations',
+        v_conv_id,
+        p_organization_id,
+        'ai_gateway',
+        v_user_id,
+        jsonb_build_object(
+            'farm_id', p_farm_id,
+            'language', p_language,
+            'reused', v_conv_id is not null
+        ),
+        false
+    );
+
+    return jsonb_build_object(
+        'conv_id', v_conv_id,
+        'context', v_context
+    );
+end;
+$$;
+
+comment on function public.rpc_start_ai_conversation(uuid, uuid, text, text) is
+    'RPC-40 | Dok 3 §9.1 | Slice 1
+     Initialize AI conversation session (24h window per D64).
+     Reuses existing active conversation if within 24h window.
+     Loads farm context via rpc_get_ai_farm_context (d07) if available.
+     Called by AI Gateway at start of WhatsApp interaction.
+     p_phone: used when caller is service_role (AI Gateway) to resolve user.
+     p_language: detected language (ru/kk). Default ru.
+     Event: platform.ai_conversation.started.';
+
+
+-- ============================================================
+-- SLICE 1: Add new RPCs to rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_register_organization',           'rpc_register_organization',            null,   'd01_kernel.sql (Slice 1)',     'RPC-01: Atomic org registration + farm auto-create'),
+    ('rpc_submit_membership_application',   'rpc_submit_membership_application',    null,   'd01_kernel.sql (Slice 1)',     'RPC-02: Submit membership application'),
+    ('rpc_get_my_context',                  'rpc_get_my_context',                   null,   'd01_kernel.sql (Slice 1)',     'RPC-04: Full user context for cabinet init'),
+    ('rpc_upsert_farm',                     'rpc_upsert_farm',                      null,   'd01_kernel.sql (Slice 1)',     'RPC-05: Create or update farm'),
+    ('rpc_set_farm_activity_types',         'rpc_set_farm_activity_types',           null,   'd01_kernel.sql (Slice 1)',     'RPC-05b: Set farm activity types (full replacement)'),
+    ('rpc_start_ai_conversation',           'rpc_start_ai_conversation',            null,   'd01_kernel.sql (Slice 1)',     'RPC-40: Initialize AI conversation session')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- END Slice 1 d01_kernel.sql RPCs
+-- ============================================================
+-- Summary:
+--   RPC-01  rpc_register_organization          ✅ Implemented
+--   RPC-02  rpc_submit_membership_application  ✅ Implemented
+--   RPC-04  rpc_get_my_context                 ✅ Implemented
+--   RPC-05  rpc_upsert_farm                    ✅ Implemented
+--   RPC-05b rpc_set_farm_activity_types        ✅ Implemented
+--   RPC-40  rpc_start_ai_conversation          ✅ Implemented
+--
+-- All functions: SECURITY DEFINER + SET search_path = public, pg_temp
+-- All functions: p_organization_id as parameter (P-AI-2)
+-- All functions: CREATE OR REPLACE (idempotent)
+-- All functions: Events via INSERT INTO platform_events
+-- All functions: Added to rpc_name_registry
+--
+-- DEFECTS FLAGGED:
+--   1. CEO decision D-F01-3 mentions org_types 'services' and 'feed_producer'
+--      that do NOT exist in schema CHECK constraint on organization_type_assignments.
+--      Schema allows: farmer, mpk, supplier, consultant, other.
+--      Resolution needed: either update schema CHECK or CEO revises decision.
+--
+--   2. Migration 015 content (fn_auth_custom_claims, embedding_queue) was
+--      truncated during consolidation. Needs restoration.
+-- ============================================================
