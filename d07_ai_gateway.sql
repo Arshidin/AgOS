@@ -4,9 +4,9 @@
 -- Consolidated: 2026-03-05 (pre-development baseline)
 --
 -- AI Gateway RPC Catalog.
-All functions callable by Python FastAPI (LangGraph).
-JWT custom claims hook. RPC name registry.
-SECURITY DEFINER: ownership validated via p_organization_id.
+-- All functions callable by Python FastAPI (LangGraph).
+-- JWT custom claims hook. RPC name registry.
+-- SECURITY DEFINER: ownership validated via p_organization_id.
 --
 -- Depends on: d01_kernel.sql, d02_tsp.sql, d03_feed.sql, d04_vet.sql, d05_ops_edu.sql
 -- Consolidated from: 011_ai_rpc_catalog.sql, 016_missing_rpcs.sql, 015_tech_debt.sql (JWT claims, rpc_name_registry)

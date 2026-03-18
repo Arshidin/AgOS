@@ -1998,11 +1998,18 @@ on conflict (sql_name) do update
 -- D58: consultation_requests.vet_case_id → vet_cases(id)
 -- Был намеренно отложен в 001_kernel.sql (forward reference).
 -- ============================================================
-alter table public.consultation_requests
-    add constraint fk_consultation_request_vet_case
-    foreign key (vet_case_id)
-    references public.vet_cases(id)
-    on delete set null;
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint where conname = 'fk_consultation_request_vet_case'
+    ) then
+        alter table public.consultation_requests
+            add constraint fk_consultation_request_vet_case
+            foreign key (vet_case_id)
+            references public.vet_cases(id)
+            on delete set null;
+    end if;
+end $$;
 
 comment on constraint fk_consultation_request_vet_case
     on public.consultation_requests is
@@ -2138,8 +2145,8 @@ select
     p.code, p.name_ru,
     d.id as disease_id,
     vp.id as vet_product_id,
-    p.dose_count, p.interval_days, p.annual_revac,
-    p.seasonal_months, p.is_mandatory, p.withdrawal,
+    p.dose_count, p.interval_days::int, p.annual_revac,
+    p.seasonal_months::int[], p.is_mandatory, p.withdrawal::int,
     'draft', p.source
 from (values
     ('FMD_ANNUAL_KZ',   'Вакцинация против ящура (ежегодная)',

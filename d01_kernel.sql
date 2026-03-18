@@ -4,7 +4,7 @@
 -- Consolidated: 2026-03-05 (pre-development baseline)
 --
 -- Identity + Farm + Platform domains.
-Includes AI conversation infrastructure, audit, embedding queue.
+-- Includes AI conversation infrastructure, audit, embedding queue.
 --
 -- Depends on: nothing — base migration
 -- Consolidated from: 001_kernel__1_.sql, 009_patch_ai__1_.sql, 013_patch_audit.sql, 014_patch_sequence_and_lock.sql, 015_tech_debt.sql (kernel parts)
@@ -3904,7 +3904,7 @@ begin
             organization_id,
             user_id,
             channel,
-            current_role,
+            "current_role",
             active_farm_id,
             detected_language,
             session_started_at,
