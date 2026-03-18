@@ -232,7 +232,7 @@ const Navbar = () => {
                 aria-haspopup="listbox"
               >
                 <Globe size={16} strokeWidth={1.5} aria-hidden />
-                <span style={{ fontSize: 12, fontWeight: 500 }}>{currentLang.display}</span>
+                <span style={{ fontSize: 12, fontWeight: 500 }}>{currentLang?.display}</span>
                 <ChevronDown
                   size={12}
                   strokeWidth={2}

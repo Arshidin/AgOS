@@ -15,7 +15,7 @@ const Reveal = ({ children, className = "", delay = 0 }: RevealProps) => {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry?.isIntersecting) {
           setTimeout(() => el.classList.add("visible"), delay);
           observer.unobserve(el);
         }

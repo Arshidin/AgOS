@@ -66,8 +66,8 @@ const ProjectOverlay = ({
   useEffect(() => {
     if (!isOpen) return;
     const toPreload: string[] = [];
-    if (activeIndex > 0) toPreload.push(projects[activeIndex - 1].image);
-    if (activeIndex < projects.length - 1) toPreload.push(projects[activeIndex + 1].image);
+    if (activeIndex > 0) toPreload.push(projects[activeIndex - 1]?.image ?? "");
+    if (activeIndex < projects.length - 1) toPreload.push(projects[activeIndex + 1]?.image ?? "");
     toPreload.forEach((src) => {
       const img = new Image();
       img.src = src;
@@ -108,11 +108,11 @@ const ProjectOverlay = ({
 
   /* Touch swipe for mobile */
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
+    touchStartX.current = e.touches[0]?.clientX ?? null;
     touchEndX.current = null;
   };
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
+    touchEndX.current = e.touches[0]?.clientX ?? null;
   };
   const handleTouchEnd = () => {
     if (touchStartX.current === null || touchEndX.current === null) return;

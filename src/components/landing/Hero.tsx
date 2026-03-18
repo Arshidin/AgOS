@@ -92,8 +92,8 @@ function useProjectPopups(): ProjectPopupData[] {
     description: t(`hero.projects.${projectKeys[i]}.description`),
     features: (t(`hero.projects.${projectKeys[i]}.features`, { returnObjects: true }) as string[]),
     link: projectLinks[i],
-    metrics: projectMetricKeys[i].map((mk, mi) => ({
-      value: projectMetricValues[i][mi],
+    metrics: (projectMetricKeys[i] ?? []).map((mk, mi) => ({
+      value: projectMetricValues[i]?.[mi] ?? "",
       label: t(`hero.projects.${projectKeys[i]}.metrics.${mk}`),
     })),
   }));
@@ -216,7 +216,7 @@ const Hero = () => {
   const countRef = useRef<HTMLSpanElement>(null);
   const iconRef = useRef<HTMLImageElement>(null);
   const startRef = useRef<number | null>(null);
-  const [target, setTarget] = useState(253);
+  const [target] = useState(253);
   const DURATION = 2500;
 
   /* Overlay state */
