@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { FloatingInput } from '../components/FloatingInput'
 import { PhoneInput } from '../components/PhoneInput'
-import { OtpInput } from '../components/OtpInput'
 import { BottomSheet } from '../components/BottomSheet'
 import { REGIONS } from '../constants'
 import type { RegistrationFormData } from '../constants'
@@ -15,11 +14,13 @@ interface ContactProps {
   onNext: () => void
 }
 
+/**
+ * Contact step — phone+password auth (v1 pattern).
+ * Phone maps to fake email: 7XXXXXXXXXX@phone.turan.kz
+ * Migration to OTP when Twilio is configured.
+ */
 export function Contact({ formData, onChange, onNext }: ContactProps) {
-  const [otpCode, setOtpCode] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [otpError, setOtpError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [regionSheetOpen, setRegionSheetOpen] = useState(false)
 
@@ -33,100 +34,45 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     if (formData.phone.length < 10) {
       errs.phone = 'Введите номер телефона'
     }
+    if (!formData.password || formData.password.length < 6) {
+      errs.password = 'Минимум 6 символов'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  const handleSendOtp = async () => {
+  const handleSubmit = async () => {
     if (!validate()) return
-    setIsSending(true)
+    setIsSubmitting(true)
     try {
-      const phone = `+7${formData.phone}`
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-        options: { shouldCreateUser: true },
-      })
-      if (error) {
-        toast.error('Ошибка отправки SMS')
-        console.error('OTP send error:', error)
-        return
-      }
-      onChange({ otp_sent: true })
-      toast.success('Код отправлен на ваш номер')
-    } catch (err) {
-      toast.error('Ошибка отправки SMS')
-      console.error(err)
-    } finally {
-      setIsSending(false)
-    }
-  }
+      // v1 pattern: phone → fake email for Supabase Auth
+      const phoneDigits = formData.phone.replace(/\D/g, '')
+      const fakeEmail = `7${phoneDigits}@phone.turan.kz`
 
-  const handleVerifyOtp = async (code: string) => {
-    setIsVerifying(true)
-    setOtpError('')
-    try {
-      const phone = `+7${formData.phone}`
-      const { error } = await supabase.auth.verifyOtp({
-        phone,
-        token: code,
-        type: 'sms',
+      const { error } = await supabase.auth.signUp({
+        email: fakeEmail,
+        password: formData.password,
       })
+
       if (error) {
-        setOtpError('Неверный код')
+        if (error.message.includes('already registered') || error.message.includes('already exists')) {
+          toast.error('Этот номер уже зарегистрирован. Войдите в кабинет.')
+        } else {
+          toast.error('Ошибка регистрации')
+          console.error('Auth error:', error)
+        }
         return
       }
+
       onChange({ otp_verified: true })
-      // Small delay so user sees success state
+      toast.success('Аккаунт создан')
       setTimeout(onNext, 300)
     } catch (err) {
-      setOtpError('Ошибка проверки кода')
+      toast.error('Ошибка регистрации')
       console.error(err)
     } finally {
-      setIsVerifying(false)
+      setIsSubmitting(false)
     }
-  }
-
-  if (formData.otp_sent && !formData.otp_verified) {
-    return (
-      <div className="space-y-6">
-        <div className="text-center space-y-2">
-          <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
-            Подтверждение
-          </h2>
-          <p className="text-sm text-[#6b5744]">
-            Код отправлен на +7{formData.phone}
-          </p>
-        </div>
-
-        <OtpInput
-          value={otpCode}
-          onChange={(v) => {
-            setOtpCode(v)
-            setOtpError('')
-          }}
-          onComplete={handleVerifyOtp}
-          error={otpError}
-          disabled={isVerifying}
-        />
-
-        {isVerifying && (
-          <div className="flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-[#6b5744]" />
-          </div>
-        )}
-
-        <button
-          onClick={() => {
-            onChange({ otp_sent: false })
-            setOtpCode('')
-            setOtpError('')
-          }}
-          className="reg-btn-secondary w-full"
-        >
-          Изменить номер
-        </button>
-      </div>
-    )
   }
 
   return (
@@ -160,6 +106,17 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
           error={errors.phone}
         />
 
+        <FloatingInput
+          label="Придумайте пароль"
+          value={formData.password}
+          onChange={(v) => {
+            onChange({ password: v })
+            if (errors.password) setErrors((e) => ({ ...e, password: '' }))
+          }}
+          error={errors.password}
+          type="password"
+        />
+
         <button
           type="button"
           onClick={() => setRegionSheetOpen(true)}
@@ -175,12 +132,12 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
       </div>
 
       <button
-        onClick={handleSendOtp}
-        disabled={isSending}
+        onClick={handleSubmit}
+        disabled={isSubmitting}
         className="reg-btn-primary w-full flex items-center justify-center gap-2"
       >
-        {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
-        {isSending ? 'Отправка...' : 'Получить код'}
+        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isSubmitting ? 'Регистрация...' : 'Продолжить'}
       </button>
 
       <BottomSheet
