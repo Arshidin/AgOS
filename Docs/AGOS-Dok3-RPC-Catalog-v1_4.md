@@ -1,0 +1,814 @@
+# AGOS — Dok 3: RPC Catalog
+
+**Project:** TURAN Agricultural Operating System
+**Version:** 1.4
+**Date:** 5 March 2026
+**Status:** АКТУАЛЬНЫЙ — прошёл Architecture Audit + Schema Consolidation
+**Depends on:** Dok 1 (v1.8), Dok 4 (Event Bus v1.1)
+**Authors:** Arshidin (CEO/Domain Expert), Claude (CTO/Architect)
+
+**Changelog v1.3 → v1.4:**
+
+| # | Тип | Изменение |
+|---|-----|-----------|
+| C-AUDIT-6 | 🔴 | RPC-25: `rpc_open_vet_case` → `rpc_create_vet_case` (SQL canonical name) |
+| C-NEW-3 | 🔴 | RPC-41 `rpc_extract_farm_data_from_dialogue` — DEPRECATED (заменён Dok 5 §7 two-run flow) |
+| D-NEW-A | 🔵 | SQL-миграции = единственный канонический источник имён. `rpc_name_registry` таблица в БД |
+| NEW | 🔵 | Раздел 1: добавлены 22 AI Gateway RPCs из d07_ai_gateway.sql (были реализованы, но не задокументированы) |
+| NEW | 🔵 | Раздел 11: Canonical Name Registry (таблица rpc_name_registry) |
+| NEW | 🔵 | Статус каждого RPC: ✅ Implemented (в SQL) | 📋 Planned (только spec) |
+| D138 | 🔵 | Обновлена секция миграций: 17 files → 7 consolidated files |
+
+---
+
+## 0. Назначение документа
+
+Этот документ — **единственный каталог всех PostgreSQL RPC-функций**, доступных через Supabase. Каждый интерфейс — Веб-кабинет (Lovable), AI Gateway (Python FastAPI), Административная консоль — вызывает только функции из этого каталога.
+
+**Vibecoding-команде:**
+- `✅ Implemented` — функция уже создана в SQL, можно вызывать прямо сейчас
+- `📋 Planned` — функция задокументирована, требует реализации в sprint
+- При написании промпта для Lovable — ссылайтесь на ID (RPC-09)
+- Canonical имя = колонка "SQL-функция" в Разделе 11
+- **Принцип D-NEW-A:** SQL-файл выигрывает при любом расхождении с документом
+
+**⚠ Edge Functions:** Вычислительные функции (NASEM LP-оптимизация, ration calculation) — Edge Function / FastAPI, не PostgreSQL RPC. Список в Приложении A.
+
+---
+
+## Типы вызывающих (Callers)
+
+| Метка | Кто вызывает | Примечания |
+|-------|-------------|------------|
+| `[WEB]` | React/Lovable (кабинет) | Аутентифицирован через Supabase Auth JWT. RLS применяется автоматически |
+| `[AI]` | Python AI Gateway | Использует service_role key + явную проверку org_id. Никогда не обходит RLS без явного reason |
+| `[ADMIN]` | Административная консоль | Только пользователи с активной записью в admin_roles. fn_is_admin() = true |
+
+---
+
+## 1. Сводный каталог
+
+**67 функций:** 45 бизнес-RPCs + 22 AI Gateway RPCs (d07). Статус отдельно для каждой.
+
+### 1.1. Identity & Farm
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-01 | `rpc_register_organization` | Identity | web, ai | 📋 Planned | jsonb { org_id, farm_id? } |
+| RPC-02 | `rpc_submit_membership_application` | Identity | web, ai | 📋 Planned | uuid (application_id) |
+| RPC-03 | `rpc_process_membership_application` | Identity | admin | 📋 Planned | uuid (membership_id) |
+| RPC-04 | `rpc_get_my_context` | Identity | web, ai | 📋 Planned | jsonb |
+| RPC-05 | `rpc_upsert_farm` | Farm | web, ai | 📋 Planned | uuid (farm_id) |
+| RPC-05b | `rpc_set_farm_activity_types` | Farm | web, ai | 📋 Planned | jsonb { inserted, removed } |
+| RPC-06 | `rpc_upsert_herd_group` | Farm | web, ai | ✅ Implemented | uuid (group_id) |
+| RPC-07 | `rpc_log_herd_event` | Farm | web, ai | 📋 Planned | uuid (event_id) |
+| RPC-08 | `rpc_get_farm_summary` | Farm | web, ai | 📋 Planned | jsonb |
+
+### 1.2. Market / TSP
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-09 | `rpc_create_batch` | Market/TSP | web, ai | ✅ Implemented | uuid (batch_id) |
+| RPC-10 | `rpc_publish_batch` | Market/TSP | web, ai | ✅ Implemented | jsonb { batch_id, expires_at, sku_locked } |
+| RPC-11 | `rpc_cancel_batch` | Market/TSP | web, ai, admin | 📋 Planned | boolean |
+| RPC-12 | `rpc_create_pool_request` | Market/TSP | web | 📋 Planned | uuid (request_id) |
+| RPC-13 | `rpc_activate_pool_request` | Market/TSP | web, admin | 📋 Planned | jsonb { request_id, pool_id } |
+| RPC-14 | `rpc_match_batch_to_pool` | Market/TSP | admin | 📋 Planned | uuid (match_id) |
+| RPC-15 | `rpc_advance_pool_status` | Market/TSP | admin | 📋 Planned | boolean |
+| RPC-16 | `rpc_rollback_batch_match` | Market/TSP | admin | 📋 Planned | boolean |
+| RPC-17 | `rpc_get_price_for_sku` | Market/TSP | web, ai | 📋 Planned | jsonb { base_price, premium, disclaimer_text } |
+| RPC-18 | `rpc_get_market_summary` | Market/TSP | web, ai | 📋 Planned | jsonb |
+| RPC-19 | `rpc_set_price_grid` | Market/TSP | admin | 📋 Planned | uuid (price_grid_id) |
+| RPC-20 | `rpc_publish_price_index_value` | Market/TSP | admin | 📋 Planned | uuid (value_id) |
+
+### 1.3. Feed & Nutrition
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-21 | `rpc_upsert_feed_inventory` | Feed | web, ai | 📋 Planned | jsonb { updated_items, total_kg } |
+| RPC-22 | `rpc_save_ration` | Feed | web, ai | 📋 Planned | jsonb { ration_id } |
+| RPC-23 | `rpc_archive_ration` | Feed | web, ai | 📋 Planned | boolean |
+| RPC-24 | `rpc_get_current_ration` | Feed | web, ai | 📋 Planned | jsonb (ration + last version + nutrient summary) |
+
+### 1.4. Veterinary
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-25 | `rpc_create_vet_case` | Veterinary | web, ai | ✅ Implemented | uuid (case_id) |
+| RPC-26 | `rpc_add_vet_diagnosis` | Veterinary | web | 📋 Planned | uuid (diagnosis_id) |
+| RPC-27 | `rpc_add_vet_recommendation` | Veterinary | web | 📋 Planned | uuid (recommendation_id) |
+| RPC-28 | `rpc_close_vet_case` | Veterinary | web | 📋 Planned | boolean |
+| RPC-29 | `rpc_create_vaccination_plan` | Veterinary | web, ai | 📋 Planned | uuid (plan_id) |
+| RPC-30 | `rpc_add_vaccination_plan_item` | Veterinary | web | 📋 Planned | uuid (plan_item_id) |
+| RPC-31 | `rpc_record_vaccination` | Veterinary | web, ai | 📋 Planned | uuid (record_id) |
+| RPC-32 | `rpc_report_epidemic_signal` | Veterinary | ai, admin | 📋 Planned | uuid (signal_id) |
+
+### 1.5. Operations
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-33 | `rpc_start_production_plan` | Operations | web, ai | ✅ Implemented | uuid (plan_id) |
+| RPC-34 | `rpc_complete_farm_task` | Operations | web, ai | ✅ Implemented | jsonb { task_id, next_tasks[], kpi_updates[] } |
+| RPC-35 | `fn_shift_phase_cascade` | Operations | web, ai | ✅ Implemented | jsonb [{ phase_id, phase_name, old_start, new_start, shift_days, date_type }, ...] |
+| RPC-36 | `fn_preview_cascade` | Operations | web, ai | ✅ Implemented | TABLE (phase_id, phase_name, current_start, new_start, shift_days, date_type, depth) |
+| RPC-37 | `rpc_get_active_plan` | Operations | web, ai | 📋 Planned | jsonb |
+
+### 1.6. Education
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-38 | `rpc_enroll_in_course` | Education | web, ai | 📋 Planned | uuid (enrollment_id) |
+| RPC-39 | `rpc_complete_lesson` | Education | web, ai | 📋 Planned | jsonb { progress_pct, is_course_complete, certificate_id? } |
+
+### 1.7. Platform
+
+| ID | Функция | Домен | Вызов | Статус | Возвращает |
+|----|---------|-------|-------|--------|------------|
+| RPC-40 | `rpc_start_ai_conversation` | Platform | ai | 📋 Planned | jsonb { conv_id, context: FarmSummary } |
+| RPC-41 | ~~`rpc_extract_farm_data_from_dialogue`~~ | Platform | — | ⛔ DEPRECATED v1.3 | — |
+| RPC-42 | `rpc_search_knowledge` | Platform | ai | 📋 Planned | TABLE (chunk_id, title, content, score, source_domain, metadata) |
+| RPC-43 | `rpc_create_proactive_alert` | Platform | ai, admin | 📋 Planned | jsonb { alert_id, requires_expert_approval } |
+| RPC-44 | `rpc_add_knowledge_chunk` | Platform | admin | 📋 Planned | uuid (chunk_id) |
+| RPC-45 | `rpc_restrict_organization` | Platform | admin | 📋 Planned | uuid (restriction_id) |
+
+### 1.8. AI Gateway RPCs (d07_ai_gateway.sql) — ✅ Все реализованы
+
+Эти функции были созданы в migration 011_ai_rpc_catalog.sql (теперь в d07_ai_gateway.sql) для прямого использования из Python AI Gateway. Все имеют SECURITY DEFINER + `_ai_check_farm_org()` guard.
+
+| ID | SQL-функция | Dok 5 tool | Возвращает |
+|----|-------------|------------|------------|
+| AI-01 | `rpc_get_ai_farm_context` | `get_farm_context` | jsonb { farm, herd_groups[], active_plans[], vet_cases[] } |
+| AI-02 | `rpc_upsert_herd_group` | `update_herd_group` | uuid (group_id) |
+| AI-03 | `rpc_get_feeding_plan` | `get_feeding_plan` | jsonb { plan, periods[], current_ration } |
+| AI-04 | `rpc_get_farm_tasks` | `get_farm_tasks` | jsonb [{ task_id, name, due_date, status }] |
+| AI-05 | `rpc_complete_farm_task` | `complete_farm_task` | jsonb { task_id, next_tasks[], kpi_updates[] } |
+| AI-06 | `rpc_get_production_plan` | `get_production_plan` | jsonb { plan, phases[], current_phase } |
+| AI-07 | `rpc_create_vet_case` | `create_vet_case` | uuid (case_id) |
+| AI-08 | `rpc_add_vet_symptoms` | `add_symptoms` | jsonb { case_id, severity, escalate? } |
+| AI-09 | `rpc_get_vet_diagnosis` | `get_diagnosis` | jsonb { possible_diseases[], recommended_actions[] } |
+| AI-10 | `rpc_get_treatment_protocols` | `get_treatment_protocols` | jsonb [{ disease, protocol, dosage_note: "назначает ветврач" }] |
+| AI-11 | `rpc_get_vaccination_schedule` | `get_vaccination_schedule` | jsonb [{ item_id, vaccine, due_date, herd_group, heads }] |
+| AI-12 | `rpc_complete_vaccination_item` | `confirm_vaccination` | uuid (record_id) |
+| AI-13 | `rpc_create_consultation_request` | `escalate_to_expert` | uuid (request_id) |
+| AI-14 | `rpc_search_knowledge_chunks` | `search_knowledge` | TABLE (chunk_id, title, content, score, source_domain) |
+| AI-15 | `rpc_get_membership_status` | `get_membership_status` | jsonb { level, valid_until, restrictions[] } |
+| AI-16 | `rpc_get_price_grid` | `get_price_grid` | jsonb { prices[], disclaimer_text } |
+| AI-17 | `rpc_get_aggregated_supply` | `get_market_overview` | jsonb { by_sku[], by_region[], total_heads } |
+| AI-18 | `rpc_get_aggregated_demand` | `get_market_overview` | jsonb { by_sku[], by_region[], total_heads } |
+| AI-19 | `rpc_get_org_batches` | `get_active_batches` | jsonb [{ batch_id, sku, heads, status, created_at }] |
+| AI-20 | `rpc_create_batch` | `create_batch_draft` | uuid (batch_id) |
+| AI-21 | `rpc_publish_batch` | `publish_batch` | jsonb { batch_id, expires_at, sku_locked } |
+| AI-22 | `rpc_update_conversation_language` | — | boolean |
+
+> ⚠️ **Nota bene для vibecoding:** AI-02 = RPC-06, AI-05 = RPC-34, AI-07 = RPC-25, AI-20 = RPC-09, AI-21 = RPC-10. Одна и та же SQL функция — разные контексты вызова. Для AI Gateway используйте AI-XX, для Web-кабинета — RPC-XX.
+
+---
+
+## 2. Identity — Идентификация и членство
+
+### RPC-01 `rpc_register_organization` [WEB] [AI] 📋 Planned
+
+Регистрация новой организации (ферма или МПК) → jsonb { org_id, farm_id? }
+
+*Атомарная операция: создаёт Organization + присваивает роль создателю + создаёт Farm (если org_type="farmer").*
+
+**Параметры:**
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_org_type` | text | ✓ | farmer \| mpk \| supplier \| consultant \| other |
+| `p_name` | text | ✓ | Официальное наименование |
+| `p_bin` | text | — | БИН (12 цифр). null = физлицо |
+| `p_region_id` | uuid | — | Регион регистрации |
+| `p_phone` | text | — | Контактный телефон (WhatsApp) |
+| `p_invited_by` | uuid | — | user_id пригласившего |
+
+**Публикует события:** `identity.organization.registered`
+
+**Исключения:** `BIN_DUPLICATE` | `INVALID_ORG_TYPE`
+
+### RPC-02 `rpc_submit_membership_application` [WEB] [AI] 📋 Planned
+
+Подача заявки на членство → uuid (application_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_org_id` | uuid | ✓ | Организация-заявитель |
+| `p_membership_type` | text | ✓ | associate \| full \| premium \| honorary |
+| `p_notes` | text | — | Примечания |
+
+**Исключения:** `ALREADY_ACTIVE` | `PENDING_EXISTS`
+
+### RPC-03 `rpc_process_membership_application` [ADMIN] 📋 Planned
+
+Одобрение или отклонение заявки → uuid (membership_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_application_id` | uuid | ✓ | Статус: submitted / under_review |
+| `p_decision` | text | ✓ | approved \| rejected |
+| `p_decision_notes` | text | — | Комментарий |
+| `p_valid_from` | date | — | Дата начала (default: today) |
+
+**Публикует:** `identity.membership.activated` | `identity.membership_application.rejected`
+
+### RPC-04 `rpc_get_my_context` [WEB] [AI] 📋 Planned
+
+Контекст текущего пользователя → jsonb
+
+Возвращает: { user_id, organizations[], memberships[], expert_profile?, farms[], active_restrictions[] }
+
+*Используется при загрузке кабинета и инициализации AI-сессии.*
+
+---
+
+## 3. Farm — Управление фермой
+
+### RPC-05 `rpc_upsert_farm` [WEB] [AI] 📋 Planned
+
+Создание / обновление фермы → uuid (farm_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | Организация-владелец |
+| `p_farm_id` | uuid | — | null = создать новую |
+| `p_name` | text | ✓ | Название |
+| `p_region_id` | uuid | — | Регион |
+| `p_shelter_type` | text | — | stall \| combined \| pasture_only |
+| `p_calving_system` | text | — | spring \| autumn \| year_round |
+| `p_total_area_ha` | numeric | — | Площадь |
+
+### RPC-05b `rpc_set_farm_activity_types` [WEB] [AI] 📋 Planned
+
+Установка типов деятельности фермы → jsonb { inserted, removed }
+
+*Идемпотентный: принимает полный набор, сам вычисляет delta.*
+
+### RPC-06 `rpc_upsert_herd_group` [WEB] [AI] ✅ Implemented
+
+Создание / обновление группы скота → uuid (group_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | Владелец (AI Gateway: добавляется автоматически) |
+| `p_farm_id` | uuid | ✓ | Ферма |
+| `p_group_id` | uuid | — | null = новая группа |
+| `p_animal_category_id` | uuid | ✓ | AnimalCategory |
+| `p_breed_id` | uuid | — | Порода |
+| `p_head_count` | int | — | Поголовье |
+| `p_avg_weight_kg` | numeric | — | Средний вес |
+| `p_data_source` | text | — | manual \| ai_extracted \| erp \| registration |
+| `p_label` | text | — | Метка группы |
+| `p_confidence` | int | — | 1–100 (Layered Truth) |
+
+**Триггер:** → `farm.herd_group.updated` event
+
+> ⚠️ **Confirmation required:** AI Gateway не пишет напрямую. Сначала `save_confirmation_payload`, фермер подтверждает, затем вызов в Run 2. Исключение: если head_count < 5 или изменение < 5% — auto-confirm.
+
+### RPC-07 `rpc_log_herd_event` [WEB] [AI] 📋 Planned
+
+Запись события в HerdEvent (append-only) → uuid (event_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | — |
+| `p_farm_id` | uuid | ✓ | — |
+| `p_herd_group_id` | uuid | — | Конкретная группа или null (всё стадо) |
+| `p_event_type` | text | ✓ | head_count_change / weight_update / group_created / ... |
+| `p_value_before` | numeric | — | Значение до |
+| `p_value_after` | numeric | ✓ | Значение после |
+| `p_data_source` | text | ✓ | manual / erp / ai_extracted |
+| `p_event_date` | date | — | default: today |
+| `p_notes` | text | — | — |
+
+### RPC-08 `rpc_get_farm_summary` [WEB] [AI] 📋 Planned
+
+Сводка по ферме → jsonb
+
+Возвращает: { farm, herd_groups[], feed_inventory[], active_vet_cases[], upcoming_tasks[], active_plan_summary }
+
+---
+
+## 4. Market / TSP
+
+> ⚠️ **Юридическое требование (ст. 171 ПК РК):** При каждом вызове rpc_get_price_for_sku, rpc_get_price_grid, rpc_get_market_summary ответ ДОЛЖЕН содержать `disclaimer_text`: *"Справочные цены являются индикативными рыночными ориентирами..."*
+
+### RPC-09 `rpc_create_batch` [WEB] [AI] ✅ Implemented
+
+Создание черновика supply-offer → uuid (batch_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | Продавец |
+| `p_farm_id` | uuid | — | Ферма отгрузки |
+| `p_herd_group_id` | uuid | — | Группа (soft link) |
+| `p_sku_id` | uuid | ✓ | TspSku (категория + вес класс) |
+| `p_heads` | int | ✓ | Поголовье |
+| `p_avg_weight_kg` | numeric | — | Средний вес |
+| `p_target_month` | date | ✓ | Планируемый месяц отгрузки |
+| `p_breed_id` | uuid | — | Порода (для премиума) |
+| `p_grade_standard_id` | uuid | — | Грейд (Phase 2) |
+| `p_notes` | text | — | — |
+
+**Проверки:** health_restrictions.is_active = false (TSP Safety Gate, D98)
+
+### RPC-10 `rpc_publish_batch` [WEB] [AI] ✅ Implemented
+
+Публикация черновика в market → jsonb { batch_id, expires_at, sku_locked }
+
+*После публикации: TspSku, WeightClass, GradeStandard — заблокированы.*
+
+### RPC-11 `rpc_cancel_batch` [WEB] [AI] [ADMIN] 📋 Planned
+
+Отмена лота → boolean
+
+### RPC-12 `rpc_create_pool_request` [WEB] 📋 Planned
+
+Заявка MPK на закупку → uuid (request_id)
+
+### RPC-13 `rpc_activate_pool_request` [WEB] [ADMIN] 📋 Planned
+
+Активация заявки (создаёт Pool) → jsonb { request_id, pool_id }
+
+### RPC-14 `rpc_match_batch_to_pool` [ADMIN] 📋 Planned
+
+Матчинг лота в пул → uuid (match_id)
+
+### RPC-15 `rpc_advance_pool_status` [ADMIN] 📋 Planned
+
+Сдвиг статуса пула по FSM → boolean
+
+### RPC-16 `rpc_rollback_batch_match` [ADMIN] 📋 Planned
+
+Отмена матча с причиной → boolean
+
+### RPC-17 `rpc_get_price_for_sku` [WEB] [AI] 📋 Planned
+
+Справочная цена для конкретного SKU → jsonb { base_price, premium, disclaimer_text, valid_from }
+
+> Заменяет или дополняет AI-16 `rpc_get_price_grid` — более детальный запрос для web UI.
+
+### RPC-18 `rpc_get_market_summary` [WEB] [AI] 📋 Planned
+
+Анонимизированный обзор рынка → jsonb { supply_by_sku[], demand_by_mpk[], price_trends[] }
+
+> В AI Gateway аналог: AI-17 `rpc_get_aggregated_supply` + AI-18 `rpc_get_aggregated_demand`.
+
+### RPC-19 `rpc_set_price_grid` [ADMIN] 📋 Planned
+
+Установка / обновление цены → uuid (price_grid_id)
+
+### RPC-20 `rpc_publish_price_index_value` [ADMIN] 📋 Planned
+
+Публикация значения индекса → uuid (value_id)
+
+---
+
+## 5. Feed & Nutrition
+
+### RPC-21 `rpc_upsert_feed_inventory` [WEB] [AI] 📋 Planned
+
+Обновление запасов кормов на ферме (Layered Truth: data_source определяет confidence)
+
+> ⚠️ **Confirmation required (AI):** Inventory update влияет на ration calculation и feed budget. AI использует `save_confirmation_payload` перед записью.
+
+### RPC-22 `rpc_save_ration` [WEB] [AI] 📋 Planned
+
+Сохранение варианта рациона → jsonb { ration_id }
+
+*Создаёт новую RationVersion. Предыдущие версии сохраняются (append-only per D51).*
+
+### RPC-23 `rpc_archive_ration` [WEB] [AI] 📋 Planned
+
+Архивирование рациона → boolean
+
+### RPC-24 `rpc_get_current_ration` [WEB] [AI] 📋 Planned
+
+Текущий активный рацион → jsonb (ration + last_version + nutrient_summary)
+
+> В AI Gateway аналог: AI-03 `rpc_get_feeding_plan` (более широкий контекст).
+
+---
+
+## 6. Veterinary
+
+> ⚠️ **P-AI-4 (CRITICAL):** Дозировки лекарств ТОЛЬКО из таблицы `treatments` через `rpc_get_treatment_protocols`. AI никогда не генерирует дозировки самостоятельно (D61).
+
+### RPC-25 `rpc_create_vet_case` [WEB] [AI] ✅ Implemented
+
+Открытие ветеринарного случая → uuid (case_id)
+
+> ⚠️ **C-AUDIT-6:** Renamed from `rpc_open_vet_case` (Dok 3 v1.3) to `rpc_create_vet_case` (canonical SQL name). При разработке использовать `rpc_create_vet_case`.
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | Владелец |
+| `p_farm_id` | uuid | ✓ | Ферма |
+| `p_herd_group_id` | uuid | — | Группа (уточняется после) |
+| `p_symptoms_text` | text | ✓ | Свободное описание симптомов |
+| `p_severity` | text | — | mild \| moderate \| severe \| critical |
+
+**Поведение:** severity=critical → автоматически создаёт ConsultationRequest (escalation).
+
+### RPC-26 `rpc_add_vet_diagnosis` [WEB] 📋 Planned
+
+Добавление диагноза ветеринаром → uuid (diagnosis_id)
+
+### RPC-27 `rpc_add_vet_recommendation` [WEB] 📋 Planned
+
+Добавление рекомендации → uuid (recommendation_id)
+
+*Если treatment_id указан и vet_product имеет withdrawal_period > 0 → автоматически создаёт health_restriction (D98).*
+
+### RPC-28 `rpc_close_vet_case` [WEB] 📋 Planned
+
+Закрытие случая → boolean
+
+*При смерти животного: вызывает rpc_log_herd_event(event_type=death) для обновления Farm Graph.*
+
+### RPC-29 `rpc_create_vaccination_plan` [WEB] [AI] 📋 Planned
+
+Создание плана вакцинации из протокола → uuid (plan_id)
+
+### RPC-30 `rpc_add_vaccination_plan_item` [WEB] 📋 Planned
+
+Добавление пункта в план → uuid (plan_item_id)
+
+### RPC-31 `rpc_record_vaccination` [WEB] [AI] 📋 Planned
+
+Запись факта вакцинации → uuid (record_id)
+
+*Автоматически закрывает plan_item. Если withdrawal_period > 0 → создаёт health_restriction.*
+
+> В AI Gateway аналог: AI-12 `rpc_complete_vaccination_item`.
+
+### RPC-32 `rpc_report_epidemic_signal` [AI] [ADMIN] 📋 Planned
+
+Регистрация эпидемического сигнала → uuid (signal_id)
+
+---
+
+## 7. Operations
+
+### RPC-33 `rpc_start_production_plan` [WEB] [AI] ✅ Implemented
+
+Генерация плана из шаблона → uuid (plan_id)
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_farm_id` | uuid | ✓ | Ферма |
+| `p_cycle_template_id` | uuid | ✓ | Шаблон производственного цикла |
+| `p_cycle_start_date` | date | ✓ | Дата начала цикла |
+| `p_expert_profile_id` | uuid | — | Прикреплённый зоотехник |
+| `p_actor_id` | uuid | ✓ | Инициатор (service_role compat, C-NEW-7) |
+
+*Внутренне вызывает `fn_generate_production_plan()` → создаёт FarmPhase и FarmTask по шаблону.*
+
+### RPC-34 `rpc_complete_farm_task` [WEB] [AI] ✅ Implemented
+
+Завершение задачи → jsonb { task_id, next_tasks[], kpi_updates[] }
+
+| Параметр | Тип | Обяз. | Описание |
+|----------|-----|-------|----------|
+| `p_organization_id` | uuid | ✓ | — |
+| `p_task_id` | uuid | ✓ | — |
+| `p_result_data` | jsonb | — | Результат (вес, количество, заметки) |
+| `p_completed_at` | timestamptz | — | default: now() |
+
+**Триггер:** → `ops.task.completed` event → fn_farm_task_completed_event() → HerdEvent log
+
+### RPC-35 `fn_shift_phase_cascade` [WEB] [AI] ✅ Implemented
+
+Каскадный сдвиг дат фаз → jsonb [{ phase_id, phase_name, old_start, new_start, shift_days, date_type }]
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `p_phase_id` | uuid | Фаза-якорь, которую сдвигаем |
+| `p_new_start_date` | date | Новая дата начала |
+| `p_actor_id` | uuid | Для аудита |
+
+> ⚠️ **Naming:** SQL canonical name = `fn_shift_phase_cascade`, вызов через `supabase.rpc("fn_shift_phase_cascade")`. Dok 3 v1.3 называл `rpc_shift_phase_cascade` — это неверно (D-NEW-A).
+
+*Calendar и parallel фазы = якоря, каскад останавливается на них. Sequential фазы = сдвигаются.*
+
+### RPC-36 `fn_preview_cascade` [WEB] [AI] ✅ Implemented
+
+Превью каскада без изменений → TABLE (phase_id, phase_name, current_start, new_start, shift_days, date_type, depth)
+
+*Показать фермеру список что изменится → он подтверждает → вызов RPC-35.*
+
+### RPC-37 `rpc_get_active_plan` [WEB] [AI] 📋 Planned
+
+Получение активного плана → jsonb
+
+> В AI Gateway аналог: AI-06 `rpc_get_production_plan`.
+
+---
+
+## 8. Education
+
+### RPC-38 `rpc_enroll_in_course` [WEB] [AI] 📋 Planned
+
+Запись на курс → uuid (enrollment_id)
+
+### RPC-39 `rpc_complete_lesson` [WEB] [AI] 📋 Planned
+
+Завершение урока → jsonb { progress_pct, is_course_complete, certificate_id? }
+
+*При is_course_complete=true → автоматически создаёт Certificate.*
+
+---
+
+## 9. Platform
+
+### RPC-40 `rpc_start_ai_conversation` [AI] 📋 Planned
+
+Инициализация AI-сессии → jsonb { conv_id, context: FarmSummary }
+
+### RPC-41 `rpc_extract_farm_data_from_dialogue` [DEPRECATED] ⛔
+
+**⛔ DEPRECATED с v1.3. НЕ РЕАЛИЗОВЫВАТЬ.**
+
+Заменён двухшаговым extraction flow в Dok 5 §7:
+- Run 1: AI вызывает individual tools (AI-02 rpc_upsert_herd_group, AI-07 rpc_create_vet_case и др.) → save_confirmation_payload
+- Run 2: После подтверждения фермером → фактическая запись в БД
+
+SQL-функция не существует ни в одном файле (d01–d07). Решение D117.
+
+### RPC-42 `rpc_search_knowledge` [AI] 📋 Planned
+
+Семантический поиск по KnowledgeChunk → TABLE (chunk_id, title, content, score, source_domain, metadata)
+
+> В AI Gateway реализован как AI-14 `rpc_search_knowledge_chunks` (canonical SQL name).
+
+### RPC-43 `rpc_create_proactive_alert` [AI] [ADMIN] 📋 Planned
+
+Создание проактивного уведомления → jsonb { alert_id, requires_expert_approval }
+
+### RPC-44 `rpc_add_knowledge_chunk` [ADMIN] 📋 Planned
+
+Добавление чанка в базу знаний → uuid (chunk_id)
+
+### RPC-45 `rpc_restrict_organization` [ADMIN] 📋 Planned
+
+Ограничение организации → uuid (restriction_id)
+
+---
+
+## 10. AI Gateway RPCs — детальное описание
+
+> Все функции в d07_ai_gateway.sql. SECURITY DEFINER. Все проверяют farm ownership через `_ai_check_farm_org()`. AI Gateway добавляет `p_organization_id` из state — LLM никогда не передаёт org_id напрямую (D110).
+
+### AI-01 `rpc_get_ai_farm_context` [AI] ✅ Implemented
+
+Снимок контекста фермы для AI-сессии → jsonb
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `p_organization_id` | uuid | Из Gateway state (не от LLM) |
+| `p_farm_id` | uuid | — |
+
+Возвращает: farm details + herd_groups[] + active_production_plan + active_vet_cases[] + upcoming_vaccinations[] + upcoming_tasks[]
+
+*Кешируется в AIConversation.farm_context_snapshot TTL 5 мин + invalidation по Event Bus.*
+
+### AI-02 `rpc_upsert_herd_group` [AI] ✅ Implemented
+
+Аналог RPC-06, оптимизирован для AI-extracted data. `data_source` автоматически = `ai_extracted`.
+
+> ⚠️ Confirmation flow (D107): изменение > 5% поголовья требует подтверждения фермера.
+
+### AI-07 `rpc_create_vet_case` [AI] ✅ Implemented
+
+Аналог RPC-25. `herd_group_id` может быть null (уточняется в следующем run).
+
+### AI-08 `rpc_add_vet_symptoms` [AI] ✅ Implemented
+
+Добавление структурированных симптомов к vet case → jsonb { case_id, severity, escalate? }
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `p_vet_case_id` | uuid | — |
+| `p_herd_group_id` | uuid | — |
+| `p_symptoms` | text[] | Массив симптомов |
+| `p_ai_message_id` | uuid | Трекинг источника (symptom_evidence) |
+
+### AI-09 `rpc_get_vet_diagnosis` [AI] ✅ Implemented
+
+Матрица симптомов → дифференциальный диагноз → jsonb { possible_diseases[], confidence_scores[], recommended_actions[] }
+
+*Использует disease_symptoms матрицу. Confidence score = процент совпадающих симптомов.*
+
+### AI-10 `rpc_get_treatment_protocols` [AI] ✅ Implemented
+
+Протоколы лечения → jsonb [{ disease, drug_name, dosage_note: "назначает ветврач", withdrawal_days }]
+
+> **P-AI-4:** `dosage_note` всегда = "дозировку определяет ветеринарный врач" или "см. инструкцию vet_products.dosage_reference_jsonb". AI никогда не генерирует числовые дозировки.
+
+### AI-22 `rpc_update_conversation_language` [AI] ✅ Implemented
+
+Обновление detected_language в AIConversation → boolean
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `p_conversation_id` | uuid | — |
+| `p_language` | text | kz / ru / en |
+
+*Вызывается из detect_and_cache_language. Заменяет прямой UPDATE (C-NEW-5, P-AI-1).*
+
+---
+
+## 10.4. Последовательность вызовов AI Gateway (типичный сценарий)
+
+```
+Inbound webhook:
+  1. resolve_user_by_phone(p_phone) → user_id, org_id
+  2. insert_user_message_dedup(p_conversation_id, p_message_id, ...) — dedup + save
+  3. try_lock_conversation(p_lock_key) — advisory lock на conversation
+  4. get_active_prompt(p_role) → system_prompt с версией
+  5. rpc_get_ai_farm_context(p_organization_id, p_farm_id) → farm snapshot
+  
+  Agent loop:
+  6. По намерению пользователя:
+     - rpc_upsert_herd_group (AI-02) — update herd, requires confirmation
+     - rpc_create_vet_case (AI-07) → rpc_add_vet_symptoms (AI-08)
+     - rpc_get_treatment_protocols (AI-10) — always from DB (P-AI-4)
+     - rpc_search_knowledge_chunks (AI-14) — RAG
+     - rpc_create_batch (AI-20) — requires confirmation
+     - fn_shift_phase_cascade (RPC-35) / fn_preview_cascade (RPC-36)
+  
+  7. Extraction → save_confirmation_payload (если нужно подтверждение)
+  8. insert_ai_message — сохранить ответ AI с prompt_version
+  9. rpc_update_conversation_language — если язык изменился
+```
+
+> ⚠️ **RPC-41 (`rpc_extract_farm_data_from_dialogue`) — DEPRECATED.** Extraction происходит через individual tools (шаг 6), не через один монолитный RPC.
+
+---
+
+## 11. Canonical RPC Name Registry
+
+**Принцип D-NEW-A:** SQL-миграции — единственный канонический источник имён. Dok 3 и Dok 5 — производные.
+
+Таблица `public.rpc_name_registry` в d01_kernel.sql содержит актуальный маппинг. При расхождении — `sql_name` выигрывает.
+
+**Ключевые расхождения (исторические):**
+
+| SQL-функция (canonical) | Dok 3 v1.3 имя | Статус | Примечание |
+|-------------------------|----------------|--------|------------|
+| `rpc_create_vet_case` | rpc_open_vet_case | ✅ Fixed v1.4 | C-AUDIT-6 |
+| `fn_shift_phase_cascade` | rpc_shift_phase_cascade | ✅ Fixed v1.4 | fn_ prefix = SECURITY DEFINER, callable |
+| `fn_preview_cascade` | rpc_preview_cascade | ✅ Fixed v1.4 | fn_ prefix = SECURITY DEFINER, callable |
+| `rpc_search_knowledge_chunks` | rpc_search_knowledge | ✅ Fixed v1.4 | AI-14 canonical |
+| `rpc_get_ai_farm_context` | *(не было в Dok 3)* | ✅ Added v1.4 | AI-01, только AI Gateway |
+| `rpc_get_production_plan` | rpc_get_active_plan | ⚠️ Dual | RPC-37 = planned web version; AI-06 = implemented AI version |
+| ~~`rpc_extract_farm_data_from_dialogue`~~ | rpc_extract_farm_data_from_dialogue | ⛔ DEPRECATED | не существует в SQL |
+
+**Правило:** Если имя в коде расходится с `sql_name` в rpc_name_registry → это баг. Открыть issue.
+
+---
+
+## 12. Внутренние функции
+
+### Trigger-функции (вызываются только через TRIGGER, не из приложения)
+
+```
+fn_set_updated_at                    — updated_at триггер на всех таблицах
+fn_log_price_grid_change             — → price_grid_log
+fn_ration_version_set_current        — новая версия → is_current=true, старые=false
+fn_ration_auto_activate              — первая версия → ration.status=active
+fn_update_feeding_period_statuses    — статусы периодов по датам
+fn_vet_case_auto_escalate            — severity=critical → ConsultationRequest
+fn_disease_create_knowledge_chunk    — Disease → KnowledgeChunk (RAG)
+fn_create_health_restriction_from_rec — VetRecommendation → HealthRestriction
+fn_vaccination_record_complete_plan_item — Vaccination → VaccPlanItem.status=completed
+fn_check_vaccination_plan_readiness  — все items done → plan.status=completed
+fn_check_epidemic_thresholds         — VetCase insert → EpidemicSignal если порог достигнут
+fn_vet_case_progress_on_diagnosis    — diagnosis added → case.status=in_progress
+fn_sop_create_knowledge_chunk        — SOPDocument → KnowledgeChunk (AI finds SOPs)
+fn_course_create_knowledge_chunk     — Course lesson → KnowledgeChunk
+fn_update_enrollment_progress        — UserProgress → CourseEnrollment.progress_pct
+fn_farm_task_completed_event         — FarmTask.completed → HerdEvent (cross-domain)
+fn_evaluate_farm_kpi                 — FarmTask.completed → FarmKPI recalculate
+fn_audit_from_platform_event         — PlatformEvent.is_audit=true → AuditLog
+fn_generate_production_plan          — генерирует FarmPhase + FarmTask из шаблона
+fn_shift_phase_cascade               — каскад дат (SECURITY DEFINER, callable as RPC-35)
+fn_preview_cascade                   — превью каскада (SECURITY DEFINER, callable as RPC-36)
+```
+
+### RLS-хелперы (используются в POLICY, не из приложения)
+
+```
+fn_current_user_id()      — текущий user_id из JWT
+fn_my_org_ids()           — uuid[] организаций пользователя (JWT fast path, D-NEW-1)
+fn_is_admin()             — проверка admin_roles
+fn_is_expert()            — проверка expert_profiles
+fn_org_is_restricted()    — проверка restriction_records
+```
+
+### AI Gateway internal helpers
+
+```
+get_active_prompt(p_role)                       — системный промпт по роли из ai_prompts
+try_lock_conversation(p_lock_key, p_identifier) — advisory xact lock
+release_conversation_lock(p_lock_key)           — явное освобождение
+insert_user_message_dedup(...)                  — dedup + atomic sequence + save user msg
+insert_ai_message(...)                          — save assistant/tool/system msg
+claim_pending_notifications(p_worker_id, n)     — SKIP LOCKED batch claim
+mark_notification_sent(...)                     — confirmed delivery
+mark_notification_failed(...)                   — failed, retry или permanent fail
+invalidate_ai_context(p_organization_id)        — сброс farm_context_snapshot TTL
+resolve_user_by_phone(p_phone)                  — WhatsApp webhook → user_id, org_id
+fn_auth_custom_claims(event jsonb)              — Supabase Auth hook: JWT + org_ids claims
+```
+
+---
+
+## 13. RPC Development Priority
+
+Порядок реализации **Planned** функций по доменам (sprint-план):
+
+**Sprint 1: Identity + Farm (базовый онбординг)**
+- RPC-01 `rpc_register_organization`
+- RPC-02 `rpc_submit_membership_application`
+- RPC-03 `rpc_process_membership_application`
+- RPC-04 `rpc_get_my_context`
+- RPC-05 `rpc_upsert_farm` + RPC-05b `rpc_set_farm_activity_types`
+- RPC-07 `rpc_log_herd_event`
+- RPC-08 `rpc_get_farm_summary`
+
+**Sprint 2: Veterinary (core AI use case)**
+- RPC-26 `rpc_add_vet_diagnosis`
+- RPC-27 `rpc_add_vet_recommendation`
+- RPC-28 `rpc_close_vet_case`
+- RPC-29 `rpc_create_vaccination_plan`
+- RPC-31 `rpc_record_vaccination`
+- RPC-32 `rpc_report_epidemic_signal`
+
+**Sprint 3: Feed & Nutrition**
+- RPC-21 `rpc_upsert_feed_inventory`
+- RPC-22 `rpc_save_ration`
+- RPC-23 `rpc_archive_ration`
+- RPC-24 `rpc_get_current_ration`
+
+**Sprint 4: Operations**
+- RPC-37 `rpc_get_active_plan`
+
+**Sprint 5: Market / TSP**
+- RPC-11..RPC-20 (согласно бизнес-приоритету TSP)
+
+**Sprint 6: Education + Platform**
+- RPC-38..RPC-45 (Education + Platform helpers)
+
+---
+
+## 14. Decisions Log (Dok 3)
+
+| # | Решение | Почему |
+|---|---------|--------|
+| D-NEW-A | SQL-миграции = canonical source of truth для имён RPC | Имена в Dok 3 и Dok 5 могут отставать. rpc_name_registry таблица в БД = живой truth |
+| D117 | Confirmation flow двухходовой (два run) | WhatsApp: один webhook = один sync run. Нельзя await ответ пользователя |
+| D-ARCH-1 | AI Gateway RPCs = отдельная секция d07_ai_gateway.sql | Web RPCs (d02-d05) и AI RPCs (d07) имеют разную security модель |
+| D-ARCH-2 | fn_ prefix ≠ "не-callable" | fn_shift_phase_cascade, fn_preview_cascade имеют SECURITY DEFINER и callable via supabase.rpc() |
+
+---
+
+## 15. Open Questions (актуальные)
+
+| # | Вопрос | Блокирует |
+|---|--------|-----------|
+| Q-RPC-01 | `rpc_get_active_plan` (RPC-37) vs `rpc_get_production_plan` (AI-06): два имени одной функции? Нужна одна реализация или две? | Sprint 1 planning |
+| Q-RPC-02 | `rpc_search_knowledge` (RPC-42) vs `rpc_search_knowledge_chunks` (AI-14): объединить в одну функцию с флагом caller? | Sprint 6 |
+| Q-RPC-03 | `rpc_get_price_for_sku` (RPC-17) vs `rpc_get_price_grid` (AI-16): дублирование? Уточнить ownership | Sprint 5 TSP |
+| Q-RPC-04 | RPC-30 `rpc_add_vaccination_plan_item` — нужен ли в Sprint 2, или только rpc_create_vaccination_plan? | Sprint 2 |
+
+---
+
+## История изменений
+
+| Версия | Дата | Автор | Изменения |
+|--------|------|-------|-----------|
+| v1.1 | Февраль 2026 | CTO | Initial catalog |
+| v1.2 | Февраль 2026 | CTO | Feed, Vet, Operations RPCs |
+| v1.3 | Март 2026 | CTO | event_type canonical (→ domain.entity.action per Dok 4) |
+| v1.4 | Март 2026 | CTO | Architecture Audit + Schema Consolidation: RPC-25 rename, RPC-41 deprecated, 22 AI Gateway RPCs added, Canonical Name Registry, status marking, D-NEW-A |
+
+---
+
+## Приложение A: Edge Functions / FastAPI
+
+Эти функции НЕ PostgreSQL RPC. Реализованы в Python AI Gateway (FastAPI):
+
+| Функция | Где | Описание |
+|---------|-----|----------|
+| `calculate_ration` | FastAPI + Supabase Edge | NASEM LP-оптимизация рациона. Input: animal_category, weight, feeds[]. Output: RationVersion с нутриентным балансом |
+| `get_feed_budget` | FastAPI | Годовая потребность и дефицит по кормам |
+| `get_nutrient_balance` | FastAPI | Баланс нутриентов по RationVersion |
+| `proactive_dispatch` | pg_cron + FastAPI | Батч обработки pending notifications. SKIP LOCKED, batch=50 |
+
+*Код EXTRACTION_RULES (правила извлечения сущностей из диалога) — Python, файл: `ai_gateway/extraction/rules.py`.*
+
+---
+
+*Dok 3 RPC Catalog v1.4 | TURAN AgOS | 5 March 2026*
+*SQL source of truth: d01_kernel.sql, d02_tsp.sql, d03_feed.sql, d04_vet.sql, d05_ops_edu.sql, d07_ai_gateway.sql*

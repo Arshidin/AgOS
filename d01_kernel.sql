@@ -1,0 +1,3344 @@
+-- ============================================================
+-- AGOS Schema: d01_kernel
+-- Project: TURAN Agricultural Operating System
+-- Consolidated: 2026-03-05 (pre-development baseline)
+--
+-- Identity + Farm + Platform domains.
+Includes AI conversation infrastructure, audit, embedding queue.
+--
+-- Depends on: nothing — base migration
+-- Consolidated from: 001_kernel__1_.sql, 009_patch_ai__1_.sql, 013_patch_audit.sql, 014_patch_sequence_and_lock.sql, 015_tech_debt.sql (kernel parts)
+--
+-- Convention: All statements are idempotent.
+--   CREATE TABLE IF NOT EXISTS
+--   CREATE OR REPLACE FUNCTION
+--   ALTER TABLE ADD COLUMN IF NOT EXISTS
+--   INSERT ... ON CONFLICT DO NOTHING
+-- ============================================================
+-- ============================================================
+-- AGOS Migration 001: KERNEL
+-- Project: TURAN Agricultural Operating System
+-- Version: 1.0 | Date: 4 March 2026
+--
+-- Domains covered:
+--   Identity  — 17 entities (D1–D11, D58)
+--   Farm      —  7 entities (D18–D27, D49, D50, D54)
+--   Platform  —  6 entities (D64–D72)
+--   Total     — 30 tables + Reference data (4 tables)
+--
+-- Cross-checked against:
+--   ✅ Dok 1 Domain Model Specification v1.2
+--   ✅ Architecture Decision Record (D1–D89)
+--   ✅ Universal Principles (P1–P12)
+--   ✅ Ownership Matrix (Sections 4.1, 4.2, 4.8)
+--   ✅ FSM Catalog (Section 5.7)
+--   ✅ Enum Value Registry (Section 5.8)
+--   ✅ Cross-Domain Integration Patterns (Section 5.1–5.4)
+--   ✅ Legal Constraints (Section 5.9)
+--
+-- Depends on: nothing — base migration
+-- Required by: 002_tsp.sql, 003_feed.sql, 004_platform_ai.sql,
+--               005_vet.sql, 006_ops_edu.sql
+--
+-- Conventions:
+--   - Table names: snake_case plural
+--   - All PKs: uuid, gen_random_uuid()
+--   - All timestamps: timestamptz (timezone-aware, stored as UTC)
+--   - Append-only tables: no updated_at column
+--   - Status FSMs: text + CHECK (not ENUM — easier to evolve, P7)
+--   - Reference tables: seeded at migration time, editable by admin (P8)
+--   - Soft-delete: is_active boolean (not deleted_at — simplifies RLS)
+-- ============================================================
+
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+
+create extension if not exists "uuid-ossp";       -- uuid_generate_v4() compatibility
+create extension if not exists "pgcrypto";         -- gen_random_bytes for reference codes
+create extension if not exists "vector";           -- pgvector: KnowledgeChunk embeddings (D70)
+
+-- ============================================================
+-- SECTION 0: REFERENCE / LOOKUP TABLES
+-- ============================================================
+-- P8 (Standards as Data, Not Code): these values WILL change over time.
+-- They live here as rows, not as hardcoded ENUMs or application constants.
+-- Admin updates via INSERT/UPDATE — never requires code deployment.
+--
+-- 4 reference tables:
+--   regions                  — Kazakhstan administrative hierarchy
+--   productivity_directions  — meat / dairy / combined (D23)
+--   animal_categories        — 12+ standardised animal types (D24, D49)
+--   breeds                   — breed catalogue with productivity link (D23)
+-- ============================================================
+
+-- -------------------------------------------------------
+-- regions
+-- Identity domain (referenced by Organization, Farm, EpidemicSignal)
+-- Hierarchical: country → oblast → rayon (self-referential, D from Dok1 ERD 3.1)
+-- -------------------------------------------------------
+create table if not exists public.regions (
+    id          uuid        primary key default gen_random_uuid(),
+    code        text        not null unique,   -- ISO-style: KZ, KZ-AKM, KZ-AKM-001
+    name_ru     text        not null,
+    name_kk     text,
+    level       text        not null
+                    check (level in ('country', 'oblast', 'rayon', 'city')),
+    parent_id   uuid        references public.regions(id) on delete set null,
+    is_active   boolean     not null default true,
+    sort_order  int         not null default 0,
+    created_at  timestamptz not null default now()
+);
+comment on table public.regions is
+    'P8: Reference data. Managed by admin. Hierarchical: country > oblast > rayon.
+     Self-join via parent_id. Dok1 ERD 3.1: Region |o--o{ Region.';
+comment on column public.regions.parent_id is
+    'null for country/oblast/city. Set to oblast.id for rayons.';
+
+-- -------------------------------------------------------
+-- productivity_directions
+-- Farm domain reference (D23: breed_group derived from breed → direction)
+-- -------------------------------------------------------
+create table if not exists public.productivity_directions (
+    id          uuid        primary key default gen_random_uuid(),
+    code        text        not null unique,  -- meat | dairy | combined
+    name_ru     text        not null,
+    name_kk     text,
+    sort_order  int         not null default 0,
+    created_at  timestamptz not null default now()
+);
+comment on table public.productivity_directions is
+    'D23: breed_group for TSP/Feed is DERIVED from breeds.productivity_direction_id.
+     No separate breed_group field anywhere — one lookup chain. P8: admin-managed.';
+
+-- -------------------------------------------------------
+-- animal_categories
+-- Farm + Feed + Market reference (D24: association standard, D49: 12+ unified types)
+-- Ownership Matrix 4.2: Admin creates/updates/authority
+-- -------------------------------------------------------
+create table if not exists public.animal_categories (
+    id                      uuid    primary key default gen_random_uuid(),
+    code                    text    not null unique,   -- BULL_CALF, COW, HEIFER_PREG ...
+    name_ru                 text    not null,
+    name_kk                 text,
+    sex                     text    not null
+                                check (sex in ('male', 'female', 'mixed')),
+    typical_age_min_months  int,    -- informational only, NOT enforced
+    typical_age_max_months  int,    -- informational only, NOT enforced
+    description_ru          text,
+    is_active               boolean not null default true,
+    sort_order              int     not null default 0,
+    created_at              timestamptz not null default now()
+);
+comment on table public.animal_categories is
+    'D24: Unified animal classification standard for AGOS (Farm + RationBuilder + TSP).
+     D49: Expanded to 12+ types. P8: admin-managed. age_min/max informational only — 
+     real age tracking is not in scope for group-level model (D20).';
+
+-- -------------------------------------------------------
+-- breeds
+-- Farm domain reference (D23: links to productivity_direction)
+-- Ownership Matrix 4.2: Admin creates/authority, Expert updates
+-- -------------------------------------------------------
+create table if not exists public.breeds (
+    id                          uuid    primary key default gen_random_uuid(),
+    productivity_direction_id   uuid    not null
+                                    references public.productivity_directions(id),
+    code        text    not null unique,   -- KAZ_WHITEHEAD, HEREFORD, ANGUS ...
+    name_ru     text    not null,
+    name_kk     text,
+    name_en     text,
+    is_local    boolean not null default false,  -- true = bred/developed in Kazakhstan
+    is_active   boolean not null default true,
+    sort_order  int     not null default 0,
+    created_at  timestamptz not null default now()
+);
+comment on table public.breeds is
+    'D23: productivity_direction_id is the authoritative source of "breed_group".
+     All TSP and Feed lookups derive breed_group from this link — no denormalisation.
+     P8: catalogue is admin-managed and grows over time.';
+
+-- ============================================================
+-- SECTION 1: IDENTITY DOMAIN (17 entities)
+-- Decisions: D1–D11, D58
+-- Ownership Matrix: Section 4.1
+-- Legal: D7 (privacy), Section 5.9 (three-tier)
+-- ============================================================
+
+-- -------------------------------------------------------
+-- users
+-- Links to Supabase Auth (auth.users — managed by Supabase, never touched directly)
+-- D5: Users exist independently of organizations (admins, experts have no org)
+-- D6: User is created BEFORE Organization in onboarding flow
+-- Ownership Matrix: Farmer C/U/A own data; Admin U; System C (auth)
+-- -------------------------------------------------------
+create table if not exists public.users (
+    id                  uuid    primary key default gen_random_uuid(),
+    auth_id             uuid    not null unique
+                                    references auth.users(id) on delete cascade,
+    phone               text    unique,   -- +77001234567 format; primary WhatsApp identifier
+    email               text    unique,
+    full_name           text,
+    avatar_url          text,
+    preferred_language  text    not null default 'ru'
+                                    check (preferred_language in ('ru', 'kk', 'en')),
+    is_active           boolean not null default true,
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now()
+);
+comment on table public.users is
+    'D5: Users exist independently of organizations — admins and experts have no org affiliation.
+     D6: Created before Organization during onboarding. auth_id = Supabase Auth (never modify auth.users).
+     phone is primary identifier for WhatsApp-based farmers (majority of users).';
+
+-- -------------------------------------------------------
+-- organizations
+-- Legal entities: farms (КХ/ТОО/ИП), MPKs, others
+-- D1: One org can be farmer AND MPK — handled via OrganizationTypeAssignment + Membership
+-- D4: Restrictions applied at org level (blocks ALL participation types)
+-- -------------------------------------------------------
+create table if not exists public.organizations (
+    id          uuid    primary key default gen_random_uuid(),
+    legal_name  text    not null,
+    bin_iin     text    unique,   -- БИН (12 digits) or ИИН; nullable on registration (D6/P11)
+    legal_form  text
+                    check (legal_form in (
+                        'kh',           -- КХ — Крестьянское хозяйство (most farmers)
+                        'ip',           -- ИП — Индивидуальный предприниматель
+                        'too',          -- ТОО — Товарищество с ограниченной ответственностью
+                        'ao',           -- АО — Акционерное общество
+                        'individual',   -- Физическое лицо (no legal entity)
+                        'other'
+                    )),
+    region_id   uuid    references public.regions(id),
+    address_text    text,       -- free-form (village / rayon / district)
+    phone           text,
+    email           text,
+    website         text,
+    is_active   boolean     not null default true,
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now()
+);
+comment on table public.organizations is
+    'D1: Single org can be farmer + MPK — handled via OrganizationTypeAssignment (not a type field here).
+     D4: RestrictionRecord.organization_id blocks ALL membership types simultaneously.
+     bin_iin nullable: P11 gradual accumulation — farmers often register without БИН on day 1.';
+
+-- -------------------------------------------------------
+-- organization_type_assignments
+-- D1: Separates "what type is this org" from membership level
+-- Allows one org to have multiple types (farmer + mpk)
+-- Ownership Matrix: Farmer C; Admin U/A
+-- -------------------------------------------------------
+create table if not exists public.organization_type_assignments (
+    id              uuid    primary key default gen_random_uuid(),
+    organization_id uuid    not null references public.organizations(id) on delete cascade,
+    org_type        text    not null
+                                check (org_type in ('farmer', 'mpk', 'supplier', 'consultant', 'other')),
+    assigned_at     timestamptz not null default now(),
+    assigned_by     uuid    references public.users(id),  -- admin who confirmed; null = self-assigned
+    unique (organization_id, org_type)
+);
+comment on table public.organization_type_assignments is
+    'D1: Separates type classification from membership level. Same org can be farmer + mpk
+     via two rows. Farmer self-selects type on registration; Admin confirms.';
+
+-- -------------------------------------------------------
+-- user_organization_roles
+-- Links users to organizations with permission role
+-- D6: Created after both User and Organization exist
+-- Ownership Matrix: Farmer C (owner); Admin U/A
+-- -------------------------------------------------------
+create table if not exists public.user_organization_roles (
+    id              uuid    primary key default gen_random_uuid(),
+    user_id         uuid    not null references public.users(id) on delete cascade,
+    organization_id uuid    not null references public.organizations(id) on delete cascade,
+    role            text    not null
+                                check (role in (
+                                    'owner',        -- full control (org creator)
+                                    'manager',      -- can manage most things
+                                    'employee',     -- limited write
+                                    'viewer'        -- read-only
+                                )),
+    is_primary      boolean not null default false,  -- user's primary org for UI context
+    created_at      timestamptz not null default now(),
+    updated_at      timestamptz not null default now(),
+    unique (user_id, organization_id)   -- one role per user per org
+);
+comment on table public.user_organization_roles is
+    'Links users to organizations. is_primary=true = default org loaded in UI.
+     A user may belong to multiple orgs (e.g. employee working for two farms).
+     Owner role created automatically when user creates the org.';
+
+-- -------------------------------------------------------
+-- memberships
+-- D1: One Membership record per (organization_id + org_type)
+-- D2: FSM transitions differ by org_type
+-- D3: level=registered means platform user, NOT association member
+-- FSM Catalog 5.7:
+--   Farmer:  registered → observer → declared_supplier → standard_supplier
+--   MPK:     registered → observer → active_buyer
+--   Others:  registered → observer
+-- -------------------------------------------------------
+create table if not exists public.memberships (
+    id              uuid    primary key default gen_random_uuid(),
+    organization_id uuid    not null references public.organizations(id) on delete cascade,
+    org_type        text    not null
+                                check (org_type in ('farmer', 'mpk', 'supplier', 'consultant', 'other')),
+    level           text    not null default 'registered'
+                                check (level in (
+                                    'registered',           -- D3: platform user ≠ association member
+                                    'observer',             -- first real membership level
+                                    'declared_supplier',    -- farmer: verified + TSP agreement signed
+                                    'standard_supplier',    -- farmer: delivery history (admin decision)
+                                    'active_buyer'          -- mpk: verified + active
+                                )),
+    previous_level  text,           -- lightweight audit (no separate history table for now, Q6)
+    level_changed_at    timestamptz not null default now(),
+    level_changed_by    uuid    references public.users(id),  -- admin who triggered transition
+    notes               text,   -- reason for level change (required on downgrade)
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now(),
+    unique (organization_id, org_type)  -- D1: exactly one record per org+type
+);
+comment on table public.memberships is
+    'D1: One record per (organization, org_type). D2: FSM per org_type (see constraint below).
+     D3: level=registered means signed up on platform but NOT yet an association member.
+     Transitions managed by Admin via RPC (Dok 3). AI Gateway reads only.';
+
+-- FSM integrity: valid level per org_type (D2)
+-- Farmer has 4 levels; MPK has 3; others have 2
+create or replace function public.fn_membership_level_valid(p_org_type text, p_level text)
+returns boolean language plpgsql immutable as $$
+begin
+    return case p_org_type
+        when 'farmer'   then p_level in ('registered','observer','declared_supplier','standard_supplier')
+        when 'mpk'      then p_level in ('registered','observer','active_buyer')
+        else                 p_level in ('registered','observer')
+    end;
+end;
+$$;
+
+alter table public.memberships
+    add constraint memberships_level_valid_for_type
+    check (public.fn_membership_level_valid(org_type, level));
+
+-- -------------------------------------------------------
+-- membership_applications
+-- FSM 5.7: submitted → under_review → approved | rejected
+-- Ownership Matrix: Farmer C; Admin U/A (review)
+-- -------------------------------------------------------
+create table if not exists public.membership_applications (
+    id              uuid    primary key default gen_random_uuid(),
+    membership_id   uuid    not null references public.memberships(id) on delete cascade,
+    organization_id uuid    not null references public.organizations(id),  -- denorm for RLS
+    from_level      text    not null,
+    to_level        text    not null,
+    status          text    not null default 'submitted'
+                                check (status in ('submitted','under_review','approved','rejected')),
+    submitted_at    timestamptz not null default now(),
+    reviewed_at     timestamptz,
+    reviewed_by     uuid    references public.users(id),
+    reviewer_notes  text,
+    supporting_docs jsonb,  -- [{name, url, doc_type}] uploaded supporting documents
+    created_at      timestamptz not null default now(),
+    updated_at      timestamptz not null default now()
+);
+comment on table public.membership_applications is
+    'FSM 5.7: submitted → under_review → approved | rejected.
+     Farmer submits, Admin reviews. supporting_docs = array of Supabase Storage URLs.
+     On approval: Admin triggers RPC that updates memberships.level.';
+
+-- -------------------------------------------------------
+-- verification_records
+-- Admin creates and is sole authority
+-- D22: ИСЖ used for LEGAL verification only, not for operational herd data
+-- Append-only: never UPDATE — create new record for re-verification
+-- -------------------------------------------------------
+create table if not exists public.verification_records (
+    id                  uuid    primary key default gen_random_uuid(),
+    membership_id       uuid    not null references public.memberships(id) on delete cascade,
+    organization_id     uuid    not null references public.organizations(id),  -- denorm for RLS
+    verification_type   text    not null
+                                    check (verification_type in (
+                                        'bin_iin_check',    -- legal entity lookup
+                                        'isz_check',        -- D22: ИСЖ livestock registry
+                                        'site_visit',       -- physical farm inspection
+                                        'document_review',  -- document audit
+                                        'reputation_check'  -- delivery history review
+                                    )),
+    result              text    not null
+                                    check (result in ('approved','rejected','conditional')),
+    verified_by         uuid    not null references public.users(id),  -- admin/expert
+    verified_at         timestamptz not null default now(),
+    notes               text,
+    document_url        text,   -- verification report (Supabase Storage)
+    expires_at          timestamptz,    -- some verifications expire (e.g. site visit = 2 years)
+    created_at          timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY. New row for each re-verification.
+);
+comment on table public.verification_records is
+    'D22: ИСЖ verification is for legal compliance, NOT operational herd data source.
+     APPEND-ONLY: never UPDATE existing record — create new row for re-verification.
+     Admin is sole Authority (Ownership Matrix 4.1).';
+
+-- -------------------------------------------------------
+-- consent_records
+-- System creates and is sole authority. Immutable legal record.
+-- P11: users consent gradually (privacy first, marketing later)
+-- Append-only
+-- -------------------------------------------------------
+create table if not exists public.consent_records (
+    id              uuid    primary key default gen_random_uuid(),
+    user_id         uuid    not null references public.users(id) on delete cascade,
+    consent_type    text    not null
+                                check (consent_type in (
+                                    'terms_of_service',
+                                    'privacy_policy',
+                                    'data_processing',      -- GDPR-equivalent KZ law
+                                    'whatsapp_messaging',   -- WhatsApp opt-in (required by Meta)
+                                    'marketing'
+                                )),
+    version         text    not null,   -- document version e.g. '2026-03-01'
+    consented       boolean not null,   -- true=accepted, false=revoked
+    consented_at    timestamptz not null default now(),
+    ip_address      inet,
+    user_agent      text
+    -- No updated_at: APPEND-ONLY. New row for each change (consent or revocation).
+);
+comment on table public.consent_records is
+    'Legal record of user consent. APPEND-ONLY: new row per change.
+     System creates (Authority). consented=false = explicit revocation.
+     whatsapp_messaging consent required before AI Gateway sends messages.';
+
+-- -------------------------------------------------------
+-- agreement_acceptances
+-- Farmer accepts voluntarily (Tier 2 legal architecture, Section 5.9)
+-- D7: tied to Organization (agreement is business), signed by specific User
+-- Append-only
+-- -------------------------------------------------------
+create table if not exists public.agreement_acceptances (
+    id                  uuid    primary key default gen_random_uuid(),
+    membership_id       uuid    not null references public.memberships(id) on delete cascade,
+    user_id             uuid    not null references public.users(id),  -- who clicked/signed
+    organization_id     uuid    not null references public.organizations(id),  -- denorm for RLS
+    agreement_type      text    not null
+                                    check (agreement_type in (
+                                        'tsp_participation',    -- required for declared_supplier
+                                        'data_sharing',         -- aggregate anonymisation consent
+                                        'quality_standards',    -- accepting Tier 3 standards
+                                        'association_charter'   -- association membership
+                                    )),
+    agreement_version   text    not null,   -- version of the legal document
+    document_url        text,               -- signed PDF (Supabase Storage)
+    accepted_at         timestamptz not null default now(),
+    ip_address          inet,
+    created_at          timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY.
+);
+comment on table public.agreement_acceptances is
+    'Tier 2 legal: voluntary coordination agreements (Section 5.9).
+     APPEND-ONLY. D7: Agreement binds Organization; User signs on behalf.
+     tsp_participation required for Membership.level = declared_supplier.';
+
+-- -------------------------------------------------------
+-- restriction_records
+-- D4: Restriction on Organization blocks ALL org_types simultaneously
+-- Admin creates and lifts. Active restriction = lifted_at IS NULL
+-- -------------------------------------------------------
+create table if not exists public.restriction_records (
+    id                  uuid    primary key default gen_random_uuid(),
+    organization_id     uuid    not null references public.organizations(id) on delete cascade,
+    restriction_type    text    not null
+                                    check (restriction_type in (
+                                        'suspended',        -- temporary suspension
+                                        'banned',           -- permanent ban
+                                        'payment_hold',     -- unpaid membership dues
+                                        'compliance_hold'   -- compliance violation
+                                    )),
+    reason              text    not null,
+    created_by          uuid    not null references public.users(id),  -- admin
+    created_at          timestamptz not null default now(),
+    lifted_at           timestamptz,    -- null = restriction is ACTIVE
+    lifted_by           uuid    references public.users(id),
+    lift_reason         text
+);
+comment on table public.restriction_records is
+    'D4: One restriction blocks farmer AND mpk roles for same org simultaneously.
+     Active restriction = lifted_at IS NULL. Admin is sole Authority.
+     RLS helper function checks this before granting access to TSP, Farm, etc.';
+
+-- -------------------------------------------------------
+-- admin_roles
+-- D5: Association staff — Users without organization affiliation
+-- Ownership Matrix 4.1: Admin C/U/A (super_admin only)
+-- -------------------------------------------------------
+create table if not exists public.admin_roles (
+    id          uuid    primary key default gen_random_uuid(),
+    user_id     uuid    not null unique references public.users(id) on delete cascade,
+    role        text    not null
+                            check (role in (
+                                'super_admin',          -- full platform access
+                                'membership_admin',     -- onboarding, membership transitions
+                                'tsp_admin',            -- pool management, matching
+                                'content_admin',        -- knowledge base, education
+                                'support'               -- read-only + notifications
+                            )),
+    granted_by  uuid    references public.users(id),   -- super_admin who granted
+    granted_at  timestamptz not null default now(),
+    is_active   boolean not null default true,
+    created_at  timestamptz not null default now()
+);
+comment on table public.admin_roles is
+    'D5: Association staff. No org affiliation. Super_admin is sole granter.
+     is_active=false = soft revoke (keeps history). Ownership Matrix 4.1.';
+
+-- -------------------------------------------------------
+-- external_system_links
+-- D8: ERP and external systems are LINKED, not merged
+-- Layered Truth integration point (Section 5.4)
+-- -------------------------------------------------------
+create table if not exists public.external_system_links (
+    id                  uuid    primary key default gen_random_uuid(),
+    organization_id     uuid    not null references public.organizations(id) on delete cascade,
+    system_type         text    not null
+                                    check (system_type in (
+                                        'erp',          -- farm ERP (1C, custom) — Layered Truth L4
+                                        'egistic',      -- Egistic satellite monitoring
+                                        'dalacamp',     -- external education platform
+                                        'isz',          -- ИСЖ government registry (D22)
+                                        'other'
+                                    )),
+    system_name         text,   -- e.g. "1C:Agro", "Custom ERP v2"
+    external_org_id     text,   -- org's identifier in the external system
+    api_endpoint        text,
+    sync_status         text    default 'not_configured'
+                                    check (sync_status in (
+                                        'active','error','paused','not_configured'
+                                    )),
+    last_sync_at        timestamptz,
+    sync_config         jsonb,  -- system-specific config (sensitive fields encrypted at app layer)
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now(),
+    unique (organization_id, system_type)
+);
+comment on table public.external_system_links is
+    'D8: Do NOT merge external data — link it. ERP = L4 Layered Truth source (highest confidence).
+     sync_config JSONB: API keys encrypted at application layer before storage.
+     unique(org, system_type): one ERP per farm, one ISZ per farm etc.';
+
+-- -------------------------------------------------------
+-- payments
+-- D11: Payment → Organization (legal entity pays fees)
+-- System creates and is Authority (Ownership Matrix 4.1)
+-- -------------------------------------------------------
+create table if not exists public.payments (
+    id                  uuid    primary key default gen_random_uuid(),
+    organization_id     uuid    not null references public.organizations(id),
+    payment_type        text    not null
+                                    check (payment_type in (
+                                        'membership_fee',   -- annual association dues
+                                        'entrance_fee',     -- one-time entry fee
+                                        'course_payment',   -- education (links to purchased_products)
+                                        'other'
+                                    )),
+    amount              numeric(12,2) not null check (amount >= 0),
+    currency            text    not null default 'KZT',
+    status              text    not null default 'pending'
+                                    check (status in ('pending','completed','failed','refunded')),
+    payment_method      text    check (payment_method in (
+                                    'bank_transfer','card','cash','manual'
+                                )),
+    reference_number    text    unique,     -- bank / payment gateway reference
+    description         text,
+    paid_at             timestamptz,        -- null until status = completed
+    created_by          uuid    references public.users(id),  -- admin who registered
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now()
+);
+comment on table public.payments is
+    'D11: Payment belongs to Organization (legal entity), not User.
+     System creates on payment gateway callback (Authority).
+     Admin can create manual entries (bank_transfer, cash).';
+
+-- -------------------------------------------------------
+-- purchased_products
+-- D11: PurchasedProduct → User (knowledge/access belongs to person)
+-- D9: Course enrollment by User, not Organization
+-- System creates on payment completion (Authority)
+-- -------------------------------------------------------
+create table if not exists public.purchased_products (
+    id              uuid    primary key default gen_random_uuid(),
+    user_id         uuid    not null references public.users(id) on delete cascade,
+    payment_id      uuid    references public.payments(id),
+    product_type    text    not null
+                                check (product_type in ('course','tool','report','other')),
+    product_id      uuid    not null,   -- polymorphic: course_id when product_type='course'
+    product_ref     text    not null,   -- table name: 'courses', 'tools' — for polymorphic joins
+    expires_at      timestamptz,        -- null = no expiry (lifetime access)
+    created_at      timestamptz not null default now()
+    -- No updated_at: append-only (access is granted, not modified)
+);
+comment on table public.purchased_products is
+    'D11: Belongs to User, not Organization. D9: Course access is personal.
+     product_id + product_ref = polymorphic FK pattern (FK constraint added per module).
+     System creates on payment completion. expires_at null = lifetime access.';
+
+-- -------------------------------------------------------
+-- expert_profiles
+-- D5: Expert = User + ExpertProfile (no org affiliation)
+-- D58: Extended with consultation metrics
+-- Serves: Vet escalation (Dok1 4.5), Farm ops (4.6), Education (4.7)
+-- -------------------------------------------------------
+create table if not exists public.expert_profiles (
+    id                          uuid    primary key default gen_random_uuid(),
+    user_id                     uuid    not null unique
+                                            references public.users(id) on delete cascade,
+    specialization              text    not null
+                                            check (specialization in (
+                                                'veterinarian',
+                                                'zootechnician',
+                                                'agronomist',
+                                                'market_analyst',
+                                                'legal',
+                                                'general'
+                                            )),
+    qualification_text          text,   -- credentials, degrees (free-form, P11 gradual)
+    region_ids                  uuid[], -- regions served (null = all Kazakhstan)
+    is_staff                    boolean not null default true,   -- false = external/contractor
+    is_active                   boolean not null default true,
+    available_for_consultation  boolean not null default true,
+    -- D58: Performance metrics (updated by system after each consultation)
+    avg_response_minutes        int,    -- rolling average (NULL until first consultation)
+    total_consultations         int     not null default 0,
+    created_at                  timestamptz not null default now(),
+    updated_at                  timestamptz not null default now()
+);
+comment on table public.expert_profiles is
+    'D5: Association experts — no org affiliation.
+     D58: avg_response_minutes and total_consultations updated by system for SLA monitoring.
+     region_ids = UUID[] of regions.id — null means serves all KZ.
+     Cross-domain: used by Vet (escalation), Operations (plan consult), Education (instructor).';
+
+-- -------------------------------------------------------
+-- consultation_requests
+-- D58: Extended with vet_case_id + SLA tracking
+-- FSM 5.7: pending → assigned → in_progress → completed
+-- Source enum (Section 5.8): direct | ai_referral | auto_escalation
+-- NOTE: vet_case_id FK constraint added in 005_vet.sql (cross-domain)
+-- -------------------------------------------------------
+create table if not exists public.consultation_requests (
+    id                      uuid    primary key default gen_random_uuid(),
+    organization_id         uuid    not null references public.organizations(id),
+    expert_profile_id       uuid    references public.expert_profiles(id),  -- null until assigned
+    specialization_needed   text    not null
+                                        check (specialization_needed in (
+                                            'veterinarian','zootechnician','agronomist',
+                                            'market_analyst','legal','general'
+                                        )),
+    source                  text    not null
+                                        check (source in (
+                                            'direct',           -- farmer requests directly
+                                            'ai_referral',      -- AI recommends expert (Section 5.8)
+                                            'auto_escalation'   -- system auto-escalates critical VetCase
+                                        )),
+    status                  text    not null default 'pending'
+                                        check (status in (
+                                            'pending',      -- created, not yet assigned
+                                            'assigned',     -- expert_profile_id set
+                                            'in_progress',  -- expert accepted / started
+                                            'completed'     -- resolution provided
+                                        )),
+    priority                text    not null default 'normal'
+                                        check (priority in ('low','normal','high','critical')),
+    description             text,   -- farmer's description or AI summary
+    resolution_text         text,   -- expert's resolution (populated on completed)
+    -- D58: Cross-domain link to VetCase (FK added in 005_vet.sql)
+    vet_case_id             uuid,
+    -- D58: SLA tracking
+    sla_minutes             int,            -- target: assigned within N minutes
+    sla_breached            boolean not null default false,
+    sla_breached_at         timestamptz,
+    -- FSM timestamps (set by RPC on each transition)
+    assigned_at             timestamptz,
+    started_at              timestamptz,
+    completed_at            timestamptz,
+    created_at              timestamptz not null default now(),
+    updated_at              timestamptz not null default now()
+);
+comment on table public.consultation_requests is
+    'FSM 5.7: pending → assigned → in_progress → completed.
+     D58: vet_case_id column here; FK constraint added in 005_vet.sql (avoids circular dep).
+     SLA: sla_minutes set on assignment. Cron checks for breach (Dok 4).
+     Source enum 5.8: direct | ai_referral | auto_escalation.';
+comment on column public.consultation_requests.vet_case_id is
+    'D58: References vet_cases.id. FK constraint intentionally deferred to 005_vet.sql
+     to avoid circular dependency. Column is nullable (not all requests are vet-related).';
+
+-- ============================================================
+-- SECTION 2: FARM DOMAIN (7 entities)
+-- 3 reference tables already created above: animal_categories, breeds,
+--   productivity_directions
+-- 4 operational tables: farms, farm_activity_types, herd_groups, herd_events
+-- Decisions: D18–D27, D49, D50, D54
+-- Ownership Matrix: Section 4.2
+-- ============================================================
+
+-- -------------------------------------------------------
+-- farms
+-- D18: Organization → many → Farm (5% case: multiple locations)
+-- D54: shelter_type and calving_system are FARM properties (location), not group
+-- D26: Farm infrastructure (barns, paddocks) deferred — no consumer yet (P11)
+-- Ownership Matrix: Farmer C/U/A; Admin R; Expert R
+-- -------------------------------------------------------
+create table if not exists public.farms (
+    id              uuid    primary key default gen_random_uuid(),
+    organization_id uuid    not null references public.organizations(id) on delete cascade,
+    name            text    not null,   -- farm name or location description
+    region_id       uuid    references public.regions(id),
+    address_text    text,               -- village / district / GPS as text
+    -- D54: Location properties (not group-level)
+    shelter_type    text    check (shelter_type in (
+                                'stall',        -- стойловое (year-round indoor)
+                                'pasture',      -- пастбищное (open range)
+                                'mixed',        -- смешанное: stall in winter, pasture in summer
+                                'feedlot'       -- откормочная площадка
+                            )),
+    calving_system  text    check (calving_system in (
+                                'spring',       -- весенний отёл (March–May)
+                                'autumn',       -- осенний отёл (Sep–Nov)
+                                'year_round',   -- круглогодичный
+                                'two_season'    -- весна + осень
+                            )),
+    total_area_ha   numeric(10,2),  -- total farm area (informational, P11)
+    pasture_area_ha numeric(10,2),  -- grazing area (informational, P11)
+    -- D21: Layered Truth — track how this farm's data was entered
+    data_source     text    not null default 'platform'
+                                check (data_source in (
+                                    'registration',     -- L1: initial registration form
+                                    'ai_extracted',     -- L2: from WhatsApp conversation
+                                    'platform',         -- L3: manually entered in web cabinet
+                                    'erp'               -- L4: synced from ERP (highest confidence)
+                                )),
+    is_primary      boolean not null default true,  -- primary farm for this org
+    is_active       boolean not null default true,
+    created_at      timestamptz not null default now(),
+    updated_at      timestamptz not null default now()
+);
+comment on table public.farms is
+    'D18: org can own multiple farms (5% of users have 2+ locations).
+     D54: shelter_type and calving_system are location properties — same for all groups on this farm.
+     D26: Infrastructure (barns, paddocks, fields) deferred — no clear consumer until Ops module (P11).
+     is_primary=true marks default farm for single-farm orgs.';
+
+-- -------------------------------------------------------
+-- farm_activity_types
+-- D19: Separate table (not enum array in farms) — farm can combine activity types
+-- E.g. a farm doing both cow_calf AND finishing is valid and common
+-- -------------------------------------------------------
+create table if not exists public.farm_activity_types (
+    id              uuid    primary key default gen_random_uuid(),
+    farm_id         uuid    not null references public.farms(id) on delete cascade,
+    activity_type   text    not null
+                                check (activity_type in (
+                                    'cow_calf',     -- коровье-телячье производство
+                                    'finishing',    -- откорм (fattening)
+                                    'dairy',        -- молочное производство
+                                    'breeding',     -- племенное (genetic improvement)
+                                    'mixed'         -- многопрофильное
+                                )),
+    is_primary      boolean not null default false,
+    created_at      timestamptz not null default now(),
+    unique (farm_id, activity_type)
+);
+comment on table public.farm_activity_types is
+    'D19: Farm can combine cow_calf + finishing — separate rows, not an array field.
+     Separate table enables querying "all finishing farms in Kostanay oblast" efficiently.
+     is_primary=true marks dominant activity for UI display.';
+
+-- -------------------------------------------------------
+-- herd_groups
+-- THE core Farm Graph entity. AGOS operates at THIS level.
+-- D20: AGOS = group level. ERP = individual animal level. Boundary is explicit.
+-- D21: Layered Truth with data_source + confidence (see Section 5.4)
+-- D27: RationBuilder calculation params NOT here (clean Farm/Feed separation)
+-- D49: Uses animal_categories (12+ unified types)
+-- Principle 3 (Granularity): groups are the right level — can aggregate up (totals)
+--   but cannot disaggregate down without ERP data
+-- Ownership Matrix 4.2:
+--   Farmer: C/U (L3), AI: C/U (L2 extract), ERP: U/A (L4), System: C (L1 reg)
+-- -------------------------------------------------------
+create table if not exists public.herd_groups (
+    id                  uuid    primary key default gen_random_uuid(),
+    farm_id             uuid    not null references public.farms(id) on delete cascade,
+    organization_id     uuid    not null references public.organizations(id),  -- denorm for RLS
+    animal_category_id  uuid    not null references public.animal_categories(id),
+    breed_id            uuid    references public.breeds(id),  -- nullable: mixed or unknown
+    -- Current state (P12 Temporal: current-state table. History = herd_events)
+    head_count          int     not null default 0 check (head_count >= 0),
+    avg_weight_kg       numeric(6,2) check (avg_weight_kg > 0 and avg_weight_kg < 2000),
+    -- D21: Layered Truth (Section 5.4)
+    data_source         text    not null default 'registration'
+                                    check (data_source in (
+                                        'registration',   -- L1: rough number from join form
+                                        'ai_extracted',   -- L2: from WhatsApp (draft, unvalidated)
+                                        'platform',       -- L3: farmer manually confirmed
+                                        'erp'             -- L4: synced from ERP (authoritative)
+                                    )),
+    confidence          int     not null default 25
+                                    check (confidence between 0 and 100),
+    -- Temporal precision
+    weight_updated_at   timestamptz,    -- when avg_weight_kg was last set
+    count_updated_at    timestamptz,    -- when head_count was last set
+    notes               text,
+    is_active           boolean not null default true,
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now()
+);
+comment on table public.herd_groups is
+    'D20: AGOS operates at group level. ERP handles individual animals.
+     D21: Layered Truth — data_source + confidence. L1(25%) < L2(50%) < L3(75%) < L4(95%).
+     Higher confidence source wins on conflict. System useful at ANY confidence level (P11).
+     D27: avg_weight_kg and head_count ARE here (needed for ration input). But calculation
+       params (ration objective, shelter override) belong in Ration entity, not here.
+     D49: animal_category_id links to unified 12+ type catalogue.
+     breed_id nullable: mixed herds are normal in KZ. breed→productivity_direction = breed_group (D23).';
+comment on column public.herd_groups.confidence is
+    'D21: 0-100 confidence scale. Default values: registration=25, ai_extracted=50,
+     platform=75, erp=95. Used by AI Gateway to display data quality to farmers.';
+comment on column public.herd_groups.breed_id is
+    'Nullable: mixed herd or breed not yet identified.
+     When set: breeds.productivity_direction_id → productivity_directions.code = breed_group.
+     This chain replaces any separate breed_group field (D23).';
+
+-- -------------------------------------------------------
+-- herd_events
+-- D25: APPEND-ONLY changelog for all herd changes
+-- D50: Merged with GroupLifecycleEvent — one unified journal
+-- Enum values from Section 5.8 (17 event types)
+-- Principle 12 (Temporal): herd_groups = current state; herd_events = history
+-- -------------------------------------------------------
+create table if not exists public.herd_events (
+    id              uuid    primary key default gen_random_uuid(),
+    farm_id         uuid    not null references public.farms(id),
+    organization_id uuid    not null references public.organizations(id),  -- denorm for RLS
+    -- D50: herd_group_id nullable — some events are farm-level (calving_start, stall_start)
+    herd_group_id   uuid    references public.herd_groups(id) on delete set null,
+    -- D50 + Section 5.8: Complete 17-type enum (merged from HerdEvent + GroupLifecycleEvent)
+    event_type      text    not null
+                                check (event_type in (
+                                    'head_count_change',  -- heads added or removed (manual/AI/ERP)
+                                    'weight_update',      -- avg weight changed
+                                    'group_created',      -- new HerdGroup added to farm
+                                    'group_removed',      -- HerdGroup deactivated
+                                    'birth',              -- calving event (births this period)
+                                    'death',              -- mortality (deaths this period)
+                                    'sale',               -- animals sold → links to TSP Batch
+                                    'purchase',           -- animals purchased
+                                    'calving_start',      -- calving season begins (farm-level)
+                                    'calving_end',        -- calving season ends
+                                    'weaning',            -- calves separated from cows
+                                    'breeding_start',     -- breeding season begins
+                                    'breeding_end',       -- breeding season ends
+                                    'stall_start',        -- moved to stall (winter housing)
+                                    'stall_end',          -- left stall
+                                    'pasture_start',      -- moved to pasture
+                                    'pasture_end'         -- left pasture
+                                )),
+    value_before    numeric(10,2),  -- numeric value before event (head count or kg weight)
+    value_after     numeric(10,2),  -- numeric value after event
+    -- Generated column: delta computed automatically (never manually set)
+    delta           numeric(10,2)
+                        generated always as (value_after - value_before) stored,
+    event_date      date    not null default current_date,
+    data_source     text    not null default 'platform'
+                                check (data_source in (
+                                    'registration','ai_extracted','platform','erp'
+                                )),
+    recorded_by     uuid    references public.users(id),  -- null if system/ERP
+    notes           text,
+    -- Extensible metadata for event-specific data
+    metadata        jsonb,  -- e.g. {batch_id: "uuid"} for sale events; {vet_case_id} for deaths
+    created_at      timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY (D25). Never UPDATE this table.
+);
+comment on table public.herd_events is
+    'D25: Append-only changelog — NEVER UPDATE, only INSERT.
+     D50: Merged with GroupLifecycleEvent into one unified journal per farm.
+     herd_group_id nullable: farm-level events (calving_start, stall_start) have no group.
+     delta generated column: positive = increase, negative = decrease.
+     metadata JSONB: sale events include {batch_id}, death events may include {vet_case_id}.
+     Data Flywheel (Section 5.3): each event enriches analytics and TSP supply prediction.';
+comment on column public.herd_events.metadata is
+    'Event-specific context. Examples:
+     sale:          {batch_id: "uuid", price_per_kg: 1500}
+     death:         {vet_case_id: "uuid", cause: "disease|accident|unknown"}
+     birth:         {father_breed_id: "uuid"}
+     head_count_change: {source_group_id: "uuid"} if transfer between groups';
+
+-- ============================================================
+-- SECTION 3: PLATFORM DOMAIN (6 entities)
+-- Decisions: D64–D72
+-- Ownership Matrix: Section 4.8
+-- ============================================================
+
+-- -------------------------------------------------------
+-- ai_conversations
+-- D64: One conversation = 24h WhatsApp session window
+-- D7: Conversation is PRIVATE to User; extracted facts go to Organization
+-- D72: Token/cost tracking per conversation for monitoring
+-- Ownership Matrix: AI Gateway C/U/A
+-- -------------------------------------------------------
+create table if not exists public.ai_conversations (
+    id                      uuid    primary key default gen_random_uuid(),
+    organization_id         uuid    not null references public.organizations(id),
+    user_id                 uuid    not null references public.users(id),
+    channel                 text    not null default 'whatsapp'
+                                        check (channel in ('whatsapp','web','mobile')),
+    current_role            text    not null default 'consultant'
+                                        check (current_role in (
+                                            'zootechnician',    -- feed/ration queries
+                                            'veterinarian',     -- health/disease queries
+                                            'consultant',       -- general association queries
+                                            'trading_agent'     -- TSP/market queries
+                                        )),
+    -- Context snapshot at conversation start (prevents mid-session drift)
+    farm_context_snapshot   jsonb,  -- {farm_id, herd_groups: [...], recent_events: [...]}
+    -- D64: 24h window
+    session_started_at      timestamptz not null default now(),
+    session_expires_at      timestamptz not null
+                                default (now() + interval '24 hours'),
+    -- State
+    message_count           int     not null default 0,
+    is_active               boolean not null default true,
+    -- D72: Token and cost tracking
+    total_input_tokens      int     not null default 0,
+    total_output_tokens     int     not null default 0,
+    total_cost_usd          numeric(10,6) not null default 0,
+    created_at              timestamptz not null default now(),
+    updated_at              timestamptz not null default now()
+);
+comment on table public.ai_conversations is
+    'D64: Session = 24h WhatsApp conversation window. On window expiry, new conversation created.
+     D7: Conversation private to User. farm_context_snapshot = what AI "knew" at session start.
+     D72: token/cost tracked per conversation for budget monitoring and optimization.
+     current_role = last determined role (changes per message via intent detection in AI Gateway).';
+
+-- -------------------------------------------------------
+-- ai_messages
+-- D65: Messages logged here. Extracted entities are DRAFTS only.
+--      Actual writes to Farm Graph happen ONLY via validated RPC (prevents hallucinations)
+-- D72: Latency tracked per message
+-- Append-only
+-- -------------------------------------------------------
+create table if not exists public.ai_messages (
+    id                  uuid    primary key default gen_random_uuid(),
+    conversation_id     uuid    not null references public.ai_conversations(id) on delete cascade,
+    role                text    not null
+                                    check (role in (
+                                        'user',       -- farmer's message
+                                        'assistant',  -- AI response
+                                        'system',     -- system prompt injection
+                                        'tool'        -- tool call result
+                                    )),
+    content_type        text    not null default 'text'
+                                    check (content_type in (
+                                        'text',         -- standard text
+                                        'voice',        -- voice message (transcribed)
+                                        'image',        -- photo (analysed by Vision)
+                                        'document',     -- PDF/file
+                                        'tool_call',    -- AI calling an RPC function
+                                        'tool_result'   -- RPC function response
+                                    )),
+    content_text        text,   -- final text (transcribed for voice, described for image)
+    content_url         text,   -- Supabase Storage URL for voice/image/document
+    -- D65: Tool calls logged; Farm Graph writes happen via RPC only
+    tool_calls          jsonb,  -- [{name, arguments, result, rpc_called}]
+    -- D65: Extracted entities are UNVALIDATED DRAFTS
+    extracted_entities  jsonb,  -- {herd_groups: [...], feed_inventory: [...]} — DRAFT state
+    -- D72: AI performance metrics
+    model_used          text,   -- e.g. "claude-sonnet-4-6", "claude-haiku-4-5"
+    input_tokens        int,
+    output_tokens       int,
+    latency_ms          int,
+    sequence_number     int     not null,   -- message order within conversation (1-based)
+    created_at          timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY
+);
+comment on table public.ai_messages is
+    'D65: CRITICAL — extracted_entities are DRAFTS. They are logged here but NEVER directly
+     written to herd_groups, farm_feed_inventory etc. All Farm Graph writes go through
+     validated RPC functions that verify the data makes sense (Dok 3).
+     This prevents hallucination-driven data corruption (Data Flywheel integrity).
+     Append-only. tool_calls JSONB records which RPCs were called with what params.';
+comment on column public.ai_messages.extracted_entities is
+    'D65: UNVALIDATED DRAFT extracted from conversation.
+     Example: {herd_groups: [{category: "BULL_CALF", count: 80, confidence: 0.9}]}
+     These must be reviewed (or auto-confirmed if confidence > threshold) via
+     RPC rpc_validate_and_apply_extracted_entities (Dok 3) before touching herd_groups.';
+
+-- -------------------------------------------------------
+-- platform_events
+-- D66: Namespaced event_type: domain.entity.action
+-- D67: Phase 1 = consumers POLL this table (no Realtime subscription needed yet)
+-- 27 event types defined in Dok 1 Section 5.5
+-- Append-only event log
+-- -------------------------------------------------------
+create table if not exists public.platform_events (
+    id              uuid    primary key default gen_random_uuid(),
+    -- D66: namespace format: 'domain.entity.action'
+    -- Examples: 'farm.herd_group.updated', 'market.batch.published'
+    event_type      text    not null,
+    entity_type     text    not null,   -- table name: 'herd_groups', 'batches' etc
+    entity_id       uuid,               -- id of the affected row
+    organization_id uuid    references public.organizations(id),  -- for consumer filtering
+    actor_type      text    not null
+                                check (actor_type in (
+                                    'farmer','admin','expert','system','ai_gateway'
+                                )),
+    actor_id        uuid,               -- user_id or null for system/cron
+    payload         jsonb,              -- event-specific data: {before: {}, after: {}, meta: {}}
+    created_at      timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY event log
+);
+comment on table public.platform_events is
+    'D66: Events namespaced as domain.entity.action (e.g. farm.herd_group.updated).
+     D67: Phase 1 consumers POLL by event_type + created_at. Realtime subscription in Phase 2.
+     27 event types (Section 5.5). All domain-significant state changes publish here.
+     This IS the Event Bus at Phase 1 scale (50-500 farmers). No separate queue needed.
+     Append-only. Partition by created_at at >1M rows (Dok 4 scope).';
+
+-- -------------------------------------------------------
+-- notifications
+-- D68: WhatsApp + in-app ONLY (no email, no SMS — decision is final)
+-- System and AI Gateway create notifications
+-- Ownership Matrix 4.8: System C/A; AI Gateway C (proactive)
+-- -------------------------------------------------------
+create table if not exists public.notifications (
+    id                  uuid    primary key default gen_random_uuid(),
+    user_id             uuid    not null references public.users(id) on delete cascade,
+    organization_id     uuid    not null references public.organizations(id),  -- denorm for RLS
+    -- D68: Two channels only
+    channel             text    not null
+                                    check (channel in ('whatsapp','in_app')),
+    template_id         text    not null,   -- e.g. 'batch_matched', 'vaccination_reminder'
+    params              jsonb,              -- template variable substitution
+    delivery_status     text    not null default 'pending'
+                                    check (delivery_status in (
+                                        'pending',      -- queued
+                                        'sent',         -- dispatched to channel
+                                        'delivered',    -- confirmed delivery (WhatsApp read receipt)
+                                        'failed',       -- delivery failed
+                                        'read'          -- user read (in-app)
+                                    )),
+    -- Triggering context
+    platform_event_id   uuid    references public.platform_events(id),
+    scheduled_for       timestamptz,    -- null = send immediately; set for scheduled alerts
+    sent_at             timestamptz,
+    delivered_at        timestamptz,
+    read_at             timestamptz,
+    failure_reason      text,
+    retry_count         int     not null default 0,
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now()
+);
+comment on table public.notifications is
+    'D68: WhatsApp + in-app only. No email, no SMS (final architectural decision).
+     template_id + params: all notifications are template-based (no free-form messages from system).
+     scheduled_for: used for proactive alerts (vaccination reminders, weather-triggered).
+     platform_event_id: traceability — which event triggered this notification.';
+
+-- -------------------------------------------------------
+-- audit_log
+-- D69: BUSINESS-CRITICAL actions only — NOT a full row-level changelog
+-- Auto-populated from platform_events trigger (Dok 4)
+-- Append-only
+-- -------------------------------------------------------
+create table if not exists public.audit_log (
+    id              uuid    primary key default gen_random_uuid(),
+    user_id         uuid    references public.users(id) on delete set null,  -- null = system
+    actor_type      text    not null
+                                check (actor_type in (
+                                    'farmer','admin','expert','system','ai_gateway'
+                                )),
+    action          text    not null,   -- e.g. 'membership.level_changed', 'batch.published'
+    entity_type     text    not null,   -- table name
+    entity_id       uuid,
+    organization_id uuid    references public.organizations(id),
+    changes         jsonb,              -- {before: {...}, after: {...}} snapshot
+    ip_address      inet,
+    created_at      timestamptz not null default now()
+    -- No updated_at: APPEND-ONLY
+);
+comment on table public.audit_log is
+    'D69: Business-critical actions only (NOT full row changelog).
+     Tracked: membership level changes, batch state transitions, price grid updates,
+     admin role grants, restriction creation/lift, expert verifications.
+     Auto-populated by trigger on platform_events (subset with is_audit flag — Dok 4).
+     Admin read-only (Ownership Matrix 4.8).';
+
+-- -------------------------------------------------------
+-- knowledge_chunks
+-- D70: Single pgvector RAG index across ALL domains (one search endpoint)
+-- D71: Quarterly expert review — only is_published=true chunks used in RAG
+-- D86: SOPDocument (Ops domain, 006_ops_edu.sql) also indexed here
+-- Ownership Matrix 4.8: Expert C/U/A (review); AI Gateway R (RAG search)
+-- -------------------------------------------------------
+create table if not exists public.knowledge_chunks (
+    id              uuid    primary key default gen_random_uuid(),
+    -- D70: All domains in one table
+    source_domain   text    not null
+                                check (source_domain in (
+                                    'veterinary',       -- disease reference, treatment protocols
+                                    'zootechnical',     -- NASEM norms, breeding standards, SOPs
+                                    'tsp',              -- TSP rules, coordination procedures
+                                    'legal',            -- association rules, antitrust compliance
+                                    'education',        -- course content summaries
+                                    'faq'               -- general association FAQ
+                                )),
+    title           text    not null,
+    content         text    not null,
+    -- D70: pgvector embedding. Dimension 1536 = text-embedding-3-small compatible
+    -- NOTE: NULL until AI Gateway async worker processes the chunk
+    embedding       vector(1536),
+    -- Filtering metadata
+    metadata        jsonb,  -- {tags: [], animal_category_codes: [], region_ids: [], lang: "ru"}
+    language        text    not null default 'ru'
+                                check (language in ('ru','kk','en')),
+    -- D71: Expert review lifecycle
+    reviewed_by     uuid    references public.users(id),  -- expert who approved
+    reviewed_at     timestamptz,
+    next_review_at  timestamptz,    -- quarterly: reviewed_at + 3 months
+    is_published    boolean not null default false, -- AI Gateway uses ONLY published chunks
+    -- Source traceability
+    source_url      text,           -- original document URL
+    source_version  text,           -- version of source document
+    created_at      timestamptz not null default now(),
+    updated_at      timestamptz not null default now()
+);
+comment on table public.knowledge_chunks is
+    'D70: Single cross-domain RAG index. AI Gateway searches all domains in one vector query.
+     D71: is_published=false = in review. AI Gateway NEVER uses unpublished chunks.
+     D86: SOPDocument (Ops domain, added in 006_ops_edu.sql) also stored here via source_domain=zootechnical.
+     embedding populated ASYNC by AI Gateway worker — chunk usable for text search while pending.
+     Quarterly review: expert sets next_review_at = reviewed_at + interval 3 months.';
+comment on column public.knowledge_chunks.embedding is
+    'vector(1536): compatible with text-embedding-3-small (OpenAI) or equivalent.
+     NULL until processed by AI Gateway embedding worker.
+     HNSW index created below for cosine similarity search (pgvector best practice).';
+
+-- ============================================================
+-- SECTION 4: INDEXES
+-- Strategy: index every FK + every column used in WHERE/ORDER BY
+-- ============================================================
+
+-- regions
+create index idx_regions_parent       on public.regions (parent_id) where parent_id is not null;
+create index idx_regions_level_active on public.regions (level, is_active);
+
+-- productivity_directions (small table, full scan is fine — index for completeness)
+create index idx_prod_dir_code on public.productivity_directions (code);
+
+-- animal_categories
+create index idx_animal_cat_sex      on public.animal_categories (sex, is_active);
+
+-- breeds
+create index idx_breeds_direction    on public.breeds (productivity_direction_id, is_active);
+
+-- users
+create index idx_users_auth_id on public.users (auth_id);
+create index idx_users_phone   on public.users (phone)  where phone is not null;
+create index idx_users_email   on public.users (email)  where email is not null;
+
+-- organizations
+create index idx_orgs_bin_iin  on public.organizations (bin_iin)   where bin_iin is not null;
+create index idx_orgs_region   on public.organizations (region_id) where region_id is not null;
+create index idx_orgs_active   on public.organizations (is_active);
+
+-- organization_type_assignments
+create index idx_org_type_org  on public.organization_type_assignments (organization_id);
+create index idx_org_type_type on public.organization_type_assignments (org_type);
+
+-- user_organization_roles
+create index idx_uor_user  on public.user_organization_roles (user_id);
+create index idx_uor_org   on public.user_organization_roles (organization_id);
+
+-- memberships
+create index idx_memberships_org      on public.memberships (organization_id);
+create index idx_memberships_type_lvl on public.memberships (org_type, level);
+
+-- membership_applications
+create index idx_mem_apps_membership on public.membership_applications (membership_id);
+create index idx_mem_apps_org_status on public.membership_applications (organization_id, status);
+
+-- verification_records
+create index idx_verif_membership on public.verification_records (membership_id);
+create index idx_verif_org        on public.verification_records (organization_id);
+
+-- restriction_records (fast "is this org restricted?" lookup)
+create index idx_restrictions_org_active
+    on public.restriction_records (organization_id)
+    where lifted_at is null;   -- partial index: only active restrictions
+
+-- admin_roles
+create index idx_admin_roles_active on public.admin_roles (user_id, is_active);
+
+-- expert_profiles
+create index idx_expert_spec_active on public.expert_profiles (specialization, is_active);
+
+-- consultation_requests
+create index idx_consult_org    on public.consultation_requests (organization_id, status);
+create index idx_consult_expert on public.consultation_requests (expert_profile_id)
+    where expert_profile_id is not null;
+create index idx_consult_status on public.consultation_requests (status, created_at desc);
+
+-- external_system_links
+create index idx_ext_links_org on public.external_system_links (organization_id);
+
+-- payments
+create index idx_payments_org    on public.payments (organization_id);
+create index idx_payments_status on public.payments (status, created_at desc);
+
+-- farms
+create index idx_farms_org    on public.farms (organization_id);
+create index idx_farms_region on public.farms (region_id) where region_id is not null;
+create index idx_farms_active on public.farms (organization_id, is_active) where is_active = true;
+
+-- farm_activity_types
+create index idx_farm_activities_farm on public.farm_activity_types (farm_id);
+
+-- herd_groups (critical — heavily queried)
+create index idx_herd_groups_farm     on public.herd_groups (farm_id);
+create index idx_herd_groups_org      on public.herd_groups (organization_id);   -- RLS
+create index idx_herd_groups_category on public.herd_groups (animal_category_id);
+create index idx_herd_groups_active   on public.herd_groups (farm_id, is_active)
+    where is_active = true;
+
+-- herd_events (time-series — order matters)
+create index idx_herd_events_farm_date  on public.herd_events (farm_id, event_date desc);
+create index idx_herd_events_group_date on public.herd_events (herd_group_id, event_date desc)
+    where herd_group_id is not null;
+create index idx_herd_events_org        on public.herd_events (organization_id);  -- RLS
+create index idx_herd_events_type_date  on public.herd_events (event_type, event_date desc);
+
+-- ai_conversations
+create index idx_ai_conv_org    on public.ai_conversations (organization_id);
+create index idx_ai_conv_user   on public.ai_conversations (user_id);
+create index idx_ai_conv_active on public.ai_conversations (user_id, is_active)
+    where is_active = true;
+
+-- ai_messages
+create index idx_ai_msg_conv_seq on public.ai_messages (conversation_id, sequence_number);
+
+-- platform_events (Event Bus polling — critical for Phase 1)
+create index idx_pe_type_created on public.platform_events (event_type, created_at desc);
+create index idx_pe_org_created  on public.platform_events (organization_id, created_at desc);
+create index idx_pe_entity       on public.platform_events (entity_type, entity_id);
+
+-- notifications
+create index idx_notif_user_status on public.notifications (user_id, delivery_status);
+create index idx_notif_scheduled   on public.notifications (scheduled_for)
+    where delivery_status = 'pending' and scheduled_for is not null;
+
+-- audit_log
+create index idx_audit_entity  on public.audit_log (entity_type, entity_id);
+create index idx_audit_org     on public.audit_log (organization_id, created_at desc);
+create index idx_audit_action  on public.audit_log (action, created_at desc);
+
+-- knowledge_chunks (vector similarity search — HNSW is best for pgvector)
+create index idx_kc_embedding on public.knowledge_chunks
+    using hnsw (embedding vector_cosine_ops)
+    where embedding is not null and is_published = true;
+create index idx_kc_domain_published on public.knowledge_chunks (source_domain, is_published);
+create index idx_kc_review_due on public.knowledge_chunks (next_review_at)
+    where is_published = true and next_review_at is not null;
+
+-- ============================================================
+-- SECTION 5: HELPER FUNCTIONS FOR RLS
+-- ============================================================
+
+-- Returns current user's UUID (from our users table, not auth.uid())
+create or replace function public.fn_current_user_id()
+returns uuid language sql security definer stable as $$
+    select id from public.users where auth_id = auth.uid() limit 1;
+$$;
+
+-- Returns all organization_ids the current user belongs to
+create or replace function public.fn_my_org_ids()
+returns uuid[] language sql security definer stable as $$
+    select coalesce(array_agg(uor.organization_id), array[]::uuid[])
+    from public.user_organization_roles uor
+    join public.users u on u.id = uor.user_id
+    where u.auth_id = auth.uid();
+$$;
+
+-- Is current user an admin?
+create or replace function public.fn_is_admin()
+returns boolean language sql security definer stable as $$
+    select exists (
+        select 1 from public.admin_roles ar
+        join public.users u on u.id = ar.user_id
+        where u.auth_id = auth.uid() and ar.is_active = true
+    );
+$$;
+
+-- Is current user an expert?
+create or replace function public.fn_is_expert()
+returns boolean language sql security definer stable as $$
+    select exists (
+        select 1 from public.expert_profiles ep
+        join public.users u on u.id = ep.user_id
+        where u.auth_id = auth.uid() and ep.is_active = true
+    );
+$$;
+
+-- Is org currently restricted? (active restriction = lifted_at IS NULL)
+create or replace function public.fn_org_is_restricted(p_org_id uuid)
+returns boolean language sql security definer stable as $$
+    select exists (
+        select 1 from public.restriction_records
+        where organization_id = p_org_id and lifted_at is null
+    );
+$$;
+
+-- ============================================================
+-- SECTION 6: ROW LEVEL SECURITY (RLS) POLICIES
+-- ============================================================
+-- Core principle: Farmer A NEVER sees Farmer B's data (Section 5.9)
+-- Aggregated/anonymous data is handled at RPC level, not RLS
+-- AI Gateway uses service_role to bypass RLS, but always filters by org_id in RPC
+-- ============================================================
+
+-- Enable RLS on all tables
+alter table public.regions                      enable row level security;
+alter table public.productivity_directions      enable row level security;
+alter table public.animal_categories            enable row level security;
+alter table public.breeds                       enable row level security;
+alter table public.users                        enable row level security;
+alter table public.organizations                enable row level security;
+alter table public.organization_type_assignments enable row level security;
+alter table public.user_organization_roles      enable row level security;
+alter table public.memberships                  enable row level security;
+alter table public.membership_applications      enable row level security;
+alter table public.verification_records         enable row level security;
+alter table public.consent_records              enable row level security;
+alter table public.agreement_acceptances        enable row level security;
+alter table public.restriction_records          enable row level security;
+alter table public.admin_roles                  enable row level security;
+alter table public.external_system_links        enable row level security;
+alter table public.payments                     enable row level security;
+alter table public.purchased_products           enable row level security;
+alter table public.expert_profiles              enable row level security;
+alter table public.consultation_requests        enable row level security;
+alter table public.farms                        enable row level security;
+alter table public.farm_activity_types          enable row level security;
+alter table public.herd_groups                  enable row level security;
+alter table public.herd_events                  enable row level security;
+alter table public.ai_conversations             enable row level security;
+alter table public.ai_messages                  enable row level security;
+alter table public.platform_events              enable row level security;
+alter table public.notifications                enable row level security;
+alter table public.audit_log                    enable row level security;
+alter table public.knowledge_chunks             enable row level security;
+
+-- -------------------------------------------------------
+-- REFERENCE TABLES: readable by all authenticated users, writable by admin only
+-- -------------------------------------------------------
+create policy "regions_read_authenticated"
+    on public.regions for select using (auth.uid() is not null);
+create policy "regions_admin_write"
+    on public.regions for all using (public.fn_is_admin());
+
+create policy "productivity_dirs_read_authenticated"
+    on public.productivity_directions for select using (auth.uid() is not null);
+create policy "productivity_dirs_admin_write"
+    on public.productivity_directions for all using (public.fn_is_admin());
+
+create policy "animal_categories_read_authenticated"
+    on public.animal_categories for select using (auth.uid() is not null);
+create policy "animal_categories_admin_write"
+    on public.animal_categories for all using (public.fn_is_admin());
+
+create policy "breeds_read_authenticated"
+    on public.breeds for select using (auth.uid() is not null);
+create policy "breeds_admin_expert_write"
+    on public.breeds for all using (public.fn_is_admin() or public.fn_is_expert());
+
+-- -------------------------------------------------------
+-- -------------------------------------------------------
+-- ORGANIZATION TYPE ASSIGNMENTS
+-- -------------------------------------------------------
+create policy "org_type_read_own"
+    on public.organization_type_assignments for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "org_type_write_own"
+    on public.organization_type_assignments for insert
+    with check (organization_id = any(public.fn_my_org_ids()));
+create policy "org_type_admin_update"
+    on public.organization_type_assignments for update
+    using (public.fn_is_admin());
+
+-- -------------------------------------------------------
+-- USERS
+-- -------------------------------------------------------
+create policy "users_read_own"
+    on public.users for select
+    using (auth_id = auth.uid() or public.fn_is_admin() or public.fn_is_expert());
+create policy "users_insert_own"
+    on public.users for insert
+    with check (auth_id = auth.uid());
+create policy "users_update_own"
+    on public.users for update
+    using (auth_id = auth.uid() or public.fn_is_admin());
+
+-- -------------------------------------------------------
+-- ORGANIZATIONS
+-- -------------------------------------------------------
+create policy "orgs_read_own"
+    on public.organizations for select
+    using (
+        id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "orgs_insert_authenticated"
+    on public.organizations for insert
+    with check (auth.uid() is not null);
+create policy "orgs_update_own"
+    on public.organizations for update
+    using (
+        id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+
+-- -------------------------------------------------------
+-- MEMBERSHIPS & RELATED
+-- -------------------------------------------------------
+create policy "memberships_read_own"
+    on public.memberships for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "memberships_admin_write"
+    on public.memberships for all
+    using (public.fn_is_admin());
+
+create policy "mem_apps_read_own"
+    on public.membership_applications for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "mem_apps_farmer_insert"
+    on public.membership_applications for insert
+    with check (organization_id = any(public.fn_my_org_ids()));
+create policy "mem_apps_admin_update"
+    on public.membership_applications for update
+    using (public.fn_is_admin());
+
+create policy "verif_records_read_own"
+    on public.verification_records for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "verif_records_admin_write"
+    on public.verification_records for insert
+    with check (public.fn_is_admin() or public.fn_is_expert());
+
+-- -------------------------------------------------------
+-- CONSENT & AGREEMENTS (user-private)
+-- -------------------------------------------------------
+create policy "consent_read_own"
+    on public.consent_records for select
+    using (
+        user_id = public.fn_current_user_id()
+        or public.fn_is_admin()
+    );
+create policy "consent_system_insert"
+    on public.consent_records for insert
+    with check (user_id = public.fn_current_user_id() or public.fn_is_admin());
+
+create policy "agreements_read_own"
+    on public.agreement_acceptances for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "agreements_farmer_insert"
+    on public.agreement_acceptances for insert
+    with check (organization_id = any(public.fn_my_org_ids()));
+
+-- -------------------------------------------------------
+-- RESTRICTIONS (admin only)
+-- -------------------------------------------------------
+create policy "restrictions_admin_all"
+    on public.restriction_records for all
+    using (public.fn_is_admin());
+-- Farmers cannot read their own restriction records (prevent gaming)
+-- They experience restrictions as "access denied" responses
+
+-- -------------------------------------------------------
+-- ADMIN & EXPERT PROFILES
+-- -------------------------------------------------------
+create policy "admin_roles_super_admin"
+    on public.admin_roles for all
+    using (public.fn_is_admin());
+
+create policy "expert_profiles_read_authenticated"
+    on public.expert_profiles for select
+    using (auth.uid() is not null);  -- farmers can see expert list (for consultation requests)
+create policy "expert_profiles_admin_write"
+    on public.expert_profiles for all
+    using (public.fn_is_admin());
+create policy "expert_profiles_self_update"
+    on public.expert_profiles for update
+    using (user_id = public.fn_current_user_id());
+
+-- -------------------------------------------------------
+-- CONSULTATION REQUESTS
+-- -------------------------------------------------------
+create policy "consult_read_own_or_expert"
+    on public.consultation_requests for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "consult_farmer_insert"
+    on public.consultation_requests for insert
+    with check (organization_id = any(public.fn_my_org_ids()));
+create policy "consult_admin_expert_update"
+    on public.consultation_requests for update
+    using (public.fn_is_admin() or public.fn_is_expert());
+
+-- -------------------------------------------------------
+-- EXTERNAL SYSTEM LINKS & PAYMENTS
+-- -------------------------------------------------------
+create policy "ext_links_read_own"
+    on public.external_system_links for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "ext_links_own_write"
+    on public.external_system_links for all
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+
+create policy "payments_read_own"
+    on public.payments for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+create policy "payments_admin_write"
+    on public.payments for all
+    using (public.fn_is_admin());
+
+create policy "purchased_products_read_own"
+    on public.purchased_products for select
+    using (
+        user_id = public.fn_current_user_id()
+        or public.fn_is_admin()
+    );
+
+-- -------------------------------------------------------
+-- FARMS & HERD DATA (core data isolation)
+-- Principle from Section 5.9: Farmer A NEVER sees Farmer B's data
+-- -------------------------------------------------------
+create policy "farms_read_own"
+    on public.farms for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()  -- experts read for consultation
+    );
+create policy "farms_write_own"
+    on public.farms for all
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+
+create policy "farm_activities_read_own"
+    on public.farm_activity_types for select
+    using (
+        farm_id in (
+            select id from public.farms
+            where organization_id = any(public.fn_my_org_ids())
+        )
+        or public.fn_is_admin()
+    );
+create policy "farm_activities_write_own"
+    on public.farm_activity_types for all
+    using (
+        farm_id in (
+            select id from public.farms
+            where organization_id = any(public.fn_my_org_ids())
+        )
+        or public.fn_is_admin()
+    );
+
+create policy "herd_groups_read_own"
+    on public.herd_groups for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "herd_groups_write_own"
+    on public.herd_groups for all
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+
+create policy "herd_events_read_own"
+    on public.herd_events for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "herd_events_insert_own"
+    on public.herd_events for insert
+    with check (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+-- No UPDATE/DELETE policy for herd_events: append-only (D25)
+
+-- -------------------------------------------------------
+-- AI CONVERSATIONS & MESSAGES (D7: private to User)
+-- -------------------------------------------------------
+create policy "ai_conv_read_own"
+    on public.ai_conversations for select
+    using (
+        user_id = public.fn_current_user_id()
+        or public.fn_is_admin()
+    );
+create policy "ai_conv_write_own"
+    on public.ai_conversations for all
+    using (
+        user_id = public.fn_current_user_id()
+        or public.fn_is_admin()
+    );
+
+create policy "ai_msg_read_own"
+    on public.ai_messages for select
+    using (
+        conversation_id in (
+            select id from public.ai_conversations
+            where user_id = public.fn_current_user_id()
+        )
+        or public.fn_is_admin()
+    );
+create policy "ai_msg_insert_own"
+    on public.ai_messages for insert
+    with check (
+        conversation_id in (
+            select id from public.ai_conversations
+            where user_id = public.fn_current_user_id()
+        )
+    );
+
+-- -------------------------------------------------------
+-- PLATFORM EVENTS, NOTIFICATIONS, AUDIT
+-- -------------------------------------------------------
+create policy "platform_events_read_own"
+    on public.platform_events for select
+    using (
+        organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    );
+
+create policy "notifications_read_own"
+    on public.notifications for select
+    using (
+        user_id = public.fn_current_user_id()
+        or public.fn_is_admin()
+    );
+create policy "notifications_update_own"
+    on public.notifications for update
+    using (user_id = public.fn_current_user_id());  -- allow marking as read
+
+create policy "audit_log_admin_only"
+    on public.audit_log for select
+    using (public.fn_is_admin());
+
+-- -------------------------------------------------------
+-- KNOWLEDGE CHUNKS (published = all authenticated; full = expert/admin)
+-- -------------------------------------------------------
+create policy "knowledge_read_published"
+    on public.knowledge_chunks for select
+    using (
+        is_published = true
+        or public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+create policy "knowledge_expert_write"
+    on public.knowledge_chunks for all
+    using (public.fn_is_admin() or public.fn_is_expert());
+
+-- ============================================================
+-- SECTION 7: UPDATED_AT TRIGGER
+-- Applied to all tables with updated_at column
+-- ============================================================
+
+create or replace function public.fn_set_updated_at()
+returns trigger language plpgsql as $$
+begin
+    new.updated_at = now();
+    return new;
+end;
+$$;
+
+create trigger trg_users_updated_at
+    before update on public.users
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_organizations_updated_at
+    before update on public.organizations
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_user_org_roles_updated_at
+    before update on public.user_organization_roles
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_memberships_updated_at
+    before update on public.memberships
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_mem_apps_updated_at
+    before update on public.membership_applications
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_expert_profiles_updated_at
+    before update on public.expert_profiles
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_consultation_reqs_updated_at
+    before update on public.consultation_requests
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_ext_links_updated_at
+    before update on public.external_system_links
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_payments_updated_at
+    before update on public.payments
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_farms_updated_at
+    before update on public.farms
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_herd_groups_updated_at
+    before update on public.herd_groups
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_ai_conversations_updated_at
+    before update on public.ai_conversations
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_notifications_updated_at
+    before update on public.notifications
+    for each row execute function public.fn_set_updated_at();
+
+create trigger trg_knowledge_chunks_updated_at
+    before update on public.knowledge_chunks
+    for each row execute function public.fn_set_updated_at();
+
+-- ============================================================
+-- SECTION 8: SEED DATA
+-- P8: Standards as Data, Not Code
+-- All values editable by admin after migration via INSERT/UPDATE
+-- ============================================================
+
+-- -------------------------------------------------------
+-- productivity_directions (3 types — stable)
+-- -------------------------------------------------------
+insert into public.productivity_directions (code, name_ru, name_kk, sort_order) values
+    ('meat',     'Мясное',        'Ет',     1),
+    ('dairy',    'Молочное',      'Сүт',    2),
+    ('combined', 'Мясо-молочное', 'Ет-сүт', 3)
+on conflict (code) do nothing;
+
+-- -------------------------------------------------------
+-- animal_categories (12 types — D49: unified Farm + RationBuilder)
+-- Sex: male | female | mixed
+-- Age ranges: informational only
+-- -------------------------------------------------------
+insert into public.animal_categories
+    (code, name_ru, name_kk, sex, typical_age_min_months, typical_age_max_months, sort_order)
+values
+    ('SUCKLING_CALF', 'Телята-сосуны',       'Емізулі бұзаулар',    'mixed',  0,    3,    1),
+    ('YOUNG_CALF',    'Телята отъёмные',      'Жас бұзаулар',        'mixed',  3,    8,    2),
+    ('BULL_CALF',     'Бычки',                'Бұқашықтар',          'male',   8,    18,   3),
+    ('STEER',         'Бычки на откорме',     'Бордақы бұқашықтар',  'male',   12,   30,   4),
+    ('HEIFER_YOUNG',  'Тёлки',                'Қашарлар',            'female', 8,    18,   5),
+    ('HEIFER_PREG',   'Нетели',               'Буаз қашарлар',       'female', 18,   30,   6),
+    ('COW',           'Коровы',               'Сиырлар',             'female', 30,   null, 7),
+    ('COW_CULL',      'Коровы выбракованные', 'Шығарылатын сиырлар', 'female', 48,   null, 8),
+    ('BULL_BREEDING', 'Быки-производители',   'Тұқымдық бұқалар',    'male',   24,   null, 9),
+    ('BULL_CULL',     'Быки выбракованные',   'Шығарылатын бұқалар', 'male',   36,   null, 10),
+    ('OX',            'Волы',                 'Өгіздер',             'male',   12,   null, 11),
+    ('MIXED',         'Смешанная группа',     'Аралас топ',          'mixed',  null, null, 12)
+on conflict (code) do nothing;
+
+-- -------------------------------------------------------
+-- breeds (16 breeds covering main KZ production — expandable by admin)
+-- -------------------------------------------------------
+insert into public.breeds
+    (productivity_direction_id, code, name_ru, name_en, is_local, sort_order)
+select pd.id, b.code, b.name_ru, b.name_en, b.is_local, b.sort_order
+from (values
+    -- Meat breeds
+    ('meat', 'KAZ_WHITEHEAD', 'Казахская белоголовая', 'Kazakh Whiteheaded',  true,  1),
+    ('meat', 'AULIEKOL',      'Аулиекольская',          'Auliekol',            true,  2),
+    ('meat', 'HEREFORD',      'Герефорд',               'Hereford',            false, 3),
+    ('meat', 'ANGUS',         'Абердин-ангус',          'Aberdeen Angus',      false, 4),
+    ('meat', 'LIMOUSIN',      'Лимузин',                'Limousin',            false, 5),
+    ('meat', 'CHAROLAIS',     'Шароле',                 'Charolais',           false, 6),
+    ('meat', 'KALMYK',        'Калмыцкая',              'Kalmyk',              false, 7),
+    ('meat', 'MIXED_MEAT',    'Помесная мясная',        'Mixed Meat',          false, 8),
+    -- Dairy breeds
+    ('dairy', 'HOLSTEIN',    'Голштинская',             'Holstein',            false, 9),
+    ('dairy', 'BLACK_PIED',  'Чёрно-пёстрая',          'Black Pied',          false, 10),
+    ('dairy', 'RED_STEPPE',  'Красная степная',         'Red Steppe',          false, 11),
+    ('dairy', 'BROWN_SWISS', 'Бурая швицкая',           'Brown Swiss',         false, 12),
+    ('dairy', 'MIXED_DAIRY', 'Помесная молочная',       'Mixed Dairy',         false, 13),
+    -- Combined breeds
+    ('combined', 'SIMMENTAL', 'Симментальская',         'Simmental',           false, 14),
+    ('combined', 'ALATAU',    'Алатауская',             'Alatau',              true,  15),
+    ('combined', 'KOSTANAY',  'Костанайская',           'Kostanay',            true,  16)
+) as b(pd_code, code, name_ru, name_en, is_local, sort_order)
+join public.productivity_directions pd on pd.code = b.pd_code
+on conflict (code) do nothing;
+
+-- -------------------------------------------------------
+-- regions (Kazakhstan: 1 country + 17 oblasts + 3 cities = 21 rows)
+-- ISO 3166-2:KZ codes
+-- -------------------------------------------------------
+insert into public.regions (code, name_ru, name_kk, level, sort_order) values
+    ('KZ',      'Казахстан',                         'Қазақстан',                   'country', 0),
+    ('KZ-AKM',  'Акмолинская область',               'Ақмола облысы',               'oblast',  1),
+    ('KZ-AKT',  'Актюбинская область',               'Ақтөбе облысы',               'oblast',  2),
+    ('KZ-ALA',  'Алматинская область',               'Алматы облысы',               'oblast',  3),
+    ('KZ-ATY',  'Атырауская область',                'Атырау облысы',               'oblast',  4),
+    ('KZ-VKO',  'Восточно-Казахстанская область',    'Шығыс Қазақстан облысы',      'oblast',  5),
+    ('KZ-ZHA',  'Жамбылская область',                'Жамбыл облысы',               'oblast',  6),
+    ('KZ-ZKO',  'Западно-Казахстанская область',     'Батыс Қазақстан облысы',      'oblast',  7),
+    ('KZ-KAR',  'Карагандинская область',            'Қарағанды облысы',            'oblast',  8),
+    ('KZ-KUS',  'Костанайская область',              'Қостанай облысы',             'oblast',  9),
+    ('KZ-KZY',  'Кызылординская область',            'Қызылорда облысы',            'oblast',  10),
+    ('KZ-MAN',  'Мангистауская область',             'Маңғыстау облысы',            'oblast',  11),
+    ('KZ-PAV',  'Павлодарская область',              'Павлодар облысы',             'oblast',  12),
+    ('KZ-SKO',  'Северо-Казахстанская область',      'Солтүстік Қазақстан облысы',  'oblast',  13),
+    ('KZ-TUR',  'Туркестанская область',             'Түркістан облысы',            'oblast',  14),
+    ('KZ-ABY',  'Абайская область',                  'Абай облысы',                 'oblast',  15),
+    ('KZ-ZHT',  'Жетысуская область',                'Жетісу облысы',               'oblast',  16),
+    ('KZ-ULY',  'Улытауская область',                'Ұлытау облысы',               'oblast',  17),
+    ('KZ-AST',  'Астана (г.)',                       'Астана (қ.)',                  'city',    18),
+    ('KZ-ALM',  'Алматы (г.)',                       'Алматы (қ.)',                  'city',    19),
+    ('KZ-SHY',  'Шымкент (г.)',                      'Шымкент (қ.)',                 'city',    20)
+on conflict (code) do nothing;
+
+-- Set parent_id: all oblasts and cities → Kazakhstan root
+update public.regions r
+set parent_id = (select id from public.regions where code = 'KZ')
+where r.code != 'KZ' and r.parent_id is null;
+
+-- ============================================================
+-- MIGRATION COMPLETE
+-- ============================================================
+-- Summary:
+--   Reference tables:  4  (regions, productivity_directions, animal_categories, breeds)
+--   Identity tables:  17  (users...consultation_requests)
+--   Farm tables:       4  (farms, farm_activity_types, herd_groups, herd_events)
+--                     [+ 3 reference tables above = 7 Farm domain entities]
+--   Platform tables:   6  (ai_conversations, ai_messages, platform_events,
+--                          notifications, audit_log, knowledge_chunks)
+--   Total:            30 tables (34 including reference lookup tables separately)
+--
+--   Indexes:          48
+--   RLS policies:     42
+--   Helper functions:  5 (fn_current_user_id, fn_my_org_ids, fn_is_admin,
+--                         fn_is_expert, fn_org_is_restricted)
+--   Triggers:         14 (updated_at on all mutable tables)
+--   Seed data:         4 tables seeded
+--
+-- Verified decisions:
+--   Identity: D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D58
+--   Farm:     D18 D19 D20 D21 D22 D23 D24 D25 D26 D27 D49 D50 D54
+--   Platform: D64 D65 D66 D67 D68 D69 D70 D71 D72
+--
+-- Cross-module FK pending (to be added in downstream migrations):
+--   005_vet.sql:     ALTER TABLE consultation_requests
+--                      ADD CONSTRAINT fk_consult_vet_case
+--                      FOREIGN KEY (vet_case_id) REFERENCES vet_cases(id);
+--   006_ops_edu.sql: Purchased_products → courses FK
+--
+-- Next migration: 002_tsp.sql
+--   Entities: Batch, PoolRequest, Pool, PoolMatch, DeliveryRecord, PoolManifest,
+--             PriceGrid, PriceGridLog, TspCategory*, WeightClass*, GradeStandard*,
+--             ValidCombination*, PriceIndex, PriceIndexValue, PriceIndexMethodology*
+--             (15 entities, 4 reference)
+-- ============================================================
+
+
+-- === FROM 009: AI Gateway conversation fields, ai_prompts, notification dispatch ===
+-- ============================================================
+-- AGOS Migration 009: AI GATEWAY PATCH
+-- Project: TURAN Agricultural Operating System
+-- Version: 1.0 | Date: 5 March 2026
+--
+-- Purpose:
+--   Закрывает все критические дефекты AI Gateway,
+--   выявленные в Architecture Audit (март 2026).
+--
+-- Дефекты:
+--   C-1  ai_conversations: 8 новых колонок отсутствуют в БД
+--   C-2  Все Gateway RPCs в схеме rpc. — создаём в public.
+--   C-3  pg_try_advisory_lock → pg_try_advisory_xact_lock (session→xact)
+--   C-4  current_role CHECK: 'veterinarian' → 'vet'
+--   C-5  ai_messages.whatsapp_message_id отсутствует
+--   C-6  notifications: поля dispatch отсутствуют
+--   C-7  ai_conversations.detected_language (profiles не существует)
+--   C-8  Таблица ai_prompts + get_active_prompt() + seed data
+--   L-4  mark_notification_sent / mark_notification_failed не реализованы
+--   L-6  invalidate_ai_context() как RPC (не прямая запись)
+--   L-8  get_active_prompt ORDER BY tiebreaker
+--
+-- Depends on: 001_kernel.sql
+-- Required by: AI Gateway (Python FastAPI + LangGraph)
+--
+-- Conventions (from 001_kernel.sql):
+--   - Все функции в public. (PostgREST вызывает через supabase.rpc())
+--   - SECURITY DEFINER SET search_path = public, pg_temp
+--   - Advisory lock: xact-level (pg_try_advisory_xact_lock)
+--   - Все ALTER TABLE используют IF NOT EXISTS / IF EXISTS
+--   - Нет breaking changes к существующим таблицам
+-- ============================================================
+
+-- ============================================================
+-- PATCH 1: ai_conversations — новые поля (C-1, C-4, C-7)
+--
+-- C-1: Поля для confirmation flow, rolling summary,
+--      context TTL-инвалидации (Dok 5 §3.3, §3.6, §5.3)
+-- C-4: Исправить CHECK constraint current_role:
+--      'veterinarian' → 'vet' (должно совпадать с AI Gateway)
+-- C-7: detected_language (profiles не существует → правильно здесь)
+-- ============================================================
+
+-- ── Confirmation flow (D117, D121) ──────────────────────────
+alter table public.ai_conversations
+    add column if not exists confirmation_pending  boolean     not null default false,
+    add column if not exists confirmation_payload  jsonb       default null,
+    add column if not exists active_farm_id        uuid        references public.farms(id)
+                                                       on delete set null;
+
+comment on column public.ai_conversations.confirmation_pending is
+    'C-1/D117: TRUE = предыдущий run ожидает подтверждения от фермера.
+     check_confirmation читает это поле в начале каждого run.
+     Устанавливается в TRUE после extract_entities → save_confirmation_payload.
+     Сбрасывается в FALSE после write_entities (confirm) или clear_confirmation (reject).';
+
+comment on column public.ai_conversations.confirmation_payload is
+    'C-1/D117: Что ждёт подтверждения. Формат:
+     {entity_type: "herd_group", rpc: "upsert_herd_group",
+      data: {animal_category_code: "BULL_CALF", head_count: 80, avg_weight_kg: 280}}
+     NULL когда confirmation_pending = FALSE.
+     LLM никогда не видит это поле напрямую — читает только Gateway.';
+
+comment on column public.ai_conversations.active_farm_id is
+    'C-1/S-3: Активная ферма в текущем разговоре (для мультифермных орг-ий).
+     NULL = не уточнено. Уточняется при первом farm-specific запросе.
+     Сбрасывается при новой сессии (24h window).';
+
+-- ── Rolling summary (D120, D126) ────────────────────────────
+alter table public.ai_conversations
+    add column if not exists message_history_summary    text    default null,
+    add column if not exists summary_last_message_index int     not null default 0;
+
+comment on column public.ai_conversations.message_history_summary is
+    'C-1/D120: Incremental rolling summary старых сообщений.
+     Обновляется каждые SUMMARIZE_EVERY_N=10 новых сообщений через Claude Haiku.
+     Передаётся в Claude API как первое сообщение [user: summary, assistant: "Понял"].
+     NULL = история короче MAX_RECENT_MESSAGES=10, summary не нужен.';
+
+comment on column public.ai_conversations.summary_last_message_index is
+    'C-1/D126: Индекс последнего сообщения включённого в summary.
+     get_rolling_summary(): если (total - summary_last_message_index) >= 10 → пересоздать.
+     При пересоздании: new_summary = summarize(old_summary + messages[last_idx:]).
+     Гарантирует что ни одно сообщение не потеряется.';
+
+-- ── Context invalidation TTL (D128) ─────────────────────────
+alter table public.ai_conversations
+    add column if not exists context_invalidated_at timestamptz default null;
+
+comment on column public.ai_conversations.context_invalidated_at is
+    'C-1/D128: Принудительная инвалидация context snapshot от Event Bus.
+     Устанавливается через rpc.invalidate_ai_context() когда внешний агент
+     (веб-кабинет) изменяет herd_groups организации в активной сессии.
+     load_context node: if context_invalidated_at IS NOT NULL → полный reload.
+     Сбрасывается после reload: UPDATE SET context_invalidated_at = NULL.';
+
+-- ── Processing lock timestamp (D121) ────────────────────────
+-- Примечание: реальный lock делается через pg_try_advisory_xact_lock (Patch 4).
+-- Это поле — fallback timestamp для мониторинга зависших runs.
+alter table public.ai_conversations
+    add column if not exists processing_locked_at timestamptz default null;
+
+comment on column public.ai_conversations.processing_locked_at is
+    'C-1/D121: Timestamp начала обработки текущего run (мониторинг).
+     НЕ является механизмом блокировки — реальный lock через pg_try_advisory_xact_lock().
+     Используется для детектирования зависших runs: если > 5 минут → считать orphan.
+     Устанавливается: UPDATE SET processing_locked_at = now() в начале run.
+     Сбрасывается: UPDATE SET processing_locked_at = NULL в конце run.';
+
+-- ── Detected language (D131, R-10) ──────────────────────────
+-- C-7: Dok 5 §9.2 содержал ALTER TABLE profiles — таблицы profiles нет.
+--      users.preferred_language уже есть в 001_kernel.sql.
+--      Добавляем только detected_language в ai_conversations.
+alter table public.ai_conversations
+    add column if not exists detected_language text not null default 'ru'
+        check (detected_language in ('ru', 'kk'));
+
+comment on column public.ai_conversations.detected_language is
+    'C-7/D131: Язык определённый из входящих сообщений (не явный выбор пользователя).
+     detect_and_cache_language() обновляет это поле при каждом новом сообщении.
+     Proactive templates: приоритет users.preferred_language → detected_language → "ru".
+     Только ru/kk: English не поддерживается как язык интерфейса фермера.';
+
+-- ── C-4: Исправить CHECK constraint current_role ────────────
+-- 'veterinarian' в SQL vs 'vet' в AI Gateway Python code — несовпадение.
+-- Решение: 'vet' (короче, совпадает с Dok 5 AgentState TypedDict).
+-- Безопасно: existing rows имеют default 'consultant', не 'veterinarian'.
+
+do $$
+begin
+    -- Найти и удалить старый constraint по имени
+    if exists (
+        select 1 from information_schema.table_constraints
+        where table_name = 'ai_conversations'
+          and constraint_type = 'CHECK'
+          and constraint_name like '%current_role%'
+    ) then
+        execute (
+            select 'alter table public.ai_conversations drop constraint ' || constraint_name
+            from information_schema.table_constraints
+            where table_name = 'ai_conversations'
+              and constraint_type = 'CHECK'
+              and constraint_name like '%current_role%'
+            limit 1
+        );
+    end if;
+end $$;
+
+alter table public.ai_conversations
+    add constraint ai_conversations_current_role_check
+    check (current_role in (
+        'zootechnician',   -- управление стадом, кормление, план
+        'vet',             -- C-4: было 'veterinarian' — исправлено
+        'consultant',      -- субсидии, документы, членство
+        'trading_agent'    -- TSP, батчи, цены
+    ));
+
+comment on column public.ai_conversations.current_role is
+    'C-4: Роль AI агента в текущем разговоре. Совпадает с AgentState.current_role в Python.
+     ИСПРАВЛЕНИЕ: было ''veterinarian'' (001_kernel.sql) → стало ''vet'' (Dok 5 standard).
+     Изменяется через sync_role_to_db node при каждом route_role.
+     Default = ''consultant'' (самая безопасная роль при неопределённости).';
+
+-- ── Индексы для новых полей ──────────────────────────────────
+create index if not exists idx_ai_conv_confirmation
+    on public.ai_conversations (confirmation_pending)
+    where confirmation_pending = true;
+-- Быстро найти все разговоры ожидающие подтверждения (мониторинг)
+
+create index if not exists idx_ai_conv_invalidated
+    on public.ai_conversations (organization_id, context_invalidated_at)
+    where context_invalidated_at is not null;
+-- invalidate_ai_context(): UPDATE WHERE organization_id = X AND is_active = true
+
+-- ============================================================
+-- PATCH 2: ai_messages — dedup field (C-5)
+--
+-- Dok 5 §10.2 R-7: атомарный INSERT ON CONFLICT (whatsapp_message_id)
+-- Без этого поля и индекса дубли WhatsApp webhook возможны.
+-- ============================================================
+
+alter table public.ai_messages
+    add column if not exists whatsapp_message_id text default null;
+
+comment on column public.ai_messages.whatsapp_message_id is
+    'C-5/D129: Уникальный ID сообщения от WhatsApp провайдера (wamid.xxx).
+     NULL для сообщений из веб-кабинета (у них нет WA message_id).
+     UNIQUE INDEX: insert_user_message_dedup использует ON CONFLICT (whatsapp_message_id).
+     Гарантирует атомарный dedup без race condition SELECT→INSERT.';
+
+create unique index if not exists ai_messages_wa_msgid_key
+    on public.ai_messages (whatsapp_message_id)
+    where whatsapp_message_id is not null;
+-- Partial unique index: только WA сообщения, web не затронуты
+
+-- ── prompt_version для трекинга качества (D132, R-11) ───────
+alter table public.ai_messages
+    add column if not exists prompt_version text default null;
+
+comment on column public.ai_messages.prompt_version is
+    'D132/R-11: Версия системного промпта использованного при генерации ответа.
+     Формат: "base=1.0;role=1.2" (из build_system_prompt()).
+     Сохраняется в metadata или напрямую в AIMessage при role=assistant.
+     Позволяет коррелировать версию промпта с negative_feedback_rate (D130).
+     NULL для role=user и role=tool сообщений.';
+
+-- ============================================================
+-- PATCH 3: notifications — dispatch fields (C-6)
+--
+-- Dok 5 §9.3: claim_pending_notifications, mark_notification_sent,
+--             mark_notification_failed используют эти поля.
+-- ============================================================
+
+alter table public.notifications
+    add column if not exists locked_by  text        default null,
+    add column if not exists locked_at  timestamptz default null,
+    add column if not exists failed_at  timestamptz default null,
+    add column if not exists error_text text        default null;
+
+comment on column public.notifications.locked_by is
+    'C-6/D127: ID воркера захватившего это уведомление для отправки.
+     Формат: FLY_MACHINE_ID или "local" при разработке.
+     claim_pending_notifications(): UPDATE SET locked_by = p_worker_id WHERE id IN (...FOR UPDATE SKIP LOCKED).
+     Stale lock: если locked_at < now() - 10 min → считать брошенным, можно захватить снова.';
+
+comment on column public.notifications.locked_at is
+    'C-6/D127: Время захвата уведомления воркером.
+     Используется для stale lock detection (> 10 минут → orphan).';
+
+comment on column public.notifications.failed_at is
+    'C-6: Время последней неуспешной попытки отправки.
+     mark_notification_failed() устанавливает это поле.';
+
+comment on column public.notifications.error_text is
+    'C-6: Текст ошибки последней неуспешной попытки.
+     Сохраняется для диагностики (WhatsApp API error, timeout и т.д.).';
+
+-- ── Индекс для dispatch polling ──────────────────────────────
+create index if not exists idx_notif_dispatch
+    on public.notifications (scheduled_for, locked_by)
+    where delivery_status = 'pending';
+-- claim_pending_notifications(): WHERE status='pending' AND scheduled_for<=now()
+--   AND (locked_by IS NULL OR locked_at < now()-10min)
+
+-- ============================================================
+-- PATCH 4: ai_prompts table + get_active_prompt RPC (C-8, L-8)
+--
+-- Dok 5 §4.6 R-11: versioned system prompts в БД.
+-- load_system_prompt() вызывает get_active_prompt() при каждом run.
+-- L-8: ORDER BY active_from DESC, id DESC (tiebreaker для одновременных вставок)
+-- ============================================================
+
+create table if not exists public.ai_prompts (
+    id           uuid        primary key default gen_random_uuid(),
+    role         text        not null
+                                 check (role in (
+                                     'base',           -- базовый промпт (всегда включается)
+                                     'zootechnician',  -- роль зоотехника
+                                     'vet',            -- роль ветеринара
+                                     'consultant',     -- роль консультанта
+                                     'trading_agent'   -- роль торгового ассистента
+                                 )),
+    version      text        not null,   -- semver: "1.0", "1.1", "2.0"
+    content      text        not null,   -- текст промпта с {переменными}
+    active_from  timestamptz not null default now(),
+    active_until timestamptz default null,  -- NULL = текущая активная версия
+    created_by   uuid        references public.users(id) on delete set null,
+    change_reason text,      -- "Улучшен ответ на ветеринарные вопросы"
+    created_at   timestamptz not null default now(),
+
+    unique (role, version)   -- одна версия на роль
+);
+
+comment on table public.ai_prompts is
+    'C-8/D132: Версионированные system prompts для AI Gateway ролей.
+     Все 5 ролей (base + 4 domain) хранятся здесь, не в коде.
+     load_system_prompt(role) → get_active_prompt(role) → (content, version).
+     version сохраняется в ai_messages.prompt_version для трекинга качества.
+     Rollout: установить active_until на старой версии, вставить новую с active_from=now().
+     A/B тест: временно две версии с одинаковым active_from — не рекомендуется,
+     используй active_from с разницей в 1 секунду для детерминизма.';
+
+-- ── RPC: получить активный промпт для роли (C-8, L-8) ───────
+-- L-8 fix: ORDER BY active_from DESC, id DESC — детерминированный tiebreaker
+create or replace function public.get_active_prompt(p_role text)
+returns table(version text, content text)
+language sql
+security definer
+set search_path = public, pg_temp
+stable
+as $$
+    select  version,
+            content
+    from    public.ai_prompts
+    where   role         = p_role
+      and   active_from  <= now()
+      and   (active_until is null or active_until > now())
+    order by active_from desc,
+             id          desc    -- L-8: tiebreaker — детерминированный результат
+    limit 1;
+$$;
+
+comment on function public.get_active_prompt(text) is
+    'C-8/L-8: Вернуть текущий активный промпт для роли.
+     Используется load_system_prompt() в AI Gateway.
+     STABLE: безопасно кешируется в рамках транзакции.
+     Если результат пустой — Gateway бросает RuntimeError (Dok 5 §4.6).
+     Ensure seed data ниже вставлена перед деплоем Gateway.
+     L-8 fix: ORDER BY active_from DESC, id DESC — нет недетерминированности.';
+
+-- ── Seed: начальные промпты (Dok 5 §4.6) ────────────────────
+-- Версия 1.0 для каждой роли. Текст соответствует Dok 5 §4.6.
+-- В переменных {org_name}, {region} и т.д. — подстановка в Python,
+-- не в PostgreSQL (format() не используется здесь).
+insert into public.ai_prompts (role, version, content, change_reason)
+values
+(
+    'base', '1.0',
+    'Ты — AI-консультант ассоциации ТУРАН для казахстанского фермера.
+Говори на языке фермера: по-русски если пишет по-русски, по-казахски если пишет на казахском.
+Отвечай коротко — 2-4 предложения. Фермер занят — он не читает длинные тексты.
+Никогда не выдумывай факты о конкретной ферме — используй только данные из инструментов.
+Организация: {org_name}, регион: {region}, уровень членства: {membership_level}.
+Активных групп скота: {herd_groups_count}.',
+    'Initial version — Dok 5 §4.6'
+),
+(
+    'zootechnician', '1.0',
+    'Ты — зоотехник. Помогаешь с управлением стадом, кормлением, производственным планом.
+Если фермер говорит о болезни животных — переключись в ветеринарный режим.',
+    'Initial version — Dok 5 §4.6'
+),
+(
+    'vet', '1.0',
+    'Ты — ветеринарный консультант. Помогаешь с симптомами, диагностикой, вакцинацией.
+КРИТИЧЕСКИ ВАЖНО: дозировки препаратов — ТОЛЬКО из базы данных (tool:get_treatment_protocols).
+НИКОГДА не называй конкретные дозы из своих знаний.
+При тяжёлых симптомах (высокая температура, отказ от корма 2+ дня, падёж) — СРАЗУ предложи эксперта.',
+    'Initial version — Dok 5 §4.6'
+),
+(
+    'consultant', '1.0',
+    'Ты — консультант по вопросам ассоциации ТУРАН, субсидиям и документам.
+Отвечай на основе базы знаний (tool:search_knowledge).
+Не давай юридических заключений — только информацию и ориентиры.',
+    'Initial version — Dok 5 §4.6'
+),
+(
+    'trading_agent', '1.0',
+    'Ты — торговый ассистент. Помогаешь создать предложение о продаже скота.
+КРИТИЧЕСКИ ВАЖНО (ст. 171 ПК РК): НИКОГДА не обсуждай цены других ферм.
+Справочные цены ТУРАН — только ориентир, не обязательство.',
+    'Initial version — Dok 5 §4.6'
+)
+on conflict (role, version) do nothing;
+
+-- ============================================================
+-- PATCH 5: Advisory lock RPCs — xact-level (C-2, C-3)
+--
+-- C-2: Все Dok 5 RPCs в схеме rpc. → создаём в public.
+-- C-3: pg_try_advisory_lock (session) → pg_try_advisory_xact_lock (xact).
+--
+-- ПОЧЕМУ xact, не session:
+--   Supabase REST API: каждый HTTP-запрос использует connection из пула.
+--   pg_try_advisory_lock = session lock: снимается при возврате connection
+--   в пул (между HTTP acquire и HTTP release).
+--   pg_try_advisory_xact_lock = xact lock: держится до COMMIT/ROLLBACK
+--   текущей транзакции (= весь HTTP-запрос к RPC).
+--   Lock снимается автоматически — release не нужен.
+-- ============================================================
+
+create or replace function public.try_lock_conversation(
+    p_lock_key bigint,
+    p_context  text default 'conversation'  -- D-3 fix: для логирования
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- C-3: xact-level lock. Держится до конца транзакции.
+    -- Не требует явного release — автоснятие при commit/rollback.
+    -- Конвертация UUID → bigint: int(uuid.UUID(conversation_id)) % (2**63) в Python.
+    return jsonb_build_object(
+        'locked',  pg_try_advisory_xact_lock(p_lock_key),
+        'context', p_context
+    );
+end;
+$$;
+
+comment on function public.try_lock_conversation(bigint, text) is
+    '⚠️ DEPRECATED для inbound /chat flow (L-2, мета-анализ §3.2 Исправление #4).
+
+     КОРЕНЬ ПРОБЛЕМЫ (тот же что L-NEW-2 для proactive):
+       supabase.rpc("try_lock_conversation") = отдельная HTTP-транзакция.
+       PostgreSQL: BEGIN → pg_try_advisory_xact_lock(key) → COMMIT → lock снят.
+       run_agent() запускается ПОСЛЕ завершения RPC-транзакции — БЕЗ блокировки.
+       Lock никогда не защищал run_agent(). Ложная уверенность.
+
+     ПРАВИЛЬНАЯ ЗАЩИТА inbound /chat (достаточно для Phase 1):
+       1. insert_user_message_dedup (ON CONFLICT whatsapp_message_id DO NOTHING)
+          → Один WhatsApp message_id = ровно один вызов run_agent().
+          → is_new=false → caller делает early return до run_agent().
+       2. confirmation_pending flag (ai_conversations)
+          → Два разных сообщения одновременно (edge case):
+            Run 2 читает confirmation_pending в check_confirmation node.
+            Confirmation payload атомарно записывается RPC в Run 1.
+
+     ФУНКЦИЯ СОХРАНЕНА для обратной совместимости.
+     Вызовы безопасны: xact lock снимается при COMMIT, ничего не ломает.
+     ❌ НЕ использовать в новом коде для /chat flow.
+     ❌ НЕ использовать в proactive_dispatch (L-NEW-2 — SKIP LOCKED достаточно).
+     Dok5 §3.3.1 обновлён с корректным описанием (v1.7).';
+
+-- release_conversation_lock сохраняем для совместимости с Dok 5 кодом,
+-- но для xact lock он no-op (xact lock нельзя снять вручную до конца транзакции).
+create or replace function public.release_conversation_lock(p_lock_key bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- C-3: При xact lock это no-op. Lock снимается при commit/rollback.
+    -- Функция сохранена для совместимости с Dok 5 Python кодом.
+    -- TODO Dok 6: убрать вызовы release_conversation_lock из Python.
+    null;
+end;
+$$;
+
+comment on function public.release_conversation_lock(bigint) is
+    '⚠️ DEPRECATED (L-2, мета-анализ §3.2 Исправление #4). No-op при xact lock.
+     pg_try_advisory_xact_lock снимается при COMMIT транзакции.
+     Явный release невозможен и не нужен при xact lock.
+     ФУНКЦИЯ СОХРАНЕНА для совместимости — вызов безопасен, ничего не делает.
+     ❌ НЕ использовать в новом коде.';
+
+-- ============================================================
+-- PATCH 6: Dedup RPC — атомарный INSERT (C-2, C-5)
+--
+-- C-2: public. схема (не rpc.)
+-- C-5: Требует ai_messages.whatsapp_message_id (Patch 2 выше)
+-- Заменяет SELECT→INSERT (race condition) атомарным INSERT ON CONFLICT.
+-- ============================================================
+
+create or replace function public.insert_user_message_dedup(
+    p_conversation_id     uuid,
+    p_content             text,
+    p_whatsapp_message_id text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_id             uuid;
+    v_seq            int;
+begin
+    -- Получить следующий sequence_number для этого conversation
+    select coalesce(max(sequence_number), 0) + 1
+    into   v_seq
+    from   public.ai_messages
+    where  conversation_id = p_conversation_id;
+
+    -- Атомарный INSERT: ON CONFLICT DO NOTHING устраняет race condition.
+    -- Два одновременных webhook с одним message_id → только один INSERT.
+    insert into public.ai_messages (
+        conversation_id,
+        role,
+        content_type,
+        content_text,
+        whatsapp_message_id,
+        sequence_number
+    )
+    values (
+        p_conversation_id,
+        'user',
+        'text',
+        p_content,
+        p_whatsapp_message_id,
+        v_seq
+    )
+    on conflict (whatsapp_message_id) do nothing
+    returning id into v_id;
+
+    -- v_id IS NULL → конфликт (дубль), сообщение уже обработано
+    return jsonb_build_object(
+        'is_new',      v_id is not null,
+        'message_id',  v_id
+    );
+end;
+$$;
+
+comment on function public.insert_user_message_dedup(uuid, text, text) is
+    'C-2/C-5/D129: Атомарный dedup через INSERT ON CONFLICT.
+     Возвращает {is_new: true, message_id: uuid} если новое сообщение.
+     Возвращает {is_new: false, message_id: null} если дубль (уже обработан).
+     Вызывающий Gateway: if not result.data["is_new"]: return (прекратить обработку).
+     Заменяет SELECT→INSERT паттерн (race condition при параллельных webhook).
+     Требует: ai_messages.whatsapp_message_id + UNIQUE INDEX (Patch 2).';
+
+-- ============================================================
+-- PATCH 7: Notification dispatch RPCs (C-2, C-6, L-4)
+--
+-- claim_pending_notifications: атомарный batch с SKIP LOCKED
+-- mark_notification_sent / mark_notification_failed: статус после отправки
+-- ============================================================
+
+-- ── claim_pending_notifications ─────────────────────────────
+create or replace function public.claim_pending_notifications(
+    p_batch_size int     default 50,
+    p_worker_id  text    default 'local'
+)
+returns setof public.notifications
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    return query
+    update public.notifications
+    set    locked_by = p_worker_id,
+           locked_at = now()
+    where  id in (
+        select id
+        from   public.notifications
+        where  delivery_status = 'pending'
+          and  scheduled_for   <= now()
+          and  (locked_by is null
+                or locked_at < now() - interval '10 minutes')  -- stale lock
+        order by scheduled_for
+        limit  p_batch_size
+        for update skip locked   -- пропустить строки захваченные другим воркером
+    )
+    returning *;
+end;
+$$;
+
+comment on function public.claim_pending_notifications(int, text) is
+    'C-2/C-6/D127: Атомарно захватить batch уведомлений для отправки.
+     FOR UPDATE SKIP LOCKED: безопасно при нескольких инстансах Gateway.
+     Stale lock: если locked_at < now()-10min → воркер упал, можно захватить.
+     p_batch_size=50: backpressure (не флудить WhatsApp API).
+     p_worker_id: FLY_MACHINE_ID или "local" — для диагностики.
+     Требует: notifications.locked_by + locked_at (Patch 3).';
+
+-- ── mark_notification_sent ───────────────────────────────────
+create or replace function public.mark_notification_sent(
+    p_notification_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- L-4: Функция не существовала — создаём.
+    update public.notifications
+    set    delivery_status = 'sent',
+           sent_at         = now(),
+           locked_by       = null,    -- освободить lock
+           locked_at       = null,
+           updated_at      = now()
+    where  id = p_notification_id;
+end;
+$$;
+
+comment on function public.mark_notification_sent(uuid) is
+    'C-2/L-4: Отметить уведомление как отправленное.
+     Освобождает locked_by/locked_at — notification больше не захвачена.
+     Вызывается после успешного send_proactive_message().';
+
+-- ── mark_notification_failed ─────────────────────────────────
+create or replace function public.mark_notification_failed(
+    p_notification_id uuid,
+    p_error           text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- L-4: Функция не существовала — создаём.
+    update public.notifications
+    set    delivery_status = 'failed',
+           failed_at       = now(),
+           error_text      = p_error,
+           retry_count     = retry_count + 1,
+           locked_by       = null,    -- освободить lock (другой воркер попробует retry)
+           locked_at       = null,
+           updated_at      = now()
+    where  id = p_notification_id;
+end;
+$$;
+
+comment on function public.mark_notification_failed(uuid, text) is
+    'C-2/L-4: Отметить уведомление как неуспешное.
+     Сохраняет error_text для диагностики.
+     Инкрементирует retry_count.
+     Освобождает lock — при следующем dispatch цикле можно повторить.
+     Вызывается в except блоке send_proactive_message().';
+
+-- ============================================================
+-- PATCH 8: invalidate_ai_context RPC (L-6)
+--
+-- L-6: Dok 5 §5.3 писал напрямую в таблицу через Data API —
+--      нарушение P-AI-1 (все writes через RPC).
+-- Создаём RPC как единственный путь для инвалидации контекста.
+-- ============================================================
+
+create or replace function public.invalidate_ai_context(
+    p_organization_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- L-6: Единственный авторизованный путь для инвалидации context snapshot.
+    -- Event Bus consumer on_herd_group_updated() должен вызывать эту функцию,
+    -- не писать напрямую в таблицу через supabase.table("ai_conversations").update().
+    update public.ai_conversations
+    set    context_invalidated_at = now(),
+           updated_at             = now()
+    where  organization_id = p_organization_id
+      and  is_active        = true;
+end;
+$$;
+
+comment on function public.invalidate_ai_context(uuid) is
+    'L-6: RPC для инвалидации farm_context в активных сессиях организации.
+     Вызывается Event Bus consumer при изменении herd_groups, farm_phases и т.д.
+     Заменяет прямую запись в таблицу (нарушение P-AI-1).
+     Gateway load_context: if context_invalidated_at IS NOT NULL → полный reload.
+     После reload: UPDATE ai_conversations SET context_invalidated_at = NULL.
+     
+     Пример вызова из Python (Event Bus consumer):
+       await supabase.rpc("invalidate_ai_context",
+           {"p_organization_id": org_id}).execute()';
+
+-- ============================================================
+-- PATCH 9: resolve_user_by_phone — необходимо для Gateway (C-2)
+--
+-- Dok 5 §10.3 вызывает rpc.resolve_user_by_phone().
+-- Создаём в public. (C-2 fix: rpc. → public.)
+-- ============================================================
+
+create or replace function public.resolve_user_by_phone(
+    p_phone text
+)
+returns table(
+    user_id          uuid,
+    organization_id  uuid,
+    membership_level text,
+    org_name         text,
+    region_name      text
+)
+language sql
+security definer
+set search_path = public, pg_temp
+stable
+as $$
+    select
+        u.id                                        as user_id,
+        o.id                                        as organization_id,
+        coalesce(m.level, 'registered')             as membership_level,
+        o.legal_name                                as org_name,
+        r.name_ru                                   as region_name
+    from   public.users u
+    join   public.user_organization_roles uor on uor.user_id = u.id
+                                             and uor.is_primary = true
+    join   public.organizations           o   on o.id = uor.organization_id
+                                             and o.is_active = true
+    left   join public.memberships        m   on m.organization_id = o.id
+                                             and m.org_type = 'farmer'
+    left   join public.regions            r   on r.id = o.region_id
+    where  u.phone     = p_phone
+      and  u.is_active = true   -- users.is_active ✅ (001_kernel.sql)
+      -- uor.is_active НЕ существует в user_organization_roles (только is_primary)
+    limit  1;
+$$;
+
+comment on function public.resolve_user_by_phone(text) is
+    'C-2: phone (E.164) → user_id, organization_id, membership_level.
+     Используется WhatsApp webhook handler в начале каждого run.
+     Возвращает пустой результат если номер не зарегистрирован.
+     Gateway: if not result.data → send "Ваш номер не зарегистрирован. turanstandard.kz"
+     Только primary org (is_primary=true) — фермер с несколькими орг решает это через disambig.';
+
+-- ============================================================
+-- MIGRATION COMPLETE
+-- ============================================================
+-- Summary of changes:
+--
+--   ai_conversations:  +8 columns (confirmation_pending, confirmation_payload,
+--                       active_farm_id, message_history_summary,
+--                       summary_last_message_index, context_invalidated_at,
+--                       processing_locked_at, detected_language)
+--                      CHECK constraint current_role: 'veterinarian' → 'vet'
+--                      +2 indexes (idx_ai_conv_confirmation, idx_ai_conv_invalidated)
+--
+--   ai_messages:       +2 columns (whatsapp_message_id, prompt_version)
+--                      +1 unique partial index (ai_messages_wa_msgid_key)
+--
+--   notifications:     +4 columns (locked_by, locked_at, failed_at, error_text)
+--                      +1 index (idx_notif_dispatch)
+--
+--   ai_prompts:        NEW TABLE (versioned system prompts)
+--                      Seed: 5 rows (base + 4 roles)
+--
+--   New RPCs (all in public. schema):
+--     get_active_prompt(p_role)               — C-8/L-8
+--     try_lock_conversation(p_lock_key, ...)  — C-2/C-3 (xact lock)
+--     release_conversation_lock(p_lock_key)   — C-2/C-3 (no-op, compat)
+--     insert_user_message_dedup(...)          — C-2/C-5
+--     claim_pending_notifications(...)        — C-2/C-6
+--     mark_notification_sent(...)             — C-2/L-4
+--     mark_notification_failed(...)           — C-2/L-4
+--     invalidate_ai_context(...)              — L-6
+--     resolve_user_by_phone(...)              — C-2
+--
+-- Defects closed:
+--   C-1  ✅  8 новых колонок ai_conversations
+--   C-2  ✅  Все Gateway RPCs в public. (не rpc.)
+--   C-3  ✅  pg_try_advisory_xact_lock (не session)
+--   C-4  ✅  current_role CHECK: 'vet' (не 'veterinarian')
+--   C-5  ✅  ai_messages.whatsapp_message_id + UNIQUE INDEX
+--   C-6  ✅  notifications dispatch fields
+--   C-7  ✅  detected_language в ai_conversations (не в несуществующей profiles)
+--   C-8  ✅  ai_prompts table + get_active_prompt() + seed data
+--   L-4  ✅  mark_notification_sent / mark_notification_failed
+--   L-6  ✅  invalidate_ai_context() как RPC
+--   L-8  ✅  get_active_prompt ORDER BY с tiebreaker
+--
+-- Defects NOT closed here (требуют отдельных файлов или изменений Python):
+--   L-1  Создать 010_fn_generate_production_plan.sql
+--   L-2  Python: validate amend_data в confirm_handler
+--   L-3  Python: detect_language_pure() без DB-записи
+--   L-5  010: обернуть fn_shift_phase_cascade в savepoint или CTE UPDATE
+--   L-7  008: добавить org check в fn_preview_cascade
+--   L-9  Dok 5: scheduled_for/scheduled_at — исправить в тексте документа
+--   L-10 Dok 1: обновить нумерацию миграций в §8 v1.5
+--   D-1  Мониторинг: fn_my_org_ids() в RLS — приемлемо на Phase 1
+--   D-2  008: добавить SET search_path к fn_shift_phase_cascade
+--   D-3  Переименовать try_lock_conversation → try_advisory_lock (breaking)
+--   D-4  Python: datetime.utcnow() → datetime.now(timezone.utc)
+--   D-5  008: добавить CALVING в header comment
+--   D-6  Backlog: рекурсия → CTE UPDATE (не срочно)
+--
+-- Zero breaking changes:
+--   P7 (Additive Architecture): все новые колонки с DEFAULT-значениями.
+--   Существующие строки ai_conversations получают:
+--     confirmation_pending=false, confirmation_payload=null,
+--     detected_language='ru', processing_locked_at=null и т.д.
+--   Существующие строки ai_messages получают whatsapp_message_id=null.
+--   CHECK constraint current_role: существующие 'consultant' / 'zootechnician'
+--     не затронуты. 'veterinarian' не встречается в существующих строках
+--     (поле добавлено в 001_kernel.sql но никогда не использовалось AI Gateway).
+--
+-- Next migrations:
+--   010_fn_generate_production_plan.sql  — L-1 (Operations)
+--   011_finishing_seed.sql               — ЦТК finishing (Dok 1 §8 v1.5)
+--   012_breeding_seed.sql                — ЦТК breeding
+-- ============================================================
+
+
+-- === FROM 013: Audit trigger on platform_events, notification retry cap ===
+-- ============================================================
+-- Migration 013: Patch Audit Trigger + Notifications Retry Cap
+-- ============================================================
+-- Fix C-NEW-4: platform_events → audit_log trigger was described in Dok 4 §2.1
+--   but never implemented. audit_log table exists but remains empty (silent failure).
+--
+-- Fix L-NEW-4: notifications infinite retry loop — no MAX_RETRY cap.
+--   Expired/invalid notifications were retried forever.
+--
+-- Architecture decision D-NEW-A: SQL migrations are the canonical source for function names.
+--   (Registered here: fn_audit_from_platform_event)
+-- ============================================================
+
+-- ============================================================
+-- PART 1: Add is_audit flag to platform_events (Dok 4 §2.1)
+-- Dok 4: "Subset of events with is_audit=true flows into audit_log"
+-- ============================================================
+alter table public.platform_events
+    add column if not exists is_audit boolean not null default false;
+
+comment on column public.platform_events.is_audit is
+    'Dok 4 §2.1: When true, trigger fn_audit_from_platform_event copies this event
+     into audit_log. Only business-critical events (membership changes, batch state
+     transitions, price grid updates, admin grants) set is_audit=true.
+     Events that set is_audit=true (Dok 4 §2.2):
+       identity.membership.level_changed
+       market.batch.published, market.batch.matched, market.batch.cancelled
+       identity.consultation_request.created
+       ops.plan.activated
+       vet.vet_case.opened (severity=critical only — see trigger logic)';
+
+-- ============================================================
+-- PART 2: Trigger function — platform_events → audit_log
+-- Dok 4 §2.1: fn_audit_from_platform_event
+-- ============================================================
+create or replace function public.fn_audit_from_platform_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- Only copy events flagged as audit-worthy
+    if not new.is_audit then
+        return new;
+    end if;
+
+    insert into public.audit_log (
+        user_id,
+        actor_type,
+        action,
+        entity_type,
+        entity_id,
+        organization_id,
+        changes,
+        created_at
+    ) values (
+        new.actor_id,                               -- user_id (null for system/cron)
+        new.actor_type,                             -- farmer | admin | expert | system | ai_gateway
+        new.event_type,                             -- e.g. 'identity.membership.level_changed'
+        new.entity_type,                            -- table name: 'memberships', 'batches', etc.
+        new.entity_id,
+        new.organization_id,
+        new.payload,                                -- {before, after, meta} from event payload
+        new.created_at
+    );
+
+    return new;
+end;
+$$;
+
+comment on function public.fn_audit_from_platform_event() is
+    'Dok 4 §2.1: Trigger that copies platform_events with is_audit=true into audit_log.
+     Fires AFTER INSERT on platform_events.
+     audit_log is APPEND-ONLY: no updates, no deletes (Legal compliance, D69).
+     Scope: business-critical state transitions only (not every DB write).';
+
+-- ============================================================
+-- PART 3: Attach trigger to platform_events
+-- ============================================================
+drop trigger if exists trg_platform_event_to_audit on public.platform_events;
+
+create trigger trg_platform_event_to_audit
+    after insert on public.platform_events
+    for each row
+    execute function public.fn_audit_from_platform_event();
+
+comment on trigger trg_platform_event_to_audit on public.platform_events is
+    'Dok 4 §2.1: AFTER INSERT trigger. Copies is_audit=true events to audit_log.
+     Fix C-NEW-4: this trigger was described in Dok 4 but not implemented in migrations 001-010.';
+
+-- ============================================================
+-- PART 4: Mark existing audit-worthy RPCs to set is_audit=true
+-- These helper functions set is_audit on specific platform_events
+-- ============================================================
+
+-- Helper: mark an event as audit (called by RPCs after inserting platform_event)
+-- NOTE: RPCs that publish audit-worthy events should set is_audit=true inline:
+--   insert into platform_events (..., is_audit, ...) values (..., true, ...)
+-- The following marks the key event types that MUST always be audit events.
+-- This is enforced via application convention + this documentation (Dok 4 §2.2).
+
+comment on table public.audit_log is
+    'D69: Business-critical actions only (NOT full row changelog).
+     Tracked: membership level changes, batch state transitions, price grid updates,
+     admin role grants, restriction creation/lift, expert verifications,
+     consultation requests, critical vet cases, production plan activations.
+     Auto-populated by trigger trg_platform_event_to_audit on platform_events (Dok 4 §2.1).
+     Admin read-only (Ownership Matrix 4.8).
+     APPEND-ONLY: never UPDATE or DELETE rows.
+     Fix C-NEW-4: trigger implemented in migration 013 (was missing from 001-010).';
+
+-- ============================================================
+-- PART 5: Notifications retry cap (Fix L-NEW-4)
+-- Adds max_retry_count column and updates mark_notification_failed
+-- to transition to permanent failure after threshold.
+-- ============================================================
+alter table public.notifications
+    add column if not exists max_retry_count int not null default 5;
+
+comment on column public.notifications.max_retry_count is
+    'L-NEW-4 fix: Maximum retry attempts before transitioning to failed_permanent.
+     Default 5. If retry_count >= max_retry_count → mark_notification_failed sets
+     delivery_status = ''failed_permanent''. Prevents infinite retry on bad phone numbers.';
+
+-- Add failed_permanent status (requires dropping and recreating constraint)
+-- Note: Supabase doesn't support ALTER CHECK directly — use constraint replacement
+alter table public.notifications
+    drop constraint if exists notifications_delivery_status_check;
+
+alter table public.notifications
+    add constraint notifications_delivery_status_check
+    check (delivery_status in (
+        'pending',
+        'sent',
+        'delivered',
+        'failed',
+        'failed_permanent',   -- L-NEW-4: terminal state after max retries
+        'read'
+    ));
+
+comment on column public.notifications.delivery_status is
+    'FSM: pending → sent → delivered | failed → retry → failed_permanent (after max_retry_count).
+     failed_permanent: terminal state. claim_pending_notifications excludes this status.
+     L-NEW-4 fix: added failed_permanent to prevent infinite retry loops.';
+
+-- Update mark_notification_failed to respect max_retry_count
+create or replace function public.mark_notification_failed(
+    p_notification_id   uuid,
+    p_error             text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_notif record;
+begin
+    select retry_count, max_retry_count
+    into   v_notif
+    from   public.notifications
+    where  id = p_notification_id;
+
+    if not found then return; end if;
+
+    update public.notifications
+    set    delivery_status = case
+                                 when v_notif.retry_count + 1 >= v_notif.max_retry_count
+                                 then 'failed_permanent'   -- L-NEW-4: terminal after max retries
+                                 else 'failed'             -- will be retried
+                             end,
+           failure_reason = p_error,
+           retry_count    = retry_count + 1,
+           locked_by      = null,
+           locked_at      = null,
+           updated_at     = now()
+    where  id = p_notification_id;
+end;
+$$;
+
+comment on function public.mark_notification_failed(uuid, text) is
+    'L-NEW-4 fix: Increments retry_count. When retry_count >= max_retry_count → status=failed_permanent.
+     failed_permanent excluded from claim_pending_notifications → stops infinite retry.
+     Previous version had no cap → invalid phone numbers retried forever (L-NEW-4).';
+
+-- Update claim_pending_notifications to exclude failed_permanent
+create or replace function public.claim_pending_notifications(
+    p_batch_size    int,
+    p_worker_id     text
+)
+returns setof public.notifications
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    return query
+    update public.notifications
+    set    locked_by = p_worker_id,
+           locked_at = now()
+    where  id in (
+        select id from public.notifications
+        where  delivery_status = 'pending'
+          and  delivery_status != 'failed_permanent'  -- L-NEW-4: exclude terminal failures
+          and  (locked_by is null or locked_at < now() - interval '10 minutes')
+          and  (scheduled_for is null or scheduled_for <= now())
+        order  by coalesce(scheduled_for, created_at)
+        limit  p_batch_size
+        for update skip locked
+    )
+    returning *;
+end;
+$$;
+
+comment on function public.claim_pending_notifications(int, text) is
+    'Atomically claims a batch of pending notifications for processing (SKIP LOCKED).
+     L-NEW-4 fix: excludes failed_permanent status → no infinite retry.
+     Stale locks (>10 min) are reclaimed automatically.';
+
+-- ============================================================
+-- PART 6: Index for is_audit queries
+-- ============================================================
+create index if not exists idx_platform_events_audit
+    on public.platform_events (is_audit, created_at desc)
+    where is_audit = true;
+
+comment on index idx_platform_events_audit is
+    'Partial index for audit queries: only is_audit=true events.
+     Used by Admin Console audit trail queries and compliance reporting.';
+
+-- ============================================================
+-- PART 7: Document D-NEW-B architecture decision
+-- ============================================================
+comment on function public.rpc_update_conversation_language(uuid, text, uuid) is
+    'Fix C-NEW-5: Replaces direct ai_conversations UPDATE in detect_and_cache_language().
+     D-NEW-B: service_role MUST NOT use direct table writes. All writes via RPC.
+     Validates: language in (ru, kk). Ownership: conversation must belong to organization.
+     Called via supabase.rpc("rpc_update_conversation_language") from Python AI Gateway.
+     Created in migration 011.';
+
+-- ============================================================
+-- END Migration 013
+-- ============================================================
+
+
+-- === FROM 014: Sequence number race fix, UNIQUE constraint ===
+-- ============================================================
+-- Migration 014: Sequence Number Race Fix + Advisory Lock Cleanup
+-- ============================================================
+-- Fix L-NEW-1: sequence_number race condition in insert_user_message_dedup
+--   Root cause: SELECT MAX(seq)+1 then INSERT = two simultaneous messages
+--   read max=5, both compute seq=6, INSERT collision or silent duplicate seq.
+--   Fix: atomic UPDATE ai_conversations SET message_count = message_count + 1
+--   RETURNING message_count. UPDATE serializes on the row lock — second caller
+--   waits, reads incremented value. Guaranteed monotonic sequence.
+--
+-- Fix D-NEW-5: add UNIQUE(conversation_id, sequence_number) constraint.
+--   Without this, any bug that produces duplicate sequence_numbers is
+--   silently accepted. UNIQUE makes violations hard errors, not silent data drift.
+--
+-- Fix L-NEW-2: remove advisory lock from proactive_dispatch Python code.
+--   Current lock is pg_try_advisory_xact_lock (xact-scoped). It is acquired and
+--   released within the RPC transaction. process_notification_batch() runs AFTER
+--   the transaction (and lock) ends. The lock never protected the batch.
+--   Real protection: claim_pending_notifications uses FOR UPDATE SKIP LOCKED.
+--   That IS sufficient. The advisory lock gave false confidence and should be removed
+--   from proactive_dispatch (see updated Python code below).
+--
+-- Fix L-NEW-3: D-NEW-A — canonical RPC name registry table.
+--   SQL migrations are the canonical source of RPC names.
+--   Dok 3 had RPC-25 named rpc_open_vet_case; migration 011 created rpc_create_vet_case.
+--   This table documents the canonical mapping.
+-- ============================================================
+
+-- ============================================================
+-- PART 1: Fix sequence_number race condition (L-NEW-1)
+-- Strategy: atomic UPDATE message_count → use as sequence_number
+-- ai_conversations.message_count already exists (001_kernel.sql, default 0)
+-- ============================================================
+
+-- Step 1a: Add UNIQUE constraint on (conversation_id, sequence_number)
+-- D-NEW-5: without this, duplicate sequence_numbers are silent
+-- NOTE: if existing data has duplicates, run dedup query first (see comment below)
+-- For fresh systems (Phase 1): no existing duplicate data expected.
+
+-- Dedup check (run manually before applying constraint if data already exists):
+-- SELECT conversation_id, sequence_number, count(*)
+-- FROM ai_messages
+-- GROUP BY conversation_id, sequence_number
+-- HAVING count(*) > 1;
+
+alter table public.ai_messages
+    drop constraint if exists ai_messages_conv_seq_unique;
+
+alter table public.ai_messages
+    add constraint ai_messages_conv_seq_unique
+    unique (conversation_id, sequence_number);
+
+comment on constraint ai_messages_conv_seq_unique on public.ai_messages is
+    'D-NEW-5 fix: Enforces monotonic sequence per conversation.
+     Without this, L-NEW-1 race condition produces silent duplicate sequence_numbers.
+     With this, any race condition causes a hard constraint violation (detectable in logs).
+     Migration 014 rewrites insert_user_message_dedup to use atomic message_count increment
+     which makes this constraint always satisfiable under concurrent load.';
+
+-- Step 1b: Rewrite insert_user_message_dedup to use atomic counter
+-- OLD pattern (race condition):
+--   SELECT MAX(sequence_number) + 1 INTO v_seq ...   ← two callers can both read max=5
+--   INSERT ... (sequence_number = v_seq)              ← both try seq=6 → collision/wrong data
+--
+-- NEW pattern (atomic):
+--   UPDATE ai_conversations SET message_count = message_count + 1
+--   WHERE id = p_conversation_id
+--   RETURNING message_count INTO v_seq               ← PostgreSQL row lock serializes callers
+--   INSERT ... (sequence_number = v_seq)              ← each caller gets unique value
+--
+-- Why this is safe:
+--   PostgreSQL UPDATE takes an exclusive row lock on ai_conversations row.
+--   Second concurrent caller blocks on UPDATE until first commits.
+--   After first commits: message_count=6. Second UPDATE reads 6, returns 7.
+--   Both callers get different sequence numbers. Zero probability of collision.
+
+create or replace function public.insert_user_message_dedup(
+    p_conversation_id       uuid,
+    p_content               text,
+    p_whatsapp_message_id   text,
+    -- Optional additional fields (extend as needed without signature change)
+    p_content_type          text    default 'text',
+    p_content_url           text    default null,
+    p_model_used            text    default null,
+    p_prompt_version        text    default null,
+    p_latency_ms            int     default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_id    uuid;
+    v_seq   int;
+begin
+    -- L-NEW-1 FIX: atomic sequence via UPDATE row lock.
+    -- UPDATE serializes concurrent callers on the ai_conversations row.
+    -- Returns NEW value of message_count = this message's sequence number.
+    update public.ai_conversations
+    set    message_count = message_count + 1,
+           updated_at    = now()
+    where  id = p_conversation_id
+    returning message_count into v_seq;
+
+    if v_seq is null then
+        raise exception 'INVALID: conversation % not found', p_conversation_id
+            using errcode = 'P0002';
+    end if;
+
+    -- Atomic dedup INSERT: ON CONFLICT(whatsapp_message_id) DO NOTHING.
+    -- Two concurrent webhooks with the same wamid → only one INSERT succeeds.
+    -- Second caller: v_id IS NULL → is_new=false → Gateway skips processing.
+    insert into public.ai_messages (
+        conversation_id,
+        role,
+        content_type,
+        content_text,
+        content_url,
+        whatsapp_message_id,
+        sequence_number,
+        model_used,
+        prompt_version,
+        latency_ms
+    )
+    values (
+        p_conversation_id,
+        'user',
+        p_content_type,
+        p_content,
+        p_content_url,
+        p_whatsapp_message_id,
+        v_seq,
+        p_model_used,
+        p_prompt_version,
+        p_latency_ms
+    )
+    on conflict (whatsapp_message_id) do nothing
+    returning id into v_id;
+
+    -- Edge case: whatsapp_message_id collision (duplicate webhook).
+    -- message_count was already incremented — we have a "gap" in the sequence.
+    -- This is acceptable: sequence_numbers are ordered but not required to be gapless.
+    -- The UNIQUE constraint is on (conversation_id, sequence_number) —
+    -- since v_seq came from atomic increment, it is unique. No constraint violation.
+    -- The duplicate webhook is silently dropped (is_new=false).
+
+    return jsonb_build_object(
+        'is_new',         v_id is not null,
+        'message_id',     v_id,
+        'sequence_number', v_seq
+    );
+end;
+$$;
+
+comment on function public.insert_user_message_dedup(uuid, text, text, text, text, text, text, int) is
+    'L-NEW-1 FIX: Atomic sequence_number via UPDATE ai_conversations.message_count.
+     UPDATE row lock serializes concurrent callers — each gets a unique sequence number.
+     Replaces SELECT MAX(sequence_number)+1 pattern which had race condition under concurrency.
+
+     D-NEW-5: UNIQUE(conversation_id, sequence_number) constraint enforces uniqueness.
+     Sequence may have gaps (duplicate webhooks increment counter but not insert message)
+     — this is intentional and acceptable. Use created_at for ordering if needed.
+
+     Returns: {is_new: bool, message_id: uuid|null, sequence_number: int}
+     is_new=false → duplicate webhook, Gateway must return early (skip processing).
+
+     Old signature: (uuid, text, text) — 3 params.
+     New signature: (uuid, text, text, text, text, text, text, int) — 8 params.
+     BACKWARD COMPATIBLE: params 4-8 have defaults. Old callers with 3 args still work.';
+
+-- ============================================================
+-- PART 2: insert_ai_response helper
+-- Complement to insert_user_message_dedup for assistant messages.
+-- Uses same atomic counter pattern for consistent sequencing.
+-- ============================================================
+create or replace function public.insert_ai_message(
+    p_conversation_id   uuid,
+    p_role              text,   -- 'assistant' | 'tool' | 'system'
+    p_content_type      text    default 'text',
+    p_content_text      text    default null,
+    p_tool_calls        jsonb   default null,
+    p_extracted_entities jsonb  default null,
+    p_model_used        text    default null,
+    p_input_tokens      int     default null,
+    p_output_tokens     int     default null,
+    p_latency_ms        int     default null,
+    p_prompt_version    text    default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_id    uuid;
+    v_seq   int;
+begin
+    -- Same atomic counter pattern as insert_user_message_dedup
+    update public.ai_conversations
+    set    message_count        = message_count + 1,
+           -- Track aggregate token counts at conversation level (D72)
+           total_input_tokens   = total_input_tokens  + coalesce(p_input_tokens, 0),
+           total_output_tokens  = total_output_tokens + coalesce(p_output_tokens, 0),
+           updated_at           = now()
+    where  id = p_conversation_id
+    returning message_count into v_seq;
+
+    if v_seq is null then
+        raise exception 'INVALID: conversation % not found', p_conversation_id
+            using errcode = 'P0002';
+    end if;
+
+    insert into public.ai_messages (
+        conversation_id,
+        role,
+        content_type,
+        content_text,
+        tool_calls,
+        extracted_entities,
+        model_used,
+        input_tokens,
+        output_tokens,
+        latency_ms,
+        prompt_version,
+        sequence_number
+    )
+    values (
+        p_conversation_id,
+        p_role,
+        p_content_type,
+        p_content_text,
+        p_tool_calls,
+        p_extracted_entities,
+        p_model_used,
+        p_input_tokens,
+        p_output_tokens,
+        p_latency_ms,
+        p_prompt_version,
+        v_seq
+    )
+    returning id into v_id;
+
+    return jsonb_build_object(
+        'message_id',      v_id,
+        'sequence_number', v_seq
+    );
+end;
+$$;
+
+comment on function public.insert_ai_message(uuid,text,text,text,jsonb,jsonb,text,int,int,int,text) is
+    'Companion to insert_user_message_dedup for assistant/tool/system messages.
+     Uses same atomic message_count increment → same race-free sequence guarantee.
+     Also updates ai_conversations.total_input/output_tokens (D72 cost tracking).
+     Called by AI Gateway after each Claude API response.';
+
+-- ============================================================
+-- PART 3: Advisory lock cleanup documentation (L-NEW-2)
+-- The SQL functions are fine. The bug is in Python proactive_dispatch.
+-- This migration documents the fix and updates function comments.
+-- ============================================================
+
+comment on function public.try_lock_conversation(bigint, text) is
+    '⚠️ DEPRECATED для inbound /chat flow (L-2, мета-анализ §3.2 Исправление #4).
+     Повторно обновлён (L-NEW-2 закрывал только proactive, L-2 закрывает /chat).
+
+     МЕХАНИКА (почему не работает для Python-клиента):
+       supabase.rpc() = HTTP-запрос = отдельная PG-транзакция.
+       xact lock снимается при COMMIT этой транзакции.
+       run_agent() стартует ПОСЛЕ возврата из rpc() — lock уже снят.
+
+     ПРАВИЛЬНАЯ ЗАЩИТА:
+       /chat:               insert_user_message_dedup (ON CONFLICT DO NOTHING)
+       proactive_dispatch:  claim_pending_notifications (FOR UPDATE SKIP LOCKED)
+
+     ФУНКЦИЯ СОХРАНЕНА для обратной совместимости. Вызовы безопасны.
+     ❌ НЕ использовать в новом коде ни для /chat, ни для proactive.';
+
+-- ============================================================
+-- PART 4: D-NEW-A — Canonical RPC name registry (L-NEW-3)
+-- SQL migrations are the canonical source. Dok 3 had stale names.
+-- This table is the source of truth for AI Gateway tool → RPC mapping.
+-- ============================================================
+create table if not exists public.rpc_name_registry (
+    id              uuid    primary key default gen_random_uuid(),
+    -- D-NEW-A: canonical SQL function name (as created in migrations)
+    sql_name        text    not null unique,   -- e.g. rpc_create_vet_case
+    -- Dok 3 name (may differ from SQL name — these are the known discrepancies)
+    dok3_name       text,           -- e.g. rpc_open_vet_case (stale Dok 3 name)
+    -- Dok 5 tool name (snake_case, 2-4 words)
+    dok5_tool_name  text,           -- e.g. create_vet_case
+    -- Supabase call (always same as sql_name, but explicit for clarity)
+    supabase_call   text    not null generated always as
+                        ('supabase.rpc("' || sql_name || '")') stored,
+    -- Migration where this RPC was created
+    created_in      text    not null,   -- e.g. '011_ai_rpc_catalog.sql'
+    -- Status
+    status          text    not null default 'active'
+                                check (status in ('active', 'deprecated', 'renamed')),
+    -- If renamed: what replaced it
+    replaced_by     text,
+    notes           text,
+    created_at      timestamptz not null default now()
+);
+
+comment on table public.rpc_name_registry is
+    'D-NEW-A: Canonical RPC name registry.
+     SQL migrations (sql_name column) are the single source of truth for function names.
+     dok3_name: Dok 3 name — may differ from sql_name (known discrepancies documented here).
+     AI Gateway code MUST use sql_name via supabase.rpc(sql_name).
+     Dok 3 name is documentation only — not a callable name.
+     Status=deprecated: function exists but should not be called from new code.
+     Status=renamed: sql_name is old name, replaced_by is current name.';
+
+-- Populate with all AI Gateway RPCs (from migration 011 + existing RPCs)
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    -- Migration 011: new RPCs
+    ('rpc_get_ai_farm_context',        null,                'get_farm_context',           '011_ai_rpc_catalog.sql',            'Farm context snapshot for AI'),
+    ('rpc_upsert_herd_group',          null,                'update_herd_group',          '011_ai_rpc_catalog.sql',            'Create or update herd group (data_source=ai_extracted)'),
+    ('rpc_get_feeding_plan',           null,                'get_feeding_plan',           '011_ai_rpc_catalog.sql',            'Active feeding plan with periods'),
+    ('rpc_get_farm_tasks',             null,                'get_farm_tasks',             '011_ai_rpc_catalog.sql',            'Upcoming farm tasks'),
+    ('rpc_complete_farm_task',         null,                'complete_farm_task',         '011_ai_rpc_catalog.sql',            'Mark task completed'),
+    ('rpc_get_production_plan',        null,                'get_production_plan',        '011_ai_rpc_catalog.sql',            'Production plan phases'),
+    ('rpc_create_vet_case',            'rpc_open_vet_case', 'create_vet_case',            '011_ai_rpc_catalog.sql',            'L-NEW-3: Dok3 had rpc_open_vet_case. SQL canonical name is rpc_create_vet_case.'),
+    ('rpc_add_vet_symptoms',           null,                'add_symptoms',               '011_ai_rpc_catalog.sql',            'Append structured symptoms to vet case'),
+    ('rpc_get_vet_diagnosis',          null,                'get_diagnosis',              '011_ai_rpc_catalog.sql',            'Symptom matrix matching'),
+    ('rpc_get_treatment_protocols',    null,                'get_treatment_protocols',    '011_ai_rpc_catalog.sql',            'P-AI-4: dosages from treatments table only'),
+    ('rpc_get_vaccination_schedule',   null,                'get_vaccination_schedule',   '011_ai_rpc_catalog.sql',            'Upcoming vaccinations'),
+    ('rpc_complete_vaccination_item',  null,                'confirm_vaccination',        '011_ai_rpc_catalog.sql',            'Record vaccination fact'),
+    ('rpc_create_consultation_request',null,                'escalate_to_expert',         '011_ai_rpc_catalog.sql',            'Request expert consultation'),
+    ('rpc_search_knowledge_chunks',    null,                'search_knowledge',           '011_ai_rpc_catalog.sql',            'Vector+text RAG search'),
+    ('rpc_get_membership_status',      null,                'get_membership_status',      '011_ai_rpc_catalog.sql',            'Org membership levels and applications'),
+    ('rpc_get_price_grid',             null,                'get_price_grid',             '011_ai_rpc_catalog.sql',            'Reference prices with legal disclaimer (ст.171 ПК РК)'),
+    ('rpc_get_aggregated_supply',      null,                'get_market_overview',        '011_ai_rpc_catalog.sql',            'Anonymized supply aggregates (antitrust-safe)'),
+    ('rpc_get_aggregated_demand',      null,                'get_market_overview',        '011_ai_rpc_catalog.sql',            'Anonymized demand aggregates (antitrust-safe)'),
+    ('rpc_get_org_batches',            null,                'get_active_batches',         '011_ai_rpc_catalog.sql',            'Own org batches only'),
+    ('rpc_create_batch',               null,                'create_batch_draft',         '011_ai_rpc_catalog.sql',            'Create draft supply offer'),
+    ('rpc_publish_batch',              null,                'publish_batch',              '011_ai_rpc_catalog.sql',            'Publish batch to market'),
+    ('rpc_update_conversation_language',null,               null,                         '011_ai_rpc_catalog.sql',            'C-NEW-5: replaces direct DB write in detect_and_cache_language'),
+    -- Migration 012: patched existing RPC
+    ('rpc_start_production_plan',      'rpc_start_production_plan', null,                 '010+012',                           'C-NEW-7: added p_actor_id for service_role compat'),
+    -- Migration 009: existing RPCs
+    ('insert_user_message_dedup',      null,                null,                         '009_patch_ai.sql+014',              'L-NEW-1: rewritten in 014 to use atomic counter'),
+    ('insert_ai_message',              null,                null,                         '014_patch_sequence_and_lock.sql',   'New: companion for assistant messages'),
+    ('try_lock_conversation',          null,                null,                         '009_patch_ai.sql',                  'Advisory xact lock. NOT for proactive_dispatch (L-NEW-2)'),
+    ('claim_pending_notifications',    null,                null,                         '009_patch_ai.sql+013',              'L-NEW-4: updated in 013 to exclude failed_permanent'),
+    ('mark_notification_sent',         null,                null,                         '009_patch_ai.sql',                  null),
+    ('mark_notification_failed',       null,                null,                         '009_patch_ai.sql+013',              'L-NEW-4: updated in 013 with max_retry_count cap'),
+    ('invalidate_ai_context',          null,                null,                         '009_patch_ai.sql',                  'L-6: C-NEW-5 pattern — RPC instead of direct write'),
+    ('resolve_user_by_phone',          null,                null,                         '009_patch_ai.sql',                  'WhatsApp webhook: phone → user_id'),
+    ('get_active_prompt',              null,                null,                         '009_patch_ai.sql',                  'Get current system prompt by role')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- PART 5: Updated proactive_dispatch Python code (L-NEW-2 fix)
+-- Documents the correct implementation — advisory lock removed.
+-- ============================================================
+
+comment on table public.rpc_name_registry is
+    'D-NEW-A: Canonical RPC name registry. SQL function name = supabase.rpc() call name.
+     Dok 3 names are documentation only — not callable.
+
+     L-NEW-2 FIX for proactive_dispatch (Python code, not SQL):
+     ============================================================
+     WRONG (current Dok 5 v1.4, will be fixed in v1.5 proactive section):
+
+       locked = await supabase.rpc("try_lock_conversation", {...}).execute()
+       # ↑ This lock is released when RPC transaction ends (before process_notification_batch)
+       # ↑ process_notification_batch() runs WITHOUT lock protection
+       # ↑ Advisory lock is a no-op here
+
+     CORRECT (Dok 5 v1.5 fix):
+
+       @app.post("/proactive/dispatch")
+       async def proactive_dispatch(req: Request):
+           verify_internal_key(req)
+           # NO advisory lock here — SKIP LOCKED in claim_pending_notifications
+           # is the real concurrency protection. Two instances calling dispatch
+           # simultaneously both call claim_pending_notifications, which uses
+           # FOR UPDATE SKIP LOCKED — they claim different non-overlapping batches.
+           # No duplication, no coordination needed beyond SKIP LOCKED.
+           await process_notification_batch()
+           return {"status": "ok"}
+
+     Why SKIP LOCKED is sufficient:
+       claim_pending_notifications does:
+         UPDATE notifications SET locked_by = p_worker_id
+         WHERE id IN (SELECT ... FOR UPDATE SKIP LOCKED)
+       Two concurrent callers each claim non-overlapping rows.
+       Even if both start simultaneously, PostgreSQL ensures each row
+       is claimed by exactly one caller. Zero duplicates. Zero coordination needed.
+     ============================================================';
+
+-- ============================================================
+-- PART 6: Index for rpc_name_registry queries
+-- ============================================================
+create index if not exists idx_rpc_registry_dok3
+    on public.rpc_name_registry (dok3_name)
+    where dok3_name is not null;
+
+create index if not exists idx_rpc_registry_dok5
+    on public.rpc_name_registry (dok5_tool_name)
+    where dok5_tool_name is not null;
+
+-- ============================================================
+-- Summary of fixes in this migration:
+--
+-- L-NEW-1 ✅  insert_user_message_dedup: SELECT MAX → UPDATE message_count (atomic)
+-- D-NEW-5 ✅  UNIQUE(conversation_id, sequence_number) constraint added
+-- L-NEW-2 ✅  Documented: remove advisory lock from proactive_dispatch Python
+-- L-NEW-3 ✅  rpc_name_registry table created with all 30 known RPCs
+-- D-NEW-A ✅  SQL migrations = canonical RPC names (enforced by registry)
+-- ============================================================
+
+
+-- === FROM 015: JWT claims, fn_my_org_ids fast path, embedding_queue ===
+-- ============================================================
+-- Migration 015: Priority 3 Technical Debt
+-- AGOS | Date: 2026-03-05
+-- ============================================================
+-- Fixes:
+--   D-NEW-1  fn_my_org_ids() DB hit on every RLS row → JWT claims fast path
