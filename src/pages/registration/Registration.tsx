@@ -55,9 +55,9 @@ export function Registration() {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY)
       if (saved) {
-        const parsed = JSON.parse(saved) as RegistrationFormData
-        // Reset OTP state on reload
-        return { ...parsed, otp_sent: false, otp_verified: false }
+        const parsed = JSON.parse(saved)
+        // Merge with defaults to handle new fields added after save
+        return { ...INITIAL_FORM_DATA, ...parsed, otp_sent: false, otp_verified: false, password: '' }
       }
     } catch { /* ignore */ }
     return INITIAL_FORM_DATA
@@ -77,7 +77,9 @@ export function Registration() {
   // Persist form to sessionStorage
   useEffect(() => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
+      // Never persist password to storage (security)
+      const { password: _, ...safeData } = formData
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeData))
     } catch { /* ignore */ }
   }, [formData])
 
