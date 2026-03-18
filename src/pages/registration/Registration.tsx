@@ -160,15 +160,21 @@ export function Registration() {
         }
       }
 
+      // Merge how_heard + full_name into role_data (not separate RPC params)
+      const enrichedRoleData = {
+        ...roleData,
+        full_name: formData.full_name,
+        how_heard: formData.how_heard || null,
+      }
+
       const { data, error } = await supabase.rpc('rpc_register_organization', {
+        p_organization_id: '00000000-0000-0000-0000-000000000000', // ignored, P-AI-2 signature consistency
         p_org_type: role,
         p_name: name,
         p_bin: bin || null,
         p_region_id: formData.region_id || null,
         p_phone: `+7${formData.phone}`,
-        p_full_name: formData.full_name,
-        p_how_heard: formData.how_heard || null,
-        p_role_data: roleData,
+        p_role_data: enrichedRoleData,
       })
 
       if (error) {
