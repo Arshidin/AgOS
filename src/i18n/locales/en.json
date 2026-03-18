@@ -1,0 +1,1736 @@
+{
+  "navbar": {
+    "changeLanguage": "Change language",
+    "join": "Join",
+    "news": "News",
+    "startups": "Startups",
+    "analytics": "Analytics",
+    "phone": "+7 708 108 2526",
+    "menu": "Menu"
+  },
+  "hero": {
+    "farmsInAssociation": "Farms in the association",
+    "title1": "One market",
+    "title2": "Unified rules",
+    "subtitle1": "Transparent sales for farmers",
+    "subtitle2": "Predictable supply for processors",
+    "joinBtn": "Join",
+    "learnMore": "Learn more",
+    "openProject": "Open {{name}}",
+    "cards": {
+      "coordination": "Coordination",
+      "management": "Management",
+      "consortium": "Consortium",
+      "digitalization": "Digitalization",
+      "media": "Media",
+      "conferences": "Conferences",
+      "education": "Education",
+      "products": "Products"
+    },
+    "projects": {
+      "tsp": {
+        "description": "A coordination platform for systematic linkage between farmers and meat processors. A unified quality standard for the Kazakhstan market.",
+        "features": [
+          "Three-tier cattle grading system",
+          "Supply-demand coordination between market participants",
+          "Quality standardization based on international benchmarks (MSA, USDA)",
+          "Voluntary participation with transparent rules"
+        ],
+        "metrics": {
+          "farms": "farms",
+          "demandConsolidated": "head of demand consolidated",
+          "regionsCoverage": "regions covered",
+          "gradingLevels": "grading levels"
+        }
+      },
+      "zengi": {
+        "description": "A management company. We build and manage full-cycle farms — from feedlots to breeding operations.",
+        "features": [
+          "Turnkey farm design and launch",
+          "Operational management of active farms",
+          "Veterinary and zootechnical control",
+          "Cases: Ferma Bereke, Prime Beef and others"
+        ],
+        "metrics": {
+          "activeProjects": "active projects",
+          "feedlotHeads": "head at feedlots",
+          "breedingHeads": "head at breeding farms",
+          "largestProject": "largest project volume"
+        }
+      },
+      "arqaland": {
+        "description": "Consortium 20+1: uniting small breeding farms around Arkalyk into a single operational network with shared infrastructure.",
+        "features": [
+          "20 small breeding farms + 1 coordinating hub",
+          "Shared pastures, veterinary services, genetics",
+          "Unified housing and feeding standards",
+          "Launch 2026"
+        ],
+        "metrics": {
+          "farmsInConsortium": "farms in the consortium",
+          "cattleHeads": "head of cattle",
+          "pastureArea": "pasture land",
+          "baseRegion": "base region"
+        }
+      },
+      "jailau": {
+        "description": "An ERP system for livestock farming. Digital tracking of herd, feeding, veterinary care, and financial KPIs in one product.",
+        "features": [
+          "Digital herd tracking and movement records",
+          "Feeding and ration module",
+          "Veterinary journal and vaccinations",
+          "KPI dashboards for managers"
+        ],
+        "metrics": {
+          "systemModules": "system modules",
+          "scalability": "herd scalability",
+          "monitoring": "real-time monitoring",
+          "singlePlatform": "single platform"
+        }
+      },
+      "dalaCampMedia": {
+        "description": "The largest livestock media platform in Central Asia. Content on TikTok, Instagram, Telegram, and YouTube.",
+        "features": [
+          "Video content: practice, case studies, interviews",
+          "Multi-platform distribution",
+          "Audience: farmers, specialists, investors aged 28-50",
+          "85% male, 75% from Kazakhstan"
+        ],
+        "metrics": {
+          "monthlyReach": "monthly reach",
+          "subscribers": "subscribers",
+          "platforms": "platforms",
+          "audienceAge": "audience age"
+        }
+      },
+      "dalaCampConf": {
+        "description": "Offline intensives and expeditions for farmers, veterinarians, and farm managers. Practical knowledge at real farm locations.",
+        "features": [
+          "Full-day conferences and intensives",
+          "Regional expeditions to active farms",
+          "Networking between industry participants",
+          "Hands-on masterclasses from experts"
+        ],
+        "metrics": {
+          "participants": "participants per event",
+          "regions": "hosting regions",
+          "formats": "formats (intensive + expedition)",
+          "duration": "duration"
+        }
+      },
+      "eduDalaCamp": {
+        "description": "An online educational platform for livestock professionals. Courses on management, feeding, veterinary care, and accounting.",
+        "features": [
+          "Structured online courses",
+          "Tracks: personnel, feeding, health, accounting",
+          "Access from any device",
+          "Certification upon completion"
+        ],
+        "metrics": {
+          "directions": "learning tracks",
+          "platform": "platform",
+          "access": "material access",
+          "scalability": "scalability"
+        }
+      },
+      "ondala": {
+        "description": "A retail brand for farm-raised meat. A franchise model for selling steppe farm products from the ecosystem to end consumers.",
+        "features": [
+          "Kazakh farm-raised meat brand",
+          "Franchise scaling model",
+          "Full traceability from farm to shelf",
+          "TURAN ecosystem quality standards"
+        ],
+        "metrics": {
+          "model": "model",
+          "traceability": "traceability",
+          "positioning": "positioning",
+          "segment": "segment"
+        }
+      }
+    },
+    "projectOverlay": {
+      "goToWebsite": "Go to website",
+      "prevProject": "Previous project",
+      "nextProject": "Next project",
+      "close": "Close"
+    }
+  },
+  "valueProposition": {
+    "stickerLabel": "How it works",
+    "title": "Supply and demand in one system",
+    "subtitle": "The platform connects farmers and processors directly — no middlemen, no guesswork.",
+    "forFarmers": "For farmers",
+    "forProcessors": "For processors",
+    "farmerTitle1": "See the demand before",
+    "farmerTitle2": "you sell",
+    "farmerDesc": "How many head are needed, in which region, for which week. No middlemen, no guesswork.",
+    "processorTitle1": "Plan procurement",
+    "processorTitle2": "months ahead",
+    "processorDesc": "Submit a request — the platform finds matching lots by region, breed, and timeline.",
+    "farmer": {
+      "demand": "Demand",
+      "inRegion": "In the region",
+      "looking": "are looking for",
+      "weight": "weight",
+      "week12": "Week 12 - March",
+      "week14": "Week 14 - April",
+      "heads": "head",
+      "otherCategories": "+ Other categories",
+      "buyers": "Buyers",
+      "buyersLooking": "are looking in your region, ready for",
+      "purchaseWeek": "purchase in weeks 12-16",
+      "updatedAgo": "Updated 4 min ago",
+      "3buyers": "3 buyers"
+    },
+    "mpk": {
+      "request": "Request",
+      "need": "Need",
+      "breed": "breed",
+      "weight": "weight",
+      "region": "Region",
+      "forWeeks": "for weeks",
+      "addCondition": "+ Add condition",
+      "result": "Result",
+      "found": "Found",
+      "headsFrom": "head from",
+      "regions": "regions",
+      "heads": "head",
+      "found_status": "found",
+      "remaining": "Remaining",
+      "searching": "searching",
+      "requestFilling": "Request fulfillment"
+    }
+  },
+  "cta": {
+    "stickerLabel": "Membership",
+    "title1": "The steppe empowers those",
+    "title2": "who act together",
+    "description": "Turan unites farmers, processors, and experts into a single system. Standards, analytics, market access — everything you need to grow is already inside.",
+    "joinBtn": "Join",
+    "writeBtn": "Contact us"
+  },
+  "footer": {
+    "association": "Kazakhstan Livestock Breeders Association",
+    "copyright": "© {{year}} Turan. All rights reserved."
+  },
+  "trustedBy": {
+    "title1": "Trusted by",
+    "title2": "industry leaders"
+  },
+  "registration": {
+    "optional": "optional",
+    "phoneLabel": "Phone (WhatsApp)",
+    "phoneHelper": "A confirmation code will be sent to this number",
+    "search": "Search...",
+    "noResults": "No results found",
+    "continue": "Continue",
+    "back": "Back",
+    "next": "Next",
+    "almostDone": "Almost done",
+    "progressSaved": "Your progress has been saved",
+    "submitError": "Error submitting the application. Please try again.",
+    "otp": {
+      "title": "Verify your phone number",
+      "sent": "Code sent to {{phone}}",
+      "verify": "Verify",
+      "verifying": "Verifying..."
+    },
+    "roleSelect": {
+      "eyebrow": "Join",
+      "title": "What is your role in the industry?",
+      "subtitle": "This will determine which tools and data you receive",
+      "farmer": "Farmer",
+      "farmerDesc": "I raise and sell livestock",
+      "mpk": "Feedlot / Meat Processing Plant",
+      "mpkDesc": "I purchase and process livestock",
+      "notSure": "Not sure?",
+      "writeUs": "Contact us",
+      "helpDecide": " — we'll help you decide",
+      "hasAccount": "Already registered?",
+      "login": "Sign in",
+      "toHome": "Back to home"
+    },
+    "contact": {
+      "title": "Let's get acquainted",
+      "subtitle": "Contact details of the manager or responsible person",
+      "name": "Full name",
+      "region": "Region"
+    },
+    "farmInfo": {
+      "title": "Tell us about your farm",
+      "subtitle": "Basic information for your profile",
+      "farmName": "Farm name or sole proprietorship",
+      "binIin": "BIN / IIN",
+      "binHelper": "For participant identification. Not published",
+      "herdSize": "Total cattle herd size",
+      "primaryBreed": "Primary breed"
+    },
+    "companyInfo": {
+      "title": "Tell us about your company",
+      "subtitle": "Basic information for your profile",
+      "companyName": "Company name",
+      "bin": "BIN",
+      "companyType": "Type of activity",
+      "monthlyVolume": "Monthly procurement volume"
+    },
+    "mpkNeeds": {
+      "title": "Your needs",
+      "subtitle": "This will help us show relevant supply options",
+      "breedsLabel": "Which breeds are you interested in?",
+      "targetWeight": "Target weight",
+      "procurementFreq": "How often do you procure?"
+    },
+    "agreement": {
+      "title": "Last step",
+      "subtitle": "Review the terms of participation",
+      "items": [
+        "Participation is entirely voluntary — you can leave at any time",
+        "The Association does not set prices and does not participate in transactions",
+        "Your data is aggregated and anonymized",
+        "Obligations only arise upon your explicit confirmation"
+      ],
+      "consentText": "I have read and accept the",
+      "policyLink": "Membership Policy",
+      "howHeard": "How did you hear about TURAN?",
+      "submitting": "Submitting...",
+      "submitBtn": "Submit application"
+    },
+    "createPassword": {
+      "title": "Create a password",
+      "subtitle": "A password is required to access your account",
+      "passwordLabel": "Password",
+      "passwordHelper": "At least 6 characters",
+      "saveBtn": "Save and continue",
+      "saving": "Saving..."
+    },
+    "success": {
+      "title": "Application submitted",
+      "farmerMsg": "We will review your application within 2 business days. You will receive a notification via WhatsApp at",
+      "mpkMsg": "Our manager will contact you within 1 business day to activate your account. Number:",
+      "writeWhatsApp": "Message us on WhatsApp",
+      "openChat": "Click to open chat",
+      "farmerNext": "Prepare your herd data — it will be needed after activation",
+      "mpkNext": "After activation, you will immediately see aggregated supply in your region",
+      "backHome": "Back to home",
+      "goToLogin": "Go to login",
+      "waMessage": "Hello. {{company}} has submitted a membership application to the TURAN Association."
+    },
+    "benefits": {
+      "farmer1headline": "You will see demand in {{region}}",
+      "farmer1body": "Buyers are already looking for livestock in your area. After registration, you will see aggregated signals — anonymously and in real time.",
+      "mpk1headline": "Livestock supply in {{region}} — in one view",
+      "mpk1body": "Aggregated data by breed, weight, and readiness timelines. No calls, no middlemen — direct market visibility.",
+      "farmer2headline": "Premium for predictability",
+      "farmer2body": "Farmers who confirm deliveries on time and to standard earn the right to a premium surcharge. This is not price fixing — it is a reward for discipline.",
+      "mpk2headline": "Request - Matching - Delivery",
+      "mpk2body": "Specify what you need: breed, weight, quantity, timelines. The system will match suitable lots from confirmed supply. No negotiations with dozens of suppliers.",
+      "farmer3headline": "Your data is protected",
+      "farmer3body": "Buyers will never see your name, contacts, or lot numbers. Only aggregated data — anonymously. You control every commitment.",
+      "mpk3headline": "Unified quality standards",
+      "mpk3body": "Three-tier grading system based on international benchmarks (MSA, USDA). You know what you will receive — before delivery.",
+      "defaultRegion": "your region"
+    },
+    "validation": {
+      "enterName": "Enter your full name",
+      "enterPhone": "Enter your phone number",
+      "enterEmail": "Enter a valid email",
+      "enterPassword": "At least 6 characters",
+      "selectRegion": "Select a region",
+      "fillField": "Fill in this field",
+      "enter12digits": "Enter 12 digits",
+      "selectOption": "Select an option",
+      "acceptTerms": "You must accept the terms"
+    }
+  },
+  "membershipPolicy": {
+    "approved": "Approved",
+    "approvedBy": "By the General Meeting of Founders (Members) of the Association of Legal Entities and Individual Entrepreneurs \"Kazakhstan Livestock Breeders Association \"TURAN\"",
+    "protocol": "(Protocol No. 2 dated October 13, 2025)",
+    "title": "Membership Policy",
+    "subtitle": "of the Association of Legal Entities and Individual Entrepreneurs \"Kazakhstan Livestock Breeders Association \"TURAN\"",
+    "applyBtn": "Apply for membership",
+    "sections": {
+      "s1title": "1. General Provisions",
+      "s2title": "2. Conditions and Procedure for Admission to the Association",
+      "s3title": "3. Procedure for Withdrawal from the Association",
+      "s4title": "4. Procedure and Terms for Payment of Membership Fees",
+      "s5title": "5. Final Provisions"
+    }
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Page not found",
+    "backHome": "Back to home"
+  },
+  "admin": {
+    "login": {
+      "title": "TURAN Admin",
+      "enterPassword": "Enter email and password to sign in",
+      "emailLabel": "Email",
+      "emailPlaceholder": "admin@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "Password",
+      "wrongPassword": "Incorrect email or password",
+      "adminOnly": "Access for administrators only",
+      "loginBtn": "Sign in"
+    },
+    "list": {
+      "title": "Membership Applications",
+      "newCount": "{{count}} new",
+      "newLabel": "new",
+      "logout": "Log out",
+      "tabs": {
+        "all": "All",
+        "farmers": "Farmers",
+        "processors": "Processors"
+      },
+      "filters": {
+        "allStatuses": "All statuses",
+        "pending": "Pending review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "allRegions": "All regions",
+        "resetFilters": "Reset filters",
+        "status": "Status",
+        "region": "Region"
+      },
+      "showing": "Showing {{shown}} of {{total}} applications",
+      "errorLoading": "Error loading data",
+      "retry": "Retry",
+      "noResults": "No applications matching the filters",
+      "tryChanging": "Try changing the filter parameters",
+      "columns": {
+        "date": "Date",
+        "type": "Type",
+        "name": "Name",
+        "enterprise": "Enterprise",
+        "farm": "Farm",
+        "organization": "Organization",
+        "region": "Region",
+        "volumeMonth": "Volume/mo",
+        "herdSize": "Herd size",
+        "volume": "Volume",
+        "readiness": "Readiness",
+        "companyType": "Type",
+        "status": "Status"
+      },
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "prev": "Prev",
+      "next": "Next",
+      "pageOf": "{{page}} of {{total}}"
+    },
+    "applications": {
+      "open": "Open",
+      "deleteTitle": "Delete application?",
+      "deleteMessage": "Application from \"{{name}}\" will be permanently deleted.",
+      "deleted": "Application deleted"
+    },
+    "detail": {
+      "backToList": "Back to list",
+      "notFound": "Application not found",
+      "aboutFarm": "About the farm",
+      "aboutCompany": "About the company",
+      "name": "Name",
+      "binIin": "BIN/IIN",
+      "bin": "BIN",
+      "herdSize": "Cattle herd size",
+      "primaryBreed": "Primary breed",
+      "salesPlans": "Sales plans",
+      "readiness": "Readiness",
+      "plannedVolume": "Planned volume",
+      "activityType": "Type of activity",
+      "purchaseVolume": "Purchase volume/mo",
+      "purchaseNeeds": "Procurement needs",
+      "breeds": "Breeds",
+      "targetWeight": "Target weight",
+      "purchaseFreq": "Purchase frequency",
+      "additional": "Additional",
+      "consentGiven": "Agreement accepted",
+      "yes": "Yes",
+      "no": "No",
+      "source": "Source",
+      "review": "Review",
+      "decision": "Decision",
+      "approvedStatus": "Approved",
+      "rejectedStatus": "Rejected",
+      "reviewedBy": "Reviewed by",
+      "decisionDate": "Decision date",
+      "rejectionReason": "Rejection reason",
+      "approveBtn": "Approve",
+      "rejectBtn": "Reject",
+      "approvedToast": "Application approved",
+      "rejectedToast": "Application rejected",
+      "approveError": "Error approving application",
+      "rejectError": "Error rejecting application",
+      "applicationProgress": "Application Progress",
+      "documents": "Documents",
+      "applicationSigned": "Application signed",
+      "paymentConfirmed": "Payment confirmed",
+      "paymentSkipped": "Payment deferred",
+      "paymentPending": "Payment pending"
+    },
+    "approveDialog": {
+      "title": "Approve application?",
+      "description": "Approve the application from {{name}}? The participant will be assigned Observer status with platform access as a {{role}}.",
+      "farmerRole": "farmer",
+      "processorRole": "processor",
+      "cancel": "Cancel",
+      "approving": "Approving...",
+      "approve": "Approve"
+    },
+    "rejectDialog": {
+      "title": "Reject application",
+      "description": "Provide a reason for rejection. Minimum 10 characters.",
+      "placeholder": "Rejection reason...",
+      "charCount": "{{count}}/10 characters minimum",
+      "cancel": "Cancel",
+      "rejecting": "Rejecting...",
+      "reject": "Reject"
+    },
+    "statusBadge": {
+      "pending": "Pending review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "roleBadge": {
+      "farmer": "Farmer",
+      "mpk": "MPP"
+    },
+    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "monthsShort": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "nav": {
+      "applications": "Applications",
+      "members": "Members",
+      "startups": "Startups",
+      "news": "News",
+      "tspPrices": "TSP Prices",
+      "tspMatching": "Matching"
+    },
+    "tspPrices": {
+      "title": "TSP Price Management",
+      "category": "Category",
+      "weightClass": "Weight",
+      "breedGroup": "Breed Group",
+      "grade": "Grade",
+      "referencePrice": "Ref. Price (₸/kg)",
+      "premiumMin": "Premium Min",
+      "premiumMax": "Premium Max",
+      "active": "Active",
+      "updatedAt": "Updated",
+      "actions": "Actions",
+      "viewLog": "History",
+      "bulkIncrease": "Bulk Update",
+      "bulkIncreaseTitle": "Bulk Price Update",
+      "bulkIncreaseDesc": "Increase/decrease all filtered prices by a percentage",
+      "percentChange": "Change (%)",
+      "apply": "Apply",
+      "priceUpdated": "Price updated",
+      "priceError": "Price update error",
+      "bulkUpdated": "Updated {{count}} prices",
+      "logTitle": "Change History",
+      "logOldPrice": "Old",
+      "logNewPrice": "New",
+      "logDate": "Date",
+      "logNote": "Note",
+      "noLog": "No entries",
+      "noResults": "No rows matching filters",
+      "deleteTitle": "Delete price row?",
+      "deleteMessage": "{{category}} / {{weight}} / {{breed}} / {{grade}} — this row will be permanently deleted.",
+      "deleted": "Row deleted",
+      "bulkRowCount": "{{count}} rows will be updated",
+      "filterActive": "Active only",
+      "allCategories": "All categories",
+      "allGrades": "All grades",
+      "validation": {
+        "pricePositive": "Price must be greater than 0",
+        "premiumMinPositive": "Min premium ≥ 0",
+        "premiumMaxGteMin": "Max premium ≥ min premium"
+      }
+    },
+    "tspMatching": {
+      "title": "Matching",
+      "demand": "Demand (Requests)",
+      "supply": "Supply (Batches)",
+      "selectRequest": "Select a request",
+      "noRequests": "No requests for matching",
+      "noBatches": "No confirmed batches",
+      "noBatchesForRequest": "No batches matching request criteria",
+      "fillRate": "Fill Rate",
+      "matchedHeads": "Matched Heads",
+      "totalHeads": "Total Heads",
+      "headsToMatch": "Heads to match",
+      "referencePrice": "Reference Price",
+      "premium": "Premium",
+      "totalPrice": "Total Price",
+      "note": "Note",
+      "regionMismatch": "Region mismatch",
+      "categoryMismatch": "Category not accepted",
+      "gradeMismatch": "Grade not accepted",
+      "weightMismatch": "Weight class out of range",
+      "breedMismatch": "Breed group below minimum",
+      "batchAlreadyMatched": "Batch already matched",
+      "farmer": "Farmer",
+      "mpk": "MPK",
+      "match": "Match",
+      "matchTitle": "Match batches",
+      "matchDesc": "Selected batches will be matched to the request. Price is snapshot from the grid.",
+      "priceAutoSnapshot": "Price will be captured automatically",
+      "poolActions": "Pool actions",
+      "poolFilled": "Pool filled",
+      "poolExecuting": "Start execution",
+      "poolExecuted": "Complete execution",
+      "poolTransitionTitle": "Pool transition",
+      "poolTransitionDesc": "Confirm pool status transition.",
+      "poolExecutedDesc": "Specify pool execution result.",
+      "executionResult": "Execution result",
+      "resultFull": "Full",
+      "resultPartial": "Partial",
+      "resultFailed": "Failed",
+      "failedBatchIds": "Failed batch IDs (comma-separated)",
+      "confirm": "Confirm",
+      "matchedBatches": "Matched batches",
+      "revert": "Revert match",
+      "revertTitle": "Revert match?",
+      "revertDesc": "Batch will return to 'Published' status and be available for re-matching.",
+      "revertNote": "Reason for reversal",
+      "revertNotePlaceholder": "Specify reason for match reversal",
+      "notePlaceholder": "Note (optional)",
+      "matchCreated": "Match created",
+      "matchError": "Match failed",
+      "poolTransitioned": "Pool transitioned",
+      "poolTransitionError": "Pool transition failed",
+      "batchReverted": "Batch reverted to published",
+      "revertError": "Revert failed"
+    },
+    "members": {
+      "title": "Member Management",
+      "allStatuses": "All statuses",
+      "allTypes": "All types",
+      "allRegions": "All regions",
+      "searchPlaceholder": "Search by name or contact",
+      "noResults": "No results",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "showing": "Showing {{count}} of {{total}}",
+      "col": {
+        "org": "Organization",
+        "region": "Region",
+        "status": "Status",
+        "contact": "Contact",
+        "applied": "Applied",
+        "actions": "Actions"
+      },
+      "type": {
+        "farmer": "Farmer",
+        "mpk": "MPK"
+      },
+      "actions": {
+        "approve": "Approve",
+        "activate": "Activate",
+        "restrict": "Restrict",
+        "expel": "Expel",
+        "reinstate": "Reinstate",
+        "viewProfile": "View profile"
+      },
+      "noteRequired": "Provide a reason (required)",
+      "notePlaceholder": "Reason...",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "statusUpdated": "Status updated",
+      "statusError": "Status update error",
+      "deleteTitle": "Delete member?",
+      "deleteMessage": "Member \"{{name}}\" will be permanently deleted.",
+      "deleted": "Member deleted"
+    },
+    "startupStatusBadge": {
+      "pending_review": "Pending review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "startups": {
+      "open": "Open",
+      "deleteTitle": "Delete startup?",
+      "deleteMessage": "Startup \"{{name}}\" will be permanently deleted.",
+      "deleted": "Startup deleted"
+    },
+    "startupList": {
+      "title": "Startups",
+      "newCount": "{{count}} new",
+      "newLabel": "new",
+      "logout": "Log out",
+      "tabs": {
+        "all": "All",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "filters": {
+        "category": "Category",
+        "allCategories": "All categories",
+        "stage": "Stage",
+        "allStages": "All stages",
+        "resetFilters": "Reset filters"
+      },
+      "showing": "Showing {{shown}} of {{total}} startups",
+      "errorLoading": "Error loading data",
+      "retry": "Retry",
+      "noResults": "No startups matching the filters",
+      "tryChanging": "Try changing the filter parameters",
+      "columns": {
+        "date": "Date",
+        "title": "Title",
+        "category": "Category",
+        "stage": "Stage",
+        "fundingAsk": "Ask",
+        "region": "Region",
+        "status": "Status"
+      },
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "prev": "Prev",
+      "next": "Next",
+      "pageOf": "{{page}} of {{total}}"
+    },
+    "startupDetail": {
+      "backToList": "Back to list",
+      "notFound": "Startup not found",
+      "about": "About",
+      "category": "Category",
+      "stage": "Stage",
+      "region": "Region",
+      "yearFounded": "Year founded",
+      "problem": "Problem",
+      "solution": "Solution",
+      "targetMarket": "Target market",
+      "businessModel": "Business model",
+      "investment": "Investment",
+      "fundingAsk": "Funding ask",
+      "fundingRaised": "Funding raised",
+      "fundingInstrument": "Instrument",
+      "fundingStatus": "Round status",
+      "useOfFunds": "Use of funds",
+      "team": "Team",
+      "teamSize": "Team size",
+      "teamMembers": "Team members",
+      "materials": "Materials",
+      "noMaterials": "No materials uploaded",
+      "review": "Review",
+      "decision": "Decision",
+      "approvedStatus": "Approved",
+      "rejectedStatus": "Rejected",
+      "published": "Published",
+      "yes": "Yes",
+      "no": "No",
+      "rejectionReason": "Rejection reason",
+      "approveBtn": "Approve",
+      "rejectBtn": "Reject",
+      "approvedToast": "Startup approved and published",
+      "rejectedToast": "Startup rejected",
+      "approveError": "Error approving startup",
+      "rejectError": "Error rejecting startup"
+    },
+    "startupApproveDialog": {
+      "title": "Approve startup?",
+      "description": "Approve \"{{title}}\"? The startup will be published and visible in the catalog.",
+      "cancel": "Cancel",
+      "approving": "Approving...",
+      "approve": "Approve"
+    }
+  },
+  "constants": {
+    "regions": {
+      "akmola": "Akmola Region",
+      "aktobe": "Aktobe Region",
+      "almaty_obl": "Almaty Region",
+      "almaty_city": "Almaty City",
+      "astana": "Astana",
+      "atyrau": "Atyrau Region",
+      "east_kz": "East Kazakhstan Region",
+      "zhambyl": "Zhambyl Region",
+      "west_kz": "West Kazakhstan Region",
+      "karaganda": "Karaganda Region",
+      "kostanay": "Kostanay Region",
+      "kyzylorda": "Kyzylorda Region",
+      "mangystau": "Mangystau Region",
+      "pavlodar": "Pavlodar Region",
+      "north_kz": "North Kazakhstan Region",
+      "shymkent": "Shymkent",
+      "turkestan": "Turkestan Region",
+      "ulytau": "Ulytau Region",
+      "zhetysu": "Zhetysu Region",
+      "abai": "Abai Region"
+    },
+    "herdSizes": {
+      "small": "up to 50 head",
+      "medium": "51-100 head",
+      "large": "100-300 head",
+      "xlarge": "300-500 head",
+      "xxlarge": "500-1,000 head",
+      "xxxlarge": "over 1,000 head"
+    },
+    "breeds": {
+      "Казахская белоголовая": "Kazakh Whiteface",
+      "Ангус": "Angus",
+      "Герефорд": "Hereford",
+      "Симментальская": "Simmental",
+      "Аулиекольская": "Auliekol",
+      "Калмыцкая": "Kalmyk",
+      "Смешанная / другая": "Mixed / other"
+    },
+    "companyTypes": {
+      "feedlot": "Feedlot",
+      "processor": "Meat processing plant",
+      "both": "Feedlot + processing",
+      "trader": "Trader"
+    },
+    "monthlyVolumes": {
+      "small": "up to 100 head",
+      "medium": "100-500 head",
+      "large": "500-1,000 head",
+      "xlarge": "over 1,000 head"
+    },
+    "mpkBreedsChips": {
+      "Казахская белоголовая": "Kazakh Whiteface",
+      "Ангус": "Angus",
+      "Герефорд": "Hereford",
+      "Симментальская": "Simmental",
+      "Любые мясные": "Any beef breed"
+    },
+    "targetWeights": {
+      "350–400 кг": "350-400 kg",
+      "400–450 кг": "400-450 kg",
+      "450–500 кг": "450-500 kg",
+      "500+ кг": "500+ kg",
+      "Разный": "Various"
+    },
+    "procurementFreq": {
+      "weekly": "Weekly",
+      "biweekly": "Every 2 weeks",
+      "monthly": "Monthly",
+      "seasonal": "Seasonally"
+    },
+    "readyToSell": {
+      "now": "Ready to sell",
+      "1_3_months": "1-3 months",
+      "3_6_months": "3-6 months",
+      "exploring": "Exploring the system"
+    },
+    "howHeard": {
+      "recommendation": "Recommendation from an acquaintance",
+      "whatsapp": "WhatsApp / Telegram",
+      "social": "Social media",
+      "event": "Event / forum",
+      "supplier": "Feed supplier",
+      "other": "Other"
+    },
+    "startupCategories": {
+      "agritech": "AgriTech",
+      "livestock": "Livestock Production",
+      "feed_nutrition": "Feed & Nutrition",
+      "genetics": "Genetics & Breeding",
+      "cold_chain": "Cold Chain & Logistics",
+      "processing": "Processing & Manufacturing",
+      "digital_platform": "Digital Platform",
+      "sustainability": "Sustainability & Climate"
+    },
+    "startupStages": {
+      "idea": "Idea",
+      "pre_seed": "Pre-Seed",
+      "seed": "Seed",
+      "series_a": "Series A",
+      "growth": "Growth"
+    },
+    "fundingStatuses": {
+      "open": "Open",
+      "closing_soon": "Closing Soon",
+      "closed": "Closed"
+    },
+    "startupSort": {
+      "newest": "Newest first",
+      "funding_ask_desc": "Funding: High to Low",
+      "funding_ask_asc": "Funding: Low to High"
+    }
+  },
+  "startups": {
+    "hero": {
+      "sticker": "Investment Projects",
+      "title": "TURAN Ecosystem Startup Directory",
+      "subtitle": "Investment projects in livestock and agri-sector of Kazakhstan. Transparent data, verified teams.",
+      "metricProjects": "projects",
+      "metricRaised": "raised",
+      "metricSectors": "sectors",
+      "submitCta": "Submit a project"
+    },
+    "filters": {
+      "searchPlaceholder": "Search projects...",
+      "allCategories": "All categories",
+      "allStages": "All stages",
+      "allRegions": "All regions",
+      "reset": "Reset"
+    },
+    "catalog": {
+      "showing": "Showing {{shown}} of {{total}} projects",
+      "error": "Error loading data",
+      "retry": "Retry",
+      "empty": "No projects matching the filters"
+    },
+    "pagination": {
+      "prev": "Prev",
+      "next": "Next",
+      "pageOf": "{{page}} of {{total}}"
+    },
+    "detail": {
+      "backToList": "Back to projects",
+      "notFound": "Project not found",
+      "founded": "Founded in {{year}}",
+      "teamSize": "{{count}} team members",
+      "about": "About the project",
+      "problem": "Problem",
+      "solution": "Solution",
+      "targetMarket": "Target Market",
+      "businessModel": "Business Model",
+      "team": "Team",
+      "investment": "Investment",
+      "fundingAsk": "Seeking",
+      "fundingRaised": "Raised",
+      "instrument": "Instrument",
+      "progress": "Funding progress",
+      "useOfFunds": "Use of Funds",
+      "materials": "Materials",
+      "video": "Video",
+      "website": "Website",
+      "ctaTitle": "Interested in this project?",
+      "ctaSubtitle": "Contact the team to discuss investment or partnership opportunities",
+      "ctaButton": "Contact the team",
+      "submitCtaText": "Have your own project?"
+    },
+    "submit": {
+      "modalTitle": "Submit a project",
+      "stepLabel1": "Basics",
+      "stepLabel2": "AI Analysis",
+      "stepLabel3": "Details",
+      "stepLabel4": "Done",
+      "step1Title": "Tell us about your project",
+      "step1Subtitle": "Upload a pitch deck — AI will auto-fill most fields for you",
+      "projectName": "Project name",
+      "projectNamePlaceholder": "e.g. AgriTech Platform",
+      "website": "Project website",
+      "contactName": "Contact person",
+      "contactNamePlaceholder": "Full name",
+      "contactPhone": "Phone",
+      "pitchDeck": "Pitch deck",
+      "dropzoneText": "Drag & drop a file here or click to browse",
+      "maxSize": "max {{size}}",
+      "fileInvalidType": "Unsupported format. Please upload PDF, PPTX, or Keynote",
+      "fileTooBig": "File is too large. Maximum size is 50 MB",
+      "cancel": "Cancel",
+      "next": "Next",
+      "back": "Back",
+      "uploading": "Uploading...",
+      "submitting": "Submitting...",
+      "submitButton": "Submit project",
+      "aiParsingTitle": "AI is analyzing your document",
+      "aiStatus1": "Extracting key information...",
+      "aiStatus2": "Analyzing business model and market...",
+      "aiStatus3": "Building project profile...",
+      "step3Title": "Review and complete",
+      "step3Subtitle": "AI-filled fields are marked with a badge. You can edit any field.",
+      "sectionBasic": "Basic information",
+      "sectionDescription": "Project description",
+      "sectionAdditional": "Additional",
+      "tagline": "Tagline",
+      "taglinePlaceholder": "A short one-liner description",
+      "category": "Category",
+      "selectCategory": "Select category",
+      "stage": "Stage",
+      "selectStage": "Select stage",
+      "yearFounded": "Year founded",
+      "teamSizeLabel": "Team size",
+      "region": "Region",
+      "useOfFunds": "Use of funds",
+      "addItem": "Add",
+      "fundItem": "Expense item",
+      "totalPercent": "Total: {{total}}%",
+      "teamMembers": "Team",
+      "addMember": "Add",
+      "memberName": "Name",
+      "memberRole": "Role",
+      "noMembers": "No members yet. Click \"Add\" above.",
+      "successTitle": "Project submitted!",
+      "successMessage": "We will review your application and get back to you within a few business days.",
+      "successNote": "The project will appear in the catalog after moderation",
+      "backToCatalog": "Back to catalog",
+      "errorRequired": "Required field",
+      "errorEmail": "Invalid email",
+      "errorUpload": "Upload failed. Please try again.",
+      "errorSubmit": "Submission failed. Please try again."
+    }
+  },
+  "news": {
+    "pageTitle": "News & Publications",
+    "pageDescription": "TURAN association news and media coverage on the development of livestock farming in Kazakhstan.",
+    "filters": {
+      "all": "All",
+      "association": "Association publications",
+      "media": "Media coverage"
+    },
+    "categories": {
+      "industry": "Industry",
+      "standards": "Standards",
+      "events": "Events",
+      "partnership": "Partnership",
+      "general": "General"
+    },
+    "loadMore": "Load more",
+    "empty": "No publications yet",
+    "notFound": "Article not found",
+    "backToNews": "Back to news",
+    "readSource": "Read",
+    "article": "Article",
+    "share": "Share",
+    "publishedAt": "Published",
+    "author": "Author",
+    "prevArticle": "Previous",
+    "nextArticle": "Next",
+    "expandArticle": "Expand"
+  },
+  "rationBuilder": {
+    "title": "Ration Builder",
+    "access": {
+      "upgradeRequired": "Available for active association members",
+      "upgradeCta": "Learn about membership"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "groups": "Groups",
+      "inventory": "Feed Inventory",
+      "ration": "Ration",
+      "plan": "Feeding Plan",
+      "budget": "Budget"
+    },
+    "regions": {
+      "kostanay": "Kostanay",
+      "akmola": "Akmola",
+      "pavlodar": "Pavlodar",
+      "karaganda": "Karaganda",
+      "east_kz": "East Kazakhstan",
+      "almaty": "Almaty",
+      "zhambyl": "Zhambyl",
+      "turkestan": "Turkestan",
+      "kyzylorda": "Kyzylorda",
+      "west_kz": "West Kazakhstan",
+      "atyrau": "Atyrau",
+      "mangystau": "Mangystau",
+      "aktobe": "Aktobe",
+      "north_kz": "North Kazakhstan"
+    },
+    "farmTypes": {
+      "cowcalf": "Cow-Calf",
+      "cowcalfDesc": "Breeding herd with calves",
+      "backgrounding": "Backgrounding",
+      "backgroundingDesc": "Growing weaned calves",
+      "finishing": "Finishing",
+      "finishingDesc": "Intensive fattening for slaughter",
+      "full_cycle": "Full Cycle",
+      "full_cycleDesc": "Birth to market"
+    },
+    "breeds": {
+      "kbg": "Kazakhstan Whitehead",
+      "aul": "Auliekol",
+      "her": "Hereford",
+      "ang": "Aberdeen-Angus",
+      "kal": "Kalmyk",
+      "sim": "Simmental",
+      "sha": "Charolais",
+      "lim": "Limousin",
+      "mix": "Crosses"
+    },
+    "groupTypes": {
+      "cows_dry": "Dry Cows",
+      "cows_gest_late": "Late Gestation Cows",
+      "cows_lactating": "Lactating Cows",
+      "heifers_pregnant": "Pregnant Heifers",
+      "heifers_replacement": "Replacement Heifers",
+      "steers_backgrounding": "Backgrounding Steers",
+      "steers_finishing": "Finishing Steers",
+      "calves_suckling": "Suckling Calves",
+      "calves_weaned": "Weaned Calves",
+      "bulls_breeding": "Breeding Bulls",
+      "heifers_backgrounding": "Backgrounding Heifers",
+      "heifers_finishing": "Finishing Heifers"
+    },
+    "shelters": {
+      "open": "Open Lot",
+      "canopy": "Canopy",
+      "barn": "Barn",
+      "warm": "Warm Housing"
+    },
+    "calving": {
+      "spring": "Spring Calving",
+      "autumn": "Autumn Calving",
+      "year_round": "Year-Round"
+    },
+    "processing": {
+      "none": "Unprocessed",
+      "ground": "Ground",
+      "rolled": "Rolled",
+      "pelleted": "Pelleted",
+      "steam_flaked": "Steam Flaked",
+      "chopped": "Chopped"
+    },
+    "seasons": {
+      "winter": "Winter",
+      "spring": "Spring",
+      "summer": "Summer",
+      "autumn": "Autumn"
+    },
+    "templates": {
+      "cowcalf_winter": "Cow-Calf Winter",
+      "cowcalf_winterDesc": "Hay, barley, meal, minerals",
+      "finishing": "Finishing",
+      "finishingDesc": "Silage, grain, meal, minerals",
+      "backgrounding": "Backgrounding",
+      "backgroundingDesc": "Hay, haylage, oat, meal",
+      "pasture": "Pasture",
+      "pastureDesc": "Pasture + salt + premix"
+    },
+    "farm": {
+      "createTitle": "Create Farm",
+      "editTitle": "Edit Farm",
+      "name": "Farm Name",
+      "namePlaceholder": "Enter farm name",
+      "nameRequired": "Enter farm name",
+      "region": "Region",
+      "regionPlaceholder": "Select region",
+      "regionRequired": "Select a region",
+      "type": "Farm Type",
+      "farmType": "Farm Type",
+      "farmTypePlaceholder": "Select farm type",
+      "farmTypeRequired": "Select a farm type",
+      "breed": "Primary Breed",
+      "breedPlaceholder": "Select breed",
+      "breedRequired": "Select a breed",
+      "headCount": "Head Count",
+      "headCountPlaceholder": "Number of head",
+      "headCountRequired": "Enter head count",
+      "shelter": "Shelter Type",
+      "shelterType": "Shelter Type",
+      "shelterTypePlaceholder": "Select shelter type",
+      "shelterTypeRequired": "Select a shelter type",
+      "calvingSystem": "Calving System",
+      "calvingSystemPlaceholder": "Select calving system",
+      "calvingSystemRequired": "Select a calving system",
+      "stallPeriod": "Stall Period (days)",
+      "stallPeriodDays": "Stall Period (days)",
+      "stallPeriodHint": "Auto-calculated by region, can be adjusted",
+      "stallPeriodRequired": "Enter stall period",
+      "step1": "Region & Type",
+      "step2": "Breed",
+      "step3": "Details",
+      "stepRegion": "Region & Farm Type",
+      "stepBreed": "Breed & Head Count",
+      "stepDetails": "Housing Details",
+      "next": "Next",
+      "back": "Back",
+      "save": "Save",
+      "noFarms": "No farms yet. Create your first.",
+      "selectFarm": "Select Farm"
+    },
+    "group": {
+      "createTitle": "Add Group",
+      "editTitle": "Edit Group",
+      "name": "Group Name",
+      "type": "Group Type",
+      "headCount": "Head Count",
+      "avgWeight": "Average Weight (kg)",
+      "targetWeight": "Target Weight (kg)",
+      "targetAdg": "Target ADG (kg/day)",
+      "bcs": "Body Condition Score",
+      "gestationMonth": "Gestation Month",
+      "lactationDay": "Lactation Day",
+      "season": "Season",
+      "noGroups": "No animal groups. Add your first.",
+      "delete": "Delete Group",
+      "deleteConfirm": "Are you sure? This will delete the group and all related rations."
+    },
+    "feed": {
+      "library": "Feed Library",
+      "addFeed": "Add Feed",
+      "addFromTemplate": "Quick Add",
+      "quantity": "Stock (kg)",
+      "price": "Price (₸/kg)",
+      "pricePerTon": "₸/t",
+      "harvestDate": "Harvest Date",
+      "processing": "Processing",
+      "quality": "Quality",
+      "available": "Available",
+      "daysLeft": "days left",
+      "noInventory": "Inventory is empty. Add feeds.",
+      "categories": {
+        "roughage": "Roughage",
+        "energy": "Energy",
+        "protein": "Protein",
+        "mineral": "Mineral"
+      }
+    },
+    "ration": {
+      "calculate": "Calculate Ration",
+      "recalculate": "Recalculate",
+      "objective": "Optimization Objective",
+      "minCost": "Minimum Cost",
+      "maxGain": "Maximum Gain",
+      "balanced": "Balanced",
+      "costPerHead": "₸/head/day",
+      "costPerGroup": "₸/group/day",
+      "costPerMonth": "₸/month",
+      "score": "Ration Score",
+      "feedItem": "Feed",
+      "dmKg": "DM (kg)",
+      "asFedKg": "As-Fed (kg)",
+      "pctOfDm": "% DM",
+      "costDay": "₸/day",
+      "noRation": "Ration not yet calculated.",
+      "infeasible": "Cannot formulate a ration from available feeds.",
+      "version": "Version",
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "archived": "Archived"
+      }
+    },
+    "analysis": {
+      "tab_ration": "Ration",
+      "tab_analysis": "Analysis",
+      "tab_rumen": "Rumen",
+      "tab_vitamins": "Vitamins",
+      "nutrientVsReq": "Nutrients vs Requirements",
+      "rumenPH": "Rumen pH",
+      "saraRisk": "SARA Risk",
+      "vfa": "VFA",
+      "starch": "Starch",
+      "peNDF": "peNDF",
+      "vitA": "Vitamin A",
+      "vitD": "Vitamin D",
+      "vitE": "Vitamin E",
+      "coverage": "Coverage"
+    },
+    "plan": {
+      "title": "Feeding Plan",
+      "create": "Create Plan",
+      "name": "Name",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "period": "Period",
+      "periodType": {
+        "stall": "Stall",
+        "transition_spring": "Transition (Spring)",
+        "pasture": "Pasture",
+        "transition_autumn": "Transition (Autumn)",
+        "finishing": "Finishing"
+      },
+      "noPlans": "No feeding plans.",
+      "stallPeriodInfo": "Stall period: {{days}} days ({{start}} → {{end}})"
+    },
+    "budget": {
+      "title": "Feed Budget",
+      "totalNeed": "Need (kg)",
+      "inStock": "In Stock (kg)",
+      "deficit": "Deficit (kg)",
+      "daysCovered": "Days Covered",
+      "status": {
+        "surplus": "Surplus",
+        "at_risk": "At Risk",
+        "critical": "Critical"
+      },
+      "purchaseDeficit": "Purchase deficit",
+      "headsDaysStall": "{{heads}} heads × {{days}} stall days"
+    },
+    "warnings": {
+      "what": "Issue",
+      "why": "Reason",
+      "risk": "Risk",
+      "action": "Action",
+      "cost": "Cost"
+    },
+    "dashboard": {
+      "title": "Farm Overview",
+      "totalCost": "Total Cost ₸/day",
+      "alerts": "Alerts",
+      "noAlerts": "All good"
+    },
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "create": "Create",
+      "back": "Back",
+      "loading": "Loading...",
+      "error": "Error",
+      "perHead": "per head",
+      "perDay": "per day",
+      "perMonth": "per month",
+      "kg": "kg",
+      "tenge": "₸",
+      "total": "Total",
+      "selectGroup": "Select group...",
+      "selectFeed": "Select feed...",
+      "feedAdded": "Feed added",
+      "feedRemoved": "Feed removed",
+      "feedUpdated": "Updated",
+      "templateAllAdded": "All feeds from this template are already added",
+      "templateAdded": "Added {{count}} feeds",
+      "rationCalculated": "Ration calculated in {{ms}}ms",
+      "rationSaved": "Ration saved",
+      "groupCreated": "Group created",
+      "groupUpdated": "Group updated",
+      "groupDeleted": "Group deleted",
+      "priceRange": "Range: {{min}}–{{max}} ₸/kg",
+      "daysUnit": "d",
+      "headsShort": "hd",
+      "pricePerKg": "₸/kg"
+    },
+    "bcsScale": {
+      "thin": "thin",
+      "normal": "normal",
+      "obese": "obese"
+    }
+  },
+  "login": {
+    "title": "Sign in to TURAN",
+    "phoneLabel": "Phone number",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Enter password",
+    "loginBtn": "Sign in",
+    "noAccount": "Don't have an account?",
+    "register": "Apply",
+    "invalidPhone": "Enter a valid phone number",
+    "enterPassword": "Enter your password",
+    "loginError": "Invalid phone or password"
+  },
+  "cabinet": {
+    "nav": {
+      "home": "Home",
+      "membership": "Membership",
+      "profile": "Profile",
+      "market": "Market",
+      "batches": "Batches",
+      "requests": "Requests",
+      "notifications": "Notifications",
+      "ration": "Ration Calculator",
+      "comingSoon": "Coming soon"
+    },
+    "header": {
+      "logout": "Log out",
+      "myProfile": "My profile"
+    },
+    "dashboard": {
+      "applicant": {
+        "title": "Your application is under review",
+        "appliedAt": "Applied on {{date}}",
+        "progress": {
+          "applicant": "Application",
+          "observer": "Observer",
+          "active": "Member"
+        },
+        "completeProfile": "Go to application",
+        "benefitsTitle": "Benefits of TURAN membership",
+        "benefit1": "Access to market data and prices",
+        "benefit2": "Create batches and participate in pools",
+        "benefit3": "Ration calculator and analytics"
+      },
+      "observer": {
+        "title": "You are an association observer",
+        "progressToActive": "Full platform access requires becoming an active member",
+        "rationCalc": "Ration calculator"
+      },
+      "active": {
+        "title": "Welcome",
+        "batches": "Your batches",
+        "pools": "Active pools",
+        "createBatch": "Create batch",
+        "viewMarket": "View market"
+      }
+    },
+    "membership": {
+      "title": "Membership Status",
+      "currentStatus": "Current status",
+      "appliedAt": "Applied on {{date}}",
+      "approvedAt": "Approved on {{date}}",
+      "activatedAt": "Activated on {{date}}",
+      "documents": "Documents",
+      "uploadDoc": "Upload document",
+      "docUploaded": "Document uploaded",
+      "uploadError": "Upload error",
+      "loading": "Loading...",
+      "noDocuments": "No documents uploaded yet",
+      "statusHistory": "Status history",
+      "contactUs": "Questions? WhatsApp us",
+      "restrictedNote": "Restriction reason"
+    },
+    "profile": {
+      "title": "Organization Profile",
+      "orgTab": "Organization",
+      "farmTab": "Farm",
+      "mpkTab": "Procurement",
+      "name": "Organization name",
+      "bin": "BIN",
+      "region": "Region",
+      "contactName": "Contact person",
+      "contactPhone": "Phone",
+      "contactEmail": "Email",
+      "save": "Save",
+      "saved": "Saved",
+      "saveError": "Save error",
+      "farm": {
+        "totalCattle": "Total cattle",
+        "bulls": "Bulls",
+        "cows": "Cows",
+        "youngStock": "Young stock",
+        "breedComposition": "Breed composition",
+        "quarterlySales": "Quarterly sales estimate (heads)",
+        "notes": "Notes"
+      },
+      "mpk": {
+        "annualDemand": "Annual demand (heads)",
+        "processingCapacity": "Processing capacity (heads/day)",
+        "preferredCategories": "Preferred categories",
+        "preferredRegions": "Preferred regions",
+        "notes": "Notes"
+      }
+    },
+    "batches": {
+      "title": "My Batches",
+      "newBatch": "New Batch",
+      "emptyState": "You don't have any batches yet. Create your first batch to start working with the pool.",
+      "category": "Category",
+      "weightClass": "Weight Class",
+      "breedGroup": "Breed Group",
+      "grade": "Grade",
+      "heads": "Number of Heads",
+      "region": "Region",
+      "targetMonth": "Target Month",
+      "notes": "Notes",
+      "status": "Status",
+      "referencePrice": "Reference Price",
+      "premiumRange": "Recommended Premium",
+      "priceSignal": "Price Signal",
+      "pricePerKg": "₸/kg",
+      "noPriceData": "No reference price for this combination",
+      "create": {
+        "title": "Create Batch",
+        "submit": "Create Batch",
+        "creating": "Creating...",
+        "created": "Batch created",
+        "error": "Error creating batch"
+      },
+      "detail": {
+        "title": "Batch",
+        "edit": "Edit",
+        "save": "Save",
+        "saved": "Changes saved",
+        "saveError": "Error saving",
+        "locked": "Batch is locked for editing",
+        "notFound": "Batch not found",
+        "cancelledInfo": "This batch has been cancelled and is no longer available for actions.",
+        "expiredInfo": "This batch has expired."
+      },
+      "fsm": {
+        "toPublished": "Publish",
+        "published": "Batch published",
+        "cancel": "Cancel Batch",
+        "cancelTitle": "Cancel Batch",
+        "cancelMessage": "Are you sure you want to cancel this batch?",
+        "transitioned": "Status updated",
+        "transitionError": "Error changing status",
+        "publishTitle": "Publish batch?",
+        "publishMessage": "Once published, the batch will be available for matching. This action cannot be undone.",
+        "goBack": "No, go back",
+        "confirmCancel": "Yes, cancel",
+        "cancelled": "Batch cancelled",
+        "error": "Error"
+      },
+      "matched": {
+        "title": "Match",
+        "matchedHeads": "Matched Heads",
+        "referencePrice": "Reference Price",
+        "premium": "Premium",
+        "totalPrice": "Total",
+        "awaitingDelivery": "Awaiting Delivery"
+      },
+      "farmerOnly": "This section is available for farmers only.",
+      "filters": {
+        "allStatuses": "All Statuses",
+        "allMonths": "All Months"
+      }
+    },
+    "requests": {
+      "mpkOnly": "This section is available for MPKs only.",
+      "title": "My Requests",
+      "newRequest": "New Request",
+      "emptyState": "You don't have any requests yet. Create your first request to participate in the pool.",
+      "totalHeads": "Volume (heads)",
+      "region": "Region",
+      "targetMonth": "Target Month",
+      "acceptedCategories": "Accepted Categories",
+      "weightRange": "Weight Range",
+      "minWeight": "Min Weight",
+      "maxWeight": "Max Weight",
+      "minBreed": "Min Breed Group",
+      "acceptedGrades": "Accepted Grades",
+      "premiumBulls": "Premium Bulls (₸/kg)",
+      "premiumHeifers": "Premium Heifers (₸/kg)",
+      "premiumCows": "Premium Cows (₸/kg)",
+      "premiumHelper": "Recommended range: ₸{{min}}–{{max}}/kg",
+      "notes": "Notes",
+      "status": "Status",
+      "fillRate": "Fill Rate",
+      "matchedHeads": "Matched",
+      "create": {
+        "title": "Create Request",
+        "submit": "Create Request",
+        "creating": "Creating...",
+        "created": "Request created",
+        "error": "Error creating request"
+      },
+      "detail": {
+        "title": "Request",
+        "criteria": "Acceptance Criteria",
+        "premiums": "Premiums",
+        "matchProgress": "Match Progress",
+        "matches": "Matches",
+        "noMatches": "No matches yet",
+        "notFound": "Request not found",
+        "closedInfo": "This request is closed. No further matching is possible.",
+        "cancelledInfo": "This request has been cancelled.",
+        "expiredInfo": "This request has expired."
+      },
+      "activate": {
+        "title": "Activate request?",
+        "message": "Once activated, a pool will be created for batch collection. The request cannot be edited.",
+        "confirm": "Activate"
+      },
+      "close": {
+        "button": "Close request",
+        "title": "Close request?",
+        "message": "The request will be closed. No new batches will be added.",
+        "confirm": "Close"
+      },
+      "cancel": {
+        "button": "Cancel Request",
+        "title": "Cancel Request",
+        "message": "Are you sure you want to cancel this request?",
+        "cancelled": "Request cancelled",
+        "error": "Error cancelling"
+      },
+      "fsm": {
+        "toActive": "Activate",
+        "activated": "Request activated",
+        "closed": "Request closed",
+        "cancelled": "Request cancelled",
+        "error": "Error"
+      },
+      "filters": {
+        "allStatuses": "All Statuses",
+        "allMonths": "All Months"
+      }
+    }
+  },
+  "membership": {
+    "statuses": {
+      "applicant": "Applicant",
+      "observer": "Observer",
+      "active": "Active member",
+      "associate": "Associate member",
+      "restricted": "Restricted",
+      "expelled": "Expelled"
+    }
+  },
+  "tsp": {
+    "categories": {
+      "BV": "Young Bulls",
+      "BM": "Bulls",
+      "KR": "Cows",
+      "NT": "Bred Heifers",
+      "TL": "Heifers",
+      "OT": "Weanlings"
+    },
+    "weightClasses": {
+      "WC_300": "250–300 kg",
+      "WC_350": "300–350 kg",
+      "WC_400": "350–400 kg",
+      "WC_450": "400–450 kg",
+      "WC_500": "450–500 kg",
+      "WC_550": "500–550 kg"
+    },
+    "breedGroups": {
+      "PM": "Purebred Meat",
+      "M": "Meat",
+      "MX": "Meat Cross",
+      "MD": "Meat-Dairy",
+      "D": "Dairy",
+      "MG": "Mixed"
+    },
+    "grades": {
+      "NS": "Non-Standard",
+      "S": "Standard",
+      "HS": "High Standard"
+    },
+    "market": {
+      "title": "Market",
+      "subtitle": "Market data and reference prices",
+      "disclaimer": "Reference prices are indicative market benchmarks. Final settlement prices are determined at delivery based on market conditions. TURAN does not set, regulate, or guarantee transaction prices. Participation is voluntary.",
+      "demandSignal": "Demand Signal",
+      "supplySignal": "Supply Signal",
+      "totalHeads": "Total head",
+      "requests": "requests",
+      "batches": "batches",
+      "upTo": "up to",
+      "headsUnit": "hd",
+      "avgRequestSize": "Avg. request size",
+      "requestCount": "Request count",
+      "maxPossibleHeads": "up to {{count}} hd",
+      "maxPossibleTooltip": "Shows maximum possible volume. A single request may accept multiple categories.",
+      "viewPrices": "View prices",
+      "priceGrid": "Reference Prices",
+      "pricePerKg": "₸/kg",
+      "premiumRange": "Premium",
+      "emptyState": "No data yet. Market signals will appear when participants start creating batches and requests.",
+      "errorState": "Failed to load market data. Please try again later.",
+      "filterRegion": "Region",
+      "filterMonth": "Month",
+      "allRegions": "All regions",
+      "categoryBreakdown": "Category Breakdown",
+      "noBreakdown": "No category data for selected period"
+    },
+    "batchStatuses": {
+      "draft": "Draft",
+      "published": "Published",
+      "matched": "Matched",
+      "cancelled": "Cancelled",
+      "expired": "Expired"
+    },
+    "requestStatuses": {
+      "draft": "Draft",
+      "active": "Active",
+      "closed": "Closed",
+      "cancelled": "Cancelled",
+      "expired": "Expired"
+    },
+    "poolStatuses": {
+      "filling": "Filling",
+      "filled": "Filled",
+      "executing": "Executing",
+      "executed": "Executed"
+    }
+  },
+  "regions": {
+    "akmola": "Akmola Region",
+    "aktobe": "Aktobe Region",
+    "almaty_obl": "Almaty Region",
+    "almaty_city": "Almaty",
+    "astana": "Astana",
+    "atyrau": "Atyrau Region",
+    "east_kz": "East Kazakhstan Region",
+    "zhambyl": "Zhambyl Region",
+    "west_kz": "West Kazakhstan Region",
+    "karaganda": "Karaganda Region",
+    "kostanay": "Kostanay Region",
+    "kyzylorda": "Kyzylorda Region",
+    "mangystau": "Mangystau Region",
+    "pavlodar": "Pavlodar Region",
+    "north_kz": "North Kazakhstan Region",
+    "shymkent": "Shymkent",
+    "turkestan": "Turkestan Region",
+    "ulytau": "Ulytau Region",
+    "zhetysu": "Zhetysu Region",
+    "abai": "Abai Region"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "applicationFlow": {
+    "steps": {
+      "documents": "Documents",
+      "signing": "Signing",
+      "payment": "Payment",
+      "review": "Review"
+    },
+    "dashboardProgress": "Application progress",
+    "back": "Back",
+    "docUploaded": "Document uploaded",
+    "uploadError": "Upload error",
+    "signedUploaded": "Signed application uploaded",
+    "paymentMarked": "Payment status updated",
+    "paymentError": "Payment status error",
+    "docs": {
+      "title": "Upload Documents",
+      "subtitle": "Upload the required documents for your application review. Accepted formats: PDF, JPG, PNG.",
+      "registrationCertificate": "Registration Certificate",
+      "registrationCertificateDesc": "State registration certificate of your entity",
+      "identityDocument": "Identity Document",
+      "identityDocumentDesc": "ID of the director or authorized representative",
+      "bankDetails": "Bank Details",
+      "bankDetailsDesc": "Bank details certificate of the organization",
+      "upload": "Upload",
+      "continue": "Continue to signing",
+      "fileTooLarge": "File too large. Maximum {{max}} MB",
+      "invalidType": "Invalid format. Accepted: PDF, JPG, PNG",
+      "maxSize": "up to {{max}} MB"
+    },
+    "signing": {
+      "title": "Sign Application",
+      "subtitle": "Download the application form, sign it and upload the signed copy.",
+      "step1": "Download the standard application form",
+      "step2": "Print, sign and stamp (if applicable)",
+      "step3": "Scan or photograph and upload",
+      "downloadTemplate": "Download Application Form",
+      "uploadSigned": "Upload Signed Application",
+      "uploaded": "Signed application uploaded",
+      "confirmHint": "To confirm your electronic signature, type your full name exactly as it appears on the application.",
+      "enterName": "Type «{{name}}»",
+      "nameMismatch": "Name does not match",
+      "confirm": "Confirm and continue",
+      "pdfTitle": "APPLICATION FOR MEMBERSHIP IN TURAN ASSOCIATION",
+      "pdfDate": "Date: {{date}}",
+      "pdfBody1": "I, {{name}}, representing the organization «{{org}}», hereby apply for membership in the TURAN Association.",
+      "pdfBody2": "I commit to abide by the Charter of the organization and actively participate in its activities.",
+      "pdfBody3": "I have read and agree to the Charter and Membership Policy.",
+      "pdfBody4": "I confirm the accuracy of the information provided.",
+      "pdfSignatureLine": "Applicant signature:",
+      "pdfSignatureHint": "(signature and date)"
+    },
+    "payment": {
+      "title": "Entry Fee",
+      "subtitle": "Pay the entry fee. You can skip this step and pay later.",
+      "bankDetails": "Payment details",
+      "recipient": "Recipient",
+      "iin": "IIN/BIN",
+      "account": "Account number",
+      "bank": "Bank",
+      "amount": "Amount",
+      "purpose": "Payment purpose",
+      "uploadHint": "Upload a payment receipt or transfer screenshot",
+      "uploadReceipt": "Upload Receipt",
+      "skip": "Skip",
+      "continue": "Continue",
+      "confirmedStatus": "Payment confirmed",
+      "skippedStatus": "Payment deferred"
+    },
+    "review": {
+      "title": "Application Under Review",
+      "subtitle": "All materials have been submitted. The administrator will review your application.",
+      "pendingTitle": "Pending Review",
+      "pendingDescription": "Your application has been submitted to the administrator. You will be notified of the result.",
+      "completedSteps": "Completed steps",
+      "docsComplete": "Documents uploaded",
+      "signedComplete": "Application signed",
+      "paymentComplete": "Payment made",
+      "paymentSkipped": "Payment deferred",
+      "contactUs": "Questions? WhatsApp us"
+    }
+  }
+}
