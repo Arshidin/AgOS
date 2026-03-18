@@ -1,0 +1,150 @@
+import React, { createContext, useCallback, useEffect, useState } from 'react'
+import type { Session, User } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+
+export interface Organization {
+  id: string
+  name: string
+  org_type: string
+  bin: string | null
+  region_id: string | null
+}
+
+export interface Farm {
+  id: string
+  organization_id: string
+  name: string
+  region_id: string | null
+  shelter_type: string | null
+  calving_system: string | null
+  herd_groups: HerdGroup[]
+}
+
+export interface HerdGroup {
+  id: string
+  farm_id: string
+  animal_category_code: string
+  animal_category_name: string
+  breed_name: string | null
+  breed_id: string | null
+  head_count: number
+  avg_weight_kg: number | null
+  data_source: string
+  updated_at: string
+}
+
+export interface Membership {
+  id: string
+  organization_id: string
+  membership_type: string
+  status: string
+}
+
+export interface UserContext {
+  user_id: string
+  full_name: string | null
+  phone: string | null
+  organizations: Organization[]
+  farms: Farm[]
+  memberships: Membership[]
+  health_restrictions: HealthRestriction[]
+}
+
+export interface HealthRestriction {
+  id: string
+  organization_id: string
+  restriction_type: string
+  reason: string
+  expires_at: string
+}
+
+interface AuthContextValue {
+  session: Session | null
+  user: User | null
+  userContext: UserContext | null
+  isLoading: boolean
+  isContextLoading: boolean
+  signOut: () => Promise<void>
+  refreshContext: () => Promise<void>
+}
+
+export const AuthContext = createContext<AuthContextValue>({
+  session: null,
+  user: null,
+  userContext: null,
+  isLoading: true,
+  isContextLoading: false,
+  signOut: async () => {},
+  refreshContext: async () => {},
+})
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [userContext, setUserContext] = useState<UserContext | null>(null)
+  const [isContextLoading, setIsContextLoading] = useState(false)
+
+  const loadContext = useCallback(async () => {
+    setIsContextLoading(true)
+    try {
+      const { data, error } = await supabase.rpc('rpc_get_my_context')
+      if (error) {
+        console.error('Failed to load user context:', error)
+        return
+      }
+      if (data) {
+        setUserContext(data as unknown as UserContext)
+      }
+    } catch (err) {
+      console.error('rpc_get_my_context error:', err)
+    } finally {
+      setIsContextLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s)
+      setIsLoading(false)
+      if (s) {
+        loadContext()
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s)
+      setIsLoading(false)
+      if (s) {
+        loadContext()
+      } else {
+        setUserContext(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [loadContext])
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut()
+    setSession(null)
+    setUserContext(null)
+  }, [])
+
+  return (
+    <AuthContext.Provider
+      value={{
+        session,
+        user: session?.user ?? null,
+        userContext,
+        isLoading,
+        isContextLoading,
+        signOut,
+        refreshContext: loadContext,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
