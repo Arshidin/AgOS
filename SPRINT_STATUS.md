@@ -51,8 +51,8 @@ Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | A01, A02 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice2-Membership.md` v1.0 — 3 CEO decisions resolved |
-| DB | `rpc_get_membership_queue` (NEW, dual-mode) | ⬜ Not started | Admin read: list + detail |
-| DB | RPC-03 `rpc_process_membership_application` (d01) | ⬜ Not started | + insert into `notifications` (WA + in_app) |
+| DB | `rpc_get_membership_queue` (NEW, dual-mode) | ✅ Implemented | Admin read: list + detail. fn_is_admin() guard. Joins orgs+memberships+farms+herd_groups. |
+| DB | RPC-03 `rpc_process_membership_application` (d01) | ✅ Implemented | FSM: submitted/under_review→approved/rejected. Notifications (WA+in_app). Events emitted. |
 | Backend | WhatsApp notification sender (minimal worker) | ⬜ Not started | `claim_pending_notifications` → WA Cloud API → `mark_notification_sent` |
 | UI | A01 (Membership Queue), A02 (Decision) | ⬜ Not started | Admin palette, `fn_is_admin()` guard |
 | QA | Slice 2 gate | ⬜ Not started | |

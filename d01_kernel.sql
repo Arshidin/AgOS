@@ -4068,3 +4068,413 @@ on conflict (sql_name) do update
 --   2. Migration 015 content (fn_auth_custom_claims, embedding_queue) was
 --      truncated during consolidation. Needs restoration.
 -- ============================================================
+
+
+-- ============================================================
+-- SLICE 2: Membership Admin RPCs
+-- Dok 6: AGOS-Dok6-Slice2-Membership.md
+-- Screens: A01 (Membership Queue), A02 (Membership Decision)
+-- ============================================================
+
+
+-- ============================================================
+-- rpc_get_membership_queue (NEW — not in Dok 3)
+-- D-S2-1: Dual mode — list (paginated) or detail (by application_id)
+-- Callers: [ADMIN] only
+-- ============================================================
+create or replace function public.rpc_get_membership_queue(
+    p_organization_id   uuid,           -- P-AI-2 convention; not used for filtering (admin sees all)
+    p_application_id    uuid    default null,    -- null = list mode; non-null = detail mode
+    p_status_filter     text    default null,    -- null = all statuses; 'submitted', 'under_review', 'approved', 'rejected'
+    p_page              int     default 1,
+    p_page_size         int     default 20
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+stable
+as $$
+declare
+    v_admin_user_id uuid;
+    v_offset        int;
+    v_result        jsonb;
+    v_total_count   int;
+begin
+    -- Admin guard
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: admin access required'
+            using errcode = 'P0001';
+    end if;
+
+    v_admin_user_id := public.fn_current_user_id();
+
+    -- ── DETAIL MODE: return single application with full context ──
+    if p_application_id is not null then
+        select jsonb_build_object(
+            'application_id',   ma.id,
+            'org_id',           o.id,
+            'org_name',         o.name,
+            'org_type',         o.org_type,
+            'bin',              o.bin,
+            'region_name',      r.name_ru,
+            'org_created_at',   o.created_at,
+            'from_level',       ma.from_level,
+            'to_level',         ma.to_level,
+            'status',           ma.status,
+            'submitted_at',     ma.submitted_at,
+            'notes',            ma.reviewer_notes,
+            'reviewed_at',      ma.reviewed_at,
+            'reviewed_by',      ma.reviewed_by,
+            'reviewer_name',    rev_u.full_name,
+            'membership_level', m.level,
+            'membership_level_changed_at', m.level_changed_at,
+            -- Farm summary (aggregated)
+            'farms', (
+                select coalesce(jsonb_agg(jsonb_build_object(
+                    'farm_id',      f.id,
+                    'farm_name',    f.name,
+                    'herd_groups',  (
+                        select coalesce(jsonb_agg(jsonb_build_object(
+                            'category_code',    hg.animal_category_code,
+                            'category_name',    ac.name_ru,
+                            'breed_name',       br.name_ru,
+                            'head_count',       hg.head_count,
+                            'avg_weight_kg',    hg.avg_weight_kg
+                        ) order by ac.name_ru), '[]'::jsonb)
+                        from public.herd_groups hg
+                        left join public.animal_categories ac on ac.code = hg.animal_category_code
+                        left join public.breeds br on br.id = hg.breed_id
+                        where hg.farm_id = f.id and hg.is_active = true
+                    ),
+                    'activity_types', (
+                        select coalesce(jsonb_agg(at.name_ru order by at.name_ru), '[]'::jsonb)
+                        from public.farm_activity_types fat
+                        join public.activity_types at on at.id = fat.activity_type_id
+                        where fat.farm_id = f.id
+                    )
+                )), '[]'::jsonb)
+                from public.farms f
+                where f.organization_id = o.id and f.is_active = true
+            ),
+            -- Application history (previous applications for this org)
+            'application_history', (
+                select coalesce(jsonb_agg(jsonb_build_object(
+                    'id',               prev.id,
+                    'status',           prev.status,
+                    'from_level',       prev.from_level,
+                    'to_level',         prev.to_level,
+                    'submitted_at',     prev.submitted_at,
+                    'reviewed_at',      prev.reviewed_at,
+                    'reviewer_notes',   prev.reviewer_notes
+                ) order by prev.submitted_at desc), '[]'::jsonb)
+                from public.membership_applications prev
+                where prev.organization_id = o.id
+                  and prev.id != ma.id
+            )
+        ) into v_result
+        from public.membership_applications ma
+        join public.memberships m on m.id = ma.membership_id
+        join public.organizations o on o.id = ma.organization_id
+        left join public.regions r on r.id = o.region_id
+        left join public.users rev_u on rev_u.id = ma.reviewed_by
+        where ma.id = p_application_id;
+
+        if v_result is null then
+            raise exception 'APPLICATION_NOT_FOUND: application_id=% not found', p_application_id
+                using errcode = 'P0001';
+        end if;
+
+        return v_result;
+    end if;
+
+    -- ── LIST MODE: paginated queue ──
+    v_offset := (p_page - 1) * p_page_size;
+
+    -- Count total
+    select count(*) into v_total_count
+    from public.membership_applications ma
+    where (p_status_filter is null or ma.status = p_status_filter);
+
+    -- Build list
+    select jsonb_build_object(
+        'items', coalesce((
+            select jsonb_agg(row_data order by row_data->>'submitted_at' desc)
+            from (
+                select jsonb_build_object(
+                    'application_id',   ma.id,
+                    'org_id',           o.id,
+                    'org_name',         o.name,
+                    'org_type',         o.org_type,
+                    'bin',              o.bin,
+                    'region_name',      r.name_ru,
+                    'from_level',       ma.from_level,
+                    'to_level',         ma.to_level,
+                    'status',           ma.status,
+                    'submitted_at',     ma.submitted_at,
+                    'notes',            ma.reviewer_notes
+                ) as row_data
+                from public.membership_applications ma
+                join public.organizations o on o.id = ma.organization_id
+                left join public.regions r on r.id = o.region_id
+                where (p_status_filter is null or ma.status = p_status_filter)
+                order by ma.submitted_at desc
+                limit p_page_size
+                offset v_offset
+            ) sub
+        ), '[]'::jsonb),
+        'total_count',  v_total_count,
+        'page',         p_page,
+        'page_size',    p_page_size
+    ) into v_result;
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_membership_queue(uuid, uuid, text, int, int) is
+    'Slice 2 | D-S2-1 | Admin-only membership queue.
+     Dual mode: p_application_id=null → paginated list; p_application_id=uuid → full detail.
+     Detail includes: org info, farms, herd groups, activity types, application history.
+     Requires fn_is_admin(). p_organization_id present for P-AI-2 convention only.';
+
+
+-- ============================================================
+-- RPC-03: rpc_process_membership_application
+-- Dok 3 §2 | Callers: [ADMIN]
+-- FSM: submitted/under_review → approved | rejected
+-- Events: identity.membership.activated | identity.membership_application.decided
+-- D-S2-2: Inserts WhatsApp + in_app notifications
+-- ============================================================
+create or replace function public.rpc_process_membership_application(
+    p_organization_id   uuid,           -- P-AI-2 convention; the org whose application is being processed
+    p_application_id    uuid,
+    p_decision          text,           -- 'approved' | 'rejected'
+    p_decision_notes    text    default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_admin_user_id     uuid;
+    v_app               record;
+    v_membership_id     uuid;
+    v_farmer_user_id    uuid;
+    v_farmer_org_id     uuid;
+    v_event_id          uuid;
+    v_new_level         text;
+    v_org_name          text;
+begin
+    -- 1. Admin guard
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: admin access required'
+            using errcode = 'P0001';
+    end if;
+
+    v_admin_user_id := public.fn_current_user_id();
+
+    -- 2. Validate decision
+    if p_decision not in ('approved', 'rejected') then
+        raise exception 'INVALID_DECISION: must be approved or rejected, got %', p_decision
+            using errcode = 'P0001';
+    end if;
+
+    -- 3. Load application
+    select ma.id, ma.membership_id, ma.organization_id, ma.from_level, ma.to_level, ma.status
+    into   v_app
+    from   public.membership_applications ma
+    where  ma.id = p_application_id;
+
+    if v_app is null then
+        raise exception 'APPLICATION_NOT_FOUND: application_id=% not found', p_application_id
+            using errcode = 'P0001';
+    end if;
+
+    -- 4. Validate FSM: only submitted or under_review can be decided
+    if v_app.status not in ('submitted', 'under_review') then
+        raise exception 'ALREADY_DECIDED: application already has status=%', v_app.status
+            using errcode = 'P0001';
+    end if;
+
+    v_membership_id := v_app.membership_id;
+    v_farmer_org_id := v_app.organization_id;
+
+    -- Get org name for notification
+    select o.name into v_org_name
+    from public.organizations o
+    where o.id = v_farmer_org_id;
+
+    -- 5. Update application
+    update public.membership_applications
+    set    status         = p_decision,
+           reviewed_at    = now(),
+           reviewed_by    = v_admin_user_id,
+           reviewer_notes = p_decision_notes,
+           updated_at     = now()
+    where  id = p_application_id;
+
+    -- 6. If approved: update membership level
+    if p_decision = 'approved' then
+        v_new_level := v_app.to_level;
+
+        update public.memberships
+        set    previous_level    = level,
+               level             = v_new_level,
+               level_changed_at  = now(),
+               level_changed_by  = v_admin_user_id,
+               notes             = coalesce(p_decision_notes, notes),
+               updated_at        = now()
+        where  id = v_membership_id;
+
+        -- Event: identity.membership.activated
+        insert into public.platform_events (
+            event_type, entity_type, entity_id, organization_id,
+            actor_type, actor_id, payload, is_audit
+        ) values (
+            'identity.membership.activated',
+            'memberships',
+            v_membership_id,
+            v_farmer_org_id,
+            'admin',
+            v_admin_user_id,
+            jsonb_build_object(
+                'application_id', p_application_id,
+                'old_level', v_app.from_level,
+                'new_level', v_new_level,
+                'decision_notes', p_decision_notes
+            ),
+            true
+        )
+        returning id into v_event_id;
+    else
+        -- Event: identity.membership_application.decided (rejected)
+        insert into public.platform_events (
+            event_type, entity_type, entity_id, organization_id,
+            actor_type, actor_id, payload, is_audit
+        ) values (
+            'identity.membership_application.decided',
+            'membership_applications',
+            p_application_id,
+            v_farmer_org_id,
+            'admin',
+            v_admin_user_id,
+            jsonb_build_object(
+                'decision', 'rejected',
+                'decision_notes', p_decision_notes
+            ),
+            true
+        )
+        returning id into v_event_id;
+    end if;
+
+    -- 7. D-S2-2: Insert notifications (WhatsApp + in_app)
+    -- Find the farmer user (organization owner)
+    select u.id into v_farmer_user_id
+    from public.users u
+    join public.user_organization_roles uor on uor.user_id = u.id
+    where uor.organization_id = v_farmer_org_id
+      and uor.role = 'owner'
+    limit 1;
+
+    if v_farmer_user_id is not null then
+        if p_decision = 'approved' then
+            -- WhatsApp notification: application_approved
+            insert into public.notifications (
+                user_id, organization_id, channel, template_id, params,
+                platform_event_id, delivery_status
+            ) values (
+                v_farmer_user_id, v_farmer_org_id, 'whatsapp',
+                'application_approved',
+                jsonb_build_object(
+                    'org_name', v_org_name,
+                    'new_level', v_new_level
+                ),
+                v_event_id, 'pending'
+            );
+            -- In-app notification
+            insert into public.notifications (
+                user_id, organization_id, channel, template_id, params,
+                platform_event_id, delivery_status
+            ) values (
+                v_farmer_user_id, v_farmer_org_id, 'in_app',
+                'application_approved',
+                jsonb_build_object(
+                    'org_name', v_org_name,
+                    'new_level', v_new_level
+                ),
+                v_event_id, 'pending'
+            );
+        else
+            -- WhatsApp notification: application_rejected
+            insert into public.notifications (
+                user_id, organization_id, channel, template_id, params,
+                platform_event_id, delivery_status
+            ) values (
+                v_farmer_user_id, v_farmer_org_id, 'whatsapp',
+                'application_rejected',
+                jsonb_build_object(
+                    'org_name', v_org_name,
+                    'reject_reason', coalesce(p_decision_notes, 'Не указана'),
+                    'contact_info', '+7 (700) 000-00-00'
+                ),
+                v_event_id, 'pending'
+            );
+            -- In-app notification
+            insert into public.notifications (
+                user_id, organization_id, channel, template_id, params,
+                platform_event_id, delivery_status
+            ) values (
+                v_farmer_user_id, v_farmer_org_id, 'in_app',
+                'application_rejected',
+                jsonb_build_object(
+                    'org_name', v_org_name,
+                    'reject_reason', coalesce(p_decision_notes, 'Не указана'),
+                    'contact_info', '+7 (700) 000-00-00'
+                ),
+                v_event_id, 'pending'
+            );
+        end if;
+    end if;
+
+    return v_membership_id;
+end;
+$$;
+
+comment on function public.rpc_process_membership_application(uuid, uuid, text, text) is
+    'RPC-03 | Dok 3 §2 | Slice 2
+     Admin approves or rejects membership application.
+     FSM: submitted/under_review → approved/rejected.
+     On approve: memberships.level updated to to_level.
+     Events: identity.membership.activated (approve) | identity.membership_application.decided (reject).
+     D-S2-2: Inserts notifications (whatsapp + in_app) for farmer.
+     Error codes: FORBIDDEN, INVALID_DECISION, APPLICATION_NOT_FOUND, ALREADY_DECIDED.';
+
+
+-- ============================================================
+-- SLICE 2: Add new RPCs to rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_get_membership_queue',            null,                                   null,   'd01_kernel.sql (Slice 2)',     'Admin dual-mode: queue list + application detail'),
+    ('rpc_process_membership_application',  'rpc_process_membership_application',   null,   'd01_kernel.sql (Slice 2)',     'RPC-03: Approve/reject membership + WA notification')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- END Slice 2 d01_kernel.sql RPCs
+-- ============================================================
+-- Summary:
+--   NEW   rpc_get_membership_queue             ✅ Implemented
+--   RPC-03  rpc_process_membership_application ✅ Implemented
+--
+-- All functions: SECURITY DEFINER + SET search_path = public, pg_temp
+-- All functions: p_organization_id as parameter (P-AI-2)
+-- All functions: fn_is_admin() guard
+-- rpc_process_membership_application: events + notifications (WA + in_app)
+-- ============================================================
