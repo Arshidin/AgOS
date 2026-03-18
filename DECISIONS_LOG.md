@@ -25,6 +25,7 @@
 | D-F01-2 | 2026-03-18 | Auth | F01: OTP auth (phone + SMS code), not phone+password. Requires Twilio. Better UX for farmers. |
 | D-F01-3 | 2026-03-18 | UI/UX | F01: 4 roles (farmer, mpk, services, feed_producer). Benefit screens between steps preserved from v1. All v1 farmer fields kept (herd_size, primary_breed, ready_to_sell, how_heard). |
 | D-F01-4 | 2026-03-18 | Scope | F01: full registration UI for all 4 roles in Slice 1. But only farmer path has backend+cabinet. Other roles: registration works, cabinet screens in later slices. |
+| D-GATE-S1 | 2026-03-19 | Gate | Slice 1 QA + Architect sign-off. 0 critical, DEF-013 accepted tech debt. cross_check.sh false positives fixed (DEF-014/015). |
 
 ---
 
@@ -235,3 +236,32 @@
 - Easy: `cross_check.sh` significant errors reduced from 10 to 7
 - Easy: files are shorter and more readable
 - Neutral: zero runtime behavior change (PostgreSQL already used the last definition)
+
+---
+
+### D-GATE-S1 — Slice 1 Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-03-19
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 1 "У телёнка температура" passed QA gate and received Architect sign-off.
+
+**QA Results:**
+- `cross_check.sh`: 0 critical, 1 significant (Slice 4 scope, not blocking)
+- P-AI-4 dosage compliance: PASS across all layers (backend regex + UI rendering)
+- P-AI-1 RPC-only access: PASS (UI clean, backend DEF-013 accepted)
+- P-AI-2 organization_id: PASS
+- All 10 Slice 1 RPCs verified in SQL
+- No duplicate function definitions
+
+**Accepted tech debt:**
+- DEF-013: 3x `.table("ai_conversations")` in `nodes.py` — service_role key, no RLS risk. Must be resolved before Slice 3 (confirmation flow).
+
+**Script fixes applied:** DEF-014 (CHECK 3 window 10→25), DEF-015 (CHECK 4 comment filter).
+
+**WHY:** All gate checklist items verified. No unresolved CRITICAL findings. Slice 1 delivers the complete "sick calf" scenario: register → create farm → report sick → see AI diagnosis.
+
+**CONSEQUENCES:**
+- Easy: Slice 1 code is on main, deployable
+- Easy: first farmer feedback possible
+- Next: Slice 2 (Membership — admin approves applications)

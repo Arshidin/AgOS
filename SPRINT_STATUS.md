@@ -1,11 +1,11 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-03-18
+> Last updated: 2026-03-19
 
 ---
 
-## Current Phase: Slice 0 (Foundation)
+## Current Phase: Slice 2 (Membership)
 
 ### Slice 0 — Foundation
 
@@ -42,7 +42,7 @@
 | Backend | ⚠️ DEF-013: 3x .table() in nodes.py | 🟡 Known | ai_conversations direct read/write — needs RPCs (rpc_update_confirmation, rpc_sync_conversation_role) |
 | UI | F01 (Register), F02 (Farm Profile) | ✅ Implemented | 8-step conversational registration (4 roles), farm profile with herd groups |
 | UI | F10 (Report Sick), F11 (Vet Case Detail) | ✅ Implemented | Vet case creation (severity=null, CEO decision), realtime detail view, P-AI-4 dosage compliance |
-| QA | Slice 1 gate | ⬜ Not started | |
+| QA | Slice 1 gate | ✅ **PASSED** (2026-03-19) | 0 critical, 0 significant in scope. DEF-013 accepted tech debt. cross_check.sh fixed (DEF-014/015). |
 
 Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 
@@ -148,12 +148,14 @@ Already implemented: RPC-09, RPC-10.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `ai_gateway/main.py` | 🟡 Scaffold | 3 endpoint stubs |
-| `ai_gateway/graph.py` | ⬜ Not started | |
-| `ai_gateway/tools/*.py` | ⬜ Not started | |
-| `ai_gateway/compliance.py` | ⬜ Not started | |
-| `ai_gateway/proactive.py` | ⬜ Not started | |
-| `ai_gateway/embedding_worker.py` | ⬜ Not started | |
+| `ai_gateway/main.py` | ✅ Slice 1 done | FastAPI `/chat` webhook, P-AI-8 save-first |
+| `ai_gateway/graph.py` | ✅ Slice 1 done | LangGraph StateGraph, D116 stateless, D117 one-run |
+| `ai_gateway/nodes.py` | ✅ Slice 1 done | 7 nodes: load_context→check_confirm→route→process→tools→compliance→save. ⚠️ DEF-013 |
+| `ai_gateway/tools/vet.py` | ✅ Slice 1 done | AI-07..10 via supabase.rpc(), P-AI-2 org_id injection |
+| `ai_gateway/compliance.py` | ✅ Slice 1 done | P-AI-4 dosage regex (14 patterns), CF-01 antitrust, CF-05 legal |
+| `ai_gateway/prompts.py` | ✅ Slice 1 done | System prompt builder from ai_prompts table (D133) |
+| `ai_gateway/proactive.py` | ⬜ Not started | Slice 4 |
+| `ai_gateway/embedding_worker.py` | ⬜ Not started | Slice 4 |
 | `src/` (React UI) | ✅ Slice 1 done | F01 (8-step reg), F02 (farm profile), F10 (report sick), F11 (vet case detail). AuthContext, useRpc hook, Supabase client. All data via supabase.rpc(). P-AI-4 dosage compliance verified. |
 
 ---
@@ -171,6 +173,10 @@ Already implemented: RPC-09, RPC-10.
 | DEF-007 | Significant | `d05_ops_edu.sql` | `fn_generate_production_plan` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
 | DEF-008 | Significant | `d05_ops_edu.sql` | `rpc_start_production_plan` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
 | DEF-009 | ~~Minor~~ | `d07_ai_gateway.sql` | `fn_my_org_ids`, `fn_is_admin`, `fn_is_expert` in d01+d07 | ⚪ Not a defect — intentional deploy-order dependency |
+| DEF-012 | Significant | `d01_kernel.sql` | `rpc_register_organization` org_type CHECK constraint | 🟡 Known — verify against Dok 1 valid org_types |
+| DEF-013 | Significant | `ai_gateway/nodes.py` | 3x `.table("ai_conversations")` direct access (lines 155, 320, 633) — violates P-AI-1 | 🟡 Accepted tech debt — must resolve before Slice 3 |
+| DEF-014 | Minor | `cross_check.sh` | CHECK 3 window too narrow (10 lines) for multi-param functions | ✅ Fixed (2026-03-19) — expanded to 25 lines |
+| DEF-015 | Minor | `cross_check.sh` | CHECK 4 matched advisory lock in SQL comments | ✅ Fixed (2026-03-19) — filter comment lines |
 
 ---
 
@@ -181,7 +187,7 @@ Already implemented: RPC-09, RPC-10.
 | **DB Gate** | ✅ PASSED (0 critical, 7 significant) | All application code |
 | **Dok 6 Gate (Slice 1)** | ✅ PASSED (2026-03-18) | F01, F02, F10, F11 contracts approved |
 | **Legal Gate** | ⬜ Not started | Slice 5 (Market) |
-| **Slice 1 Gate** | ⬜ Not started | Merge Slice 1 to main |
+| **Slice 1 Gate** | ✅ **PASSED** (2026-03-19) | QA pass + Architect sign-off. DEF-013 accepted. |
 | **Slice 2 Gate** | ⬜ Not started | Merge Slice 2 to main |
 | **Slice 3 Gate** | ⬜ Not started | Merge Slice 3 to main |
 | **Slice 4 Gate** | ⬜ Not started | Merge Slice 4 to main |
@@ -193,4 +199,7 @@ Already implemented: RPC-09, RPC-10.
 
 ## Slice History
 
-_No slices completed yet._
+| Slice | Completed | Duration | Notes |
+|-------|-----------|----------|-------|
+| Slice 0 (Foundation) | 2026-03-18 | 1 day | DB Gate passed, cross_check.sh created |
+| Slice 1 (Sick Calf) | 2026-03-19 | 2 days | 9 RPCs, AI Gateway, 4 screens, QA passed |
