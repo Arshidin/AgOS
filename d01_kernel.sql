@@ -3217,6 +3217,45 @@ create index if not exists idx_rpc_registry_dok5
 -- RPC-01: rpc_register_organization
 -- Dok 3 §2.1 | Callers: [WEB] [AI]
 -- Atomic: Organization + OrganizationTypeAssignment + UserOrganizationRole + Farm (if farmer) + Membership
+-- ============================================================
+-- AUTO-CREATE public.users ON AUTH SIGNUP
+-- When Supabase Auth creates auth.users row, this trigger
+-- creates the corresponding public.users row so that
+-- fn_current_user_id() works immediately after signup.
+-- Without this: rpc_register_organization fails with AUTH_REQUIRED.
+-- ============================================================
+create or replace function public.fn_handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    insert into public.users (auth_id, phone, email, full_name)
+    values (
+        new.id,
+        new.phone,
+        new.email,
+        coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name')
+    )
+    on conflict (auth_id) do nothing;
+    return new;
+end;
+$$;
+
+-- Create trigger (idempotent: drop if exists first)
+drop trigger if exists trg_on_auth_user_created on auth.users;
+create trigger trg_on_auth_user_created
+    after insert on auth.users
+    for each row
+    execute function public.fn_handle_new_auth_user();
+
+comment on function public.fn_handle_new_auth_user() is
+    'Auto-creates public.users row when Supabase Auth user is created.
+     Ensures fn_current_user_id() returns non-null immediately after signup.
+     Phone/email extracted from auth.users. full_name from raw_user_meta_data.
+     ON CONFLICT DO NOTHING: idempotent if user already exists.';
+
 -- CEO Decision D-F01-3: supports org_types from schema CHECK (farmer, mpk, supplier, consultant, other)
 -- CEO Decision D-F01-2: Auth is OTP; user already authenticated before this RPC
 -- ============================================================
