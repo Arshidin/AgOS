@@ -54,7 +54,7 @@ Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 | DB | `rpc_get_membership_queue` (NEW, dual-mode) | ✅ Implemented | Admin read: list + detail. fn_is_admin() guard. Joins orgs+memberships+farms+herd_groups. |
 | DB | RPC-03 `rpc_process_membership_application` (d01) | ✅ Implemented | FSM: submitted/under_review→approved/rejected. Notifications (WA+in_app). Events emitted. |
 | Backend | WhatsApp notification sender (minimal worker) | ✅ Implemented | `ai_gateway/notification_worker.py` + `/notifications/process` endpoint. Claims via SKIP LOCKED, sends WA Cloud API, marks sent/failed via RPCs. |
-| UI | A01 (Membership Queue), A02 (Decision) | ⬜ Not started | Admin palette, `fn_is_admin()` guard |
+| UI | A01 (Membership Queue), A02 (Decision) | ✅ Implemented | Admin palette, `fn_is_admin()` guard, RequireAdmin, confirmation dialog, WA notification mention. TypeScript clean. |
 | QA | Slice 2 gate | ⬜ Not started | |
 
 ### Slice 3 — "Сколько корма нужно?" (Feed Planning)
