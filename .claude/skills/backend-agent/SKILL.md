@@ -72,7 +72,7 @@ When fixing a bug in one tool or endpoint, check all similar tools/endpoints for
 
 ## Session Coordination
 
-Your work is organized in sessions per vertical slice, tracked by SPRINT_STATUS.md. Architect Agent assigns your next session. Session details (S1-BE..S5-BE) are in CLAUDE.md §Development Roadmap.
+Your work is organized in sessions per vertical slice, tracked by SPRINT_STATUS.md. Architect Agent assigns your next session. Session details (S1-BE..S7-BE) are in CLAUDE.md §Development Roadmap.
 
 Each session workflow:
 1. Read SPRINT_STATUS.md — confirm which RPCs are deployed
@@ -91,20 +91,27 @@ Read ONLY the listed sections for your current session.
 - Dok 3 §1.8 (AI Gateway RPCs overview)
 - SQL: d07 functions `rpc_create_vet_case`, `rpc_add_vet_symptoms`, `rpc_get_vet_diagnosis`, `rpc_get_treatment_protocols`
 
-### S2-BE (Feed)
+### S2-BE (Membership)
+- No backend work needed (admin UI only, no AI tools)
+
+### S3-BE (Feed)
 - Dok 5 §6.2 (feed tools AI-03), §7 (extraction rules)
 - Dok 3 Appendix A (`calculate_ration` Edge Function)
 - SQL: d03 functions `rpc_upsert_feed_inventory`, `rpc_save_ration`, `rpc_get_current_ration`
 
-### S3-BE (Operations)
+### S4-BE (Operations)
 - Dok 5 §6.4 (ops tools AI-04..06), §12 (proactive dispatch), §15 (embedding)
 - SQL: d05 functions `fn_shift_phase_cascade`, `fn_preview_cascade`
 
-### S4-BE (Market)
+### S5-BE (Market)
 - Dok 5 §6.5 (market tools AI-16..21)
 - SQL: d02 + d07 price/batch functions
 
-### S5-BE (Remaining)
+### S6-BE (Expert)
+- Dok 5 §6.3 (remaining vet tools AI-11..13)
+- SQL: d04 functions for vaccination, case close
+
+### S7-BE (Education)
 - Dok 5 §6.6 (knowledge tools), full §3 for integration review
 
 ## What You Don't Do

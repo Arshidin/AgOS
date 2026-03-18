@@ -28,6 +28,7 @@
 |-------|-----------|--------|-------|
 | Dok 6 | F01, F02, F10, F11 | ⬜ Not started | Architect creates just-in-time |
 | DB | RPC-01 `rpc_register_organization` (d01) | ⬜ Not started | |
+| DB | RPC-02 `rpc_submit_membership_application` (d01) | ⬜ Not started | Submit, not blocking |
 | DB | RPC-04 `rpc_get_my_context` (d01) | ⬜ Not started | |
 | DB | RPC-05/05b `rpc_upsert_farm` / `rpc_set_farm_activity_types` (d01) | ⬜ Not started | |
 | DB | RPC-40 `rpc_start_ai_conversation` (d01) | ⬜ Not started | |
@@ -42,55 +43,70 @@
 
 Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 
-### Slice 2 — "Сколько корма нужно?" (Feed Planning)
+### Slice 2 — Членство (Membership)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Dok 6 | A01, A02 | ⬜ Not started | |
+| DB | RPC-03 `rpc_process_membership_application` (d01) | ⬜ Not started | |
+| UI | A01 (Membership Queue), A02 (Decision) | ⬜ Not started | |
+| QA | Slice 2 gate | ⬜ Not started | |
+
+### Slice 3 — "Сколько корма нужно?" (Feed Planning)
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | F03, F04, F15–F18 | ⬜ Not started | |
-| DB | RPC-07 `rpc_log_herd_event` (d01) | ⬜ Not started | |
-| DB | RPC-08 `rpc_get_farm_summary` (d01) | ⬜ Not started | |
-| DB | RPC-21..24 Feed RPCs (d03) | ⬜ Not started | |
+| DB | RPC-07, 08 (d01) + RPC-21..24 (d03) | ⬜ Not started | |
 | Backend | AI-03 feed tool + EXTRACTION_RULES + calculate_ration | ⬜ Not started | |
-| UI | F03, F04, F15–F18 | ⬜ Not started | |
-| QA | Slice 2 gate | ⬜ Not started | |
+| UI | F03, F04, F15–F18 | ⬜ Not started | 6 screens |
+| QA | Slice 3 gate | ⬜ Not started | |
 
 Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 
-### Slice 3 — "Мой план на сезон" (Operations)
+### Slice 4 — "Мой план на сезон" (Operations)
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | F19–F23 | ⬜ Not started | |
 | DB | RPC-37, 43..45 (d05) | ⬜ Not started | |
 | Backend | AI-04..06 ops tools + proactive + embedding | ⬜ Not started | |
-| UI | F19–F23 | ⬜ Not started | |
-| QA | Slice 3 gate | ⬜ Not started | |
+| UI | F19–F23 | ⬜ Not started | 5 screens |
+| QA | Slice 4 gate | ⬜ Not started | |
 
 Already implemented: RPC-33..36.
 
-### Slice 4 — "Хочу продать бычков" (Market) — ⛔ BLOCKED by legal gate
+### Slice 5 — "Хочу продать бычков" (Market) — ⛔ BLOCKED by legal gate
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | F05–F09, A11–A15 | ⬜ Not started | |
 | DB | RPC-11..20 (d02) | ⬜ Not started | |
 | Backend | AI-16..21 market tools + disclaimer | ⬜ Not started | |
-| UI | F05–F09, A11–A15 | ⬜ Not started | |
-| QA | Slice 4 gate | ⬜ Not started | |
+| UI | F05–F09, A11–A15 | ⬜ Not started | 10 screens |
+| QA | Slice 5 gate | ⬜ Not started | |
 
 Already implemented: RPC-09, RPC-10.
 
-### Slice 5 — Admin & Expert Console
+### Slice 6 — Эксперт-консоль (Expert)
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
-| Dok 6 | M01–M06, A01–A10, A16–A19, F24–F28 | ⬜ Not started | |
-| DB | RPC-02, 03 (d01) | ⬜ Not started | Membership |
-| DB | RPC-28..32 (d04) | ⬜ Not started | Vet close + vaccination |
-| DB | RPC-38, 39, 42 (d05) | ⬜ Not started | Education |
-| Backend | Remaining wiring + education | ⬜ Not started | |
-| UI | M01–M06, A01–A19, F24–F28 | ⬜ Not started | 28 screens |
-| QA | Slice 5 gate | ⬜ Not started | |
+| Dok 6 | M01–M06, A03–A10 | ⬜ Not started | |
+| DB | RPC-28..32 (d04) | ⬜ Not started | |
+| Backend | Remaining vet/ops wiring | ⬜ Not started | |
+| UI | M01–M06, A03–A10 | ⬜ Not started | 14 screens |
+| QA | Slice 6 gate | ⬜ Not started | |
+
+### Slice 7 — Образование (Education)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Dok 6 | F24–F28, A16–A19 | ⬜ Not started | |
+| DB | RPC-38, 39, 42, 44 (d05) | ⬜ Not started | |
+| Backend | Education tools, E2E smoke test | ⬜ Not started | |
+| UI | F24–F28, A16–A19 | ⬜ Not started | 9 screens |
+| QA | Slice 7 gate | ⬜ Not started | |
 
 ---
 
@@ -161,12 +177,14 @@ Already implemented: RPC-09, RPC-10.
 |------|--------|----------|
 | **DB Gate** | ✅ PASSED (0 critical, 10 significant) | All application code |
 | **Dok 6 Gate (per slice)** | ⛔ NOT PASSED | UI work for current slice |
-| **Legal Gate** | ⬜ Not started | Slice 4 (Market) |
+| **Legal Gate** | ⬜ Not started | Slice 5 (Market) |
 | **Slice 1 Gate** | ⬜ Not started | Merge Slice 1 to main |
 | **Slice 2 Gate** | ⬜ Not started | Merge Slice 2 to main |
 | **Slice 3 Gate** | ⬜ Not started | Merge Slice 3 to main |
 | **Slice 4 Gate** | ⬜ Not started | Merge Slice 4 to main |
 | **Slice 5 Gate** | ⬜ Not started | Merge Slice 5 to main |
+| **Slice 6 Gate** | ⬜ Not started | Merge Slice 6 to main |
+| **Slice 7 Gate** | ⬜ Not started | Merge Slice 7 to main |
 
 ---
 

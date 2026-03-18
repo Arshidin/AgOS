@@ -115,31 +115,42 @@ After updating your files, commit: `git add cross_check.sh tests/ && git commit 
 
 ## Dok Section Navigation for Gate Checks
 
-### Slice 1 Gate
-- Dok 3 §2 + §6: verify RPC-01, 04, 05, 40, 26, 27 signatures match SQL
+### Slice 1 Gate (Sick Calf)
+- Dok 3 §2 + §6: verify RPC-01, 02, 04, 05, 40, 26, 27 signatures match SQL
 - Dok 1 §5: VetCase FSM (`open` → `in_progress` → `resolved`/`closed`)
 - Dok 5 §8: verify compliance filter blocks dosage patterns
 - SQL: `d01_kernel.sql`, `d04_vet.sql`
 
-### Slice 2 Gate
+### Slice 2 Gate (Membership)
+- Dok 3 §2: verify RPC-03 signature matches SQL
+- `fn_is_admin()` guard on A01, A02 screens
+- SQL: `d01_kernel.sql`
+
+### Slice 3 Gate (Feed)
 - Dok 3 §3 + §5: verify RPC-07, 08, 21..24
 - Dok 1 §5: RationVersion FSM (`draft` → `active` → `archived`)
 - SQL: `d01_kernel.sql`, `d03_feed.sql`
 
-### Slice 3 Gate
+### Slice 4 Gate (Operations)
 - Dok 3 §7 + §9: verify RPC-37, 43..45
 - Dok 5 §12: verify SKIP LOCKED in proactive dispatch (L-NEW-2)
 - SQL: `d05_ops_edu.sql`
 
-### Slice 4 Gate
+### Slice 5 Gate (Market)
 - Dok 3 §4: verify RPC-11..20 + `disclaimer_text` non-null
 - Article 171: all price RPCs return `disclaimer_text` from DB
 - SQL: `d02_tsp.sql`
 
-### Slice 5 Gate
-- Dok 3 §2 + §6 + §8: verify remaining RPCs
-- Dok 1 §5: all FSMs for vet (close case), vaccination, enrollment
-- SQL: `d01`, `d04`, `d05`
+### Slice 6 Gate (Expert)
+- Dok 3 §6: verify RPC-28..32
+- Dok 1 §5: VetCase close FSM, VaccinationPlan FSM
+- `fn_is_expert()` guard on M01–M06 screens
+- SQL: `d04_vet.sql`
+
+### Slice 7 Gate (Education)
+- Dok 3 §8: verify RPC-38, 39, 42
+- Dok 1 §5: Enrollment FSM, Certificate issuance
+- SQL: `d05_ops_edu.sql`
 
 ## What You Don't Do
 

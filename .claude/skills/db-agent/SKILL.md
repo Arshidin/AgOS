@@ -146,11 +146,13 @@ Sessions follow the vertical slice roadmap. Each session implements RPCs for one
 
 | Session | Slice | Target File(s) | RPCs | Blocked By |
 |---------|-------|----------------|------|------------|
-| **S1-DB** | Slice 1 (Sick Calf) | `d01` + `d04` | RPC-01, 04, 05/05b, 40, 26, 27 | Nothing (base) |
-| **S2-DB** | Slice 2 (Feed) | `d01` + `d03` | RPC-07, 08, 21..24 | S1-DB deployed |
-| **S3-DB** | Slice 3 (Operations) | `d05` + `d01` | RPC-37, 43..45 | S1-DB deployed |
-| **S4-DB** | Slice 4 (Market) | `d02` | RPC-11..20 | **Legal gate** |
-| **S5-DB** | Slice 5 (Admin/Expert) | `d01` + `d04` + `d05` | RPC-02, 03, 28..32, 38, 39, 42 | S1+S3 complete |
+| **S1-DB** | Slice 1 (Sick Calf) | `d01` + `d04` | RPC-01, 02, 04, 05/05b, 40, 26, 27 | Nothing (base) |
+| **S2-DB** | Slice 2 (Membership) | `d01` | RPC-03 | S1-DB deployed |
+| **S3-DB** | Slice 3 (Feed) | `d01` + `d03` | RPC-07, 08, 21..24 | S1-DB deployed |
+| **S4-DB** | Slice 4 (Operations) | `d05` + `d01` | RPC-37, 43..45 | S1-DB deployed |
+| **S5-DB** | Slice 5 (Market) | `d02` | RPC-11..20 | **Legal gate** |
+| **S6-DB** | Slice 6 (Expert) | `d04` | RPC-28..32 | S1-DB deployed |
+| **S7-DB** | Slice 7 (Education) | `d05` | RPC-38, 39, 42, 44 | S4-DB deployed |
 
 **Already implemented (do NOT rewrite):** RPC-06, RPC-09, RPC-10, RPC-25, RPC-33..36; AI-01..AI-22 (all in d07).
 
@@ -169,34 +171,44 @@ Each session workflow:
 Read ONLY the listed sections for your current session. Do NOT read entire Dok files.
 
 ### S1-DB (Sick Calf)
-- Dok 3 §2 (Identity: RPC-01, RPC-04, RPC-05)
+- Dok 3 §2 (Identity: RPC-01, RPC-02, RPC-04, RPC-05)
 - Dok 3 §6 (Vet: RPC-26, RPC-27)
 - Dok 3 §9 (AI: RPC-40)
 - Dok 4: `identity.*` events, `vet.*` events
-- Dok 1 §4: Organization, Farm, VetCase, VetDiagnosis, VetRecommendation
+- Dok 1 §4: Organization, MembershipApplication, Farm, VetCase, VetDiagnosis, VetRecommendation
 
-### S2-DB (Feed)
+### S2-DB (Membership)
+- Dok 3 §2 (Identity: RPC-03)
+- Dok 4: `identity.membership.activated`
+- Dok 1 §4: MembershipApplication, Membership
+
+### S3-DB (Feed)
 - Dok 3 §3 (Farm: RPC-07, RPC-08)
 - Dok 3 §5 (Feed: RPC-21..24)
 - Dok 4: `farm.*` events, `feed.*` events
 - Dok 1 §4: HerdGroup, HerdEvent, FeedInventory, RationVersion
 
-### S3-DB (Operations)
+### S4-DB (Operations)
 - Dok 3 §7 (Ops: RPC-37)
 - Dok 3 §9 (Platform: RPC-43..45)
 - Dok 4: `platform.*` events
 - Dok 1 §4: ProductionPlan, FarmTask, KnowledgeChunk, ProactiveAlert
 
-### S4-DB (Market)
+### S5-DB (Market)
 - Dok 3 §4 (TSP: RPC-11..20)
 - Dok 4: `market.*` events
 - Dok 1 §4: Batch, Pool, PriceGrid, PriceIndexValue
 
-### S5-DB (Admin/Expert)
-- Dok 3 §2 (Identity: RPC-02, RPC-03)
+### S6-DB (Expert)
 - Dok 3 §6 (Vet: RPC-28..32)
+- Dok 4: `vet.*` events
+- Dok 1 §4: VetCase (close FSM), VaccinationPlan, VaccinationRecord, EpidemicSignal
+
+### S7-DB (Education)
 - Dok 3 §8 (Education: RPC-38, RPC-39, RPC-42)
-- Dok 4: `identity.*` + `vet.*` + `edu.*` events
+- Dok 3 §9 (Platform: RPC-44)
+- Dok 4: `edu.*` events
+- Dok 1 §4: Course, Lesson, Enrollment, Certificate, KnowledgeChunk
 
 ## What You Don't Do
 

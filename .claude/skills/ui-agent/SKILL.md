@@ -82,11 +82,13 @@ Every screen that shows price data (F05–F09, A11–A15) MUST display `disclaim
 
 | Session | Slice | Screens | Blocked By |
 |---------|-------|---------|------------|
-| **S1-UI** | Slice 1 (Sick Calf) | F01, F02, F10, F11 | S1-DB + S1-BE + Dok 6 |
-| **S2-UI** | Slice 2 (Feed) | F03, F04, F15–F18 | S2-DB + S2-BE + Dok 6 |
-| **S3-UI** | Slice 3 (Operations) | F19–F23 | S3-DB + S3-BE + Dok 6 |
-| **S4-UI** | Slice 4 (Market) | F05–F09, A11–A15 | **Legal gate** + S4-DB + S4-BE + Dok 6 |
-| **S5-UI** | Slice 5 (Admin/Expert) | M01–M06, A01–A10, A16–A19, F24–F28 | S5-DB + S5-BE + Dok 6 |
+| **S1-UI** | Slice 1 (Sick Calf) | F01, F02, F10, F11 (4) | S1-DB + S1-BE + Dok 6 |
+| **S2-UI** | Slice 2 (Membership) | A01, A02 (2) | S2-DB + Dok 6 |
+| **S3-UI** | Slice 3 (Feed) | F03, F04, F15–F18 (6) | S3-DB + S3-BE + Dok 6 |
+| **S4-UI** | Slice 4 (Operations) | F19–F23 (5) | S4-DB + S4-BE + Dok 6 |
+| **S5-UI** | Slice 5 (Market) | F05–F09, A11–A15 (10) | **Legal gate** + S5-DB + S5-BE + Dok 6 |
+| **S6-UI** | Slice 6 (Expert) | M01–M06, A03–A10 (14) | S6-DB + S6-BE + Dok 6 |
+| **S7-UI** | Slice 7 (Education) | F24–F28, A16–A19 (9) | S7-DB + S7-BE + Dok 6 |
 
 Each session workflow:
 1. Read SPRINT_STATUS.md — confirm which RPCs and backend endpoints are deployed

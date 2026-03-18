@@ -17,6 +17,7 @@
 | D-COORD-1 | 2026-03-18 | Coordination | Created SPRINT_STATUS.md + DECISIONS_LOG.md |
 | D-COORD-2 | 2026-03-18 | Agent Team | Full agent team audit — 10 findings fixed (FA-001..FA-010) |
 | D-PROCESS-1 | 2026-03-18 | Process | 6 process improvements: vertical slices, git first, UI migration, reduced switches, navigation pointers, incremental Dok 6 |
+| D-PROCESS-2 | 2026-03-18 | Slices | 5 slices → 8 slices. Membership separated. Old Slice 5 (28 screens) split into Expert + Education. |
 
 ---
 
