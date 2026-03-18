@@ -11,14 +11,14 @@
 
 | Step | Action | Status | Gate |
 |------|--------|--------|------|
-| 1 | `git init`, initial commit | ⬜ Not started | Repo exists |
-| 2 | Create Supabase project (prod + staging) | ❓ Awaiting CEO confirmation | Project URL + anon key |
-| 3 | Set env vars | ❓ Awaiting CEO confirmation | All vars in `.env` |
-| 4 | Deploy SQL: d01→d02→d03→d04→d05→d07→d08 | ❓ Awaiting CEO confirmation | No FK errors |
-| 5 | QA Agent: create `cross_check.sh` | ⛔ Blocked — does not exist | Script exists |
-| 6 | Run `cross_check.sh` → 0 critical errors | ⛔ Blocked | **DB GATE** |
+| 1 | `git init`, initial commit | ✅ Done (688527a) | Repo exists |
+| 2 | Create Supabase project (prod + staging) | ✅ Exists (`mwtbozflyldcadypherr`, Mumbai) | Project URL + anon key |
+| 3 | Set env vars | ✅ `.env` created (Supabase keys set) | All vars in `.env` |
+| 4 | Deploy SQL: d01→d02→d03→d04→d05→d07→d08 | ✅ Already deployed (94 tables, 22 rpc_* functions) | No FK errors |
+| 5 | QA Agent: create `cross_check.sh` | ✅ Created | Script exists |
+| 6 | Run `cross_check.sh` → 0 critical errors | ✅ **PASSED** (0 critical, 10 significant) | **DB GATE** |
 
-**DB Gate: NOT PASSED**
+**DB Gate: ✅ PASSED** (2026-03-18)
 
 ---
 
@@ -159,7 +159,7 @@ Already implemented: RPC-09, RPC-10.
 
 | Gate | Status | Blocking |
 |------|--------|----------|
-| **DB Gate** | ⛔ NOT PASSED | All application code |
+| **DB Gate** | ✅ PASSED (0 critical, 10 significant) | All application code |
 | **Dok 6 Gate (per slice)** | ⛔ NOT PASSED | UI work for current slice |
 | **Legal Gate** | ⬜ Not started | Slice 4 (Market) |
 | **Slice 1 Gate** | ⬜ Not started | Merge Slice 1 to main |
