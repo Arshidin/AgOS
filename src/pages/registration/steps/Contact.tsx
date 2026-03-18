@@ -1,7 +1,4 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
 import { FloatingInput } from '../components/FloatingInput'
 import { PhoneInput } from '../components/PhoneInput'
 import { BottomSheet } from '../components/BottomSheet'
@@ -15,12 +12,10 @@ interface ContactProps {
 }
 
 /**
- * Contact step — phone+password auth (v1 pattern).
- * Phone maps to fake email: 7XXXXXXXXXX@phone.turan.kz
- * Migration to OTP when Twilio is configured.
+ * Contact step — collects name, phone, password, region.
+ * NO auth call here — account is created at Agreement step (after consent).
  */
 export function Contact({ formData, onChange, onNext }: ContactProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [regionSheetOpen, setRegionSheetOpen] = useState(false)
 
@@ -41,38 +36,9 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     return Object.keys(errs).length === 0
   }
 
-  const handleSubmit = async () => {
+  const handleNext = () => {
     if (!validate()) return
-    setIsSubmitting(true)
-    try {
-      // v1 pattern: phone → fake email for Supabase Auth
-      const phoneDigits = formData.phone.replace(/\D/g, '')
-      const fakeEmail = `7${phoneDigits}@phone.turan.kz`
-
-      const { error } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: formData.password,
-      })
-
-      if (error) {
-        if (error.message.includes('already registered') || error.message.includes('already exists')) {
-          toast.error('Этот номер уже зарегистрирован. Войдите в кабинет.')
-        } else {
-          toast.error('Ошибка регистрации')
-          console.error('Auth error:', error)
-        }
-        return
-      }
-
-      onChange({ otp_verified: true })
-      toast.success('Аккаунт создан')
-      setTimeout(onNext, 300)
-    } catch (err) {
-      toast.error('Ошибка регистрации')
-      console.error(err)
-    } finally {
-      setIsSubmitting(false)
-    }
+    onNext()
   }
 
   return (
@@ -132,12 +98,10 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
       </div>
 
       <button
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        className="reg-btn-primary w-full flex items-center justify-center gap-2"
+        onClick={handleNext}
+        className="reg-btn-primary w-full"
       >
-        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {isSubmitting ? 'Регистрация...' : 'Продолжить'}
+        Продолжить
       </button>
 
       <BottomSheet

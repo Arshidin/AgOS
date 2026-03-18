@@ -160,7 +160,29 @@ export function Registration() {
         }
       }
 
-      // Merge how_heard + full_name into role_data (not separate RPC params)
+      // 1. Create auth account (phone+password → fake email pattern)
+      const phoneDigits = formData.phone.replace(/\D/g, '')
+      const fakeEmail = `7${phoneDigits}@phone.turan.kz`
+
+      const { error: authError } = await supabase.auth.signUp({
+        email: fakeEmail,
+        password: formData.password,
+      })
+
+      if (authError) {
+        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+          toast.error('Этот номер уже зарегистрирован. Войдите в кабинет.')
+        } else {
+          toast.error('Ошибка создания аккаунта')
+          console.error('Auth error:', authError)
+        }
+        return
+      }
+
+      // Small delay for auth trigger to create public.users record
+      await new Promise((r) => setTimeout(r, 500))
+
+      // 2. Create organization via RPC
       const enrichedRoleData = {
         ...roleData,
         full_name: formData.full_name,
