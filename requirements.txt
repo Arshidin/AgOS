@@ -1,0 +1,12 @@
+# AgOS AI Gateway — Python dependencies
+# Slice 1: Sick Calf (FastAPI + LangGraph + Anthropic + Supabase)
+
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+supabase>=2.10.0,<3.0.0
+anthropic>=0.40.0,<1.0.0
+langgraph>=0.2.0,<1.0.0
+langchain-core>=0.3.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+httpx>=0.27.0,<1.0.0
