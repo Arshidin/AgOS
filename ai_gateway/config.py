@@ -23,9 +23,10 @@ class Settings:
     SUPABASE_SERVICE_ROLE_KEY: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     ANTHROPIC_API_KEY: str = os.environ.get("ANTHROPIC_API_KEY", "")
 
-    # WhatsApp (Slice 1: optional — web /chat works without it)
+    # WhatsApp Cloud API
     WHATSAPP_TOKEN: str = os.environ.get("WHATSAPP_TOKEN", "")
     WHATSAPP_WEBHOOK_SECRET: str = os.environ.get("WHATSAPP_WEBHOOK_SECRET", "")
+    WHATSAPP_PHONE_NUMBER_ID: str = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 
     # Internal API key for cron endpoints
     INTERNAL_API_KEY: str = os.environ.get("INTERNAL_API_KEY", "")

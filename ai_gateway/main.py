@@ -188,6 +188,25 @@ async def chat(request: Request):
     })
 
 
+@app.post("/notifications/process")
+async def process_notifications(request: Request):
+    """
+    D-S2-2: Process pending notifications (WhatsApp + in-app).
+    Called by pg_cron or external scheduler every 30s.
+    Requires INTERNAL_API_KEY header for security.
+    """
+    from ai_gateway.notification_worker import process_notification_batch
+
+    settings = get_settings()
+    if settings.INTERNAL_API_KEY:
+        api_key = request.headers.get("x-api-key", "")
+        if api_key != settings.INTERNAL_API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+    result = process_notification_batch()
+    return {"status": "ok", **result}
+
+
 @app.post("/proactive/dispatch")
 async def proactive_dispatch():
     """
