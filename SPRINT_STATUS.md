@@ -26,19 +26,22 @@
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
-| Dok 6 | F01, F02, F10, F11 | ⬜ Not started | Architect creates just-in-time |
-| DB | RPC-01 `rpc_register_organization` (d01) | ⬜ Not started | |
-| DB | RPC-02 `rpc_submit_membership_application` (d01) | ⬜ Not started | Submit, not blocking |
-| DB | RPC-04 `rpc_get_my_context` (d01) | ⬜ Not started | |
-| DB | RPC-05/05b `rpc_upsert_farm` / `rpc_set_farm_activity_types` (d01) | ⬜ Not started | |
-| DB | RPC-40 `rpc_start_ai_conversation` (d01) | ⬜ Not started | |
-| DB | RPC-26 `rpc_add_vet_diagnosis` (d04) | ⬜ Not started | |
-| DB | RPC-27 `rpc_add_vet_recommendation` (d04) | ⬜ Not started | |
-| Backend | FastAPI scaffold, `/chat` webhook | 🟡 Scaffold exists | `ai_gateway/main.py` |
-| Backend | LangGraph graph | ⬜ Not started | |
-| Backend | Vet tools AI-07..10 + compliance filter | ⬜ Not started | |
-| UI | F01 (Register), F02 (Farm Profile) | ⬜ Not started | |
-| UI | F10 (Report Sick), F11 (Vet Case Detail) | ⬜ Not started | |
+| Dok 6 | F01, F02, F10, F11 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice1-SickCalf.md` v2.0 — all 7 questions resolved. Dok 6 Gate PASSED. |
+| DB | RPC-01 `rpc_register_organization` (d01) | ✅ Implemented | 4 org_types, p_role_data jsonb, atomic create. ⚠️ DEF-012 org_type CHECK |
+| DB | RPC-02 `rpc_submit_membership_application` (d01) | ✅ Implemented | PENDING_EXISTS + ALREADY_ACTIVE checks |
+| DB | RPC-04 `rpc_get_my_context` (d01) | ✅ Implemented | Stable read: orgs, farms, memberships, restrictions |
+| DB | RPC-05/05b `rpc_upsert_farm` / `rpc_set_farm_activity_types` (d01) | ✅ Implemented | Upsert + delta activity types |
+| DB | RPC-40 `rpc_start_ai_conversation` (d01) | ✅ Implemented | 24h session reuse (D64) |
+| DB | RPC-26 `rpc_add_vet_diagnosis` (d04) | ✅ Implemented | Added to d04_vet.sql + rpc_name_registry |
+| DB | RPC-27 `rpc_add_vet_recommendation` (d04) | ✅ Implemented | Added to d04_vet.sql + rpc_name_registry. D98 health_restriction via trigger. |
+| DB | `rpc_get_vet_case_detail` (d04) | ✅ Implemented | D-F11-1: New RPC for F11 screen. Full case detail in one call. |
+| Backend | FastAPI `/chat` webhook | ✅ Implemented | P-AI-8: save msg first → graph.invoke() → response |
+| Backend | LangGraph graph | ✅ Implemented | D116 stateless, D117 one-run. 6 nodes: load_context→route→process→tools→compliance→save |
+| Backend | Vet tools AI-07..10 | ✅ Implemented | `ai_gateway/tools/vet.py` — all 4 tools via supabase.rpc() |
+| Backend | Compliance filter (P-AI-4) | ✅ Implemented | `ai_gateway/compliance.py` — dosage regex + antitrust + legal |
+| Backend | ⚠️ DEF-013: 3x .table() in nodes.py | 🟡 Known | ai_conversations direct read/write — needs RPCs (rpc_update_confirmation, rpc_sync_conversation_role) |
+| UI | F01 (Register), F02 (Farm Profile) | ✅ Implemented | 8-step conversational registration (4 roles), farm profile with herd groups |
+| UI | F10 (Report Sick), F11 (Vet Case Detail) | ✅ Implemented | Vet case creation (severity=null, CEO decision), realtime detail view, P-AI-4 dosage compliance |
 | QA | Slice 1 gate | ⬜ Not started | |
 
 Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
@@ -151,23 +154,23 @@ Already implemented: RPC-09, RPC-10.
 | `ai_gateway/compliance.py` | ⬜ Not started | |
 | `ai_gateway/proactive.py` | ⬜ Not started | |
 | `ai_gateway/embedding_worker.py` | ⬜ Not started | |
-| `src/` (React UI) | ⬜ Not started | Vite + React + TypeScript |
+| `src/` (React UI) | ✅ Slice 1 done | F01 (8-step reg), F02 (farm profile), F10 (report sick), F11 (vet case detail). AuthContext, useRpc hook, Supabase client. All data via supabase.rpc(). P-AI-4 dosage compliance verified. |
 
 ---
 
 ## Defects Found
 
-| ID | Severity | File | Description |
-|----|----------|------|-------------|
-| DEF-001 | Significant | `d07_ai_gateway.sql` | `rpc_get_ai_farm_context` — 2 definitions (lines 58, 1746) |
-| DEF-002 | Significant | `d07_ai_gateway.sql` | `rpc_upsert_herd_group` — 2 definitions (lines 189, 2031) |
-| DEF-003 | Minor | `d01_kernel.sql` | `insert_user_message_dedup` — 2 definitions (lines 2345, 2993) |
-| DEF-004 | Minor | `d01_kernel.sql` | `claim_pending_notifications` — 2 definitions (lines 2410, 2857) |
-| DEF-005 | Minor | `d01_kernel.sql` | `mark_notification_failed` — 2 definitions (lines 2474, 2817) |
-| DEF-006 | Significant | `d05_ops_edu.sql` | `fn_preview_cascade` — 2 definitions (lines 2901, 3660) |
-| DEF-007 | Significant | `d05_ops_edu.sql` | `fn_generate_production_plan` — 2 definitions (lines 3034, 3961) |
-| DEF-008 | Significant | `d05_ops_edu.sql` | `rpc_start_production_plan` — 2 definitions (lines 3529, 3811) |
-| DEF-009 | Minor | `d07_ai_gateway.sql` | `fn_my_org_ids`, `fn_is_admin`, `fn_is_expert` duplicated from d01 |
+| ID | Severity | File | Description | Status |
+|----|----------|------|-------------|--------|
+| DEF-001 | Significant | `d07_ai_gateway.sql` | `rpc_get_ai_farm_context` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-002 | Significant | `d07_ai_gateway.sql` | `rpc_upsert_herd_group` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-003 | Minor | `d01_kernel.sql` | `insert_user_message_dedup` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-004 | Minor | `d01_kernel.sql` | `claim_pending_notifications` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-005 | Minor | `d01_kernel.sql` | `mark_notification_failed` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-006 | Significant | `d05_ops_edu.sql` | `fn_preview_cascade` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-007 | Significant | `d05_ops_edu.sql` | `fn_generate_production_plan` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-008 | Significant | `d05_ops_edu.sql` | `rpc_start_production_plan` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
+| DEF-009 | ~~Minor~~ | `d07_ai_gateway.sql` | `fn_my_org_ids`, `fn_is_admin`, `fn_is_expert` in d01+d07 | ⚪ Not a defect — intentional deploy-order dependency |
 
 ---
 
@@ -175,8 +178,8 @@ Already implemented: RPC-09, RPC-10.
 
 | Gate | Status | Blocking |
 |------|--------|----------|
-| **DB Gate** | ✅ PASSED (0 critical, 10 significant) | All application code |
-| **Dok 6 Gate (per slice)** | ⛔ NOT PASSED | UI work for current slice |
+| **DB Gate** | ✅ PASSED (0 critical, 7 significant) | All application code |
+| **Dok 6 Gate (Slice 1)** | ✅ PASSED (2026-03-18) | F01, F02, F10, F11 contracts approved |
 | **Legal Gate** | ⬜ Not started | Slice 5 (Market) |
 | **Slice 1 Gate** | ⬜ Not started | Merge Slice 1 to main |
 | **Slice 2 Gate** | ⬜ Not started | Merge Slice 2 to main |

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "AI Gateway (FastAPI)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "uvicorn", "ai_gateway.main:app", "--loop", "asyncio", "--http", "h11", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "calculate-ration (Edge Function)",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["supabase", "functions", "serve", "calculate-ration"],
+      "port": 54321
+    }
+  ]
+}

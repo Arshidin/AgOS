@@ -18,6 +18,13 @@
 | D-COORD-2 | 2026-03-18 | Agent Team | Full agent team audit — 10 findings fixed (FA-001..FA-010) |
 | D-PROCESS-1 | 2026-03-18 | Process | 6 process improvements: vertical slices, git first, UI migration, reduced switches, navigation pointers, incremental Dok 6 |
 | D-PROCESS-2 | 2026-03-18 | Slices | 5 slices → 8 slices. Membership separated. Old Slice 5 (28 screens) split into Expert + Education. |
+| D-DEDUP-1 | 2026-03-18 | SQL Quality | DEF-001..008 fixed: stale V1 function definitions removed from d01, d05, d07. DEF-009 reclassified as not-a-defect. |
+| D-F11-1 | 2026-03-18 | UI/RPC | F11 vet case detail: new `rpc_get_vet_case_detail` (JWT-compatible). AI Gateway RPCs (SECURITY DEFINER, service_role) cannot be called from web cabinet. |
+| D-F10-1 | 2026-03-18 | UI/UX | F10: severity selector removed from farmer form. Farmer always sends null; AI determines severity from symptoms. Prevents false D57 auto-escalation. |
+| D-F01-1 | 2026-03-18 | UI/UX | F01: membership application is optional (P11). Farmer uses free features first (vet, ration quick mode), applies when sees value. Higher conversion. |
+| D-F01-2 | 2026-03-18 | Auth | F01: OTP auth (phone + SMS code), not phone+password. Requires Twilio. Better UX for farmers. |
+| D-F01-3 | 2026-03-18 | UI/UX | F01: 4 roles (farmer, mpk, services, feed_producer). Benefit screens between steps preserved from v1. All v1 farmer fields kept (herd_size, primary_breed, ready_to_sell, how_heard). |
+| D-F01-4 | 2026-03-18 | Scope | F01: full registration UI for all 4 roles in Slice 1. But only farmer path has backend+cabinet. Other roles: registration works, cabinet screens in later slices. |
 
 ---
 
@@ -152,17 +159,17 @@
 
 | ID | Severity | Finding | Recommended Action |
 |----|----------|---------|-------------------|
-| DEF-001 | Significant | `d07_ai_gateway.sql`: `rpc_get_ai_farm_context` has 2 definitions (lines 58, 1746) — last one wins silently | DB Agent: audit both definitions, remove the stale one |
-| DEF-002 | Significant | `d07_ai_gateway.sql`: `rpc_upsert_herd_group` has 2 definitions (lines 189, 2031) | Same as DEF-001 |
-| DEF-003 | Minor | `d01_kernel.sql`: `insert_user_message_dedup` has 2 definitions (lines 2345, 2993) | Audit and deduplicate |
-| DEF-004 | Minor | `d01_kernel.sql`: `claim_pending_notifications` has 2 definitions (lines 2410, 2857) | Audit and deduplicate |
-| DEF-005 | Minor | `d01_kernel.sql`: `mark_notification_failed` has 2 definitions (lines 2474, 2817) | Audit and deduplicate |
-| DEF-006 | Significant | `d05_ops_edu.sql`: `fn_preview_cascade` has 2 definitions (lines 2901, 3660) | Audit and deduplicate |
-| DEF-007 | Significant | `d05_ops_edu.sql`: `fn_generate_production_plan` has 2 definitions (lines 3034, 3961) | Audit and deduplicate |
-| DEF-008 | Significant | `d05_ops_edu.sql`: `rpc_start_production_plan` has 2 definitions (lines 3529, 3811) | Audit and deduplicate |
-| DEF-009 | Minor | `d07_ai_gateway.sql`: `fn_my_org_ids`, `fn_is_admin`, `fn_is_expert` duplicated from d01 — d07 loaded last, so d07 version wins | Verify both versions are identical |
-| DEF-010 | Critical | `cross_check.sh` does not exist | Must be created before DB Gate can pass |
-| DEF-011 | Critical | `Dok 6` does not exist | Created incrementally per slice (D-PROCESS-1) |
+| DEF-001 | ✅ Fixed | `d07_ai_gateway.sql`: `rpc_get_ai_farm_context` — V1 removed, V2 (C-AUDIT-2b/3) kept |
+| DEF-002 | ✅ Fixed | `d07_ai_gateway.sql`: `rpc_upsert_herd_group` — V1 removed, V2 (L-AUDIT-5) kept |
+| DEF-003 | ✅ Fixed | `d01_kernel.sql`: `insert_user_message_dedup` — V1 removed, V2 (L-NEW-1 atomic) kept |
+| DEF-004 | ✅ Fixed | `d01_kernel.sql`: `claim_pending_notifications` — V1 removed, V2 (L-NEW-4) kept |
+| DEF-005 | ✅ Fixed | `d01_kernel.sql`: `mark_notification_failed` — V1 removed, V2 (L-NEW-4 max_retry) kept |
+| DEF-006 | ✅ Fixed | `d05_ops_edu.sql`: `fn_preview_cascade` — V1 removed, V2 (L-7 security) kept |
+| DEF-007 | ✅ Fixed | `d05_ops_edu.sql`: `fn_generate_production_plan` — V1 removed, V2 (D-NEW-4 batch) kept |
+| DEF-008 | ✅ Fixed | `d05_ops_edu.sql`: `rpc_start_production_plan` — V1 removed, V2 (C-NEW-7 p_actor_id) kept |
+| DEF-009 | ⚪ Not a defect | `fn_my_org_ids/fn_is_admin/fn_is_expert`: d01 basic (needed for RLS at deploy) + d07 JWT fast path (upgrade). Intentional. |
+| DEF-010 | ✅ Fixed | `cross_check.sh` created |
+| DEF-011 | ✅ Planned | `Dok 6` — created incrementally per slice (D-PROCESS-1) |
 
 ---
 
@@ -203,3 +210,28 @@
 - Easy: UI in git, QA-verifiable, one unified UI Agent
 - Hard: slices cut across domains (d01+d04 in one session), requires careful dependency tracking
 - Hard: Dok 6 creation is distributed across slices, not front-loaded
+
+---
+
+### D-DEDUP-1 — SQL Deduplication: 8 Stale Function Definitions Removed
+
+**Date:** 2026-03-18
+**Domain:** SQL Quality / Regression Prevention
+
+**WHAT:** Removed 8 stale V1 function definitions from 3 SQL files. Each file had both the original definition and a later fix — PostgreSQL silently took the last one. V1 blocks removed (~1100 lines total):
+
+| File | Removed | Lines removed |
+|------|---------|--------------|
+| `d07_ai_gateway.sql` | V1 of `rpc_get_ai_farm_context`, `rpc_upsert_herd_group` | ~267 |
+| `d01_kernel.sql` | V1 of `insert_user_message_dedup`, `claim_pending_notifications`, `mark_notification_failed` | ~100 |
+| `d05_ops_edu.sql` | V1 of `fn_preview_cascade`, `fn_generate_production_plan`, `rpc_start_production_plan` | ~754 |
+
+**DEF-009 reclassified:** `fn_my_org_ids`/`fn_is_admin`/`fn_is_expert` in both d01 and d07 is NOT a defect. d01 needs basic versions for RLS policies at deploy time. d07 upgrades them with JWT fast path after full deployment. Removing from d01 would break deployment order.
+
+**WHY:** Stale definitions are a regression time bomb. If anyone reorders code within a consolidated file, the stale V1 silently wins and reverts critical fixes (L-AUDIT-5 confidence, L-7 security, L-NEW-1 race condition, L-NEW-4 infinite retry). This pattern caused ~6 regression cycles in project history (see CLAUDE.md §Lessons Learned).
+
+**CONSEQUENCES:**
+- Easy: each function has exactly one definition — no silent override risk
+- Easy: `cross_check.sh` significant errors reduced from 10 to 7
+- Easy: files are shorter and more readable
+- Neutral: zero runtime behavior change (PostgreSQL already used the last definition)

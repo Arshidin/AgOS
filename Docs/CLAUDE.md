@@ -438,7 +438,7 @@ Builds incrementally: scaffold → vet tools → feed tools → ops tools → ma
 > **Hard gates (blocking, not advisory):**
 > 1. DB gate: `cross_check.sh` → 0 critical errors before any application code starts
 > 2. Dok 6 gate: all screen contracts for the **current slice** reviewed by Arshidin before UI Agent starts that slice
-> 3. Legal gate: Article 171 review signed off before Slice 4 (Market) starts
+> 3. Legal gate: Article 171 review signed off before Slice 5 (Market) starts
 > 4. Slice gate: QA passes → Architect signs off → merge to main → deploy
 >
 > **⚠️ Dok 6 status:** Does not exist yet. Created incrementally per slice, not as monolithic Sprint 0.
@@ -472,26 +472,42 @@ Builds incrementally: scaffold → vet tools → feed tools → ops tools → ma
 
 ### Slice 1 — "У телёнка температура" (Sick Calf)
 
-**First contact with real farmers.** Minimal viable path: register → report sick animal → get AI response.
+**First contact with real farmers.** Register → create farm → report sick animal → get AI response. Membership application submitted but NOT blocking.
 
 | Layer | What | RPCs / Components |
 |-------|------|-------------------|
 | Dok 6 | F01, F02, F10, F11 (4 screens) | Architect creates just-in-time |
-| DB | d01: RPC-01, RPC-04, RPC-05/05b, RPC-40 | Identity + farm basics |
+| DB | d01: RPC-01, RPC-02, RPC-04, RPC-05/05b, RPC-40 | Identity + membership submit + farm |
 | DB | d04: RPC-26, RPC-27 | Vet diagnosis + recommendation |
 | Backend | `/chat` webhook, LangGraph graph, vet tools AI-07..10, compliance filter | Core AI Gateway |
-| UI | F01 (Register), F02 (Farm Profile), F10 (Report Sick), F11 (Vet Case Detail) | 4 farmer screens |
+| UI | F01 (Register + membership), F02 (Farm Profile), F10 (Report Sick), F11 (Vet Case Detail) | 4 farmer screens |
 | QA | Slice 1 gate | RLS + FSM + P-AI-4 dosage check |
 
 **Deploy → test with 3 real farmers → feedback → adjust.**
 
 Already implemented (no work needed): RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 
-**Slice 1 sign-off:** WhatsApp message "теленок не ест" → AI-07 creates vet case → AI-08 adds symptoms → AI-10 returns treatment with no numeric dosage → compliance filter passes. Farmer Cabinet F11 shows the case.
+**Slice 1 sign-off:** WhatsApp "теленок не ест" → AI-07 creates vet case → AI-08 adds symptoms → AI-10 returns treatment with no numeric dosage → compliance filter passes. Farmer Cabinet F11 shows the case.
 
 ---
 
-### Slice 2 — "Сколько корма нужно?" (Feed Planning)
+### Slice 2 — Членство (Membership)
+
+**Admin approves membership applications.** Lightweight slice — mostly admin UI + one RPC.
+
+| Layer | What | RPCs / Components |
+|-------|------|-------------------|
+| Dok 6 | A01, A02 (2 screens) | Membership queue + decision |
+| DB | d01: RPC-03 | `rpc_process_membership_application` |
+| Backend | — (no AI tools needed) | |
+| UI | A01 (Membership Queue), A02 (Membership Decision) | 2 admin screens |
+| QA | Slice 2 gate | fn_is_admin() guard check |
+
+**Slice 2 sign-off:** Admin approves application → membership status changes → farmer sees "Член ассоциации" in profile.
+
+---
+
+### Slice 3 — "Сколько корма нужно?" (Feed Planning)
 
 | Layer | What | RPCs / Components |
 |-------|------|-------------------|
@@ -500,15 +516,15 @@ Already implemented (no work needed): RPC-25 (`rpc_create_vet_case`), AI-01..AI-
 | DB | d03: RPC-21..24 | Feed inventory + ration |
 | Backend | AI-03 feed tool, EXTRACTION_RULES (C-NEW-1), `calculate_ration` Edge Function | |
 | UI | F03 (Herd Overview), F04 (Add Herd Group), F15–F18 (Feed screens) | 6 screens |
-| QA | Slice 2 gate | |
+| QA | Slice 3 gate | |
 
 Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 
-**Slice 2 sign-off:** AI feed inventory update triggers confirmation → writes only on Run 2. `calculate_ration` returns valid nutrient balance.
+**Slice 3 sign-off:** AI feed inventory update triggers confirmation → writes only on Run 2. `calculate_ration` returns valid nutrient balance.
 
 ---
 
-### Slice 3 — "Мой план на сезон" (Operations)
+### Slice 4 — "Мой план на сезон" (Operations)
 
 | Layer | What | RPCs / Components |
 |-------|------|-------------------|
@@ -516,17 +532,17 @@ Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 | DB | d05: RPC-37, RPC-43..45 | Active plan + alerts + knowledge + restrictions |
 | Backend | AI-04..06 ops tools, proactive dispatch (SKIP LOCKED), embedding worker | |
 | UI | F19–F23 (Ops plan, tasks, timeline, cascade, KPI) | 5 screens |
-| QA | Slice 3 gate | |
+| QA | Slice 4 gate | |
 
 Already implemented: RPC-33..36 (production plan functions).
 
-**Slice 3 sign-off:** health_restriction blocks `rpc_create_batch` when `is_active=true` (D98). Knowledge chunk → embedding → search returns result. `fn_shift_phase_cascade` fails without actor_id.
+**Slice 4 sign-off:** health_restriction blocks `rpc_create_batch` when `is_active=true` (D98). Knowledge chunk → embedding → search returns result. `fn_shift_phase_cascade` fails without actor_id.
 
 ---
 
 ### ⛔ LEGAL GATE — Article 171 Review
 
-**Blocks Slice 4. Non-negotiable.**
+**Blocks Slice 5. Non-negotiable.**
 
 | Checklist | Owner |
 |-----------|-------|
@@ -540,7 +556,7 @@ Already implemented: RPC-33..36 (production plan functions).
 
 ---
 
-### Slice 4 — "Хочу продать бычков" (Market) — BLOCKED by legal gate
+### Slice 5 — "Хочу продать бычков" (Market) — BLOCKED by legal gate
 
 | Layer | What | RPCs / Components |
 |-------|------|-------------------|
@@ -548,25 +564,39 @@ Already implemented: RPC-33..36 (production plan functions).
 | DB | d02: RPC-11..20 | All TSP/Market RPCs |
 | Backend | AI-16..21 market tools, disclaimer enforcement | |
 | UI | F05–F09 (farmer market), A11–A15 (admin price/pool) | 10 screens |
-| QA | Slice 4 gate | disclaimer_text non-null on all price RPCs |
+| QA | Slice 5 gate | disclaimer_text non-null on all price RPCs |
 
 Already implemented: RPC-09 (`rpc_create_batch`), RPC-10 (`rpc_publish_batch`).
 
-**Slice 4 sign-off:** `rpc_get_price_for_sku(...)` → non-null disclaimer_text. `rpc_create_batch` with active health_restriction → HEALTH_RESTRICTION exception. Contacts in pool before executing status → not visible.
+**Slice 5 sign-off:** `rpc_get_price_for_sku(...)` → non-null disclaimer_text. `rpc_create_batch` with active health_restriction → HEALTH_RESTRICTION exception. Contacts in pool before executing status → not visible.
 
 ---
 
-### Slice 5 — Admin & Expert Console
+### Slice 6 — Эксперт-консоль (Expert)
 
 | Layer | What | RPCs / Components |
 |-------|------|-------------------|
-| Dok 6 | M01–M06, A01–A10, A16–A19, F24–F28 (28 screens) | Architect creates just-in-time |
-| DB | d01: RPC-02, RPC-03 | Membership application + processing |
+| Dok 6 | M01–M06, A03–A10 (14 screens) | Expert + admin operations |
 | DB | d04: RPC-28..32 | Close case, vaccination plan/record, epidemic |
-| DB | d05: RPC-38, RPC-39, RPC-42 | Education enrollment, lesson, knowledge search |
-| Backend | Remaining wiring, education tools, end-to-end smoke test | |
-| UI | Expert console (M01–M06), Admin panel (A01–A19), Education (F24–F28) | 28 screens |
-| QA | Slice 5 gate | |
+| Backend | Remaining vet/ops wiring | |
+| UI | M01–M06 (expert queue, consultation, vaccination, KPI), A03–A10 (admin: knowledge, restrictions, audit) | 14 screens |
+| QA | Slice 6 gate | fn_is_expert() + fn_is_admin() guards |
+
+**Slice 6 sign-off:** Expert sees vet case queue, adds diagnosis, closes case. Admin manages knowledge base and restrictions.
+
+---
+
+### Slice 7 — Образование (Education)
+
+| Layer | What | RPCs / Components |
+|-------|------|-------------------|
+| Dok 6 | F24–F28, A16–A19 (9 screens) | Education for farmers + admin |
+| DB | d05: RPC-38, RPC-39, RPC-42, RPC-44 | Enrollment, lesson completion, knowledge search, knowledge chunk |
+| Backend | Education tools, end-to-end smoke test | |
+| UI | F24–F28 (course catalog, lesson, progress, certificate, search), A16–A19 (course mgmt, enrollment, expert assignment, certificates) | 9 screens |
+| QA | Slice 7 gate | |
+
+**Slice 7 sign-off:** Farmer enrolls in course → completes lesson → certificate issued. Knowledge chunks auto-indexed.
 
 ---
 
@@ -594,21 +624,27 @@ python tests/integration/e2e_whatsapp.py  # WhatsApp → AI → RPC → DB → r
 ### Slice Dependency Map
 
 ```
-Slice 0 (Foundation) ──────────────────────► DB GATE
+Slice 0 (Foundation) ────────────────────────► DB GATE ✅
      │
      ▼
 Slice 1 (Sick Calf) ──► Deploy + farmer feedback
      │
      ▼
-Slice 2 (Feed) ──► Deploy + farmer feedback
+Slice 2 (Membership) ──► Deploy
      │
      ▼
-Slice 3 (Operations) ──► Deploy + farmer feedback
-     │
-     ├──[legal gate]──► Slice 4 (Market)
+Slice 3 (Feed) ──► Deploy + farmer feedback
      │
      ▼
-Slice 5 (Admin/Expert) ──► Deploy
+Slice 4 (Operations) ──► Deploy + farmer feedback
+     │
+     ├──[legal gate]──► Slice 5 (Market)
+     │
+     ▼
+Slice 6 (Expert) ──► Deploy
+     │
+     ▼
+Slice 7 (Education) ──► Deploy
      │
      ▼
 Integration ──► Full E2E
