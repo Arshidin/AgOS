@@ -26,6 +26,8 @@
 | D-F01-3 | 2026-03-18 | UI/UX | F01: 4 roles (farmer, mpk, services, feed_producer). Benefit screens between steps preserved from v1. All v1 farmer fields kept (herd_size, primary_breed, ready_to_sell, how_heard). |
 | D-F01-4 | 2026-03-18 | Scope | F01: full registration UI for all 4 roles in Slice 1. But only farmer path has backend+cabinet. Other roles: registration works, cabinet screens in later slices. |
 | D-GATE-S1 | 2026-03-19 | Gate | Slice 1 QA + Architect sign-off. 0 critical, DEF-013 accepted tech debt. cross_check.sh false positives fixed (DEF-014/015). |
+| D-S2-1 | 2026-03-19 | RPC/Admin | A01/A02: dedicated `rpc_get_membership_queue` with dual mode (list + detail by ID). Single RPC, two modes. |
+| D-S2-2 | 2026-03-19 | Notification | Membership decisions require WhatsApp notification. RPC-03 inserts into `notifications` table. Minimal WA sender worker added to Slice 2 scope. |
 
 ---
 
@@ -265,3 +267,47 @@
 - Easy: Slice 1 code is on main, deployable
 - Easy: first farmer feedback possible
 - Next: Slice 2 (Membership — admin approves applications)
+
+---
+
+### D-S2-1 — Dual-Mode Membership Queue RPC
+
+**Date:** 2026-03-19
+**Domain:** RPC / Admin
+
+**WHAT:** Single `rpc_get_membership_queue` serves both A01 (list) and A02 (detail):
+- Without `p_application_id`: returns paginated list with `p_status_filter`, `p_page`, `p_page_size`
+- With `p_application_id`: returns full detail for one application (org + farm + herd + membership history)
+
+**WHY:** Two alternatives considered:
+1. Separate `rpc_get_membership_queue` + `rpc_get_application_detail` — more RPCs, more maintenance
+2. Direct query via admin RLS — breaks "all data via RPC" rule
+
+Dual-mode is simplest: one function, admin check inside, conditional logic based on whether ID is provided.
+
+**CONSEQUENCES:**
+- Easy: one RPC to maintain, consistent with RPC-only rule
+- Easy: UI needs only one `useRpc` hook for both screens
+- Hard: function is slightly more complex (two code paths)
+
+---
+
+### D-S2-2 — WhatsApp Notification for Membership Decisions
+
+**Date:** 2026-03-19
+**Domain:** Notification / Scope
+
+**WHAT:** RPC-03 (`rpc_process_membership_application`) inserts a row into `notifications` table with `channel='whatsapp'` and template from Dok 4 §5:
+- `application_approved`: *"Заявка одобрена! Ваш статус: {new_level}. Откройте кабинет."*
+- `application_rejected`: *"Заявка отклонена. Причина: {reject_reason}. Контакт: {contact_info}."*
+
+A minimal WhatsApp sender worker is added to Slice 2 Backend scope. Uses existing DB infrastructure: `claim_pending_notifications` (SKIP LOCKED) → WhatsApp Cloud API → `mark_notification_sent/failed`.
+
+**WHY:** CEO requirement — farmer must know immediately when membership decision is made. "Next login" is not acceptable for a decision the farmer is waiting for. WhatsApp is the primary channel for Kazakh farmers (P9 Farmer-Centric).
+
+**CONSEQUENCES:**
+- Easy: farmer gets instant feedback on membership decision
+- Easy: notification DB pipeline already exists (d01), only the sender worker is new
+- Hard: Slice 2 scope expanded — Backend Agent must build minimal WA sender
+- Hard: requires `WHATSAPP_TOKEN` env var to be set and WhatsApp Business API configured
+- Reuse: the WA sender worker will be reused by all future slices (proactive dispatch, alerts, etc.)
