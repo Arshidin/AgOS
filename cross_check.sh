@@ -89,9 +89,10 @@ echo "--- CHECK 3: SECURITY DEFINER on all rpc_* functions ---"
 for f in "${SQL_FILES[@]}"; do
   # Find rpc_ function definitions and check for security definer
   while IFS= read -r line_num; do
-    # Read the next 10 lines after the function definition to find security definer
+    # Read the next 25 lines after the function definition to find security definer
+    # (functions with 7+ parameters can span 15+ lines before the clause)
     func_name=$(sed -n "${line_num}p" "$f" | sed -E 's/^create or replace function\s+(public\.)?//i' | sed -E 's/\s*\(.*$//')
-    has_sec_def=$(sed -n "$((line_num)),$((line_num+10))p" "$f" | grep -ci 'security definer' || true)
+    has_sec_def=$(sed -n "$((line_num)),$((line_num+25))p" "$f" | grep -ci 'security definer' || true)
     if [ "$has_sec_def" -eq 0 ]; then
       echo "  SIGNIFICANT: ${func_name} in ${f}:${line_num} — missing SECURITY DEFINER"
       ((SIGNIFICANT++))
@@ -111,7 +112,9 @@ echo ""
 # ----------------------------------------------------------
 echo "--- CHECK 4: No advisory locks (L-NEW-2) ---"
 
-adv_locks=$(grep -rn -i 'pg_advisory_lock\|pg_try_advisory_lock' "${SQL_FILES[@]}" 2>/dev/null || true)
+# Filter out SQL comments (lines starting with --) to avoid false positives
+adv_locks=$(grep -rn -i 'pg_advisory_lock\|pg_try_advisory_lock' "${SQL_FILES[@]}" 2>/dev/null \
+  | grep -v '^\([^:]*:[^:]*:\)\s*--' || true)
 if [ -n "$adv_locks" ]; then
   echo "  SIGNIFICANT: Advisory lock usage found (should use SKIP LOCKED):"
   echo "$adv_locks" | while IFS= read -r line; do
@@ -119,7 +122,7 @@ if [ -n "$adv_locks" ]; then
     ((SIGNIFICANT++))
   done
 else
-  echo "  OK: No advisory lock usage"
+  echo "  OK: No advisory lock usage in executable code"
 fi
 
 echo ""
