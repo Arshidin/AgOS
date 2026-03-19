@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { RoleType } from '../constants'
 
@@ -21,6 +22,8 @@ interface RoleSelectProps {
 }
 
 export function RoleSelect({ onSelect }: RoleSelectProps) {
+  const navigate = useNavigate()
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -54,6 +57,29 @@ export function RoleSelect({ onSelect }: RoleSelectProps) {
           </button>
         ))}
       </div>
+
+      <p className="text-center text-[13px] mt-6 text-[#6b5744]/60">
+        Не уверены?{' '}
+        <a
+          href="https://wa.me/77753387130"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-[#2B180A]/70 transition-colors"
+        >
+          Написать в WhatsApp
+        </a>
+        {' '}&mdash; поможем выбрать
+      </p>
+
+      <p className="text-center text-sm text-[#6b5744] mt-2">
+        Уже есть аккаунт?{' '}
+        <button
+          onClick={() => navigate('/login')}
+          className="text-[hsl(24,73%,54%)] font-medium hover:underline"
+        >
+          Войти
+        </button>
+      </p>
     </div>
   )
 }

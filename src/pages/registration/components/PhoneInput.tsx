@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface PhoneInputProps {
@@ -26,14 +26,17 @@ export function PhoneInput({
   disabled,
 }: PhoneInputProps) {
   const [focused, setFocused] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const hasValue = value.length > 0
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value.replace(/\D/g, '').slice(0, 10)
       onChange(raw)
-      if (raw.length === 10 && onComplete) {
-        onComplete()
+      // Auto-advance: blur when 10 digits filled
+      if (raw.length === 10) {
+        setTimeout(() => inputRef.current?.blur(), 80)
+        onComplete?.()
       }
     },
     [onChange, onComplete]
@@ -54,6 +57,7 @@ export function PhoneInput({
           +7
         </span>
         <input
+          ref={inputRef}
           type="tel"
           value={formatPhone(value)}
           onChange={handleChange}

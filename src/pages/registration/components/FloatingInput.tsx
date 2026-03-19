@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface FloatingInputProps {
@@ -10,6 +10,7 @@ interface FloatingInputProps {
   error?: string
   disabled?: boolean
   className?: string
+  autoAdvanceAt?: number // blur input when value reaches this length
 }
 
 export function FloatingInput({
@@ -21,16 +22,27 @@ export function FloatingInput({
   error,
   disabled,
   className,
+  autoAdvanceAt,
 }: FloatingInputProps) {
   const [focused, setFocused] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const hasValue = value.length > 0
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    onChange(val)
+    if (autoAdvanceAt && val.length >= autoAdvanceAt) {
+      setTimeout(() => inputRef.current?.blur(), 80)
+    }
+  }
 
   return (
     <div className={cn('relative', className)}>
       <input
+        ref={inputRef}
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleChange}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         maxLength={maxLength}

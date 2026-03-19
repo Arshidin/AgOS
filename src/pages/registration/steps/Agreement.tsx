@@ -1,8 +1,14 @@
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { BottomSheet } from '../components/BottomSheet'
-import { HOW_HEARD } from '../constants'
+import { HOW_HEARD, HERD_SIZES, COMPANY_TYPES, MONTHLY_VOLUMES } from '../constants'
 import type { RegistrationFormData } from '../constants'
+
+function formatPhoneDisplay(digits: string): string {
+  if (digits.length !== 10) return `+7${digits}`
+  return `+7 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 8)}-${digits.slice(8)}`
+}
 
 interface AgreementProps {
   formData: RegistrationFormData
@@ -34,6 +40,28 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
     await onSubmit()
   }
 
+  // Build summary items based on role
+  const summaryItems: { label: string; value: string }[] = []
+  summaryItems.push({ label: 'Имя', value: formData.full_name })
+  if (formData.phone) {
+    summaryItems.push({ label: 'Телефон', value: formatPhoneDisplay(formData.phone) })
+  }
+  if (formData.role === 'farmer') {
+    if (formData.farm_name) summaryItems.push({ label: 'Хозяйство', value: formData.farm_name })
+    if (formData.bin_iin) summaryItems.push({ label: 'БИН/ИИН', value: formData.bin_iin })
+    const herdLabel = HERD_SIZES.find((h) => h.value === formData.herd_size)?.label
+    if (herdLabel) summaryItems.push({ label: 'Поголовье', value: herdLabel })
+  } else {
+    if (formData.company_name) summaryItems.push({ label: 'Компания', value: formData.company_name })
+    if (formData.bin) summaryItems.push({ label: 'БИН', value: formData.bin })
+    if (formData.role === 'mpk') {
+      const typeLabel = COMPANY_TYPES.find((t) => t.value === formData.company_type)?.label
+      if (typeLabel) summaryItems.push({ label: 'Тип', value: typeLabel })
+      const volLabel = MONTHLY_VOLUMES.find((v) => v.value === formData.monthly_volume)?.label
+      if (volLabel) summaryItems.push({ label: 'Объём', value: volLabel })
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
@@ -42,45 +70,97 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
         </h2>
       </div>
 
+      {/* Summary box */}
+      <div className="rounded-2xl p-5" style={{ background: 'rgba(43,24,10,0.02)' }}>
+        <div className="flex flex-col gap-3.5">
+          {summaryItems.map((item, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-5 h-5 rounded-full bg-[hsl(24,73%,54%)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Check size={12} className="text-[hsl(24,73%,54%)]" strokeWidth={3} />
+              </div>
+              <p className="text-sm leading-relaxed text-[#6b5744]">
+                <span className="text-[#2B180A] font-medium">{item.label}:</span>{' '}
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-4">
         {/* Consent checkboxes */}
         <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.consent_terms}
-            onChange={(e) => {
-              onChange({ consent_terms: e.target.checked })
-              if (errors.consent_terms) setErrors((prev) => ({ ...prev, consent_terms: '' }))
-            }}
-            className="mt-1 w-5 h-5 rounded border-[#e8ddd0] text-[hsl(24,73%,54%)] focus:ring-[hsl(24,73%,54%)] shrink-0"
-          />
-          <span className="text-sm text-[#2B180A]/80">
+          <div className="relative shrink-0 mt-0.5">
+            <input
+              type="checkbox"
+              checked={formData.consent_terms}
+              onChange={(e) => {
+                onChange({ consent_terms: e.target.checked })
+                if (errors.consent_terms) setErrors((prev) => ({ ...prev, consent_terms: '' }))
+              }}
+              className="sr-only"
+            />
+            <div
+              className={cn(
+                'w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200',
+                formData.consent_terms
+                  ? 'bg-[#2B180A] border-[#2B180A]'
+                  : errors.consent_terms
+                    ? 'border-[#E53935] bg-white'
+                    : 'border-[rgba(43,24,10,0.2)] bg-white',
+              )}
+            >
+              {formData.consent_terms && <Check size={14} className="text-white" strokeWidth={3} />}
+            </div>
+          </div>
+          <span className="text-sm leading-relaxed text-[#2B180A]/80">
             Согласен с{' '}
-            <a href="/membership-policy" target="_blank" className="text-[hsl(24,73%,54%)] underline">
+            <a
+              href="/membership-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+              style={{ color: '#C4883A' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               условиями использования платформы
             </a>
           </span>
         </label>
         {errors.consent_terms && (
-          <p className="text-xs text-red-500 pl-8">{errors.consent_terms}</p>
+          <p className="text-xs text-[#E53935] ml-9 -mt-2 mb-2">{errors.consent_terms}</p>
         )}
 
         <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={formData.consent_data}
-            onChange={(e) => {
-              onChange({ consent_data: e.target.checked })
-              if (errors.consent_data) setErrors((prev) => ({ ...prev, consent_data: '' }))
-            }}
-            className="mt-1 w-5 h-5 rounded border-[#e8ddd0] text-[hsl(24,73%,54%)] focus:ring-[hsl(24,73%,54%)] shrink-0"
-          />
-          <span className="text-sm text-[#2B180A]/80">
+          <div className="relative shrink-0 mt-0.5">
+            <input
+              type="checkbox"
+              checked={formData.consent_data}
+              onChange={(e) => {
+                onChange({ consent_data: e.target.checked })
+                if (errors.consent_data) setErrors((prev) => ({ ...prev, consent_data: '' }))
+              }}
+              className="sr-only"
+            />
+            <div
+              className={cn(
+                'w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200',
+                formData.consent_data
+                  ? 'bg-[#2B180A] border-[#2B180A]'
+                  : errors.consent_data
+                    ? 'border-[#E53935] bg-white'
+                    : 'border-[rgba(43,24,10,0.2)] bg-white',
+              )}
+            >
+              {formData.consent_data && <Check size={14} className="text-white" strokeWidth={3} />}
+            </div>
+          </div>
+          <span className="text-sm leading-relaxed text-[#2B180A]/80">
             Согласен на обработку персональных данных
           </span>
         </label>
         {errors.consent_data && (
-          <p className="text-xs text-red-500 pl-8">{errors.consent_data}</p>
+          <p className="text-xs text-[#E53935] ml-9 -mt-2 mb-2">{errors.consent_data}</p>
         )}
 
         {/* How heard */}

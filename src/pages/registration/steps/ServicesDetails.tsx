@@ -61,6 +61,7 @@ export function ServicesDetails({ formData, onChange, onNext }: ServicesDetailsP
           }}
           error={errors.bin}
           maxLength={12}
+          autoAdvanceAt={12}
         />
 
         <ChipSelect

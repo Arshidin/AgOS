@@ -315,7 +315,13 @@ export function Registration() {
           />
         )
       case 'success':
-        return <Success role={formData.role!} />
+        return (
+          <Success
+            role={formData.role!}
+            phone={formData.phone}
+            companyName={formData.role === 'farmer' ? formData.farm_name : formData.company_name}
+          />
+        )
       default:
         return null
     }
