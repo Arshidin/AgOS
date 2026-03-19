@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
 import { RequireAdmin } from '@/components/guards/RequireAdmin'
+import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
 import { CabinetLayout } from '@/pages/cabinet/CabinetLayout'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
@@ -32,7 +33,8 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/register" replace />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Registration />} />
 
             <Route element={<RequireAuth />}>
