@@ -29,6 +29,7 @@
 | D-S2-1 | 2026-03-19 | RPC/Admin | A01/A02: dedicated `rpc_get_membership_queue` with dual mode (list + detail by ID). Single RPC, two modes. |
 | D-S2-2 | 2026-03-19 | Notification | Membership decisions require WhatsApp notification. RPC-03 inserts into `notifications` table. Minimal WA sender worker added to Slice 2 scope. |
 | D-GATE-S2 | 2026-03-19 | Gate | Slice 2 QA + Architect sign-off. 0 critical. fn_is_admin() verified SQL+UI. DEF-016 accepted minor. |
+| L-SCHEMA-1 | 2026-03-19 | Process | SQL column names diverge from Dok 1 entity names. DB Agent must verify against deployed schema before writing JOINs. 4 critical defects caught (DEF-017..020). |
 
 ---
 

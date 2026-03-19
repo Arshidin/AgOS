@@ -180,6 +180,10 @@ Already implemented: RPC-09, RPC-10.
 | DEF-014 | Minor | `cross_check.sh` | CHECK 3 window too narrow (10 lines) for multi-param functions | ✅ Fixed (2026-03-19) — expanded to 25 lines |
 | DEF-015 | Minor | `cross_check.sh` | CHECK 4 matched advisory lock in SQL comments | ✅ Fixed (2026-03-19) — filter comment lines |
 | DEF-016 | Minor | `ai_gateway/notification_worker.py` | `.table("users").select("phone")` direct read (line 179) — service_role, read-only | 🟡 Accepted — minor, phone lookup |
+| DEF-017 | **Critical** | `d01_kernel.sql` | `o.name` → `o.legal_name` in rpc_get_membership_queue + rpc_process_membership_application | ✅ Fixed (2026-03-19) — tested on Supabase |
+| DEF-018 | **Critical** | `d01_kernel.sql` | `o.org_type` doesn't exist — need JOIN on `organization_type_assignments` | ✅ Fixed (2026-03-19) — tested on Supabase |
+| DEF-019 | **Critical** | `d01_kernel.sql` | `hg.animal_category_code` → `hg.animal_category_id` (uuid), join on `ac.id` not `ac.code` | ✅ Fixed (2026-03-19) — tested on Supabase |
+| DEF-020 | Significant | `d01_kernel.sql` | `activity_types` table doesn't exist — `fat.activity_type` is plain text | ✅ Fixed (2026-03-19) — tested on Supabase |
 
 ---
 
