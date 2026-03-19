@@ -483,7 +483,7 @@ create table if not exists public.vet_cases (
                                                        -- [{symptom_id, symptom_code,
                                                        --   confidence, extracted_from_text}]
     -- FSM (Dok 1 Section 5.7)
-    severity                text    not null default 'moderate'
+    severity                text    default 'moderate'  -- D-F10-1: nullable, AI determines from symptoms
                                         check (severity in (
                                             'mild',     -- не опасно, наблюдение
                                             'moderate', -- требует лечения
@@ -502,7 +502,8 @@ create table if not exists public.vet_cases (
                                         check (created_via in (
                                             'ai_whatsapp',
                                             'ai_web',
-                                            'expert_manual'
+                                            'expert_manual',
+                                            'cabinet_farmer'  -- D-F10-1: farmer creates via web cabinet
                                         )),
     -- D57: escalation link (deferred FK в Section 7)
     consultation_request_id uuid,                      -- → consultation_requests(id)
