@@ -61,9 +61,9 @@ Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
-| Dok 6 | F03, F04, F15–F18 | ⬜ Not started | |
-| DB | RPC-07, 08 (d01) + RPC-21..24 (d03) | ⬜ Not started | |
-| Backend | AI-03 feed tool + EXTRACTION_RULES + calculate_ration | ⬜ Not started | |
+| Dok 6 | F03, F04, F15–F18 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice3-Feed.md` v1.0 — 4 CEO decisions. F18 dual-view: per-head + total. |
+| DB | RPC-07 (d01) + RPC-08 (d01) + RPC-21..24 (d03) | ⬜ Not started | 6 RPCs to implement |
+| Backend | AI-03 feed tool + calculate_ration + get_feed_budget Edge Functions | ⬜ Not started | |
 | UI | F03, F04, F15–F18 | ⬜ Not started | 6 screens |
 | QA | Slice 3 gate | ⬜ Not started | |
 
