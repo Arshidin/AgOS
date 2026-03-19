@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import turanLogo from "@/assets/turan-logo.svg";
 
@@ -18,6 +19,16 @@ const Footer = () => {
             </p>
           </div>
 
+
+          {/* Links */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <Link
+              to="/membership-policy"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors font-body"
+            >
+              {t('membershipPolicy.title')}
+            </Link>
+          </div>
 
           {/* Social links */}
           <div className="flex items-center gap-4">

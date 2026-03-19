@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
 import { RequireAdmin } from '@/components/guards/RequireAdmin'
+import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
 import { CabinetLayout } from '@/pages/cabinet/CabinetLayout'
@@ -15,7 +17,10 @@ import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
+import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
+
+const MembershipPolicy = lazy(() => import('@/pages/public/MembershipPolicy'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,9 +38,10 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<PublicLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Registration />} />
+            <Route path="/membership-policy" element={<Suspense fallback={null}><MembershipPolicy /></Suspense>} />
 
             <Route element={<RequireAuth />}>
               <Route path="/cabinet" element={<CabinetLayout />}>
@@ -54,7 +60,7 @@ function App() {
               </Route>
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-center" richColors />
