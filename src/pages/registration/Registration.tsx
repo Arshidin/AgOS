@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { ProgressBar } from './components/ProgressBar'
@@ -161,8 +162,7 @@ export function Registration() {
       }
 
       // 1. Create auth account (phone+password → fake email pattern)
-      const phoneDigits = formData.phone.replace(/\D/g, '')
-      const fakeEmail = `7${phoneDigits}@phone.turan.kz`
+      const fakeEmail = phoneToFakeEmail(formData.phone)
 
       const { error: authError } = await supabase.auth.signUp({
         email: fakeEmail,

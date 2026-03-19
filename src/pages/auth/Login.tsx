@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Loader2, Phone, Lock, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { toast } from 'sonner'
 
 export function Login() {
@@ -38,8 +39,8 @@ export function Login() {
       return
     }
 
-    // Auth uses fake email pattern: 7{digits}@phone.turan.kz (matches Registration.tsx)
-    const fakeEmail = `${phoneDigits}@phone.turan.kz`
+    // Single source of truth for phone→email conversion
+    const fakeEmail = phoneToFakeEmail(phone)
 
     setIsLoading(true)
     try {
