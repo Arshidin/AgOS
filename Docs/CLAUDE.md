@@ -183,6 +183,9 @@ Fixing one occurrence of a pattern without scanning for all occurrences reintrod
 ### Prompts specify WHAT to read and WHAT to produce, not HOW to implement
 Documents are the single source of truth for agent prompts. Prompts do not prescribe implementation.
 
+### SQL file column names ≠ deployed schema column names
+Dok 1 entity names and SQL `CREATE TABLE` definitions can use different column names than what is actually deployed. The canonical SQL files (d01–d08) define the schema, but when writing new RPCs that JOIN multiple tables, always verify actual column names against the deployed database — not against Dok 1 entity field names or assumptions. Example: Dok 1 says `Organization.name`, SQL file says `name`, but deployed table has `legal_name`. DB Agent must run `SELECT column_name FROM information_schema.columns WHERE table_name='...'` on Supabase before writing JOINs in new RPCs. This caught 4 critical defects in Slice 2 (DEF-017 through DEF-020).
+
 ---
 
 ## Response Format
