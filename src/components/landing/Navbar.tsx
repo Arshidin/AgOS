@@ -296,7 +296,7 @@ const Navbar = () => {
 
             {/* CTA — icon on mobile/collapsed, text on desktop full */}
             <Link
-              to="/registration"
+              to="/register"
               className="group flex items-center justify-center rounded-full flex-shrink-0 hover:opacity-80 transition-opacity font-medium whitespace-nowrap"
               style={{
                 backgroundColor: "#f1e7dc",

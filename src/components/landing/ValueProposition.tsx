@@ -207,7 +207,7 @@ function FarmerMockup() {
         <Block>
           <p className="text-[12px] md:text-[14px] leading-relaxed flex flex-wrap items-center gap-1 md:gap-1.5" style={{ color: C.text2 }}>
             <span>{t('valueProposition.farmer.inRegion')}</span>
-            <Pill>{t('constants.regions.Актюбинская область')}</Pill>
+            <Pill>Актюбинская область</Pill>
             <span>{t('valueProposition.farmer.looking')}</span>
             <Pill>КРС</Pill>
             <span>{t('valueProposition.farmer.weight')}</span>
@@ -314,7 +314,7 @@ function MpkMockup() {
           <div className={`vp-chat-block${visible ? " visible" : ""}`} style={d(2)}>
             <p className="text-[12px] md:text-[14px] leading-relaxed flex flex-wrap items-center gap-1 md:gap-1.5" style={{ color: C.text2 }}>
               <span>{t('valueProposition.mpk.region')}</span>
-              <Pill>{t('constants.regions.Алматинская область')}</Pill>
+              <Pill>Алматинская область</Pill>
               <span>{t('valueProposition.mpk.forWeeks')}</span>
               <Pill>14–16</Pill>
             </p>
@@ -351,7 +351,7 @@ function MpkMockup() {
           <div className="flex flex-col gap-1.5 md:gap-3">
             {/* 7 — Row 1 */}
             <div className={`vp-chat-block flex items-center justify-between flex-wrap gap-2${visible ? " visible" : ""}`} style={d(7)}>
-              <span className="text-[12px] md:text-[14px]" style={{ color: C.text2 }}>{t('constants.regions.Актюбинская область')}</span>
+              <span className="text-[12px] md:text-[14px]" style={{ color: C.text2 }}>Актюбинская область</span>
               <div className="flex items-center gap-2">
                 <Num target={280} started={visible} size={18} />
                 <span className="text-[10px] md:text-[12px]" style={{ color: C.dim }}>{t('valueProposition.mpk.heads')}</span>
@@ -360,7 +360,7 @@ function MpkMockup() {
             </div>
             {/* 8 — Row 2 */}
             <div className={`vp-chat-block flex items-center justify-between flex-wrap gap-2${visible ? " visible" : ""}`} style={d(8)}>
-              <span className="text-[12px] md:text-[14px]" style={{ color: C.text2 }}>{t('constants.regions.Костанайская область')}</span>
+              <span className="text-[12px] md:text-[14px]" style={{ color: C.text2 }}>Костанайская область</span>
               <div className="flex items-center gap-2">
                 <Num target={140} started={visible} size={18} />
                 <span className="text-[10px] md:text-[12px]" style={{ color: C.dim }}>{t('valueProposition.mpk.heads')}</span>
