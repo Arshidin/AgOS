@@ -5,7 +5,7 @@
 
 ---
 
-## Current Phase: Slice 2 (Membership)
+## Current Phase: Slice 3 (Feed Planning)
 
 ### Slice 0 — Foundation
 
@@ -55,7 +55,7 @@ Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 | DB | RPC-03 `rpc_process_membership_application` (d01) | ✅ Implemented | FSM: submitted/under_review→approved/rejected. Notifications (WA+in_app). Events emitted. |
 | Backend | WhatsApp notification sender (minimal worker) | ✅ Implemented | `ai_gateway/notification_worker.py` + `/notifications/process` endpoint. Claims via SKIP LOCKED, sends WA Cloud API, marks sent/failed via RPCs. |
 | UI | A01 (Membership Queue), A02 (Decision) | ✅ Implemented | Admin palette, `fn_is_admin()` guard, RequireAdmin, confirmation dialog, WA notification mention. TypeScript clean. |
-| QA | Slice 2 gate | ⬜ Not started | |
+| QA | Slice 2 gate | ✅ **PASSED** (2026-03-19) | 0 critical, 0 significant in scope. fn_is_admin() verified SQL+UI. DEF-016 minor accepted. |
 
 ### Slice 3 — "Сколько корма нужно?" (Feed Planning)
 
@@ -179,6 +179,7 @@ Already implemented: RPC-09, RPC-10.
 | DEF-013 | Significant | `ai_gateway/nodes.py` | 3x `.table("ai_conversations")` direct access (lines 155, 320, 633) — violates P-AI-1 | 🟡 Accepted tech debt — must resolve before Slice 3 |
 | DEF-014 | Minor | `cross_check.sh` | CHECK 3 window too narrow (10 lines) for multi-param functions | ✅ Fixed (2026-03-19) — expanded to 25 lines |
 | DEF-015 | Minor | `cross_check.sh` | CHECK 4 matched advisory lock in SQL comments | ✅ Fixed (2026-03-19) — filter comment lines |
+| DEF-016 | Minor | `ai_gateway/notification_worker.py` | `.table("users").select("phone")` direct read (line 179) — service_role, read-only | 🟡 Accepted — minor, phone lookup |
 
 ---
 
@@ -190,7 +191,7 @@ Already implemented: RPC-09, RPC-10.
 | **Dok 6 Gate (Slice 1)** | ✅ PASSED (2026-03-18) | F01, F02, F10, F11 contracts approved |
 | **Legal Gate** | ⬜ Not started | Slice 5 (Market) |
 | **Slice 1 Gate** | ✅ **PASSED** (2026-03-19) | QA pass + Architect sign-off. DEF-013 accepted. |
-| **Slice 2 Gate** | ⬜ Not started | Merge Slice 2 to main |
+| **Slice 2 Gate** | ✅ **PASSED** (2026-03-19) | QA pass + Architect sign-off. |
 | **Slice 3 Gate** | ⬜ Not started | Merge Slice 3 to main |
 | **Slice 4 Gate** | ⬜ Not started | Merge Slice 4 to main |
 | **Slice 5 Gate** | ⬜ Not started | Merge Slice 5 to main |
@@ -205,3 +206,4 @@ Already implemented: RPC-09, RPC-10.
 |-------|-----------|----------|-------|
 | Slice 0 (Foundation) | 2026-03-18 | 1 day | DB Gate passed, cross_check.sh created |
 | Slice 1 (Sick Calf) | 2026-03-19 | 2 days | 9 RPCs, AI Gateway, 4 screens, QA passed |
+| Slice 2 (Membership) | 2026-03-19 | 1 day | 2 RPCs, WA notification worker, 2 admin screens, QA passed |

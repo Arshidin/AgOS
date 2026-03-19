@@ -28,6 +28,7 @@
 | D-GATE-S1 | 2026-03-19 | Gate | Slice 1 QA + Architect sign-off. 0 critical, DEF-013 accepted tech debt. cross_check.sh false positives fixed (DEF-014/015). |
 | D-S2-1 | 2026-03-19 | RPC/Admin | A01/A02: dedicated `rpc_get_membership_queue` with dual mode (list + detail by ID). Single RPC, two modes. |
 | D-S2-2 | 2026-03-19 | Notification | Membership decisions require WhatsApp notification. RPC-03 inserts into `notifications` table. Minimal WA sender worker added to Slice 2 scope. |
+| D-GATE-S2 | 2026-03-19 | Gate | Slice 2 QA + Architect sign-off. 0 critical. fn_is_admin() verified SQL+UI. DEF-016 accepted minor. |
 
 ---
 
