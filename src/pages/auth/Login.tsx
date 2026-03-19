@@ -24,14 +24,12 @@ export function Login() {
     return formatted
   }
 
-  const getRawPhone = () => '+7' + phone.replace(/\D/g, '').slice(1)
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    const rawPhone = getRawPhone()
-    if (rawPhone.length !== 12) {
+    const phoneDigits = phone.replace(/\D/g, '')
+    if (phoneDigits.length !== 11) {
       setError('Введите номер телефона полностью')
       return
     }
@@ -40,10 +38,13 @@ export function Login() {
       return
     }
 
+    // Auth uses fake email pattern: 7{digits}@phone.turan.kz (matches Registration.tsx)
+    const fakeEmail = `${phoneDigits}@phone.turan.kz`
+
     setIsLoading(true)
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({
-        phone: rawPhone,
+        email: fakeEmail,
         password,
       })
 
