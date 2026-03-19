@@ -4114,9 +4114,9 @@ begin
         select jsonb_build_object(
             'application_id',   ma.id,
             'org_id',           o.id,
-            'org_name',         o.name,
-            'org_type',         o.org_type,
-            'bin',              o.bin,
+            'org_name',         o.legal_name,
+            'org_type',         ota.org_type,
+            'bin',              o.bin_iin,
             'region_name',      r.name_ru,
             'org_created_at',   o.created_at,
             'from_level',       ma.from_level,
@@ -4136,21 +4136,19 @@ begin
                     'farm_name',    f.name,
                     'herd_groups',  (
                         select coalesce(jsonb_agg(jsonb_build_object(
-                            'category_code',    hg.animal_category_code,
                             'category_name',    ac.name_ru,
                             'breed_name',       br.name_ru,
                             'head_count',       hg.head_count,
                             'avg_weight_kg',    hg.avg_weight_kg
                         ) order by ac.name_ru), '[]'::jsonb)
                         from public.herd_groups hg
-                        left join public.animal_categories ac on ac.code = hg.animal_category_code
+                        left join public.animal_categories ac on ac.id = hg.animal_category_id
                         left join public.breeds br on br.id = hg.breed_id
                         where hg.farm_id = f.id and hg.is_active = true
                     ),
                     'activity_types', (
-                        select coalesce(jsonb_agg(at.name_ru order by at.name_ru), '[]'::jsonb)
+                        select coalesce(jsonb_agg(fat.activity_type order by fat.activity_type), '[]'::jsonb)
                         from public.farm_activity_types fat
-                        join public.activity_types at on at.id = fat.activity_type_id
                         where fat.farm_id = f.id
                     )
                 )), '[]'::jsonb)
@@ -4176,6 +4174,7 @@ begin
         from public.membership_applications ma
         join public.memberships m on m.id = ma.membership_id
         join public.organizations o on o.id = ma.organization_id
+        left join public.organization_type_assignments ota on ota.organization_id = o.id
         left join public.regions r on r.id = o.region_id
         left join public.users rev_u on rev_u.id = ma.reviewed_by
         where ma.id = p_application_id;
@@ -4204,9 +4203,9 @@ begin
                 select jsonb_build_object(
                     'application_id',   ma.id,
                     'org_id',           o.id,
-                    'org_name',         o.name,
-                    'org_type',         o.org_type,
-                    'bin',              o.bin,
+                    'org_name',         o.legal_name,
+                    'org_type',         ota.org_type,
+                    'bin',              o.bin_iin,
                     'region_name',      r.name_ru,
                     'from_level',       ma.from_level,
                     'to_level',         ma.to_level,
@@ -4216,6 +4215,7 @@ begin
                 ) as row_data
                 from public.membership_applications ma
                 join public.organizations o on o.id = ma.organization_id
+                left join public.organization_type_assignments ota on ota.organization_id = o.id
                 left join public.regions r on r.id = o.region_id
                 where (p_status_filter is null or ma.status = p_status_filter)
                 order by ma.submitted_at desc
@@ -4302,7 +4302,7 @@ begin
     v_farmer_org_id := v_app.organization_id;
 
     -- Get org name for notification
-    select o.name into v_org_name
+    select o.legal_name into v_org_name
     from public.organizations o
     where o.id = v_farmer_org_id;
 
