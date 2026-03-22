@@ -48,10 +48,10 @@ export function FloatingInput({
         maxLength={maxLength}
         disabled={disabled}
         className={cn(
-          'reg-input w-full h-14 px-4 pt-5 pb-2 bg-turan-bg-c border rounded-xl text-turan-fg outline-none transition-colors',
+          'reg-input w-full h-14 px-4 pt-5 pb-2 bg-white border rounded-xl text-[#2B180A] outline-none transition-colors',
           error
-            ? 'border-turan-red focus:border-turan-red'
-            : 'border-turan-bd focus:border-turan-fg',
+            ? 'border-red-400 focus:border-red-500'
+            : 'border-[#e8ddd0] focus:border-[#2B180A]',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       />
@@ -59,14 +59,14 @@ export function FloatingInput({
         className={cn(
           'absolute left-4 transition-all duration-200 pointer-events-none',
           focused || hasValue
-            ? 'top-2 text-xs text-turan-fg2'
-            : 'top-4 text-base text-turan-fg3'
+            ? 'top-2 text-xs text-[#6b5744]'
+            : 'top-4 text-base text-[#6b5744]/60'
         )}
       >
         {label}
       </label>
       {error && (
-        <p className="text-xs text-turan-red mt-1 px-1">{error}</p>
+        <p className="text-xs text-red-500 mt-1 px-1">{error}</p>
       )}
     </div>
   )

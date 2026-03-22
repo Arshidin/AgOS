@@ -13,6 +13,7 @@ function ShellGrid({ children }: { children?: ReactNode }) {
 
   return (
     <div
+      data-shell=""
       data-theme={theme}
       style={{
         display: 'grid',

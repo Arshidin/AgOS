@@ -28,9 +28,46 @@
 }
 
 @layer base {
-  /* ═══ TURAN Design System v11 — Dark (default) ═══ */
+  /* ═══ ORIGINAL — Global (landing, registration, login) ═══ */
   :root {
-    /* TURAN v11 semantic tokens */
+    --background: 32 79% 96%;
+    --foreground: 26 65% 10%;
+    --card: 37 30% 93%;
+    --card-foreground: 0 0% 10%;
+    --popover: 37 33% 96%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 24 73% 54%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 10% 83%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 30 10% 83%;
+    --muted-foreground: 24 18% 41%;
+    --accent: 24 73% 54%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 30 8% 83%;
+    --input: 30 8% 83%;
+    --ring: 24 73% 54%;
+    --radius: 1rem;
+    --status-success: #16a34a;
+    --status-warning: #f59e0b;
+    --status-danger: #dc2626;
+    --btn-dark: 30 10% 21%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    --admin-surface: 0 0% 100%;
+    --admin-elevated: 0 0% 100%;
+  }
+
+  /* ═══ TURAN DS v11 — Dark (scoped to AppShell only) ═══ */
+  [data-shell] {
     --bg: #1a1612;
     --bg-s: #211d18;
     --bg-c: #272219;
@@ -52,14 +89,12 @@
     --red: #e06050;
     --mono: 'JetBrains Mono', monospace;
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
-
-    /* Shadows — warm dark */
     --sh-sm: 0 1px 3px rgba(0,0,0,0.30), 0 0 0 1px rgba(255,255,255,0.02);
     --sh-md: 0 4px 12px rgba(0,0,0,0.30);
     --sh-lg: 0 12px 28px rgba(0,0,0,0.40);
     --sh-xl: 0 20px 40px -8px rgba(0,0,0,0.45);
 
-    /* shadcn/ui compatibility mapping */
+    /* shadcn overrides inside shell */
     --background: 20 20% 8%;
     --foreground: 30 18% 88%;
     --card: 25 18% 12%;
@@ -80,13 +115,9 @@
     --input: 28 14% 19%;
     --ring: 28 14% 26%;
     --radius: 0.5rem;
-
-    /* Status */
     --status-success: #5ec47a;
     --status-warning: #f0b040;
     --status-danger: #e06050;
-
-    /* Sidebar */
     --sidebar-background: 25 14% 11%;
     --sidebar-foreground: 30 18% 88%;
     --sidebar-primary: 30 18% 88%;
@@ -95,8 +126,6 @@
     --sidebar-accent-foreground: 30 18% 88%;
     --sidebar-border: 28 14% 19%;
     --sidebar-ring: 28 14% 26%;
-
-    /* Chart colors */
     --chart-1: #6b9fe0;
     --chart-2: #5ec47a;
     --chart-3: #f0b040;
@@ -104,8 +133,8 @@
     --chart-5: #b090c4;
   }
 
-  /* ═══ TURAN Design System v11 — Light ═══ */
-  .light, [data-theme="light"] {
+  /* ═══ TURAN DS v11 — Light (inside AppShell) ═══ */
+  [data-shell][data-theme="light"] {
     --bg: #f0ebe2;
     --bg-s: #e9e3d8;
     --bg-c: #f7f4ee;
@@ -125,14 +154,11 @@
     --green: #3a8a52;
     --amber: #b37a10;
     --red: #c0392b;
-
-    /* Shadows — warm brown base */
     --sh-sm: 0 1px 3px rgba(61,43,31,0.06), 0 0 0 1px rgba(61,43,31,0.04);
     --sh-md: 0 4px 12px rgba(61,43,31,0.08);
     --sh-lg: 0 12px 28px rgba(61,43,31,0.10);
     --sh-xl: 0 20px 40px -8px rgba(61,43,31,0.12);
 
-    /* shadcn/ui compatibility */
     --background: 36 22% 92%;
     --foreground: 22 30% 18%;
     --card: 37 25% 95%;
@@ -152,13 +178,9 @@
     --border: 34 12% 80%;
     --input: 34 12% 80%;
     --ring: 30 12% 72%;
-
-    /* Status */
     --status-success: #3a8a52;
     --status-warning: #b37a10;
     --status-danger: #c0392b;
-
-    /* Sidebar */
     --sidebar-background: 35 20% 88%;
     --sidebar-foreground: 22 30% 18%;
     --sidebar-primary: 22 30% 18%;
@@ -167,8 +189,6 @@
     --sidebar-accent-foreground: 22 30% 18%;
     --sidebar-border: 34 12% 80%;
     --sidebar-ring: 30 12% 72%;
-
-    /* Chart colors */
     --chart-1: #4571b8;
     --chart-2: #3a8a52;
     --chart-3: #b37a10;
@@ -183,21 +203,12 @@
   }
 
   body {
-    @apply text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 13px;
-    line-height: 1.5;
-    background: var(--bg);
-    color: var(--fg);
+    @apply text-foreground font-body antialiased;
+    background: #fdf6ee;
   }
 
-  *:focus-visible {
-    outline: 2px solid var(--bd-h);
-    outline-offset: 2px;
-  }
-
-  *:focus:not(:focus-visible) {
-    outline: none;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
   }
 }
 
@@ -317,16 +328,16 @@
 .reg-btn-primary {
   height: 52px;
   border-radius: 12px;
-  background: var(--cta);
-  color: var(--cta-fg);
+  background: #2B180A;
+  color: #FFFFFF;
   font-size: 16px;
   font-weight: 500;
   border: none;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
 }
 .reg-btn-primary:hover {
-  background: var(--cta-h);
+  opacity: 0.9;
 }
 .reg-btn-primary:disabled {
   opacity: 0.4;
@@ -336,7 +347,7 @@
 .reg-btn-secondary {
   height: 44px;
   background: transparent;
-  color: var(--fg3);
+  color: rgba(43, 24, 10, 0.5);
   font-size: 15px;
   font-weight: 400;
   border: none;
@@ -344,7 +355,7 @@
   transition: color 0.2s;
 }
 .reg-btn-secondary:hover {
-  color: var(--fg2);
+  color: rgba(43, 24, 10, 0.75);
 }
 
 /* ── Step slide animations ── */

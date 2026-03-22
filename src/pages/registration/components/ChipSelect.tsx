@@ -30,7 +30,7 @@ export function ChipSelect({
 
   return (
     <div className="space-y-2">
-      <label className="text-sm text-turan-fg2 font-medium">{label}</label>
+      <label className="text-sm text-[#6b5744] font-medium">{label}</label>
       <div className="flex flex-wrap gap-2">
         {options.map((opt) => {
           const isSelected = value.includes(opt.value)
@@ -42,8 +42,8 @@ export function ChipSelect({
               className={cn(
                 'px-3.5 py-2 rounded-full text-sm border transition-all',
                 isSelected
-                  ? 'bg-turan-fg text-white border-turan-fg'
-                  : 'bg-turan-bg-c text-turan-fg/70 border-turan-bd hover:border-turan-bd-h'
+                  ? 'bg-[#2B180A] text-white border-[#2B180A]'
+                  : 'bg-white text-[#2B180A]/70 border-[#e8ddd0] hover:border-[#2B180A]/30'
               )}
             >
               {opt.label}
@@ -52,7 +52,7 @@ export function ChipSelect({
         })}
       </div>
       {error && (
-        <p className="text-xs text-turan-red mt-1">{error}</p>
+        <p className="text-xs text-red-500 mt-1">{error}</p>
       )}
     </div>
   )

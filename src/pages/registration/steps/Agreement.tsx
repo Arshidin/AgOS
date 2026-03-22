@@ -65,21 +65,21 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-turan-fg font-serif">
+        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
           Завершение регистрации
         </h2>
       </div>
 
       {/* Summary box */}
-      <div className="rounded-2xl p-5" style={{ background: 'color-mix(in srgb, var(--fg) 2%, transparent)' }}>
+      <div className="rounded-2xl p-5" style={{ background: 'rgba(43,24,10,0.02)' }}>
         <div className="flex flex-col gap-3.5">
           {summaryItems.map((item, i) => (
             <div key={i} className="flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-turan-accent/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Check size={12} className="text-turan-accent" strokeWidth={3} />
+              <div className="w-5 h-5 rounded-full bg-[hsl(24,73%,54%)]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Check size={12} className="text-[hsl(24,73%,54%)]" strokeWidth={3} />
               </div>
-              <p className="text-sm leading-relaxed text-turan-fg2">
-                <span className="text-turan-fg font-medium">{item.label}:</span>{' '}
+              <p className="text-sm leading-relaxed text-[#6b5744]">
+                <span className="text-[#2B180A] font-medium">{item.label}:</span>{' '}
                 {item.value}
               </p>
             </div>
@@ -104,23 +104,23 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
               className={cn(
                 'w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200',
                 formData.consent_terms
-                  ? 'bg-turan-fg border-turan-fg'
+                  ? 'bg-[#2B180A] border-[#2B180A]'
                   : errors.consent_terms
-                    ? 'border-turan-red bg-turan-bg-c'
-                    : 'border-turan-bd-h bg-turan-bg-c',
+                    ? 'border-[#E53935] bg-white'
+                    : 'border-[rgba(43,24,10,0.2)] bg-white',
               )}
             >
               {formData.consent_terms && <Check size={14} className="text-white" strokeWidth={3} />}
             </div>
           </div>
-          <span className="text-sm leading-relaxed text-turan-fg/80">
+          <span className="text-sm leading-relaxed text-[#2B180A]/80">
             Согласен с{' '}
             <a
               href="/membership-policy"
               target="_blank"
               rel="noopener noreferrer"
               className="underline"
-              style={{ color: 'var(--accent)' }}
+              style={{ color: '#C4883A' }}
               onClick={(e) => e.stopPropagation()}
             >
               условиями использования платформы
@@ -128,7 +128,7 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
           </span>
         </label>
         {errors.consent_terms && (
-          <p className="text-xs text-turan-red ml-9 -mt-2 mb-2">{errors.consent_terms}</p>
+          <p className="text-xs text-[#E53935] ml-9 -mt-2 mb-2">{errors.consent_terms}</p>
         )}
 
         <label className="flex items-start gap-3 cursor-pointer">
@@ -146,33 +146,33 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
               className={cn(
                 'w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200',
                 formData.consent_data
-                  ? 'bg-turan-fg border-turan-fg'
+                  ? 'bg-[#2B180A] border-[#2B180A]'
                   : errors.consent_data
-                    ? 'border-turan-red bg-turan-bg-c'
-                    : 'border-turan-bd-h bg-turan-bg-c',
+                    ? 'border-[#E53935] bg-white'
+                    : 'border-[rgba(43,24,10,0.2)] bg-white',
               )}
             >
               {formData.consent_data && <Check size={14} className="text-white" strokeWidth={3} />}
             </div>
           </div>
-          <span className="text-sm leading-relaxed text-turan-fg/80">
+          <span className="text-sm leading-relaxed text-[#2B180A]/80">
             Согласен на обработку персональных данных
           </span>
         </label>
         {errors.consent_data && (
-          <p className="text-xs text-turan-red ml-9 -mt-2 mb-2">{errors.consent_data}</p>
+          <p className="text-xs text-[#E53935] ml-9 -mt-2 mb-2">{errors.consent_data}</p>
         )}
 
         {/* How heard */}
         <button
           type="button"
           onClick={() => setHowHeardOpen(true)}
-          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
+          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
         >
-          <span className={selectedHowHeard ? 'text-turan-fg' : 'text-turan-fg2/60'}>
+          <span className={selectedHowHeard ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
             {selectedHowHeard?.label || 'Как узнали о нас? (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-turan-fg2/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>

@@ -15,12 +15,14 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", ...defaultTheme.fontFamily.sans],
-        mono: ["JetBrains Mono", "Fira Code", ...defaultTheme.fontFamily.mono],
-        // Legacy — kept for landing page only
+        // Original — landing, registration, login
         serif: ['"PT Serif"', "Georgia", "serif"],
         body: ["Source Sans 3", "system-ui", "sans-serif"],
         heading: ['"Cormorant Garamond"', "Georgia", "serif"],
+        sans: ['"DM Sans"', "-apple-system", "sans-serif"],
+        // DS v11 — AppShell only
+        inter: ["Inter", ...defaultTheme.fontFamily.sans],
+        mono: ["JetBrains Mono", "Fira Code", ...defaultTheme.fontFamily.mono],
       },
       colors: {
         // TURAN v11 semantic tokens
