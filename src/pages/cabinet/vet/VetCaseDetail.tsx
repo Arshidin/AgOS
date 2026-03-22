@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, AlertTriangle, Clock, Shield } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { StatusBadge, SeverityBadge } from '@/components/ui/status-badge'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -173,7 +174,7 @@ export function VetCaseDetail() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="p-7 max-w-3xl space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
@@ -184,10 +185,8 @@ export function VetCaseDetail() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h2 className="text-lg font-semibold text-[var(--fg)] font-serif">
-              Ветеринарный случай
-            </h2>
-            <div className="flex items-center gap-2 mt-1">
+            <PageHeader title="Ветеринарный случай" />
+            <div className="flex items-center gap-2">
               <StatusBadge status={vetCase.status} />
               <SeverityBadge severity={vetCase.severity} />
             </div>
@@ -244,7 +243,7 @@ export function VetCaseDetail() {
       )}
 
       {/* Case info */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-2">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-2">
         <div className="flex items-center justify-between text-xs text-[var(--fg2)]">
           <span>
             {new Date(vetCase.created_at).toLocaleDateString('ru-RU', {
@@ -273,7 +272,7 @@ export function VetCaseDetail() {
       </div>
 
       {/* Symptoms */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Симптомы</h3>
         <blockquote className="text-sm text-[var(--fg)]/80 bg-[var(--bg)] p-3 rounded-lg border-l-3 border-[var(--cta)] italic">
           {vetCase.symptoms_text}
@@ -294,7 +293,7 @@ export function VetCaseDetail() {
       </div>
 
       {/* Diagnoses */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Диагноз</h3>
 
         {vetCase.diagnoses.length > 0 ? (
@@ -338,7 +337,7 @@ export function VetCaseDetail() {
       </div>
 
       {/* Recommendations */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Рекомендации</h3>
 
         {vetCase.recommendations.length > 0 ? (
@@ -401,7 +400,7 @@ export function VetCaseDetail() {
       </div>
 
       {/* Timeline placeholder */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Хронология</h3>
         <div className="space-y-3">
           {/* Case created */}

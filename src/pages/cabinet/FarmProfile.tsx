@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, Plus, Pencil, Stethoscope } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -237,11 +238,12 @@ export function FarmProfile() {
     : 'Зарегистрирован'
 
   return (
-    <div className="space-y-6">
+    <div className="p-7 max-w-3xl space-y-6">
       {/* Header */}
+      <PageHeader title="Профиль фермы" description="Данные о вашем хозяйстве" />
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-[var(--fg)] font-serif">
+          <h2 className="text-lg font-semibold text-[var(--fg)] font-serif">
             {farm?.name || 'Моя ферма'}
           </h2>
           <StatusBadge status={membershipBadgeStatus} label={membershipLabel} className="mt-1" />
@@ -250,7 +252,7 @@ export function FarmProfile() {
 
       {/* Health restrictions warning */}
       {userContext?.health_restrictions && userContext.health_restrictions.length > 0 && (
-        <div className="p-3 rounded-xl" style={{ background: 'rgba(192,57,43,0.08)', borderWidth: 1, borderStyle: 'solid', borderColor: 'rgba(192,57,43,0.15)' }}>
+        <div className="p-3 rounded-[10px]" style={{ background: 'rgba(192,57,43,0.08)', borderWidth: 1, borderStyle: 'solid', borderColor: 'rgba(192,57,43,0.15)' }}>
           <p className="text-sm font-medium" style={{ color: 'var(--red)' }}>
             Ограничение на продажу
           </p>
@@ -263,7 +265,7 @@ export function FarmProfile() {
       )}
 
       {/* Farm Info Section */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-4">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
         <h3 className="text-sm font-medium text-[var(--fg)]">Данные фермы</h3>
 
         <div className="space-y-3">
@@ -317,7 +319,7 @@ export function FarmProfile() {
       </div>
 
       {/* Activity Types */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Виды деятельности</h3>
         <div className="space-y-2">
           {ACTIVITY_TYPES.map((at) => (
@@ -335,7 +337,7 @@ export function FarmProfile() {
       </div>
 
       {/* Herd Groups */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-4">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-[var(--fg)]">Группы животных</h3>
           <button
@@ -487,7 +489,7 @@ export function FarmProfile() {
       {/* Navigate to vet */}
       <button
         onClick={() => navigate('/cabinet/vet/new')}
-        className="w-full flex items-center gap-3 p-4 rounded-xl transition-colors text-left"
+        className="w-full flex items-center gap-3 p-4 rounded-[10px] transition-colors text-left"
         style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.10)' }}
       >
         <Stethoscope className="h-5 w-5 shrink-0" style={{ color: 'var(--red)' }} />

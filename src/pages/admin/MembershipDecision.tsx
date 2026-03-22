@@ -144,7 +144,7 @@ export function MembershipDecision() {
           <ArrowLeft className="h-4 w-4" />
           Назад к списку
         </button>
-        <div className="p-6 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] text-center">
+        <div className="p-6 bg-card rounded-[10px] border border-border text-center">
           <p className="text-sm text-[var(--fg2)]">Заявка не найдена</p>
         </div>
       </div>
@@ -157,7 +157,7 @@ export function MembershipDecision() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="p-7 max-w-3xl space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -174,9 +174,9 @@ export function MembershipDecision() {
       </div>
 
       {/* Organization card */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[var(--bg-s)] rounded-lg">
+          <div className="w-11 h-11 rounded-[10px] flex items-center justify-center bg-[var(--bg-s)]">
             <Building2 className="h-5 w-5 text-[var(--fg2)]" />
           </div>
           <div>
@@ -212,7 +212,7 @@ export function MembershipDecision() {
 
       {/* Farm summary (if farmer) */}
       {detail.farms.length > 0 && (
-        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg)] flex items-center gap-2">
             <Leaf className="h-4 w-4" style={{ color: 'var(--green)' }} />
             Хозяйство
@@ -267,7 +267,7 @@ export function MembershipDecision() {
       )}
 
       {/* Application info */}
-      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+      <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
         <h3 className="text-sm font-medium text-[var(--fg)]">Заявка</h3>
         <div className="flex items-center gap-2 text-sm text-[var(--fg2)]">
           <span>{LEVEL_LABELS[detail.from_level] ?? detail.from_level}</span>
@@ -288,7 +288,7 @@ export function MembershipDecision() {
 
       {/* Application history */}
       {detail.application_history.length > 0 && (
-        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg)]">Предыдущие заявки</h3>
           <div className="space-y-2">
             {detail.application_history.map((prev) => (
@@ -311,7 +311,7 @@ export function MembershipDecision() {
       {/* Decision result (if already decided) */}
       {!canDecide && (detail.status === 'approved' || detail.status === 'rejected') && (
         <div
-          className="rounded-xl border p-5 space-y-2"
+          className="rounded-[10px] border p-5 space-y-2"
           style={{
             background: detail.status === 'approved' ? 'rgba(58,138,82,0.08)' : 'rgba(192,57,43,0.08)',
             borderColor: detail.status === 'approved' ? 'var(--green)' : 'var(--red)',
@@ -340,7 +340,7 @@ export function MembershipDecision() {
 
       {/* Decision section (only for pending applications) */}
       {canDecide && (
-        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-4">
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
           <h3 className="text-sm font-medium text-[var(--fg)]">Решение</h3>
 
           <textarea
@@ -380,7 +380,7 @@ export function MembershipDecision() {
       {/* Confirmation dialog */}
       {confirmAction && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-[var(--bg-c)] rounded-xl p-6 max-w-sm w-full space-y-4" role="alertdialog" aria-labelledby="confirm-dialog-title">
+          <div className="bg-card rounded-[10px] p-6 max-w-sm w-full space-y-4" role="alertdialog" aria-labelledby="confirm-dialog-title">
             <h3 id="confirm-dialog-title" className="font-medium text-[var(--fg)]">
               {confirmAction === 'approved' ? 'Одобрить заявку?' : 'Отклонить заявку?'}
             </h3>

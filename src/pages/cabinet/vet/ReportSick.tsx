@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
@@ -95,15 +96,8 @@ export function ReportSick() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-[var(--fg)] font-serif">
-          Сообщить о болезни
-        </h2>
-        <p className="text-sm text-[var(--fg2)] mt-1">
-          Опишите симптомы, AI проанализирует и даст рекомендации
-        </p>
-      </div>
+    <div className="p-7 max-w-3xl space-y-6">
+      <PageHeader title="Сообщить о болезни" description="AI проанализирует симптомы" />
 
       <div className="space-y-4">
         {/* Farm selector */}

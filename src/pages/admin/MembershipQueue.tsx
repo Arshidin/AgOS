@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Inbox } from 'lucide-react'
+import { Inbox } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
 import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
@@ -101,21 +102,15 @@ export function MembershipQueue() {
   const totalPages = Math.ceil(totalCount / 20)
 
   return (
-    <div className="space-y-5">
+    <div className="p-7 max-w-3xl space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-[var(--blue)]" />
-          <h2 className="text-xl font-semibold text-[var(--fg)]">
-            Заявки на членство
-          </h2>
-          {totalCount > 0 && (
-            <span className="px-2 py-0.5 text-[var(--blue)] rounded-full text-xs font-medium" style={{ background: 'rgba(69,113,184,0.08)' }}>
-              {totalCount}
-            </span>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Заявки на членство" actions={
+        totalCount > 0 ? (
+          <span className="px-2 py-0.5 text-[var(--blue)] rounded-full text-xs font-medium" style={{ background: 'rgba(69,113,184,0.12)' }}>
+            {totalCount}
+          </span>
+        ) : undefined
+      } />
 
       {/* Status filter tabs */}
       <div className="flex gap-1 bg-[var(--bg-s)] p-1 rounded-lg overflow-x-auto">
@@ -159,7 +154,7 @@ export function MembershipQueue() {
               <button
                 key={app.application_id}
                 onClick={() => navigate(`/admin/membership/${app.application_id}`)}
-                className="w-full p-4 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] hover:border-[var(--blue)] hover:shadow-sm transition-all text-left"
+                className="w-full p-4 bg-card rounded-[10px] border border-border hover:border-[var(--blue)] hover:shadow-sm transition-all text-left"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
