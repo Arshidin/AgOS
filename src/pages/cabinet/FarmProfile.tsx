@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
 import { StatusBadge } from '@/components/ui/status-badge'
 import type { Farm, HerdGroup } from '@/contexts/AuthContext'
 

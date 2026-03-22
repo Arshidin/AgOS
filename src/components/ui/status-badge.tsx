@@ -53,7 +53,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, label, showDot = true, className = '' }: StatusBadgeProps) {
-  const style = STATUS_STYLES[status] || STATUS_STYLES.open
+  const fallback = { bg: 'rgba(69,113,184,0.08)', fg: 'var(--blue)', dot: 'var(--blue)' }
+  const style = STATUS_STYLES[status] ?? fallback
   const displayLabel = label || STATUS_LABELS[status] || status
 
   return (
@@ -80,7 +81,8 @@ interface SeverityBadgeProps {
 
 export function SeverityBadge({ severity, label, className = '' }: SeverityBadgeProps) {
   if (!severity) return null
-  const style = SEVERITY_STYLES[severity] || SEVERITY_STYLES.minor
+  const fallback = { bg: 'rgba(58,138,82,0.08)', fg: 'var(--green)' }
+  const style = SEVERITY_STYLES[severity] ?? fallback
   const displayLabel = label || SEVERITY_LABELS[severity] || severity
 
   return (

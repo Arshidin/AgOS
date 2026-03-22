@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { cn } from '@/lib/utils'
 
 /**
  * A02 — Membership Decision
