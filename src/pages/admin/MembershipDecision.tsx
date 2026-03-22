@@ -139,13 +139,13 @@ export function MembershipDecision() {
       <div className="space-y-4">
         <button
           onClick={() => navigate('/admin/membership')}
-          className="flex items-center gap-2 text-sm text-[#64748b] hover:text-[#1a1a2e]"
+          className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
         >
           <ArrowLeft className="h-4 w-4" />
           Назад к списку
         </button>
-        <div className="p-6 bg-white rounded-xl border border-[#e2e8f0] text-center">
-          <p className="text-sm text-[#64748b]">Заявка не найдена</p>
+        <div className="p-6 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] text-center">
+          <p className="text-sm text-[var(--fg2)]">Заявка не найдена</p>
         </div>
       </div>
     )
@@ -164,12 +164,12 @@ export function MembershipDecision() {
         <div>
           <button
             onClick={() => navigate('/admin/membership')}
-            className="flex items-center gap-1.5 text-sm text-[#64748b] hover:text-[#1a1a2e] mb-2"
+            className="flex items-center gap-1.5 text-sm text-[var(--fg2)] hover:text-[var(--fg)] mb-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Назад к списку
           </button>
-          <h2 className="text-xl font-semibold text-[#1a1a2e]">Заявка на членство</h2>
+          <h2 className="text-xl font-semibold text-[var(--fg)]">Заявка на членство</h2>
         </div>
         <span className={cn('px-2.5 py-1 rounded text-xs font-medium', statusInfo.className)}>
           {statusInfo.label}
@@ -177,36 +177,36 @@ export function MembershipDecision() {
       </div>
 
       {/* Organization card */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] p-5 space-y-3">
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[#f1f5f9] rounded-lg">
-            <Building2 className="h-5 w-5 text-[#64748b]" />
+          <div className="p-2 bg-[var(--bg-s)] rounded-lg">
+            <Building2 className="h-5 w-5 text-[var(--fg2)]" />
           </div>
           <div>
-            <h3 className="font-medium text-[#1a1a2e]">{detail.org_name}</h3>
-            <span className="text-xs text-[#64748b]">
+            <h3 className="font-medium text-[var(--fg)]">{detail.org_name}</h3>
+            <span className="text-xs text-[var(--fg2)]">
               {ORG_TYPE_LABELS[detail.org_type] ?? detail.org_type}
             </span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           {detail.bin && (
-            <div className="flex items-center gap-2 text-[#64748b]">
+            <div className="flex items-center gap-2 text-[var(--fg2)]">
               <Hash className="h-3.5 w-3.5" />
               <span>БИН: {detail.bin}</span>
             </div>
           )}
           {detail.region_name && (
-            <div className="flex items-center gap-2 text-[#64748b]">
+            <div className="flex items-center gap-2 text-[var(--fg2)]">
               <MapPin className="h-3.5 w-3.5" />
               <span>{detail.region_name}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-[#64748b]">
+          <div className="flex items-center gap-2 text-[var(--fg2)]">
             <Calendar className="h-3.5 w-3.5" />
             <span>Регистрация: {new Date(detail.org_created_at).toLocaleDateString('ru-RU')}</span>
           </div>
-          <div className="flex items-center gap-2 text-[#64748b]">
+          <div className="flex items-center gap-2 text-[var(--fg2)]">
             <Users2 className="h-3.5 w-3.5" />
             <span>Уровень: {LEVEL_LABELS[detail.membership_level] ?? detail.membership_level}</span>
           </div>
@@ -215,20 +215,20 @@ export function MembershipDecision() {
 
       {/* Farm summary (if farmer) */}
       {detail.farms.length > 0 && (
-        <div className="bg-white rounded-xl border border-[#e2e8f0] p-5 space-y-3">
-          <h3 className="text-sm font-medium text-[#1a1a2e] flex items-center gap-2">
+        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+          <h3 className="text-sm font-medium text-[var(--fg)] flex items-center gap-2">
             <Leaf className="h-4 w-4 text-green-600" />
             Хозяйство
           </h3>
           {detail.farms.map((farm) => (
             <div key={farm.farm_id} className="space-y-2">
-              <p className="text-sm font-medium text-[#1a1a2e]">{farm.farm_name}</p>
+              <p className="text-sm font-medium text-[var(--fg)]">{farm.farm_name}</p>
 
               {farm.herd_groups.length > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-[#64748b] border-b border-[#e2e8f0]">
+                      <tr className="text-[var(--fg2)] border-b border-[var(--bd)]">
                         <th className="text-left py-1.5 font-medium">Группа</th>
                         <th className="text-left py-1.5 font-medium">Порода</th>
                         <th className="text-right py-1.5 font-medium">Голов</th>
@@ -237,11 +237,11 @@ export function MembershipDecision() {
                     </thead>
                     <tbody>
                       {farm.herd_groups.map((hg, idx) => (
-                        <tr key={idx} className="border-b border-[#f1f5f9] last:border-0">
-                          <td className="py-1.5 text-[#1a1a2e]">{hg.category_name}</td>
-                          <td className="py-1.5 text-[#64748b]">{hg.breed_name ?? '—'}</td>
-                          <td className="py-1.5 text-right text-[#1a1a2e]">{hg.head_count}</td>
-                          <td className="py-1.5 text-right text-[#64748b]">
+                        <tr key={idx} className="border-b border-[var(--bg-s)] last:border-0">
+                          <td className="py-1.5 text-[var(--fg)]">{hg.category_name}</td>
+                          <td className="py-1.5 text-[var(--fg2)]">{hg.breed_name ?? '—'}</td>
+                          <td className="py-1.5 text-right text-[var(--fg)]">{hg.head_count}</td>
+                          <td className="py-1.5 text-right text-[var(--fg2)]">
                             {hg.avg_weight_kg ? `${hg.avg_weight_kg} кг` : '—'}
                           </td>
                         </tr>
@@ -252,7 +252,7 @@ export function MembershipDecision() {
               )}
 
               {totalHeads > 0 && (
-                <p className="text-xs text-[#64748b]">Всего: {totalHeads} голов</p>
+                <p className="text-xs text-[var(--fg2)]">Всего: {totalHeads} голов</p>
               )}
 
               {farm.activity_types.length > 0 && (
@@ -270,20 +270,20 @@ export function MembershipDecision() {
       )}
 
       {/* Application info */}
-      <div className="bg-white rounded-xl border border-[#e2e8f0] p-5 space-y-3">
-        <h3 className="text-sm font-medium text-[#1a1a2e]">Заявка</h3>
-        <div className="flex items-center gap-2 text-sm text-[#64748b]">
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Заявка</h3>
+        <div className="flex items-center gap-2 text-sm text-[var(--fg2)]">
           <span>{LEVEL_LABELS[detail.from_level] ?? detail.from_level}</span>
           <span>→</span>
-          <span className="font-medium text-[#1a1a2e]">{LEVEL_LABELS[detail.to_level] ?? detail.to_level}</span>
+          <span className="font-medium text-[var(--fg)]">{LEVEL_LABELS[detail.to_level] ?? detail.to_level}</span>
         </div>
-        <p className="text-xs text-[#94a3b8]">
+        <p className="text-xs text-[var(--fg3)]">
           Подана: {new Date(detail.submitted_at).toLocaleDateString('ru-RU', {
             day: 'numeric', month: 'long', year: 'numeric'
           })}
         </p>
         {detail.notes && (
-          <blockquote className="text-sm text-[#1a1a2e]/80 bg-[#f8f9fa] p-3 rounded-lg border-l-3 border-[#4361ee] italic">
+          <blockquote className="text-sm text-[var(--fg)]/80 bg-[var(--bg)] p-3 rounded-lg border-l-3 border-[var(--blue)] italic">
             {detail.notes}
           </blockquote>
         )}
@@ -291,23 +291,23 @@ export function MembershipDecision() {
 
       {/* Application history */}
       {detail.application_history.length > 0 && (
-        <div className="bg-white rounded-xl border border-[#e2e8f0] p-5 space-y-3">
-          <h3 className="text-sm font-medium text-[#1a1a2e]">Предыдущие заявки</h3>
+        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
+          <h3 className="text-sm font-medium text-[var(--fg)]">Предыдущие заявки</h3>
           <div className="space-y-2">
             {detail.application_history.map((prev) => {
               const prevStatus = STATUS_BADGES[prev.status]
               return (
-                <div key={prev.id} className="flex items-center justify-between text-xs p-2 bg-[#f8f9fa] rounded-lg">
+                <div key={prev.id} className="flex items-center justify-between text-xs p-2 bg-[var(--bg)] rounded-lg">
                   <div className="flex items-center gap-2">
                     <span className={cn('px-1.5 py-0.5 rounded', prevStatus?.className ?? 'bg-gray-100')}>
                       {prevStatus?.label ?? prev.status}
                     </span>
-                    <span className="text-[#64748b]">
+                    <span className="text-[var(--fg2)]">
                       {new Date(prev.submitted_at).toLocaleDateString('ru-RU')}
                     </span>
                   </div>
                   {prev.reviewer_notes && (
-                    <span className="text-[#94a3b8] truncate max-w-[200px]">{prev.reviewer_notes}</span>
+                    <span className="text-[var(--fg3)] truncate max-w-[200px]">{prev.reviewer_notes}</span>
                   )}
                 </div>
               )
@@ -332,21 +332,21 @@ export function MembershipDecision() {
             </span>
           </div>
           {detail.reviewed_at && (
-            <p className="text-xs text-[#64748b]">
+            <p className="text-xs text-[var(--fg2)]">
               {new Date(detail.reviewed_at).toLocaleDateString('ru-RU', {
                 day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
               })}
               {detail.reviewer_name && ` — ${detail.reviewer_name}`}
             </p>
           )}
-          {detail.notes && <p className="text-sm text-[#64748b]">{detail.notes}</p>}
+          {detail.notes && <p className="text-sm text-[var(--fg2)]">{detail.notes}</p>}
         </div>
       )}
 
       {/* Decision section (only for pending applications) */}
       {canDecide && (
-        <div className="bg-white rounded-xl border border-[#e2e8f0] p-5 space-y-4">
-          <h3 className="text-sm font-medium text-[#1a1a2e]">Решение</h3>
+        <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-4">
+          <h3 className="text-sm font-medium text-[var(--fg)]">Решение</h3>
 
           <textarea
             value={reviewerNotes}
@@ -354,14 +354,14 @@ export function MembershipDecision() {
             placeholder="Комментарий к решению (опционально)"
             maxLength={1000}
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg bg-[#f8f9fa] focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30 focus:border-[#4361ee] resize-none"
+            className="w-full px-3 py-2 text-sm border border-[var(--bd)] rounded-lg bg-[var(--bg)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:border-[var(--blue)] resize-none"
           />
 
           <div className="flex gap-3">
             <button
               onClick={() => setConfirmAction('approved')}
               disabled={processMutation.isPending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#22c55e] text-white rounded-lg font-medium text-sm hover:bg-[#16a34a] disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--green)] text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
             >
               <CheckCircle className="h-4 w-4" />
               Одобрить
@@ -369,7 +369,7 @@ export function MembershipDecision() {
             <button
               onClick={() => setConfirmAction('rejected')}
               disabled={processMutation.isPending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#ef4444] text-white rounded-lg font-medium text-sm hover:bg-[#dc2626] disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--red)] text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
             >
               <XCircle className="h-4 w-4" />
               Отклонить
@@ -381,11 +381,11 @@ export function MembershipDecision() {
       {/* Confirmation dialog */}
       {confirmAction && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-medium text-[#1a1a2e]">
+          <div className="bg-[var(--bg-c)] rounded-xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-medium text-[var(--fg)]">
               {confirmAction === 'approved' ? 'Одобрить заявку?' : 'Отклонить заявку?'}
             </h3>
-            <p className="text-sm text-[#64748b]">
+            <p className="text-sm text-[var(--fg2)]">
               {confirmAction === 'approved'
                 ? `${detail.org_name} получит статус "${LEVEL_LABELS[detail.to_level] ?? detail.to_level}". Фермер получит уведомление в WhatsApp.`
                 : `Заявка ${detail.org_name} будет отклонена. Фермер получит уведомление в WhatsApp.`
@@ -394,7 +394,7 @@ export function MembershipDecision() {
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmAction(null)}
-                className="flex-1 px-4 py-2 border border-[#e2e8f0] rounded-lg text-sm text-[#64748b] hover:bg-[#f8f9fa]"
+                className="flex-1 px-4 py-2 border border-[var(--bd)] rounded-lg text-sm text-[var(--fg2)] hover:bg-[var(--bg)]"
               >
                 Отмена
               </button>
@@ -403,7 +403,7 @@ export function MembershipDecision() {
                 disabled={processMutation.isPending}
                 className={cn(
                   'flex-1 px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50',
-                  confirmAction === 'approved' ? 'bg-[#22c55e] hover:bg-[#16a34a]' : 'bg-[#ef4444] hover:bg-[#dc2626]'
+                  confirmAction === 'approved' ? 'bg-[var(--green)] hover:brightness-90' : 'bg-[var(--red)] hover:brightness-90'
                 )}
               >
                 {processMutation.isPending ? (

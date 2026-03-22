@@ -1,7 +1,8 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 export default {
-  darkMode: ["class"],
+  darkMode: ["class", "[data-theme='dark']"],
   content: ["./src/**/*.{ts,tsx}", "./index.html"],
   prefix: "",
   theme: {
@@ -14,12 +15,38 @@ export default {
     },
     extend: {
       fontFamily: {
+        // Original — landing, registration, login
         serif: ['"PT Serif"', "Georgia", "serif"],
         body: ["Source Sans 3", "system-ui", "sans-serif"],
         heading: ['"Cormorant Garamond"', "Georgia", "serif"],
         sans: ['"DM Sans"', "-apple-system", "sans-serif"],
+        // DS v11 — AppShell only
+        inter: ["Inter", ...defaultTheme.fontFamily.sans],
+        mono: ["JetBrains Mono", "Fira Code", ...defaultTheme.fontFamily.mono],
       },
       colors: {
+        // TURAN v11 semantic tokens
+        turan: {
+          bg: "var(--bg)",
+          "bg-s": "var(--bg-s)",
+          "bg-c": "var(--bg-c)",
+          "bg-m": "var(--bg-m)",
+          fg: "var(--fg)",
+          fg2: "var(--fg2)",
+          fg3: "var(--fg3)",
+          bd: "var(--bd)",
+          "bd-s": "var(--bd-s)",
+          "bd-h": "var(--bd-h)",
+          accent: "var(--accent)",
+          cta: "var(--cta)",
+          "cta-fg": "var(--cta-fg)",
+          "cta-h": "var(--cta-h)",
+          blue: "var(--blue)",
+          green: "var(--green)",
+          amber: "var(--amber)",
+          red: "var(--red)",
+        },
+        // shadcn/ui compatibility
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -42,7 +69,7 @@ export default {
           foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: "hsl(var(--accent))",
+          DEFAULT: "hsl(var(--accent-hsl))",
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
@@ -52,10 +79,6 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
-        },
-        admin: {
-          surface: "hsl(var(--admin-surface))",
-          elevated: "hsl(var(--admin-elevated))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -73,6 +96,12 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         pill: "9999px",
+      },
+      boxShadow: {
+        "turan-sm": "var(--sh-sm)",
+        "turan-md": "var(--sh-md)",
+        "turan-lg": "var(--sh-lg)",
+        "turan-xl": "var(--sh-xl)",
       },
       keyframes: {
         "accordion-down": {

@@ -8,12 +8,11 @@ import { RequireAdmin } from '@/components/guards/RequireAdmin'
 import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
-import { CabinetLayout } from '@/pages/cabinet/CabinetLayout'
+import { AppShell } from '@/components/layout/AppShell'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
 import { VetCaseDetail } from '@/pages/cabinet/vet/VetCaseDetail'
 import { CabinetDashboard } from '@/pages/cabinet/CabinetDashboard'
-import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
@@ -44,7 +43,7 @@ function App() {
             <Route path="/membership-policy" element={<Suspense fallback={null}><MembershipPolicy /></Suspense>} />
 
             <Route element={<RequireAuth />}>
-              <Route path="/cabinet" element={<CabinetLayout />}>
+              <Route path="/cabinet" element={<AppShell />}>
                 <Route index element={<CabinetDashboard />} />
                 <Route path="farm" element={<FarmProfile />} />
                 <Route path="vet/new" element={<ReportSick />} />
@@ -53,7 +52,7 @@ function App() {
             </Route>
 
             <Route element={<RequireAdmin />}>
-              <Route path="/admin" element={<AdminLayout />}>
+              <Route path="/admin" element={<AppShell />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="membership" element={<MembershipQueue />} />
                 <Route path="membership/:applicationId" element={<MembershipDecision />} />
