@@ -101,38 +101,38 @@
     --sh-lg: 0 12px 28px rgba(0,0,0,0.40);
     --sh-xl: 0 20px 40px -8px rgba(0,0,0,0.45);
 
-    /* shadcn overrides inside shell */
-    --background: 30 5% 7%;
-    --foreground: 30 8% 88%;
-    --card: 30 4% 13%;
-    --card-foreground: 30 8% 88%;
-    --popover: 30 4% 13%;
-    --popover-foreground: 30 8% 88%;
-    --primary: 30 8% 88%;
-    --primary-foreground: 30 5% 7%;
-    --secondary: 30 4% 16%;
-    --secondary-foreground: 30 8% 88%;
-    --muted: 30 4% 16%;
-    --muted-foreground: 25 4% 39%;
-    --accent-hsl: 38 90% 53%;
-    --accent-foreground: 20 20% 8%;
-    --destructive: 6 70% 60%;
-    --destructive-foreground: 30 8% 96%;
-    --border: 30 4% 17%;
-    --input: 30 4% 17%;
-    --ring: 25 5% 24%;
+    /* shadcn overrides — exact HSL from hex targets */
+    --background: 30 5.3% 7.5%;         /* #141312 */
+    --foreground: 36 16.7% 88.2%;       /* #e6e2dc */
+    --card: 30 3% 12.9%;                /* #222120 */
+    --card-foreground: 36 16.7% 88.2%;  /* #e6e2dc */
+    --popover: 30 3% 12.9%;             /* #222120 */
+    --popover-foreground: 36 16.7% 88.2%;
+    --primary: 36 16.7% 88.2%;          /* #e6e2dc — CTA bg */
+    --primary-foreground: 30 5.3% 7.5%; /* #141312 — CTA text */
+    --secondary: 45 4.8% 16.5%;         /* #2c2b28 */
+    --secondary-foreground: 36 16.7% 88.2%;
+    --muted: 45 4.8% 16.5%;             /* #2c2b28 */
+    --muted-foreground: 30 4% 39.2%;    /* #686460 */
+    --accent-hsl: 38 88% 53%;           /* #F0A020 */
+    --accent-foreground: 30 5.3% 7.5%;
+    --destructive: 6 70% 60%;           /* #e06050 */
+    --destructive-foreground: 36 16.7% 96%;
+    --border: 40 6.7% 17.6%;            /* #302e2a */
+    --input: 40 6.7% 17.6%;             /* #302e2a */
+    --ring: 40 9.7% 24.3%;              /* #444038 */
     --radius: 0.5rem;
     --status-success: #5ec47a;
     --status-warning: #f0b040;
     --status-danger: #e06050;
-    --sidebar-background: 30 4% 10%;
-    --sidebar-foreground: 30 8% 88%;
-    --sidebar-primary: 30 8% 88%;
-    --sidebar-primary-foreground: 30 5% 7%;
-    --sidebar-accent: 30 4% 16%;
-    --sidebar-accent-foreground: 30 8% 88%;
-    --sidebar-border: 30 4% 17%;
-    --sidebar-ring: 25 5% 24%;
+    --sidebar-background: 40 5.9% 10%;  /* #1b1a18 */
+    --sidebar-foreground: 36 16.7% 88.2%;
+    --sidebar-primary: 36 16.7% 88.2%;
+    --sidebar-primary-foreground: 30 5.3% 7.5%;
+    --sidebar-accent: 45 4.8% 16.5%;    /* #2c2b28 */
+    --sidebar-accent-foreground: 36 16.7% 88.2%;
+    --sidebar-border: 40 6.7% 17.6%;    /* #302e2a */
+    --sidebar-ring: 40 9.7% 24.3%;      /* #444038 */
     --chart-1: #6b9fe0;
     --chart-2: #5ec47a;
     --chart-3: #f0b040;
@@ -166,36 +166,37 @@
     --sh-lg: 0 12px 28px rgba(61,43,31,0.10);
     --sh-xl: 0 20px 40px -8px rgba(61,43,31,0.12);
 
-    --background: 36 22% 92%;
-    --foreground: 22 30% 18%;
-    --card: 37 25% 95%;
-    --card-foreground: 22 30% 18%;
-    --popover: 37 25% 95%;
-    --popover-foreground: 22 30% 18%;
-    --primary: 22 30% 18%;
-    --primary-foreground: 37 40% 97%;
-    --secondary: 34 18% 84%;
-    --secondary-foreground: 22 30% 18%;
-    --muted: 34 18% 84%;
-    --muted-foreground: 30 12% 62%;
-    --accent-hsl: 36 90% 48%;
-    --accent-foreground: 22 30% 18%;
-    --destructive: 4 65% 48%;
-    --destructive-foreground: 37 40% 97%;
-    --border: 34 12% 80%;
-    --input: 34 12% 80%;
-    --ring: 30 12% 72%;
+    /* shadcn overrides — exact HSL from hex targets */
+    --background: 39 31.8% 91.4%;       /* #f0ebe2 */
+    --foreground: 24 32.6% 18%;         /* #3d2b1f */
+    --card: 40 36% 95.1%;              /* #f7f4ee */
+    --card-foreground: 24 32.6% 18%;
+    --popover: 40 36% 95.1%;
+    --popover-foreground: 24 32.6% 18%;
+    --primary: 24 32.6% 18%;            /* #3d2b1f — CTA bg */
+    --primary-foreground: 40 37.5% 96.9%; /* #faf8f4 — CTA text */
+    --secondary: 39 23.3% 85.7%;        /* #e3ddd2 */
+    --secondary-foreground: 24 32.6% 18%;
+    --muted: 39 23.3% 85.7%;            /* #e3ddd2 */
+    --muted-foreground: 32 12.7% 60%;   /* #a69a8c */
+    --accent-hsl: 36 90% 48%;           /* #E8920B */
+    --accent-foreground: 24 32.6% 18%;
+    --destructive: 4 65% 48%;           /* #c0392b */
+    --destructive-foreground: 40 37.5% 96.9%;
+    --border: 36 20.8% 81.2%;           /* #d9d1c5 */
+    --input: 36 20.8% 81.2%;            /* #d9d1c5 */
+    --ring: 39 19.2% 71.4%;             /* #c4baa8 */
     --status-success: #3a8a52;
     --status-warning: #b37a10;
     --status-danger: #c0392b;
-    --sidebar-background: 35 20% 88%;
-    --sidebar-foreground: 22 30% 18%;
-    --sidebar-primary: 22 30% 18%;
-    --sidebar-primary-foreground: 37 40% 97%;
-    --sidebar-accent: 34 18% 84%;
-    --sidebar-accent-foreground: 22 30% 18%;
-    --sidebar-border: 34 12% 80%;
-    --sidebar-ring: 30 12% 72%;
+    --sidebar-background: 39 27.9% 88%; /* #e9e3d8 */
+    --sidebar-foreground: 24 32.6% 18%;
+    --sidebar-primary: 24 32.6% 18%;
+    --sidebar-primary-foreground: 40 37.5% 96.9%;
+    --sidebar-accent: 39 23.3% 85.7%;   /* #e3ddd2 */
+    --sidebar-accent-foreground: 24 32.6% 18%;
+    --sidebar-border: 36 20.8% 81.2%;   /* #d9d1c5 */
+    --sidebar-ring: 39 19.2% 71.4%;     /* #c4baa8 */
     --chart-1: #4571b8;
     --chart-2: #3a8a52;
     --chart-3: #b37a10;
