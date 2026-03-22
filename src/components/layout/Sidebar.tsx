@@ -161,7 +161,6 @@ export function Sidebar() {
       <div
         style={{
           padding: isExpanded ? '14px 14px 10px' : '14px 10px 10px',
-          borderBottom: '1px solid var(--bd)',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
