@@ -73,20 +73,21 @@
   }
 
   /* ═══ TURAN DS v11 — Dark (scoped to AppShell only) ═══ */
+  /* Low-saturation dark: 4-8% instead of 14-20% */
   [data-shell] {
-    --bg: #1a1612;
-    --bg-s: #211d18;
-    --bg-c: #272219;
-    --bg-m: #332d24;
-    --fg: #e8e0d4;
-    --fg2: #a69a8c;
-    --fg3: #6b6054;
-    --bd: #3a3328;
-    --bd-s: #2d271e;
-    --bd-h: #4d4436;
+    --bg: #141312;
+    --bg-s: #1b1a18;
+    --bg-c: #222120;
+    --bg-m: #2c2b28;
+    --fg: #e6e2dc;
+    --fg2: #9e9890;
+    --fg3: #686460;
+    --bd: #302e2a;
+    --bd-s: #242220;
+    --bd-h: #444038;
     --accent: #F0A020;
-    --cta: #e8e0d4;
-    --cta-fg: #1a1612;
+    --cta: #e6e2dc;
+    --cta-fg: #141312;
     --cta-h: #f0ebe2;
     --blue: #6b9fe0;
     --blue-m: rgba(107,159,224,0.08);
@@ -101,37 +102,37 @@
     --sh-xl: 0 20px 40px -8px rgba(0,0,0,0.45);
 
     /* shadcn overrides inside shell */
-    --background: 20 20% 8%;
-    --foreground: 30 18% 88%;
-    --card: 25 18% 12%;
-    --card-foreground: 30 18% 88%;
-    --popover: 25 18% 12%;
-    --popover-foreground: 30 18% 88%;
-    --primary: 30 18% 88%;
-    --primary-foreground: 20 20% 8%;
-    --secondary: 28 16% 17%;
-    --secondary-foreground: 30 18% 88%;
-    --muted: 28 16% 17%;
-    --muted-foreground: 30 10% 40%;
+    --background: 30 5% 7%;
+    --foreground: 30 8% 88%;
+    --card: 30 4% 13%;
+    --card-foreground: 30 8% 88%;
+    --popover: 30 4% 13%;
+    --popover-foreground: 30 8% 88%;
+    --primary: 30 8% 88%;
+    --primary-foreground: 30 5% 7%;
+    --secondary: 30 4% 16%;
+    --secondary-foreground: 30 8% 88%;
+    --muted: 30 4% 16%;
+    --muted-foreground: 25 4% 39%;
     --accent-hsl: 38 90% 53%;
     --accent-foreground: 20 20% 8%;
     --destructive: 6 70% 60%;
-    --destructive-foreground: 30 18% 96%;
-    --border: 28 14% 19%;
-    --input: 28 14% 19%;
-    --ring: 28 14% 26%;
+    --destructive-foreground: 30 8% 96%;
+    --border: 30 4% 17%;
+    --input: 30 4% 17%;
+    --ring: 25 5% 24%;
     --radius: 0.5rem;
     --status-success: #5ec47a;
     --status-warning: #f0b040;
     --status-danger: #e06050;
-    --sidebar-background: 25 14% 11%;
-    --sidebar-foreground: 30 18% 88%;
-    --sidebar-primary: 30 18% 88%;
-    --sidebar-primary-foreground: 20 20% 8%;
-    --sidebar-accent: 28 16% 17%;
-    --sidebar-accent-foreground: 30 18% 88%;
-    --sidebar-border: 28 14% 19%;
-    --sidebar-ring: 28 14% 26%;
+    --sidebar-background: 30 4% 10%;
+    --sidebar-foreground: 30 8% 88%;
+    --sidebar-primary: 30 8% 88%;
+    --sidebar-primary-foreground: 30 5% 7%;
+    --sidebar-accent: 30 4% 16%;
+    --sidebar-accent-foreground: 30 8% 88%;
+    --sidebar-border: 30 4% 17%;
+    --sidebar-ring: 25 5% 24%;
     --chart-1: #6b9fe0;
     --chart-2: #5ec47a;
     --chart-3: #f0b040;

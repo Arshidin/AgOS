@@ -49,7 +49,7 @@ export function Header() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
+        padding: '0 28px',
         borderBottom: '1px solid var(--bd)',
         background: 'var(--bg)',
         height: 44,
