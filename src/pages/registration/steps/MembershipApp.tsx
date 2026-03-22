@@ -43,20 +43,20 @@ export function MembershipApp({ orgId, onComplete, onSkip }: MembershipAppProps)
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif">
           Членство в ТУРАН
         </h2>
-        <p className="text-sm text-[#6b5744]">
+        <p className="text-sm text-turan-fg2">
           Подайте заявку на вступление в ассоциацию
         </p>
       </div>
 
-      <div className="p-4 bg-white rounded-xl border border-[#e8ddd0] space-y-3">
-        <p className="text-sm text-[#2B180A]/80 leading-relaxed">
+      <div className="p-4 bg-turan-bg-c rounded-xl border border-turan-bd space-y-3">
+        <p className="text-sm text-turan-fg/80 leading-relaxed">
           Членство в ассоциации ТУРАН открывает доступ к координации рынка,
           экспертным консультациям и общей аналитике отрасли. Вступление добровольное.
         </p>
-        <div className="text-xs text-[#6b5744] space-y-1">
+        <div className="text-xs text-turan-fg2 space-y-1">
           <p>- Доступ к пулам и координации продаж</p>
           <p>- Консультации зоотехников и ветеринаров</p>
           <p>- Аналитика и рыночные данные</p>
@@ -64,14 +64,14 @@ export function MembershipApp({ orgId, onComplete, onSkip }: MembershipAppProps)
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm text-[#6b5744] font-medium">
+        <label className="text-sm text-turan-fg2 font-medium">
           Комментарий к заявке (необязательно)
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Расскажите о себе или задайте вопрос..."
-          className="reg-input w-full h-24 px-4 py-3 bg-white border border-[#e8ddd0] rounded-xl text-[#2B180A] outline-none focus:border-[#2B180A] resize-none"
+          className="reg-input w-full h-24 px-4 py-3 bg-turan-bg-c border border-turan-bd rounded-xl text-turan-fg outline-none focus:border-turan-fg resize-none"
         />
       </div>
 

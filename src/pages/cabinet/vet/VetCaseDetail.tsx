@@ -167,7 +167,7 @@ export function VetCaseDetail() {
       <div className="space-y-4">
         <button
           onClick={() => navigate('/cabinet')}
-          className="flex items-center gap-2 text-sm text-[#6b5744] hover:text-[#2B180A]"
+          className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
         >
           <ArrowLeft className="h-4 w-4" />
           Назад
@@ -197,12 +197,12 @@ export function VetCaseDetail() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/cabinet')}
-            className="p-1.5 text-[#6b5744] hover:text-[#2B180A] transition-colors"
+            className="p-1.5 text-[var(--fg2)] hover:text-[var(--fg)] transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h2 className="text-lg font-semibold text-[#2B180A] font-serif">
+            <h2 className="text-lg font-semibold text-[var(--fg)] font-serif">
               Ветеринарный случай
             </h2>
             <div className="flex items-center gap-2 mt-1">
@@ -226,7 +226,7 @@ export function VetCaseDetail() {
             className={cn(
               'w-2 h-2 rounded-full',
               realtimeStatus === 'live' ? 'bg-green-500 animate-pulse' :
-              realtimeStatus === 'error' ? 'bg-red-400' : 'bg-gray-400'
+              realtimeStatus === 'error' ? 'bg-red-400' : 'bg-[var(--fg3)]'
             )}
           />
         </div>
@@ -265,8 +265,8 @@ export function VetCaseDetail() {
       )}
 
       {/* Case info */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-2">
-        <div className="flex items-center justify-between text-xs text-[#6b5744]">
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-2">
+        <div className="flex items-center justify-between text-xs text-[var(--fg2)]">
           <span>
             {new Date(vetCase.created_at).toLocaleDateString('ru-RU', {
               day: 'numeric',
@@ -276,27 +276,27 @@ export function VetCaseDetail() {
               minute: '2-digit',
             })}
           </span>
-          <span className="px-2 py-0.5 bg-[#fdf6ee] rounded text-[10px]">
+          <span className="px-2 py-0.5 bg-[var(--bg)] rounded text-[10px]">
             {CREATED_VIA_LABELS[vetCase.created_via] || vetCase.created_via}
           </span>
         </div>
         {vetCase.farm_name && (
-          <p className="text-sm text-[#2B180A]">
+          <p className="text-sm text-[var(--fg)]">
             {vetCase.farm_name}
             {vetCase.herd_group && ` / ${vetCase.herd_group.category_name} (${vetCase.herd_group.head_count} гол.)`}
           </p>
         )}
         {vetCase.affected_heads && (
-          <p className="text-xs text-[#6b5744]">
+          <p className="text-xs text-[var(--fg2)]">
             Больных голов: {vetCase.affected_heads}
           </p>
         )}
       </div>
 
       {/* Symptoms */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[#2B180A]">Симптомы</h3>
-        <blockquote className="text-sm text-[#2B180A]/80 bg-[#fdf6ee] p-3 rounded-lg border-l-3 border-[hsl(24,73%,54%)] italic">
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Симптомы</h3>
+        <blockquote className="text-sm text-[var(--fg)]/80 bg-[var(--bg)] p-3 rounded-lg border-l-3 border-[var(--cta)] italic">
           {vetCase.symptoms_text}
         </blockquote>
 
@@ -305,7 +305,7 @@ export function VetCaseDetail() {
             {vetCase.symptoms_structured.map((s, idx) => (
               <span
                 key={idx}
-                className="px-2.5 py-1 bg-[#fdf6ee] rounded-full text-xs text-[#2B180A]/70 border border-[#e8ddd0]"
+                className="px-2.5 py-1 bg-[var(--bg)] rounded-full text-xs text-[var(--fg)]/70 border border-[var(--bd)]"
               >
                 {s.symptom_code}
               </span>
@@ -315,24 +315,24 @@ export function VetCaseDetail() {
       </div>
 
       {/* Diagnoses */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[#2B180A]">Диагноз</h3>
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Диагноз</h3>
 
         {vetCase.diagnoses.length > 0 ? (
           <div className="space-y-3">
             {vetCase.diagnoses.map((diag) => (
               <div key={diag.id} className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#2B180A]">
+                  <span className="text-sm font-medium text-[var(--fg)]">
                     {diag.disease_name}
                   </span>
-                  <span className="text-xs text-[#6b5744] px-2 py-0.5 bg-[#fdf6ee] rounded">
+                  <span className="text-xs text-[var(--fg2)] px-2 py-0.5 bg-[var(--bg)] rounded">
                     {diag.source === 'ai_analysis' ? 'AI-анализ' : 'Эксперт'}
                   </span>
                 </div>
                 {/* Confidence bar */}
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-[#e8ddd0] rounded-full overflow-hidden">
+                  <div className="flex-1 h-2 bg-[var(--bd)] rounded-full overflow-hidden">
                     <div
                       className={cn(
                         'h-full rounded-full transition-all duration-500',
@@ -342,7 +342,7 @@ export function VetCaseDetail() {
                       style={{ width: `${diag.confidence_pct}%` }}
                     />
                   </div>
-                  <span className="text-xs text-[#6b5744] w-10 text-right">
+                  <span className="text-xs text-[var(--fg2)] w-10 text-right">
                     {diag.confidence_pct}%
                   </span>
                 </div>
@@ -351,8 +351,8 @@ export function VetCaseDetail() {
           </div>
         ) : (
           <div className="flex items-center gap-2 py-4 justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#6b5744]" />
-            <span className="text-sm text-[#6b5744]">
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--fg2)]" />
+            <span className="text-sm text-[var(--fg2)]">
               AI анализирует симптомы...
             </span>
           </div>
@@ -360,35 +360,35 @@ export function VetCaseDetail() {
       </div>
 
       {/* Recommendations */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[#2B180A]">Рекомендации</h3>
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Рекомендации</h3>
 
         {vetCase.recommendations.length > 0 ? (
           <div className="space-y-3">
             {vetCase.recommendations.map((rec) => (
               <div
                 key={rec.id}
-                className="p-3 bg-[#fdf6ee] rounded-lg border border-[#e8ddd0] space-y-2"
+                className="p-3 bg-[var(--bg)] rounded-lg border border-[var(--bd)] space-y-2"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#2B180A]">
+                  <span className="text-sm font-medium text-[var(--fg)]">
                     {REC_TYPE_LABELS[rec.type] || rec.type}
                     {rec.treatment_name ? `: ${rec.treatment_name}` : ''}
                   </span>
-                  <span className="text-[10px] text-[#6b5744] px-1.5 py-0.5 bg-white rounded">
+                  <span className="text-[10px] text-[var(--fg2)] px-1.5 py-0.5 bg-[var(--bg-c)] rounded">
                     {rec.source === 'ai_generated' ? 'AI' :
                      rec.source === 'expert_manual' ? 'Эксперт' : 'Протокол'}
                   </span>
                 </div>
 
                 {rec.application_method && (
-                  <p className="text-xs text-[#6b5744]">
+                  <p className="text-xs text-[var(--fg2)]">
                     Способ: {rec.application_method}
                   </p>
                 )}
 
                 {rec.duration_days && (
-                  <p className="text-xs text-[#6b5744]">
+                  <p className="text-xs text-[var(--fg2)]">
                     Длительность: {rec.duration_days} дней
                   </p>
                 )}
@@ -407,15 +407,15 @@ export function VetCaseDetail() {
                 )}
 
                 {rec.notes && (
-                  <p className="text-xs text-[#6b5744] italic">{rec.notes}</p>
+                  <p className="text-xs text-[var(--fg2)] italic">{rec.notes}</p>
                 )}
               </div>
             ))}
           </div>
         ) : (
           <div className="flex items-center gap-2 py-4 justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#6b5744]" />
-            <span className="text-sm text-[#6b5744]">
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--fg2)]" />
+            <span className="text-sm text-[var(--fg2)]">
               Рекомендации будут добавлены после анализа
             </span>
           </div>
@@ -423,15 +423,15 @@ export function VetCaseDetail() {
       </div>
 
       {/* Timeline placeholder */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[#2B180A]">Хронология</h3>
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Хронология</h3>
         <div className="space-y-3">
           {/* Case created */}
           <div className="flex items-start gap-3">
-            <div className="w-2 h-2 rounded-full bg-[hsl(24,73%,54%)] mt-1.5 shrink-0" />
+            <div className="w-2 h-2 rounded-full bg-[var(--cta)] mt-1.5 shrink-0" />
             <div>
-              <p className="text-xs text-[#2B180A]">Обращение создано</p>
-              <p className="text-[10px] text-[#6b5744]">
+              <p className="text-xs text-[var(--fg)]">Обращение создано</p>
+              <p className="text-[10px] text-[var(--fg2)]">
                 {new Date(vetCase.created_at).toLocaleDateString('ru-RU', {
                   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                 })}
@@ -444,8 +444,8 @@ export function VetCaseDetail() {
             <div key={d.id} className="flex items-start gap-3">
               <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0" />
               <div>
-                <p className="text-xs text-[#2B180A]">Диагноз: {d.disease_name}</p>
-                <p className="text-[10px] text-[#6b5744]">
+                <p className="text-xs text-[var(--fg)]">Диагноз: {d.disease_name}</p>
+                <p className="text-[10px] text-[var(--fg2)]">
                   {new Date(d.created_at).toLocaleDateString('ru-RU', {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                   })}
@@ -459,10 +459,10 @@ export function VetCaseDetail() {
             <div key={r.id} className="flex items-start gap-3">
               <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5 shrink-0" />
               <div>
-                <p className="text-xs text-[#2B180A]">
+                <p className="text-xs text-[var(--fg)]">
                   Рекомендация: {r.treatment_name || REC_TYPE_LABELS[r.type] || r.type}
                 </p>
-                <p className="text-[10px] text-[#6b5744]">
+                <p className="text-[10px] text-[var(--fg2)]">
                   {new Date(r.created_at).toLocaleDateString('ru-RU', {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                   })}

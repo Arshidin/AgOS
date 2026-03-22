@@ -9,13 +9,13 @@ interface SuccessProps {
 }
 
 const CONFETTI_PARTICLES = [
-  { left: '12%', delay: '0s', color: '#C4883A', size: 8 },
-  { left: '28%', delay: '0.3s', color: '#E8C87A', size: 6 },
-  { left: '42%', delay: '0.1s', color: '#D4A44C', size: 10 },
-  { left: '58%', delay: '0.4s', color: '#C4883A', size: 7 },
-  { left: '72%', delay: '0.15s', color: '#8B6914', size: 9 },
-  { left: '85%', delay: '0.25s', color: '#E8C87A', size: 6 },
-  { left: '50%', delay: '0.2s', color: '#C4883A', size: 8 },
+  { left: '12%', delay: '0s', color: 'var(--accent)', size: 8 },
+  { left: '28%', delay: '0.3s', color: 'var(--amber)', size: 6 },
+  { left: '42%', delay: '0.1s', color: 'var(--accent)', size: 10 },
+  { left: '58%', delay: '0.4s', color: 'var(--accent)', size: 7 },
+  { left: '72%', delay: '0.15s', color: 'var(--amber)', size: 9 },
+  { left: '85%', delay: '0.25s', color: 'var(--amber)', size: 6 },
+  { left: '50%', delay: '0.2s', color: 'var(--accent)', size: 8 },
 ]
 
 function Confetti() {
@@ -98,13 +98,13 @@ export function Success({ role, phone = '', companyName = '' }: SuccessProps) {
             cy="26"
             r="25"
             fill="none"
-            stroke="#2d7a3a"
+            stroke="var(--green)"
             strokeWidth="2"
           />
           <path
             className="reg-checkmark-check"
             fill="none"
-            stroke="#2d7a3a"
+            stroke="var(--green)"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -113,13 +113,13 @@ export function Success({ role, phone = '', companyName = '' }: SuccessProps) {
         </svg>
       </div>
 
-      <h2 className="font-serif text-[26px] font-semibold mt-6 text-[#2B180A]">
+      <h2 className="font-serif text-[26px] font-semibold mt-6 text-turan-fg">
         {msg.title}
       </h2>
 
-      <p className="text-[15px] max-w-[360px] mx-auto mt-3 leading-relaxed text-[#6b5744]">
+      <p className="text-[15px] max-w-[360px] mx-auto mt-3 leading-relaxed text-turan-fg2">
         {msg.farmerMsg}{' '}
-        {phone && <span className="font-semibold text-[#2B180A]">{formattedPhone}</span>}
+        {phone && <span className="font-semibold text-turan-fg">{formattedPhone}</span>}
         {phone ? '.' : ''}
       </p>
 
@@ -131,29 +131,29 @@ export function Success({ role, phone = '', companyName = '' }: SuccessProps) {
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-start gap-3 p-4 rounded-xl text-left transition-all duration-200 hover:shadow-sm reg-benefit-enter"
-          style={{ background: 'rgba(43,24,10,0.02)', animationDelay: '150ms' }}
+          style={{ background: 'color-mix(in srgb, var(--fg) 2%, transparent)', animationDelay: '150ms' }}
         >
-          <div className="w-10 h-10 rounded-xl bg-[#fdf6ee] flex items-center justify-center shrink-0 mt-0.5">
-            <MessageCircle size={20} className="text-[hsl(24,73%,54%)]" />
+          <div className="w-10 h-10 rounded-xl bg-turan-bg flex items-center justify-center shrink-0 mt-0.5">
+            <MessageCircle size={20} className="text-turan-accent" />
           </div>
           <div className="flex-1">
-            <p className="text-sm leading-relaxed text-[#2B180A] font-medium">
+            <p className="text-sm leading-relaxed text-turan-fg font-medium">
               Написать в WhatsApp
             </p>
-            <p className="text-xs text-[#6b5744]/70 mt-0.5">Открыть чат</p>
+            <p className="text-xs text-turan-fg2/70 mt-0.5">Открыть чат</p>
           </div>
-          <ArrowRight size={16} className="text-[#6b5744]/40 shrink-0 mt-1" />
+          <ArrowRight size={16} className="text-turan-fg2/40 shrink-0 mt-1" />
         </a>
 
         {/* Info step */}
         <div
           className="flex items-start gap-3 p-4 rounded-xl text-left reg-benefit-enter"
-          style={{ background: 'rgba(43,24,10,0.02)', animationDelay: '300ms' }}
+          style={{ background: 'color-mix(in srgb, var(--fg) 2%, transparent)', animationDelay: '300ms' }}
         >
-          <div className="w-10 h-10 rounded-xl bg-[#fdf6ee] flex items-center justify-center shrink-0 mt-0.5">
-            <ClipboardList size={20} className="text-[hsl(24,73%,54%)]" />
+          <div className="w-10 h-10 rounded-xl bg-turan-bg flex items-center justify-center shrink-0 mt-0.5">
+            <ClipboardList size={20} className="text-turan-accent" />
           </div>
-          <p className="text-sm leading-relaxed text-[#6b5744]">
+          <p className="text-sm leading-relaxed text-turan-fg2">
             {msg.nextStep}
           </p>
         </div>

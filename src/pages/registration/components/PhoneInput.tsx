@@ -46,14 +46,14 @@ export function PhoneInput({
     <div className="relative">
       <div
         className={cn(
-          'flex items-center h-14 bg-white border rounded-xl transition-colors overflow-hidden',
+          'flex items-center h-14 bg-turan-bg-c border rounded-xl transition-colors overflow-hidden',
           error
-            ? 'border-red-400 focus-within:border-red-500'
-            : 'border-[#e8ddd0] focus-within:border-[#2B180A]',
+            ? 'border-turan-red focus-within:border-turan-red'
+            : 'border-turan-bd focus-within:border-turan-fg',
           disabled && 'opacity-50'
         )}
       >
-        <span className="pl-4 text-[#2B180A] font-medium select-none shrink-0">
+        <span className="pl-4 text-turan-fg font-medium select-none shrink-0">
           +7
         </span>
         <input
@@ -65,21 +65,21 @@ export function PhoneInput({
           onBlur={() => setFocused(false)}
           disabled={disabled}
           placeholder={!focused && !hasValue ? '' : '(777) 123-45-67'}
-          className="reg-input flex-1 h-full px-2 pt-5 pb-2 bg-transparent text-[#2B180A] outline-none"
+          className="reg-input flex-1 h-full px-2 pt-5 pb-2 bg-transparent text-turan-fg outline-none"
         />
       </div>
       <label
         className={cn(
           'absolute left-14 transition-all duration-200 pointer-events-none',
           focused || hasValue
-            ? 'top-1.5 text-xs text-[#6b5744]'
-            : 'top-4 text-base text-[#6b5744]/60'
+            ? 'top-1.5 text-xs text-turan-fg2'
+            : 'top-4 text-base text-turan-fg3'
         )}
       >
         Номер телефона
       </label>
       {error && (
-        <p className="text-xs text-red-500 mt-1 px-1">{error}</p>
+        <p className="text-xs text-turan-red mt-1 px-1">{error}</p>
       )}
     </div>
   )

@@ -35,7 +35,7 @@ export function ServicesDetails({ formData, onChange, onNext }: ServicesDetailsP
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif">
           О вашей компании
         </h2>
       </div>

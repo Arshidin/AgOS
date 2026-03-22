@@ -24,7 +24,7 @@ export function OtpInput({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm text-[#6b5744] text-center">
+      <p className="text-sm text-turan-fg2 text-center">
         Введите код из SMS
       </p>
       <div className="flex justify-center">
@@ -45,7 +45,7 @@ export function OtpInput({
         </InputOTP>
       </div>
       {error && (
-        <p className="text-xs text-red-500 text-center">{error}</p>
+        <p className="text-xs text-turan-red text-center">{error}</p>
       )}
     </div>
   )

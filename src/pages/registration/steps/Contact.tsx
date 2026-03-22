@@ -44,10 +44,10 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif">
           Контактные данные
         </h2>
-        <p className="text-sm text-[#6b5744]">
+        <p className="text-sm text-turan-fg2">
           Как с вами связаться
         </p>
       </div>
@@ -86,12 +86,12 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
         <button
           type="button"
           onClick={() => setRegionSheetOpen(true)}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={selectedRegion ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={selectedRegion ? 'text-turan-fg' : 'text-turan-fg3'}>
             {selectedRegion?.name || 'Регион (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>

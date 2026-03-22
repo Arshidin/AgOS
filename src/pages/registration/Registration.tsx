@@ -330,14 +330,14 @@ export function Registration() {
   const showBackButton = step !== 'role_select' && step !== 'success' && step !== 'membership'
 
   return (
-    <div className="min-h-screen bg-[#fdf6ee] flex flex-col">
+    <div className="min-h-screen bg-turan-bg flex flex-col">
       {/* Top bar */}
       <div className="px-4 pt-4 pb-2 max-w-[480px] mx-auto w-full">
         <div className="flex items-center gap-3 mb-4">
           {showBackButton && (
             <button
               onClick={goBack}
-              className="p-1.5 -ml-1.5 text-[#6b5744] hover:text-[#2B180A] transition-colors"
+              className="p-1.5 -ml-1.5 text-turan-fg2 hover:text-turan-fg transition-colors"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

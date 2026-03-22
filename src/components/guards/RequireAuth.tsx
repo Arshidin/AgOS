@@ -8,7 +8,7 @@ export function RequireAuth() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#fdf6ee]">
+      <div className="flex items-center justify-center min-h-screen bg-turan-bg">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )

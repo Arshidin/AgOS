@@ -49,7 +49,7 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif">
           О вашей компании
         </h2>
       </div>
@@ -81,32 +81,32 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
         <button
           type="button"
           onClick={() => setActiveSheet('company_type')}
-          className="w-full h-14 px-4 bg-white border rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
-          style={{ borderColor: errors.company_type ? '#f87171' : '#e8ddd0' }}
+          className="w-full h-14 px-4 bg-turan-bg-c border rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
+          style={{ borderColor: errors.company_type ? 'var(--red)' : 'var(--bd)' }}
         >
-          <span className={formData.company_type ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.company_type ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(COMPANY_TYPES, formData.company_type) || 'Тип компании *'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        {errors.company_type && <p className="text-xs text-red-500 -mt-2 px-1">{errors.company_type}</p>}
+        {errors.company_type && <p className="text-xs text-turan-red -mt-2 px-1">{errors.company_type}</p>}
 
         <button
           type="button"
           onClick={() => setActiveSheet('monthly_volume')}
-          className="w-full h-14 px-4 bg-white border rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
-          style={{ borderColor: errors.monthly_volume ? '#f87171' : '#e8ddd0' }}
+          className="w-full h-14 px-4 bg-turan-bg-c border rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
+          style={{ borderColor: errors.monthly_volume ? 'var(--red)' : 'var(--bd)' }}
         >
-          <span className={formData.monthly_volume ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.monthly_volume ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(MONTHLY_VOLUMES, formData.monthly_volume) || 'Объём закупок в месяц *'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        {errors.monthly_volume && <p className="text-xs text-red-500 -mt-2 px-1">{errors.monthly_volume}</p>}
+        {errors.monthly_volume && <p className="text-xs text-turan-red -mt-2 px-1">{errors.monthly_volume}</p>}
 
         {/* MPK extra fields (Step 5b equivalent) */}
         <ChipSelect
@@ -119,12 +119,12 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
         <button
           type="button"
           onClick={() => setActiveSheet('target_weight')}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={formData.target_weight ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.target_weight ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(TARGET_WEIGHTS, formData.target_weight) || 'Целевой вес (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -132,12 +132,12 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
         <button
           type="button"
           onClick={() => setActiveSheet('procurement_frequency')}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={formData.procurement_frequency ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.procurement_frequency ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(PROCUREMENT_FREQUENCIES, formData.procurement_frequency) || 'Частота закупок (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>

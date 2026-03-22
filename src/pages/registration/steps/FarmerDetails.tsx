@@ -39,10 +39,10 @@ export function FarmerDetails({ formData, onChange, onNext }: FarmerDetailsProps
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif">
           О вашем хозяйстве
         </h2>
-        <p className="text-sm text-[#6b5744]">
+        <p className="text-sm text-turan-fg2">
           Расскажите о ферме
         </p>
       </div>
@@ -74,12 +74,12 @@ export function FarmerDetails({ formData, onChange, onNext }: FarmerDetailsProps
         <button
           type="button"
           onClick={() => setActiveSheet('legal_form')}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={formData.legal_form ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.legal_form ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(LEGAL_FORMS, formData.legal_form) || 'Правовая форма (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -87,29 +87,29 @@ export function FarmerDetails({ formData, onChange, onNext }: FarmerDetailsProps
         <button
           type="button"
           onClick={() => setActiveSheet('herd_size')}
-          className="w-full h-14 px-4 bg-white border rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
-          style={{ borderColor: errors.herd_size ? '#f87171' : '#e8ddd0' }}
+          className="w-full h-14 px-4 bg-turan-bg-c border rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
+          style={{ borderColor: errors.herd_size ? 'var(--red)' : 'var(--bd)' }}
         >
-          <span className={formData.herd_size ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.herd_size ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(HERD_SIZES, formData.herd_size) || 'Размер поголовья *'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
         {errors.herd_size && (
-          <p className="text-xs text-red-500 -mt-2 px-1">{errors.herd_size}</p>
+          <p className="text-xs text-turan-red -mt-2 px-1">{errors.herd_size}</p>
         )}
 
         <button
           type="button"
           onClick={() => setActiveSheet('breed')}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={formData.primary_breed ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.primary_breed ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(BREEDS.map(b => ({ value: b.id, label: b.name })), formData.primary_breed) || 'Основная порода (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -117,12 +117,12 @@ export function FarmerDetails({ formData, onChange, onNext }: FarmerDetailsProps
         <button
           type="button"
           onClick={() => setActiveSheet('ready_to_sell')}
-          className="w-full h-14 px-4 bg-white border border-[#e8ddd0] rounded-xl text-left flex items-center justify-between hover:border-[#2B180A]/30 transition-colors"
+          className="w-full h-14 px-4 bg-turan-bg-c border border-turan-bd rounded-xl text-left flex items-center justify-between hover:border-turan-bd-h transition-colors"
         >
-          <span className={formData.ready_to_sell ? 'text-[#2B180A]' : 'text-[#6b5744]/60'}>
+          <span className={formData.ready_to_sell ? 'text-turan-fg' : 'text-turan-fg3'}>
             {getLabel(READY_TO_SELL, formData.ready_to_sell) || 'Готовность к продаже (необязательно)'}
           </span>
-          <svg className="h-4 w-4 text-[#6b5744]/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 text-turan-fg3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>

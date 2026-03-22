@@ -97,10 +97,10 @@ export function ReportSick() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+        <h2 className="text-xl font-semibold text-[var(--fg)] font-serif">
           Сообщить о болезни
         </h2>
-        <p className="text-sm text-[#6b5744] mt-1">
+        <p className="text-sm text-[var(--fg2)] mt-1">
           Опишите симптомы, AI проанализирует и даст рекомендации
         </p>
       </div>
@@ -109,7 +109,7 @@ export function ReportSick() {
         {/* Farm selector */}
         {farms.length > 1 ? (
           <div>
-            <label className="text-xs text-[#6b5744] mb-1 block">Ферма *</label>
+            <label className="text-xs text-[var(--fg2)] mb-1 block">Ферма *</label>
             <select
               value={farmId}
               onChange={(e) => {
@@ -117,7 +117,7 @@ export function ReportSick() {
                 setHerdGroupId('')
                 if (errors.farm) setErrors((prev) => ({ ...prev, farm: '' }))
               }}
-              className="reg-input w-full h-12 px-3 bg-white border border-[#e8ddd0] rounded-xl text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
+              className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             >
               <option value="">Выберите ферму</option>
               {farms.map((f) => (
@@ -127,8 +127,8 @@ export function ReportSick() {
             {errors.farm && <p className="text-xs text-red-500 mt-1">{errors.farm}</p>}
           </div>
         ) : farms.length === 1 ? (
-          <div className="p-3 bg-[#fdf6ee] rounded-xl">
-            <p className="text-sm text-[#2B180A] font-medium">{farms[0]?.name}</p>
+          <div className="p-3 bg-[var(--bg)] rounded-xl">
+            <p className="text-sm text-[var(--fg)] font-medium">{farms[0]?.name}</p>
           </div>
         ) : (
           <div className="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
@@ -141,13 +141,13 @@ export function ReportSick() {
         {/* Herd group selector */}
         {herdGroups.length > 0 && (
           <div>
-            <label className="text-xs text-[#6b5744] mb-1 block">
+            <label className="text-xs text-[var(--fg2)] mb-1 block">
               Какая группа животных? (необязательно)
             </label>
             <select
               value={herdGroupId}
               onChange={(e) => setHerdGroupId(e.target.value)}
-              className="reg-input w-full h-12 px-3 bg-white border border-[#e8ddd0] rounded-xl text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
+              className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             >
               <option value="">Не знаю / Вся ферма</option>
               {herdGroups.map((g) => (
@@ -163,7 +163,7 @@ export function ReportSick() {
 
         {/* Symptoms */}
         <div>
-          <label className="text-xs text-[#6b5744] mb-1 block">
+          <label className="text-xs text-[var(--fg2)] mb-1 block">
             Опишите что случилось *
           </label>
           <textarea
@@ -173,8 +173,8 @@ export function ReportSick() {
               if (errors.symptoms) setErrors((prev) => ({ ...prev, symptoms: '' }))
             }}
             placeholder="Например: телёнок не ест второй день, температура 40 градусов, вялый"
-            className="reg-input w-full h-32 px-3 py-3 bg-white border border-[#e8ddd0] rounded-xl text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)] resize-none"
-            style={{ borderColor: errors.symptoms ? '#f87171' : undefined }}
+            className="reg-input w-full h-32 px-3 py-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)] resize-none"
+            style={{ borderColor: errors.symptoms ? 'var(--red)' : undefined }}
           />
           <div className="flex items-center justify-between mt-1">
             {errors.symptoms ? (
@@ -182,7 +182,7 @@ export function ReportSick() {
             ) : (
               <span />
             )}
-            <span className="text-xs text-[#6b5744]/50">
+            <span className="text-xs text-[var(--fg2)]/50">
               {symptomsText.length}/5000
             </span>
           </div>
@@ -190,7 +190,7 @@ export function ReportSick() {
 
         {/* Affected heads */}
         <div>
-          <label className="text-xs text-[#6b5744] mb-1 block">
+          <label className="text-xs text-[var(--fg2)] mb-1 block">
             Сколько голов болеет? (необязательно)
           </label>
           <input
@@ -202,8 +202,8 @@ export function ReportSick() {
             }}
             placeholder="0"
             min="1"
-            className="reg-input w-full h-12 px-3 bg-white border border-[#e8ddd0] rounded-xl text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
-            style={{ borderColor: errors.affected ? '#f87171' : undefined }}
+            className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+            style={{ borderColor: errors.affected ? 'var(--red)' : undefined }}
           />
           {errors.affected && <p className="text-xs text-red-500 mt-1">{errors.affected}</p>}
         </div>
@@ -212,7 +212,7 @@ export function ReportSick() {
       <button
         onClick={handleSubmit}
         disabled={isSubmitting || farms.length === 0}
-        className="w-full h-12 bg-[#2B180A] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
+        className="w-full h-12 bg-[var(--fg)] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
       >
         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {isSubmitting ? 'Отправка...' : 'Отправить'}

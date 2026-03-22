@@ -43,12 +43,12 @@ export function BottomSheet({
         className="absolute inset-0 bg-black/40 reg-backdrop-enter"
         onClick={onClose}
       />
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl reg-sheet-enter max-h-[70vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e8ddd0]">
-          <h3 className="text-base font-medium text-[#2B180A]">{title}</h3>
+      <div className="absolute bottom-0 left-0 right-0 bg-turan-bg-c rounded-t-2xl reg-sheet-enter max-h-[70vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-turan-bd">
+          <h3 className="text-base font-medium text-turan-fg">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 text-[#6b5744] hover:text-[#2B180A]"
+            className="p-1 text-turan-fg2 hover:text-turan-fg"
           >
             <X className="h-5 w-5" />
           </button>
@@ -64,13 +64,13 @@ export function BottomSheet({
               className={cn(
                 'w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors',
                 value === opt.value
-                  ? 'bg-[#fdf6ee] text-[#2B180A]'
-                  : 'text-[#2B180A]/80 hover:bg-[#fdf6ee]/50'
+                  ? 'bg-turan-bg text-turan-fg'
+                  : 'text-turan-fg/80 hover:bg-turan-bg/50'
               )}
             >
               <span className="text-[15px]">{opt.label}</span>
               {value === opt.value && (
-                <Check className="h-4 w-4 text-[hsl(24,73%,54%)]" />
+                <Check className="h-4 w-4 text-turan-accent" />
               )}
             </button>
           ))}

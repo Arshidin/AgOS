@@ -104,12 +104,12 @@ export function MembershipQueue() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Users className="h-5 w-5 text-[#4361ee]" />
-          <h2 className="text-xl font-semibold text-[#1a1a2e]">
+          <Users className="h-5 w-5 text-[var(--blue)]" />
+          <h2 className="text-xl font-semibold text-[var(--fg)]">
             Заявки на членство
           </h2>
           {totalCount > 0 && (
-            <span className="px-2 py-0.5 bg-[#4361ee]/10 text-[#4361ee] rounded-full text-xs font-medium">
+            <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-[var(--blue)] rounded-full text-xs font-medium">
               {totalCount}
             </span>
           )}
@@ -117,7 +117,7 @@ export function MembershipQueue() {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 bg-[#f1f5f9] p-1 rounded-lg overflow-x-auto">
+      <div className="flex gap-1 bg-[var(--bg-s)] p-1 rounded-lg overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value ?? 'all'}
@@ -125,8 +125,8 @@ export function MembershipQueue() {
             className={cn(
               'px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors',
               statusFilter === tab.value
-                ? 'bg-white text-[#1a1a2e] font-medium shadow-sm'
-                : 'text-[#64748b] hover:text-[#1a1a2e]'
+                ? 'bg-[var(--bg-c)] text-[var(--fg)] font-medium shadow-sm'
+                : 'text-[var(--fg2)] hover:text-[var(--fg)]'
             )}
           >
             {tab.label}
@@ -146,8 +146,8 @@ export function MembershipQueue() {
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Inbox className="h-12 w-12 text-[#e2e8f0] mb-3" />
-          <p className="text-sm text-[#64748b]">Нет заявок с таким статусом</p>
+          <Inbox className="h-12 w-12 text-[var(--bd)] mb-3" />
+          <p className="text-sm text-[var(--fg2)]">Нет заявок с таким статусом</p>
         </div>
       )}
 
@@ -160,19 +160,19 @@ export function MembershipQueue() {
               <button
                 key={app.application_id}
                 onClick={() => navigate(`/admin/membership/${app.application_id}`)}
-                className="w-full p-4 bg-white rounded-xl border border-[#e2e8f0] hover:border-[#4361ee]/40 hover:shadow-sm transition-all text-left"
+                className="w-full p-4 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] hover:border-[var(--blue)] hover:shadow-sm transition-all text-left"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-[#1a1a2e] truncate">
+                      <span className="font-medium text-[var(--fg)] truncate">
                         {app.org_name}
                       </span>
-                      <span className="shrink-0 px-1.5 py-0.5 bg-[#f1f5f9] text-[#64748b] rounded text-[10px] uppercase">
+                      <span className="shrink-0 px-1.5 py-0.5 bg-[var(--bg-s)] text-[var(--fg2)] rounded text-[10px] uppercase">
                         {ORG_TYPE_LABELS[app.org_type] ?? app.org_type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[#64748b]">
+                    <div className="flex items-center gap-3 text-xs text-[var(--fg2)]">
                       {app.region_name && <span>{app.region_name}</span>}
                       <span>
                         {LEVEL_LABELS[app.from_level] ?? app.from_level} → {LEVEL_LABELS[app.to_level] ?? app.to_level}
@@ -183,7 +183,7 @@ export function MembershipQueue() {
                     <span className={cn('px-2 py-0.5 rounded text-xs font-medium', statusInfo.className)}>
                       {statusInfo.label}
                     </span>
-                    <span className="text-[10px] text-[#94a3b8]">
+                    <span className="text-[10px] text-[var(--fg3)]">
                       {relativeDate(app.submitted_at)}
                     </span>
                   </div>
@@ -200,17 +200,17 @@ export function MembershipQueue() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="px-3 py-1.5 text-sm rounded-md border border-[#e2e8f0] disabled:opacity-40 hover:bg-[#f1f5f9]"
+            className="px-3 py-1.5 text-sm rounded-md border border-[var(--bd)] disabled:opacity-40 hover:bg-[var(--bg-s)]"
           >
             Назад
           </button>
-          <span className="text-sm text-[#64748b]">
+          <span className="text-sm text-[var(--fg2)]">
             {page} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            className="px-3 py-1.5 text-sm rounded-md border border-[#e2e8f0] disabled:opacity-40 hover:bg-[#f1f5f9]"
+            className="px-3 py-1.5 text-sm rounded-md border border-[var(--bd)] disabled:opacity-40 hover:bg-[var(--bg-s)]"
           >
             Далее
           </button>

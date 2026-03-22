@@ -105,7 +105,7 @@ export function BenefitScreen({ role, step, onNext }: BenefitScreenProps) {
   return (
     <div className="reg-benefit-enter space-y-8">
       <div className="text-center">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif leading-tight">
+        <h2 className="text-xl font-semibold text-turan-fg font-serif leading-tight">
           {content.title}
         </h2>
       </div>
@@ -117,12 +117,12 @@ export function BenefitScreen({ role, step, onNext }: BenefitScreenProps) {
             className="flex items-start gap-3 reg-benefit-enter"
             style={{ animationDelay: `${(idx + 1) * 100}ms` }}
           >
-            <div className="w-6 h-6 rounded-full bg-[hsl(24,73%,54%)]/10 flex items-center justify-center shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-[hsl(24,73%,54%)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-6 h-6 rounded-full bg-turan-accent/10 flex items-center justify-center shrink-0 mt-0.5">
+              <svg className="w-3 h-3 text-turan-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-[15px] text-[#2B180A]/80 leading-relaxed">{item}</p>
+            <p className="text-[15px] text-turan-fg/80 leading-relaxed">{item}</p>
           </div>
         ))}
       </div>

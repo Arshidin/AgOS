@@ -238,7 +238,7 @@ export function FarmProfile() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+          <h2 className="text-xl font-semibold text-[var(--fg)] font-serif">
             {farm?.name || 'Моя ферма'}
           </h2>
           <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1', membershipColor)}>
@@ -262,25 +262,25 @@ export function FarmProfile() {
       )}
 
       {/* Farm Info Section */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-4">
-        <h3 className="text-sm font-medium text-[#2B180A]">Данные фермы</h3>
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-4">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Данные фермы</h3>
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#6b5744] mb-1 block">Название фермы *</label>
+            <label className="text-xs text-[var(--fg2)] mb-1 block">Название фермы *</label>
             <input
               value={farmName}
               onChange={(e) => setFarmName(e.target.value)}
-              className="reg-input w-full h-11 px-3 bg-[#fdf6ee] border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
+              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[#6b5744] mb-1 block">Тип содержания</label>
+            <label className="text-xs text-[var(--fg2)] mb-1 block">Тип содержания</label>
             <select
               value={shelterType}
               onChange={(e) => setShelterType(e.target.value)}
-              className="reg-input w-full h-11 px-3 bg-[#fdf6ee] border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
+              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             >
               <option value="">Не указано</option>
               {SHELTER_TYPES.map((st) => (
@@ -290,11 +290,11 @@ export function FarmProfile() {
           </div>
 
           <div>
-            <label className="text-xs text-[#6b5744] mb-1 block">Система отёлов</label>
+            <label className="text-xs text-[var(--fg2)] mb-1 block">Система отёлов</label>
             <select
               value={calvingSystem}
               onChange={(e) => setCalvingSystem(e.target.value)}
-              className="reg-input w-full h-11 px-3 bg-[#fdf6ee] border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A] outline-none focus:border-[hsl(24,73%,54%)]"
+              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             >
               <option value="">Не указано</option>
               {CALVING_SYSTEMS.map((cs) => (
@@ -306,7 +306,7 @@ export function FarmProfile() {
           <button
             onClick={handleSaveFarm}
             disabled={isSavingFarm}
-            className="w-full h-11 bg-[#2B180A] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
+            className="w-full h-11 bg-[var(--fg)] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {isSavingFarm && <Loader2 className="h-4 w-4 animate-spin" />}
             Сохранить
@@ -315,8 +315,8 @@ export function FarmProfile() {
       </div>
 
       {/* Activity Types */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-3">
-        <h3 className="text-sm font-medium text-[#2B180A]">Виды деятельности</h3>
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-3">
+        <h3 className="text-sm font-medium text-[var(--fg)]">Виды деятельности</h3>
         <div className="space-y-2">
           {ACTIVITY_TYPES.map((at) => (
             <label key={at.id} className="flex items-center gap-3 cursor-pointer">
@@ -324,25 +324,25 @@ export function FarmProfile() {
                 type="checkbox"
                 checked={activities.includes(at.id)}
                 onChange={() => handleActivityToggle(at.id)}
-                className="w-4.5 h-4.5 rounded border-[#e8ddd0] text-[hsl(24,73%,54%)] focus:ring-[hsl(24,73%,54%)]"
+                className="w-4.5 h-4.5 rounded border-[var(--bd)] text-[var(--cta)] focus:ring-[var(--cta)]"
               />
-              <span className="text-sm text-[#2B180A]/80">{at.label}</span>
+              <span className="text-sm text-[var(--fg)]/80">{at.label}</span>
             </label>
           ))}
         </div>
       </div>
 
       {/* Herd Groups */}
-      <div className="bg-white rounded-xl border border-[#e8ddd0] p-4 space-y-4">
+      <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-[#2B180A]">Группы животных</h3>
+          <h3 className="text-sm font-medium text-[var(--fg)]">Группы животных</h3>
           <button
             onClick={() => {
               setHerdForm(EMPTY_HERD_FORM)
               setShowHerdForm(true)
               setHerdErrors({})
             }}
-            className="flex items-center gap-1.5 text-xs text-[hsl(24,73%,54%)] font-medium hover:opacity-80"
+            className="flex items-center gap-1.5 text-xs text-[var(--cta)] font-medium hover:opacity-80"
           >
             <Plus className="h-3.5 w-3.5" />
             Добавить
@@ -355,25 +355,25 @@ export function FarmProfile() {
             {farm.herd_groups.map((group) => (
               <div
                 key={group.id}
-                className="flex items-center justify-between p-3 bg-[#fdf6ee] rounded-lg"
+                className="flex items-center justify-between p-3 bg-[var(--bg)] rounded-lg"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#2B180A] truncate">
+                  <p className="text-sm font-medium text-[var(--fg)] truncate">
                     {group.animal_category_name || group.animal_category_code}
                     {group.breed_name ? ` (${group.breed_name})` : ''}
                   </p>
-                  <p className="text-xs text-[#6b5744] mt-0.5">
+                  <p className="text-xs text-[var(--fg2)] mt-0.5">
                     {group.head_count} гол.
                     {group.avg_weight_kg ? ` / ${group.avg_weight_kg} кг` : ''}
                     {' '}
-                    <span className="text-[#6b5744]/50">
+                    <span className="text-[var(--fg2)]/50">
                       {group.data_source === 'ai_extracted' ? 'AI' : 'ручной ввод'}
                     </span>
                   </p>
                 </div>
                 <button
                   onClick={() => editHerdGroup(group)}
-                  className="p-2 text-[#6b5744] hover:text-[#2B180A]"
+                  className="p-2 text-[var(--fg2)] hover:text-[var(--fg)]"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
@@ -382,7 +382,7 @@ export function FarmProfile() {
           </div>
         ) : (
           !showHerdForm && (
-            <p className="text-sm text-[#6b5744]/60 text-center py-4">
+            <p className="text-sm text-[var(--fg2)]/60 text-center py-4">
               Добавьте группы животных
             </p>
           )
@@ -390,16 +390,16 @@ export function FarmProfile() {
 
         {/* Inline form */}
         {showHerdForm && (
-          <div className="border border-[#e8ddd0] rounded-lg p-3 space-y-3 bg-[#fdf6ee]">
+          <div className="border border-[var(--bd)] rounded-lg p-3 space-y-3 bg-[var(--bg)]">
             <div>
-              <label className="text-xs text-[#6b5744] mb-1 block">Категория *</label>
+              <label className="text-xs text-[var(--fg2)] mb-1 block">Категория *</label>
               <select
                 value={herdForm.animal_category_code}
                 onChange={(e) => {
                   setHerdForm((f) => ({ ...f, animal_category_code: e.target.value }))
                   if (herdErrors.category) setHerdErrors((e2) => ({ ...e2, category: '' }))
                 }}
-                className="reg-input w-full h-10 px-3 bg-white border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A]"
+                className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
               >
                 <option value="">Выберите категорию</option>
                 {ANIMAL_CATEGORIES.map((c) => (
@@ -411,7 +411,7 @@ export function FarmProfile() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-[#6b5744] mb-1 block">Голов *</label>
+                <label className="text-xs text-[var(--fg2)] mb-1 block">Голов *</label>
                 <input
                   type="number"
                   value={herdForm.head_count}
@@ -421,12 +421,12 @@ export function FarmProfile() {
                   }}
                   placeholder="0"
                   min="1"
-                  className="reg-input w-full h-10 px-3 bg-white border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A]"
+                  className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
                 />
                 {herdErrors.head_count && <p className="text-xs text-red-500 mt-1">{herdErrors.head_count}</p>}
               </div>
               <div>
-                <label className="text-xs text-[#6b5744] mb-1 block">Ср. вес (кг)</label>
+                <label className="text-xs text-[var(--fg2)] mb-1 block">Ср. вес (кг)</label>
                 <input
                   type="number"
                   value={herdForm.avg_weight_kg}
@@ -435,18 +435,18 @@ export function FarmProfile() {
                     if (herdErrors.avg_weight) setHerdErrors((e2) => ({ ...e2, avg_weight: '' }))
                   }}
                   placeholder="0"
-                  className="reg-input w-full h-10 px-3 bg-white border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A]"
+                  className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
                 />
                 {herdErrors.avg_weight && <p className="text-xs text-red-500 mt-1">{herdErrors.avg_weight}</p>}
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-[#6b5744] mb-1 block">Порода</label>
+              <label className="text-xs text-[var(--fg2)] mb-1 block">Порода</label>
               <select
                 value={herdForm.breed_id}
                 onChange={(e) => setHerdForm((f) => ({ ...f, breed_id: e.target.value }))}
-                className="reg-input w-full h-10 px-3 bg-white border border-[#e8ddd0] rounded-lg text-sm text-[#2B180A]"
+                className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
               >
                 <option value="">Не указана</option>
                 {BREEDS_LIST.map((b) => (
@@ -459,7 +459,7 @@ export function FarmProfile() {
               <button
                 onClick={handleSaveHerdGroup}
                 disabled={isSavingHerd}
-                className="flex-1 h-10 bg-[#2B180A] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40"
+                className="flex-1 h-10 bg-[var(--fg)] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40"
               >
                 {isSavingHerd && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {herdForm.id ? 'Обновить' : 'Добавить'}
@@ -470,7 +470,7 @@ export function FarmProfile() {
                   setHerdForm(EMPTY_HERD_FORM)
                   setHerdErrors({})
                 }}
-                className="h-10 px-4 text-sm text-[#6b5744] hover:text-[#2B180A]"
+                className="h-10 px-4 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
               >
                 Отмена
               </button>

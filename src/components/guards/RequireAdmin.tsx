@@ -41,8 +41,8 @@ export function RequireAdmin() {
 
   if (authLoading || checking) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f8f9fa]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#4361ee]" />
+      <div className="flex items-center justify-center min-h-screen bg-turan-bg">
+        <Loader2 className="h-8 w-8 animate-spin text-turan-blue" />
       </div>
     )
   }
