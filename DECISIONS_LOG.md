@@ -31,6 +31,7 @@
 | D-GATE-S2 | 2026-03-19 | Gate | Slice 2 QA + Architect sign-off. 0 critical. fn_is_admin() verified SQL+UI. DEF-016 accepted minor. |
 | L-SCHEMA-1 | 2026-03-19 | Process | SQL column names diverge from Dok 1 entity names. DB Agent must verify against deployed schema before writing JOINs. 4 critical defects caught (DEF-017..020). |
 | D-DS-1 | 2026-03-22 | UI/Design | Full migration to TURAN Design System v11. Unified AppShell for farmer + admin. Mobile adaptation deferred. |
+| D-DS-2 | 2026-03-22 | UI/Design | DS v11.1: low-saturation dark theme (4-8%), surface hierarchy (Level 0-3), inputs=bg-background. |
 
 ---
 
@@ -314,3 +315,69 @@ A minimal WhatsApp sender worker is added to Slice 2 Backend scope. Uses existin
 - Hard: Slice 2 scope expanded — Backend Agent must build minimal WA sender
 - Hard: requires `WHATSAPP_TOKEN` env var to be set and WhatsApp Business API configured
 - Reuse: the WA sender worker will be reused by all future slices (proactive dispatch, alerts, etc.)
+
+---
+
+### D-DS-1 — Full Migration to TURAN Design System v11
+
+**Date:** 2026-03-22
+**Domain:** UI/Design
+
+**WHAT:** Complete UI migration from ad-hoc warm palette to TURAN Design System v11. Unified AppShell layout replaces separate CabinetLayout + AdminLayout.
+
+Changes:
+1. CSS variables: TURAN v11 tokens scoped to `[data-shell]` (landing/registration untouched)
+2. AppShell: CSS Grid (Sidebar + Header + Content + DetailPanel), replaces bottom nav + top nav
+3. Sidebar: 3 states (expanded/collapsed/hidden), role-aware nav, theme toggle, Cmd+B
+4. All hardcoded hex colors in cabinet/admin replaced with CSS variables
+5. StatusBadge + SeverityBadge components (semantic colors, not Tailwind hardcodes)
+6. PageHeader component for consistent page titles
+7. shadcn components updated: input/textarea/select bg, button shadow, checkbox radius
+8. Global focus-visible ring inside [data-shell]
+9. Inter + JetBrains Mono fonts added (landing keeps PT Serif/Source Sans)
+
+**Alternatives considered:**
+- A. Unified AppShell for all (chosen) — single layout, mobile adaptation later
+- B. Two layouts, one DS — farmer keeps mobile bottom-nav, admin gets AppShell
+- C. AppShell with farmer-mode — conditional bottom-nav inside AppShell
+
+**WHY:** Variant A chosen by CEO. Single codebase, consistent UX. Mobile adaptation is a separate task after core DS is stable.
+
+**CONSEQUENCES:**
+- Easy: one layout system to maintain, consistent token usage
+- Easy: theme switching (dark/light) works across all screens
+- Easy: new screens automatically get DS styling via AppShell
+- Hard: farmer on mobile phone sees desktop sidebar (mobile adaptation deferred)
+- Hard: landing/registration use separate color system (`:root` = original, `[data-shell]` = DS v11)
+
+---
+
+### D-DS-2 — DS v11.1: Low-Saturation Dark + Surface Hierarchy
+
+**Date:** 2026-03-22
+**Domain:** UI/Design
+
+**WHAT:** Dark theme saturation reduced from 14-20% to 4-8%. Surface hierarchy formalized as 4 levels.
+
+Surface Hierarchy:
+| Level | Token | Dark Hex | Components |
+|-------|-------|----------|------------|
+| 0 | `--bg` | `#141312` | Page background, input/select/textarea |
+| 1 | `--bg-s` | `#1b1a18` | Sidebar, panels |
+| 2 | `--bg-c` | `#222120` | Cards, popovers, modals, sections |
+| 3 | `--bg-m` | `#2c2b28` | Hover, active, muted |
+
+Key rule: Input = Level 0 (always darker than card Level 2). Border adds definition.
+
+Component rules documented in tokens.ts:
+- Button CTA: `--cta` bg, `--cta-fg` text. NEVER orange/accent text.
+- Checkbox checked: `--cta` bg. Border: `--input`.
+- Focus ring: `--bd-h` (warm brown). NEVER blue. NEVER accent.
+- Nav active: `rgba(fg, 0.05)` neutral. NEVER brand color.
+
+**WHY:** Previous dark theme was too warm/brown (muddy). Low saturation = cleaner, more professional. Surface hierarchy prevents inputs from blending into cards.
+
+**CONSEQUENCES:**
+- Easy: clear visual depth on dark backgrounds
+- Easy: inputs always visible inside cards (darker than card bg)
+- Easy: documented rules prevent future inconsistency
