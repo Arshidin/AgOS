@@ -86,20 +86,20 @@ export const primitive = {
 
 export const semantic = {
   dark: {
-    bg:     "#1a1612",     // page background — warm near-black
-    bgS:    "#211d18",     // sidebar, panel background
-    bgC:    "#272219",     // card, popover, dropdown background
-    bgM:    "#332d24",     // muted, hover, secondary background
-    fg:     "#e8e0d4",     // primary text — warm white
-    fg2:    "#a69a8c",     // secondary text
-    fg3:    "#6b6054",     // muted text, placeholders
-    bd:     "#3a3328",     // primary border
-    bdS:    "#2d271e",     // subtle border (table rows)
-    bdH:    "#4d4436",     // hover/focus border
-    accent: "#F0A020",     // brand accent star (brighter for dark bg)
-    cta:    "#e8e0d4",     // CTA button bg (inverted)
-    ctaFg:  "#1a1612",     // CTA button text
-    ctaH:   "#f0ebe2",     // CTA button hover
+    bg:     "#141312",     // page background, input fields (Level 0 — deepest)
+    bgS:    "#1b1a18",     // sidebar, panels (Level 1)
+    bgC:    "#222120",     // cards, popovers, modals (Level 2 — elevated)
+    bgM:    "#2c2b28",     // hover, active states (Level 3)
+    fg:     "#e6e2dc",     // primary text
+    fg2:    "#9e9890",     // secondary text
+    fg3:    "#686460",     // muted, placeholders
+    bd:     "#302e2a",     // borders
+    bdS:    "#242220",     // subtle borders
+    bdH:    "#444038",     // hover/focus borders
+    accent: "#F0A020",     // brand star (logo only)
+    cta:    "#e6e2dc",     // primary button bg
+    ctaFg:  "#141312",     // primary button text
+    ctaH:   "#f0ebe2",     // primary button hover
   },
   light: {
     bg:     "#f0ebe2",     // page background — warm beige from Turan site
@@ -118,6 +118,46 @@ export const semantic = {
     ctaH:   "#2c1e14",     // CTA button hover
   },
 } as const;
+
+// ─── SURFACE HIERARCHY ──────────────────────────────────────────────────────
+//
+// Level 0  bg     — page background, input/select/textarea fields
+// Level 1  bgS    — sidebar, panels
+// Level 2  bgC    — cards, popovers, dropdowns, modals, section wrappers
+// Level 3  bgM    — hover states, muted backgrounds
+//
+// RULE: input ALWAYS Level 0 (bg). It sits inside card (Level 2),
+// so it is always darker than the card. Border adds definition.
+//
+// COMPONENT → SURFACE:
+//   input, select, textarea     → bg     (Level 0)
+//   sidebar, detail panel       → bgS    (Level 1)
+//   card, popover, modal, sheet → bgC    (Level 2)
+//   hover, active, pressed      → bgM    (Level 3)
+//
+// ─── COMPONENT STYLING RULES ────────────────────────────────────────────────
+//
+// Input/Select/Textarea:
+//   bg: --bg (Level 0)  |  border: --bd  |  radius: 6px
+//   focus ring: --bd-h (warm brown, NOT blue, NOT accent)
+//
+// Button primary (CTA):
+//   bg: --cta  |  text: --cta-fg  |  NEVER text-accent / orange
+//   disabled: same bg + opacity-40 (NOT gray, NOT different bg)
+//
+// Button secondary:
+//   bg: transparent  |  border: --bd  |  text: --fg2
+//   hover: bg-m + bd-h
+//
+// Card / Section:
+//   bg: --bg-c (Level 2)  |  border: --bd  |  radius: 10px  |  padding: 20px
+//
+// Sidebar:
+//   bg: --bg-s (Level 1)  |  NO horizontal border under logo
+//   nav active: rgba(fg, 0.05) — neutral, NOT brand
+//
+// Checkbox checked: bg = --cta, checkmark = --cta-fg
+// Status badges: semantic colors (green/blue/amber/red), NOT accent
 
 // ─── TYPOGRAPHY ──────────────────────────────────────────────────────────────
 
@@ -317,26 +357,26 @@ export const zIndex = {
 
 export const cssVariables = `
 :root {
-  /* Backgrounds — warm dark (Turan) */
-  --bg: #1a1612;
-  --bg-s: #211d18;
-  --bg-c: #272219;
-  --bg-m: #332d24;
+  /* Backgrounds — low-saturation dark v11.1 */
+  --bg: #141312;
+  --bg-s: #1b1a18;
+  --bg-c: #222120;
+  --bg-m: #2c2b28;
 
   /* Foregrounds */
-  --fg: #e8e0d4;
-  --fg2: #a69a8c;
-  --fg3: #6b6054;
+  --fg: #e6e2dc;
+  --fg2: #9e9890;
+  --fg3: #686460;
 
   /* Borders */
-  --bd: #3a3328;
-  --bd-s: #2d271e;
-  --bd-h: #4d4436;
+  --bd: #302e2a;
+  --bd-s: #242220;
+  --bd-h: #444038;
 
   /* Brand */
   --accent: #F0A020;
-  --cta: #e8e0d4;
-  --cta-fg: #1a1612;
+  --cta: #e6e2dc;
+  --cta-fg: #141312;
   --cta-h: #f0ebe2;
 
   /* Typography */
