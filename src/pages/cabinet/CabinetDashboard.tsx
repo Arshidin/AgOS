@@ -37,8 +37,8 @@ export function CabinetDashboard() {
           onClick={() => navigate('/cabinet/vet/new')}
           className="w-full flex items-center gap-4 p-4 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] hover:border-[var(--cta)] transition-colors text-left"
         >
-          <div className="w-11 h-11 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-            <Stethoscope className="h-5 w-5 text-red-500" />
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(192,57,43,0.08)', color: 'var(--red)' }}>
+            <Stethoscope className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--fg)]">Сообщить о болезни</p>
@@ -53,8 +53,8 @@ export function CabinetDashboard() {
           onClick={() => navigate('/cabinet/farm')}
           className="w-full flex items-center gap-4 p-4 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] hover:border-[var(--cta)] transition-colors text-left"
         >
-          <div className="w-11 h-11 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-            <Leaf className="h-5 w-5 text-green-600" />
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(58,138,82,0.08)', color: 'var(--green)' }}>
+            <Leaf className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--fg)]">Профиль фермы</p>

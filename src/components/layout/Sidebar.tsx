@@ -29,13 +29,13 @@ function TuranStar({ size = 24 }: { size?: number }) {
             y1="-3"
             x2="0"
             y2="-13"
-            stroke="#E8920B"
+            stroke="var(--accent, #E8920B)"
             strokeWidth="2.8"
             strokeLinecap="round"
             transform={`rotate(${a})`}
           />
         ))}
-        <circle cx="0" cy="0" r="2.5" fill="#E8920B" />
+        <circle cx="0" cy="0" r="2.5" fill="var(--accent, #E8920B)" />
       </g>
     </svg>
   )
@@ -68,16 +68,19 @@ const ADMIN_NAV: NavItem[] = [
 function IconBtn({
   onClick,
   title,
+  ariaLabel,
   children,
 }: {
   onClick: () => void
   title?: string
+  ariaLabel?: string
   children: React.ReactNode
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      aria-label={ariaLabel || title}
       style={{
         width: 28,
         height: 28,
@@ -185,7 +188,7 @@ export function Sidebar() {
                 TURAN
               </div>
             </div>
-            <IconBtn onClick={cycleSidebar} title="Collapse Cmd+B">
+            <IconBtn onClick={cycleSidebar} title="Collapse Cmd+B" ariaLabel="Collapse sidebar">
               <PanelLeftClose size={15} />
             </IconBtn>
           </>
@@ -347,10 +350,11 @@ export function Sidebar() {
             <IconBtn
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title="Toggle theme"
+              ariaLabel="Toggle theme"
             >
               {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
             </IconBtn>
-            <IconBtn onClick={() => signOut()} title="Sign out">
+            <IconBtn onClick={() => signOut()} title="Sign out" ariaLabel="Sign out">
               <LogOut size={14} />
             </IconBtn>
           </>

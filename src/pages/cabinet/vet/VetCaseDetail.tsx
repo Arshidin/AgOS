@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, AlertTriangle, Clock, Shield } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatusBadge, SeverityBadge } from '@/components/ui/status-badge'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -47,20 +48,6 @@ interface VetCaseData {
     status: string | null
     expert_name: string | null
   } | null
-}
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  open: { label: 'Открыт', color: 'bg-blue-100 text-blue-700' },
-  in_progress: { label: 'В работе', color: 'bg-yellow-100 text-yellow-700' },
-  resolved: { label: 'Решён', color: 'bg-green-100 text-green-700' },
-  escalated: { label: 'Эскалирован', color: 'bg-red-100 text-red-700' },
-}
-
-const SEVERITY_LABELS: Record<string, { label: string; color: string }> = {
-  minor: { label: 'Незначительная', color: 'bg-green-100 text-green-700' },
-  moderate: { label: 'Умеренная', color: 'bg-yellow-100 text-yellow-700' },
-  severe: { label: 'Серьёзная', color: 'bg-red-100 text-red-700' },
-  critical: { label: 'Критическая', color: 'bg-red-200 text-red-900' },
 }
 
 const CREATED_VIA_LABELS: Record<string, string> = {
@@ -172,11 +159,11 @@ export function VetCaseDetail() {
           <ArrowLeft className="h-4 w-4" />
           Назад
         </button>
-        <div className="p-4 bg-red-50 rounded-xl text-center">
-          <p className="text-sm text-red-700">{error || 'Случай не найден'}</p>
+        <div className="p-4 rounded-xl text-center" style={{ background: 'rgba(192,57,43,0.08)' }}>
+          <p className="text-sm" style={{ color: 'var(--red)' }}>{error || 'Случай не найден'}</p>
           <button
             onClick={loadCase}
-            className="mt-2 text-sm text-red-600 underline"
+            className="mt-2 text-sm underline" style={{ color: 'var(--red)' }}
           >
             Повторить
           </button>
@@ -184,11 +171,6 @@ export function VetCaseDetail() {
       </div>
     )
   }
-
-  const statusInfo = STATUS_LABELS[vetCase.status] ?? { label: 'Открыт', color: 'bg-blue-100 text-blue-700' }
-  const severityInfo = vetCase.severity
-    ? SEVERITY_LABELS[vetCase.severity] || null
-    : null
 
   return (
     <div className="space-y-5">
@@ -206,14 +188,8 @@ export function VetCaseDetail() {
               Ветеринарный случай
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              <span className={cn('px-2 py-0.5 rounded text-xs font-medium', statusInfo.color)}>
-                {statusInfo.label}
-              </span>
-              {severityInfo && (
-                <span className={cn('px-2 py-0.5 rounded text-xs font-medium', severityInfo.color)}>
-                  {severityInfo.label}
-                </span>
-              )}
+              <StatusBadge status={vetCase.status} />
+              <SeverityBadge severity={vetCase.severity} />
             </div>
           </div>
         </div>
@@ -225,23 +201,26 @@ export function VetCaseDetail() {
           <div
             className={cn(
               'w-2 h-2 rounded-full',
-              realtimeStatus === 'live' ? 'bg-green-500 animate-pulse' :
-              realtimeStatus === 'error' ? 'bg-red-400' : 'bg-[var(--fg3)]'
+              realtimeStatus === 'live' ? 'animate-pulse' : ''
             )}
+            style={{
+              background: realtimeStatus === 'live' ? 'var(--green)' :
+                realtimeStatus === 'error' ? 'var(--red)' : 'var(--fg3)'
+            }}
           />
         </div>
       </div>
 
       {/* Escalation banner */}
       {vetCase.status === 'escalated' && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-          <Shield className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl flex items-start gap-3" style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.15)' }}>
+          <Shield className="h-5 w-5 shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
           <div>
-            <p className="text-sm font-medium text-red-700">
+            <p className="text-sm font-medium" style={{ color: 'var(--red)' }}>
               Случай передан эксперту-ветеринару ТУРАН
             </p>
             {vetCase.consultation_request?.expert_name && (
-              <p className="text-xs text-red-600 mt-0.5">
+              <p className="text-xs mt-0.5" style={{ color: 'var(--red)' }}>
                 Эксперт: {vetCase.consultation_request.expert_name}
               </p>
             )}
@@ -251,13 +230,13 @@ export function VetCaseDetail() {
 
       {/* Withdrawal/restriction banner */}
       {vetCase.health_restrictions.length > 0 && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-xl flex items-start gap-3" style={{ background: 'rgba(179,122,16,0.08)', border: '1px solid rgba(179,122,16,0.15)' }}>
+          <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" style={{ color: 'var(--amber)' }} />
           <div>
             {vetCase.health_restrictions.map((hr, idx) => (
-              <p key={idx} className="text-sm text-amber-700">
+              <p key={idx} className="text-sm" style={{ color: 'var(--amber)' }}>
                 Ограничение на продажу до {new Date(hr.expires_at).toLocaleDateString('ru-RU')}
-                {hr.reason && <span className="text-xs text-amber-600 block">{hr.reason}</span>}
+                {hr.reason && <span className="text-xs block" style={{ color: 'var(--amber)' }}>{hr.reason}</span>}
               </p>
             ))}
           </div>
@@ -334,12 +313,11 @@ export function VetCaseDetail() {
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-2 bg-[var(--bd)] rounded-full overflow-hidden">
                     <div
-                      className={cn(
-                        'h-full rounded-full transition-all duration-500',
-                        diag.confidence_pct >= 70 ? 'bg-green-500' :
-                        diag.confidence_pct >= 40 ? 'bg-yellow-500' : 'bg-red-400'
-                      )}
-                      style={{ width: `${diag.confidence_pct}%` }}
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${diag.confidence_pct}%`,
+                        background: diag.confidence_pct >= 70 ? 'var(--green)' : diag.confidence_pct >= 40 ? 'var(--amber)' : 'var(--red)',
+                      }}
                     />
                   </div>
                   <span className="text-xs text-[var(--fg2)] w-10 text-right">
@@ -394,13 +372,13 @@ export function VetCaseDetail() {
                 )}
 
                 {/* P-AI-4 CRITICAL: NEVER show numeric dosage */}
-                <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded flex items-center gap-1.5">
+                <p className="text-xs px-2 py-1.5 rounded flex items-center gap-1.5" style={{ color: 'var(--amber)', background: 'rgba(179,122,16,0.08)' }}>
                   <AlertTriangle className="h-3 w-3 shrink-0" />
                   {rec.dosage_note || 'Дозировку определяет ветеринарный врач'}
                 </p>
 
                 {rec.withdrawal_days != null && rec.withdrawal_days > 0 && (
-                  <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded flex items-center gap-1.5">
+                  <p className="text-xs px-2 py-1.5 rounded flex items-center gap-1.5" style={{ color: 'var(--red)', background: 'rgba(192,57,43,0.08)' }}>
                     <Clock className="h-3 w-3 shrink-0" />
                     Период выведения: {rec.withdrawal_days} дней
                   </p>
@@ -442,7 +420,7 @@ export function VetCaseDetail() {
           {/* Diagnoses */}
           {vetCase.diagnoses.map((d) => (
             <div key={d.id} className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 shrink-0" />
+              <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: 'var(--blue)' }} />
               <div>
                 <p className="text-xs text-[var(--fg)]">Диагноз: {d.disease_name}</p>
                 <p className="text-[10px] text-[var(--fg2)]">
@@ -457,7 +435,7 @@ export function VetCaseDetail() {
           {/* Recommendations */}
           {vetCase.recommendations.map((r) => (
             <div key={r.id} className="flex items-start gap-3">
-              <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5 shrink-0" />
+              <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: 'var(--green)' }} />
               <div>
                 <p className="text-xs text-[var(--fg)]">
                   Рекомендация: {r.treatment_name || REC_TYPE_LABELS[r.type] || r.type}

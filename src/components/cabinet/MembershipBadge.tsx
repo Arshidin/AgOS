@@ -2,15 +2,15 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import type { MembershipStatus } from '@/types/membership';
 
-// bg-{color}-500/10 text-{color}-500 — работает в обеих темах
-const BADGE_COLORS: Record<MembershipStatus, string> = {
-  registered: 'bg-gray-500/10 text-gray-500',
-  applicant: 'bg-orange-500/10 text-orange-500',
-  observer: 'bg-blue-500/10 text-blue-500',
-  active: 'bg-green-500/10 text-green-500',
-  associate: 'bg-purple-500/10 text-purple-500',
-  restricted: 'bg-red-500/10 text-red-500',
-  expelled: 'bg-red-500/10 text-red-500',
+// DS-token-based styles — no Tailwind opacity syntax
+const BADGE_STYLES: Record<MembershipStatus, { bg: string; fg: string }> = {
+  registered: { bg: 'rgba(122,107,93,0.08)',  fg: 'var(--fg2, #7a6b5d)' },
+  applicant:  { bg: 'rgba(179,122,16,0.08)',  fg: 'var(--amber)' },
+  observer:   { bg: 'rgba(69,113,184,0.08)',  fg: 'var(--blue)' },
+  active:     { bg: 'rgba(58,138,82,0.08)',   fg: 'var(--green)' },
+  associate:  { bg: 'rgba(122,107,93,0.08)',  fg: 'var(--fg2, #7a6b5d)' },
+  restricted: { bg: 'rgba(192,57,43,0.08)',   fg: 'var(--red)' },
+  expelled:   { bg: 'rgba(192,57,43,0.08)',   fg: 'var(--red)' },
 };
 
 interface Props {
@@ -20,14 +20,15 @@ interface Props {
 
 export function MembershipBadge({ status, className }: Props) {
   const { t } = useTranslation();
+  const style = BADGE_STYLES[status] ?? BADGE_STYLES.registered;
 
   return (
     <span
       className={cn(
         'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-        BADGE_COLORS[status],
         className,
       )}
+      style={{ background: style.bg, color: style.fg }}
     >
       {t(`membership.statuses.${status}`)}
     </span>
