@@ -16,7 +16,7 @@ export function AdminDashboard() {
           className="p-5 bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] hover:border-[var(--blue)] hover:shadow-sm transition-all text-left"
         >
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] rounded-lg">
+            <div className="p-2 rounded-lg" style={{ background: 'rgba(69,113,184,0.08)' }}>
               <Users className="h-5 w-5 text-[var(--blue)]" />
             </div>
             <h3 className="font-medium text-[var(--fg)]">Заявки на членство</h3>

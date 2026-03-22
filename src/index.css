@@ -64,6 +64,12 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
     --admin-surface: 0 0% 100%;
     --admin-elevated: 0 0% 100%;
+
+    /* Semantic status colors (available globally for badges etc.) */
+    --blue: #4571b8;
+    --green: #3a8a52;
+    --amber: #b37a10;
+    --red: #c0392b;
   }
 
   /* ═══ TURAN DS v11 — Dark (scoped to AppShell only) ═══ */
@@ -209,6 +215,15 @@
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
+  }
+
+  /* Global focus ring — accessible keyboard navigation */
+  [data-shell] *:focus-visible {
+    outline: 2px solid var(--bd-h);
+    outline-offset: 2px;
+  }
+  [data-shell] *:focus:not(:focus-visible) {
+    outline: none;
   }
 }
 

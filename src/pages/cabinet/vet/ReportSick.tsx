@@ -118,6 +118,7 @@ export function ReportSick() {
                 if (errors.farm) setErrors((prev) => ({ ...prev, farm: '' }))
               }}
               className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+              style={{ borderColor: errors.farm ? 'var(--red)' : undefined }}
             >
               <option value="">Выберите ферму</option>
               {farms.map((f) => (
@@ -131,8 +132,8 @@ export function ReportSick() {
             <p className="text-sm text-[var(--fg)] font-medium">{farms[0]?.name}</p>
           </div>
         ) : (
-          <div className="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
-            <p className="text-sm text-yellow-700">
+          <div className="p-3 rounded-xl" style={{ background: 'rgba(179,122,16,0.08)', border: '1px solid rgba(179,122,16,0.15)' }}>
+            <p className="text-sm" style={{ color: 'var(--amber)' }}>
               У вас нет ферм. Сначала создайте ферму в разделе "Профиль".
             </p>
           </div>

@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
  * A01 — Membership Queue
@@ -41,11 +42,11 @@ const STATUS_TABS = [
   { value: 'rejected', label: 'Отклонено' },
 ] as const
 
-const STATUS_BADGES: Record<string, { label: string; className: string }> = {
-  submitted: { label: 'Ожидает', className: 'bg-blue-100 text-blue-700' },
-  under_review: { label: 'На рассмотрении', className: 'bg-yellow-100 text-yellow-700' },
-  approved: { label: 'Одобрено', className: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Отклонено', className: 'bg-red-100 text-red-700' },
+const STATUS_LABELS: Record<string, string> = {
+  submitted: 'Ожидает',
+  under_review: 'На рассмотрении',
+  approved: 'Одобрено',
+  rejected: 'Отклонено',
 }
 
 const ORG_TYPE_LABELS: Record<string, string> = {
@@ -109,7 +110,7 @@ export function MembershipQueue() {
             Заявки на членство
           </h2>
           {totalCount > 0 && (
-            <span className="px-2 py-0.5 bg-[color-mix(in_srgb,var(--blue)_10%,transparent)] text-[var(--blue)] rounded-full text-xs font-medium">
+            <span className="px-2 py-0.5 text-[var(--blue)] rounded-full text-xs font-medium" style={{ background: 'rgba(69,113,184,0.08)' }}>
               {totalCount}
             </span>
           )}
@@ -146,7 +147,7 @@ export function MembershipQueue() {
       {/* Empty state */}
       {!isLoading && items.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Inbox className="h-12 w-12 text-[var(--bd)] mb-3" />
+          <Inbox className="h-12 w-12 text-[var(--fg3)] mb-3" />
           <p className="text-sm text-[var(--fg2)]">Нет заявок с таким статусом</p>
         </div>
       )}
@@ -154,9 +155,7 @@ export function MembershipQueue() {
       {/* Application list */}
       {!isLoading && items.length > 0 && (
         <div className="space-y-2">
-          {items.map((app) => {
-            const statusInfo = STATUS_BADGES[app.status] ?? { label: app.status, className: 'bg-gray-100 text-gray-700' }
-            return (
+          {items.map((app) => (
               <button
                 key={app.application_id}
                 onClick={() => navigate(`/admin/membership/${app.application_id}`)}
@@ -180,17 +179,14 @@ export function MembershipQueue() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className={cn('px-2 py-0.5 rounded text-xs font-medium', statusInfo.className)}>
-                      {statusInfo.label}
-                    </span>
+                    <StatusBadge status={app.status} label={STATUS_LABELS[app.status] ?? app.status} showDot={false} />
                     <span className="text-[10px] text-[var(--fg3)]">
                       {relativeDate(app.submitted_at)}
                     </span>
                   </div>
                 </div>
               </button>
-            )
-          })}
+            ))}
         </div>
       )}
 
@@ -200,6 +196,7 @@ export function MembershipQueue() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
+            aria-label="Предыдущая страница"
             className="px-3 py-1.5 text-sm rounded-md border border-[var(--bd)] disabled:opacity-40 hover:bg-[var(--bg-s)]"
           >
             Назад
@@ -210,6 +207,7 @@ export function MembershipQueue() {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
+            aria-label="Следующая страница"
             className="px-3 py-1.5 text-sm rounded-md border border-[var(--bd)] disabled:opacity-40 hover:bg-[var(--bg-s)]"
           >
             Далее

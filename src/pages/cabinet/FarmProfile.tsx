@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { StatusBadge } from '@/components/ui/status-badge'
 import type { Farm, HerdGroup } from '@/contexts/AuthContext'
 
 const SHELTER_TYPES = [
@@ -78,6 +79,7 @@ export function FarmProfile() {
   const [shelterType, setShelterType] = useState('')
   const [calvingSystem, setCalvingSystem] = useState('')
   const [isSavingFarm, setIsSavingFarm] = useState(false)
+  const [farmNameError, setFarmNameError] = useState(false)
 
   // Activity types
   const [activities, setActivities] = useState<string[]>([])
@@ -99,9 +101,11 @@ export function FarmProfile() {
 
   const handleSaveFarm = async () => {
     if (!farmName.trim()) {
+      setFarmNameError(true)
       toast.error('Введите название фермы')
       return
     }
+    setFarmNameError(false)
     if (!organization?.id) return
 
     setIsSavingFarm(true)
@@ -221,17 +225,17 @@ export function FarmProfile() {
     )
   }
 
+  const membershipBadgeStatus = membership?.status === 'active'
+    ? 'approved'
+    : membership?.status === 'applicant'
+    ? 'submitted'
+    : 'open'
+
   const membershipLabel = membership?.status === 'active'
     ? 'Член ассоциации'
     : membership?.status === 'applicant'
     ? 'Заявка подана'
     : 'Зарегистрирован'
-
-  const membershipColor = membership?.status === 'active'
-    ? 'bg-green-100 text-green-700'
-    : membership?.status === 'applicant'
-    ? 'bg-orange-100 text-orange-700'
-    : 'bg-blue-100 text-blue-700'
 
   return (
     <div className="space-y-6">
@@ -241,20 +245,18 @@ export function FarmProfile() {
           <h2 className="text-xl font-semibold text-[var(--fg)] font-serif">
             {farm?.name || 'Моя ферма'}
           </h2>
-          <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1', membershipColor)}>
-            {membershipLabel}
-          </span>
+          <StatusBadge status={membershipBadgeStatus} label={membershipLabel} className="mt-1" />
         </div>
       </div>
 
       {/* Health restrictions warning */}
       {userContext?.health_restrictions && userContext.health_restrictions.length > 0 && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-sm text-red-700 font-medium">
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(192,57,43,0.08)', borderWidth: 1, borderStyle: 'solid', borderColor: 'rgba(192,57,43,0.15)' }}>
+          <p className="text-sm font-medium" style={{ color: 'var(--red)' }}>
             Ограничение на продажу
           </p>
           {userContext.health_restrictions.map((hr) => (
-            <p key={hr.id} className="text-xs text-red-600 mt-1">
+            <p key={hr.id} className="text-xs mt-1" style={{ color: 'var(--red)' }}>
               {hr.reason} — до {new Date(hr.expires_at).toLocaleDateString('ru-RU')}
             </p>
           ))}
@@ -270,8 +272,9 @@ export function FarmProfile() {
             <label className="text-xs text-[var(--fg2)] mb-1 block">Название фермы *</label>
             <input
               value={farmName}
-              onChange={(e) => setFarmName(e.target.value)}
+              onChange={(e) => { setFarmName(e.target.value); if (farmNameError) setFarmNameError(false) }}
               className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+              style={{ borderColor: farmNameError ? 'var(--red)' : undefined }}
             />
           </div>
 
@@ -400,6 +403,7 @@ export function FarmProfile() {
                   if (herdErrors.category) setHerdErrors((e2) => ({ ...e2, category: '' }))
                 }}
                 className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
+                style={{ borderColor: herdErrors.category ? 'var(--red)' : undefined }}
               >
                 <option value="">Выберите категорию</option>
                 {ANIMAL_CATEGORIES.map((c) => (
@@ -422,6 +426,7 @@ export function FarmProfile() {
                   placeholder="0"
                   min="1"
                   className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
+                  style={{ borderColor: herdErrors.head_count ? 'var(--red)' : undefined }}
                 />
                 {herdErrors.head_count && <p className="text-xs text-red-500 mt-1">{herdErrors.head_count}</p>}
               </div>
@@ -436,6 +441,7 @@ export function FarmProfile() {
                   }}
                   placeholder="0"
                   className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
+                  style={{ borderColor: herdErrors.avg_weight ? 'var(--red)' : undefined }}
                 />
                 {herdErrors.avg_weight && <p className="text-xs text-red-500 mt-1">{herdErrors.avg_weight}</p>}
               </div>
@@ -482,10 +488,11 @@ export function FarmProfile() {
       {/* Navigate to vet */}
       <button
         onClick={() => navigate('/cabinet/vet/new')}
-        className="w-full flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors text-left"
+        className="w-full flex items-center gap-3 p-4 rounded-xl transition-colors text-left"
+        style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.10)' }}
       >
-        <Stethoscope className="h-5 w-5 text-red-500 shrink-0" />
-        <span className="text-sm font-medium text-red-700">Сообщить о болезни</span>
+        <Stethoscope className="h-5 w-5 shrink-0" style={{ color: 'var(--red)' }} />
+        <span className="text-sm font-medium" style={{ color: 'var(--red)' }}>Сообщить о болезни</span>
       </button>
     </div>
   )

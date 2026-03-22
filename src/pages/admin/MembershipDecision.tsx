@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle, XCircle, Loader2, Building2, MapPin, Hash, Cale
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
 
 /**
@@ -59,11 +60,11 @@ interface ApplicationDetail {
   application_history: AppHistory[]
 }
 
-const STATUS_BADGES: Record<string, { label: string; className: string }> = {
-  submitted: { label: 'Ожидает', className: 'bg-blue-100 text-blue-700' },
-  under_review: { label: 'На рассмотрении', className: 'bg-yellow-100 text-yellow-700' },
-  approved: { label: 'Одобрено', className: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Отклонено', className: 'bg-red-100 text-red-700' },
+const STATUS_LABELS: Record<string, string> = {
+  submitted: 'Ожидает',
+  under_review: 'На рассмотрении',
+  approved: 'Одобрено',
+  rejected: 'Отклонено',
 }
 
 const ORG_TYPE_LABELS: Record<string, string> = {
@@ -151,7 +152,6 @@ export function MembershipDecision() {
     )
   }
 
-  const statusInfo = STATUS_BADGES[detail.status] ?? { label: detail.status, className: 'bg-gray-100 text-gray-700' }
   const canDecide = detail.status === 'submitted' || detail.status === 'under_review'
   const totalHeads = detail.farms.reduce(
     (sum, f) => sum + f.herd_groups.reduce((s, hg) => s + hg.head_count, 0), 0
@@ -171,9 +171,7 @@ export function MembershipDecision() {
           </button>
           <h2 className="text-xl font-semibold text-[var(--fg)]">Заявка на членство</h2>
         </div>
-        <span className={cn('px-2.5 py-1 rounded text-xs font-medium', statusInfo.className)}>
-          {statusInfo.label}
-        </span>
+        <StatusBadge status={detail.status} label={STATUS_LABELS[detail.status] ?? detail.status} />
       </div>
 
       {/* Organization card */}
@@ -217,7 +215,7 @@ export function MembershipDecision() {
       {detail.farms.length > 0 && (
         <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg)] flex items-center gap-2">
-            <Leaf className="h-4 w-4 text-green-600" />
+            <Leaf className="h-4 w-4" style={{ color: 'var(--green)' }} />
             Хозяйство
           </h3>
           {detail.farms.map((farm) => (
@@ -258,7 +256,7 @@ export function MembershipDecision() {
               {farm.activity_types.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {farm.activity_types.map((at, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-[10px]">
+                    <span key={idx} className="px-2 py-0.5 rounded text-[10px]" style={{ background: 'rgba(58,138,82,0.08)', color: 'var(--green)' }}>
                       {at}
                     </span>
                   ))}
@@ -294,14 +292,10 @@ export function MembershipDecision() {
         <div className="bg-[var(--bg-c)] rounded-xl border border-[var(--bd)] p-5 space-y-3">
           <h3 className="text-sm font-medium text-[var(--fg)]">Предыдущие заявки</h3>
           <div className="space-y-2">
-            {detail.application_history.map((prev) => {
-              const prevStatus = STATUS_BADGES[prev.status]
-              return (
+            {detail.application_history.map((prev) => (
                 <div key={prev.id} className="flex items-center justify-between text-xs p-2 bg-[var(--bg)] rounded-lg">
                   <div className="flex items-center gap-2">
-                    <span className={cn('px-1.5 py-0.5 rounded', prevStatus?.className ?? 'bg-gray-100')}>
-                      {prevStatus?.label ?? prev.status}
-                    </span>
+                    <StatusBadge status={prev.status} label={STATUS_LABELS[prev.status] ?? prev.status} showDot={false} />
                     <span className="text-[var(--fg2)]">
                       {new Date(prev.submitted_at).toLocaleDateString('ru-RU')}
                     </span>
@@ -310,24 +304,26 @@ export function MembershipDecision() {
                     <span className="text-[var(--fg3)] truncate max-w-[200px]">{prev.reviewer_notes}</span>
                   )}
                 </div>
-              )
-            })}
+              ))}
           </div>
         </div>
       )}
 
       {/* Decision result (if already decided) */}
       {!canDecide && (detail.status === 'approved' || detail.status === 'rejected') && (
-        <div className={cn(
-          'rounded-xl border p-5 space-y-2',
-          detail.status === 'approved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-        )}>
+        <div
+          className="rounded-xl border p-5 space-y-2"
+          style={{
+            background: detail.status === 'approved' ? 'rgba(58,138,82,0.08)' : 'rgba(192,57,43,0.08)',
+            borderColor: detail.status === 'approved' ? 'var(--green)' : 'var(--red)',
+          }}
+        >
           <div className="flex items-center gap-2">
             {detail.status === 'approved'
-              ? <CheckCircle className="h-5 w-5 text-green-600" />
-              : <XCircle className="h-5 w-5 text-red-600" />
+              ? <CheckCircle className="h-5 w-5" style={{ color: 'var(--green)' }} />
+              : <XCircle className="h-5 w-5" style={{ color: 'var(--red)' }} />
             }
-            <span className={cn('font-medium text-sm', detail.status === 'approved' ? 'text-green-700' : 'text-red-700')}>
+            <span className="font-medium text-sm" style={{ color: detail.status === 'approved' ? 'var(--green)' : 'var(--red)' }}>
               {detail.status === 'approved' ? 'Заявка одобрена' : 'Заявка отклонена'}
             </span>
           </div>
@@ -361,7 +357,9 @@ export function MembershipDecision() {
             <button
               onClick={() => setConfirmAction('approved')}
               disabled={processMutation.isPending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--green)] text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
+              aria-label="Одобрить заявку"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
+              style={{ background: 'var(--green)' }}
             >
               <CheckCircle className="h-4 w-4" />
               Одобрить
@@ -369,7 +367,9 @@ export function MembershipDecision() {
             <button
               onClick={() => setConfirmAction('rejected')}
               disabled={processMutation.isPending}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--red)] text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
+              aria-label="Отклонить заявку"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-white rounded-lg font-medium text-sm hover:brightness-90 disabled:opacity-50 transition-colors"
+              style={{ background: 'var(--red)' }}
             >
               <XCircle className="h-4 w-4" />
               Отклонить
@@ -380,9 +380,9 @@ export function MembershipDecision() {
 
       {/* Confirmation dialog */}
       {confirmAction && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-c)] rounded-xl p-6 max-w-sm w-full space-y-4">
-            <h3 className="font-medium text-[var(--fg)]">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-[var(--bg-c)] rounded-xl p-6 max-w-sm w-full space-y-4" role="alertdialog" aria-labelledby="confirm-dialog-title">
+            <h3 id="confirm-dialog-title" className="font-medium text-[var(--fg)]">
               {confirmAction === 'approved' ? 'Одобрить заявку?' : 'Отклонить заявку?'}
             </h3>
             <p className="text-sm text-[var(--fg2)]">
@@ -394,6 +394,7 @@ export function MembershipDecision() {
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmAction(null)}
+                aria-label="Отменить действие"
                 className="flex-1 px-4 py-2 border border-[var(--bd)] rounded-lg text-sm text-[var(--fg2)] hover:bg-[var(--bg)]"
               >
                 Отмена
@@ -401,10 +402,9 @@ export function MembershipDecision() {
               <button
                 onClick={handleDecision}
                 disabled={processMutation.isPending}
-                className={cn(
-                  'flex-1 px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50',
-                  confirmAction === 'approved' ? 'bg-[var(--green)] hover:brightness-90' : 'bg-[var(--red)] hover:brightness-90'
-                )}
+                aria-label={confirmAction === 'approved' ? 'Подтвердить одобрение' : 'Подтвердить отклонение'}
+                className="flex-1 px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50 hover:brightness-90"
+                style={{ background: confirmAction === 'approved' ? 'var(--green)' : 'var(--red)' }}
               >
                 {processMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mx-auto" />
