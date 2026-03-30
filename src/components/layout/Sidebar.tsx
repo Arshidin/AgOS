@@ -9,6 +9,7 @@ import {
   Wheat,
   Users,
   BookOpen,
+  Calculator,
   PanelLeftClose,
   Search,
   Sun,
@@ -55,6 +56,7 @@ const FARMER_NAV: NavItem[] = [
   { id: 'herd', icon: Fence, label: 'Herd', route: '/cabinet/herd' },
   { id: 'vet', icon: Stethoscope, label: 'Vet', route: '/cabinet/vet/new' },
   { id: 'feed', icon: Wheat, label: 'Feed', route: '/cabinet/feed' },
+  { id: 'ration', icon: Calculator, label: 'Ration', route: '/cabinet/ration' },
 ]
 
 const ADMIN_NAV: NavItem[] = [

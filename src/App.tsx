@@ -13,6 +13,12 @@ import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
 import { VetCaseDetail } from '@/pages/cabinet/vet/VetCaseDetail'
 import { CabinetDashboard } from '@/pages/cabinet/CabinetDashboard'
+import { HerdOverview } from '@/pages/cabinet/herd/HerdOverview'
+import { HerdGroupForm } from '@/pages/cabinet/herd/HerdGroupForm'
+import { FeedInventory } from '@/pages/cabinet/feed/FeedInventory'
+import { FeedItemForm } from '@/pages/cabinet/feed/FeedItemForm'
+import { RationViewer } from '@/pages/cabinet/ration/RationViewer'
+import { FeedBudget } from '@/pages/cabinet/ration/FeedBudget'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
@@ -48,6 +54,14 @@ function App() {
                 <Route path="farm" element={<FarmProfile />} />
                 <Route path="vet/new" element={<ReportSick />} />
                 <Route path="vet/:caseId" element={<VetCaseDetail />} />
+                <Route path="herd" element={<HerdOverview />} />
+                <Route path="herd/add" element={<HerdGroupForm />} />
+                <Route path="herd/:groupId" element={<HerdGroupForm />} />
+                <Route path="feed" element={<FeedInventory />} />
+                <Route path="feed/add" element={<FeedItemForm />} />
+                <Route path="feed/:inventoryId" element={<FeedItemForm />} />
+                <Route path="ration" element={<RationViewer />} />
+                <Route path="ration/budget" element={<FeedBudget />} />
               </Route>
             </Route>
 
