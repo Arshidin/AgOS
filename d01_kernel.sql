@@ -4478,3 +4478,298 @@ on conflict (sql_name) do update
 -- All functions: fn_is_admin() guard
 -- rpc_process_membership_application: events + notifications (WA + in_app)
 -- ============================================================
+
+-- ============================================================
+-- SLICE 3: Feed Planning RPCs (d01_kernel.sql portion)
+-- RPC-07: rpc_log_herd_event
+-- RPC-08: rpc_get_farm_summary
+-- ============================================================
+
+-- ============================================================
+-- RPC-07: rpc_log_herd_event
+-- Dok 3 §3 | Callers: [WEB] [AI]
+-- Append-only INSERT into herd_events (D25).
+-- Events: farm.herd_event.logged (Dok 4)
+-- ============================================================
+create or replace function public.rpc_log_herd_event(
+    p_organization_id   uuid,
+    p_farm_id           uuid,
+    p_herd_group_id     uuid        default null,
+    p_event_type        text        default null,
+    p_value_before      numeric     default null,
+    p_value_after       numeric     default null,
+    p_data_source       text        default 'platform',
+    p_event_date        date        default null,
+    p_notes             text        default null,
+    p_metadata          jsonb       default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_event_id  uuid;
+begin
+    -- Validate required fields
+    if p_event_type is null then
+        raise exception 'EVENT_TYPE_REQUIRED: p_event_type cannot be null'
+            using errcode = 'P0001';
+    end if;
+    if p_value_after is null then
+        raise exception 'VALUE_AFTER_REQUIRED: p_value_after cannot be null'
+            using errcode = 'P0001';
+    end if;
+
+    -- Ownership check: farm belongs to organization
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    -- If herd_group_id provided, verify it belongs to the farm
+    if p_herd_group_id is not null then
+        if not exists (
+            select 1 from public.herd_groups
+            where id = p_herd_group_id and farm_id = p_farm_id and is_active = true
+        ) then
+            raise exception 'HERD_GROUP_NOT_FOUND: group % does not belong to farm %',
+                p_herd_group_id, p_farm_id using errcode = 'P0001';
+        end if;
+    end if;
+
+    -- D25: Append-only INSERT (never UPDATE herd_events)
+    insert into public.herd_events (
+        farm_id,
+        organization_id,
+        herd_group_id,
+        event_type,
+        value_before,
+        value_after,
+        event_date,
+        data_source,
+        recorded_by,
+        notes,
+        metadata
+    ) values (
+        p_farm_id,
+        p_organization_id,
+        p_herd_group_id,
+        p_event_type,
+        p_value_before,
+        p_value_after,
+        coalesce(p_event_date, current_date),
+        p_data_source,
+        public.fn_current_user_id(),
+        p_notes,
+        p_metadata
+    )
+    returning id into v_event_id;
+
+    -- Emit event: farm.herd_event.logged (Dok 4 §3.2)
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'farm.herd_event.logged',
+        'herd_events',
+        v_event_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'event_id', v_event_id,
+            'farm_id', p_farm_id,
+            'group_id', p_herd_group_id,
+            'event_type', p_event_type,
+            'value_before', p_value_before,
+            'value_after', p_value_after
+        ),
+        false
+    );
+
+    return v_event_id;
+end;
+$$;
+
+comment on function public.rpc_log_herd_event(uuid, uuid, uuid, text, numeric, numeric, text, date, text, jsonb) is
+    'RPC-07 | Dok 3 §3 | Slice 3
+     Append-only INSERT into herd_events (D25). Never UPDATE.
+     event_type validated by CHECK constraint on herd_events table.
+     delta = value_after - value_before (generated column).
+     recorded_by = current user (null if system/ERP).
+     Events: farm.herd_event.logged.';
+
+
+
+-- ============================================================
+-- RPC-08: rpc_get_farm_summary
+-- Dok 3 §3 | Callers: [WEB] [AI]
+-- Cross-domain read: farm + herd_groups + feed_inventory + vet_cases + tasks
+-- Returns jsonb summary for farmer cabinet and AI context.
+-- ============================================================
+create or replace function public.rpc_get_farm_summary(
+    p_organization_id   uuid,
+    p_farm_id           uuid
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+    v_farm              jsonb;
+    v_herd_groups       jsonb;
+    v_feed_inventory    jsonb;
+    v_active_vet_cases  jsonb;
+    v_upcoming_tasks    jsonb;
+    v_result            jsonb;
+begin
+    -- Ownership check
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    -- Farm basic info
+    select jsonb_build_object(
+        'id', f.id,
+        'name', f.name,
+        'region_id', f.region_id,
+        'shelter_type', f.shelter_type,
+        'calving_system', f.calving_system,
+        'total_area_ha', f.total_area_ha,
+        'is_primary', f.is_primary
+    ) into v_farm
+    from public.farms f
+    where f.id = p_farm_id;
+
+    -- Herd groups with category and breed info
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', hg.id,
+            'animal_category_id', hg.animal_category_id,
+            'animal_category_code', ac.code,
+            'animal_category_name_ru', ac.name_ru,
+            'breed_id', hg.breed_id,
+            'breed_name_ru', b.name_ru,
+            'head_count', hg.head_count,
+            'avg_weight_kg', hg.avg_weight_kg,
+            'data_source', hg.data_source,
+            'confidence', hg.confidence,
+            'updated_at', hg.updated_at
+        ) order by ac.code
+    ), '[]'::jsonb) into v_herd_groups
+    from public.herd_groups hg
+    join public.animal_categories ac on ac.id = hg.animal_category_id
+    left join public.breeds b on b.id = hg.breed_id
+    where hg.farm_id = p_farm_id
+      and hg.is_active = true;
+
+    -- Feed inventory with feed item details
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', ffi.id,
+            'feed_item_id', ffi.feed_item_id,
+            'feed_item_code', fi.code,
+            'feed_item_name_ru', fi.name_ru,
+            'feed_category_code', fc.code,
+            'feed_category_name_ru', fc.name_ru,
+            'quantity_kg', ffi.quantity_kg,
+            'data_source', ffi.data_source,
+            'confidence', ffi.confidence,
+            'last_updated_date', ffi.last_updated_date,
+            'updated_at', ffi.updated_at
+        ) order by fc.sort_order, fi.name_ru
+    ), '[]'::jsonb) into v_feed_inventory
+    from public.farm_feed_inventory ffi
+    join public.feed_items fi on fi.id = ffi.feed_item_id
+    join public.feed_categories fc on fc.id = fi.feed_category_id
+    where ffi.farm_id = p_farm_id
+      and ffi.organization_id = p_organization_id;
+
+    -- Active vet cases (open or in_progress)
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', vc.id,
+            'herd_group_id', vc.herd_group_id,
+            'severity', vc.severity,
+            'status', vc.status,
+            'symptoms_text', vc.symptoms_text,
+            'affected_head_count', vc.affected_head_count,
+            'created_at', vc.created_at
+        ) order by vc.created_at desc
+    ), '[]'::jsonb) into v_active_vet_cases
+    from public.vet_cases vc
+    where vc.farm_id = p_farm_id
+      and vc.organization_id = p_organization_id
+      and vc.status in ('open', 'in_progress', 'escalated');
+
+    -- Upcoming tasks (scheduled or reminded, due within 30 days)
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', ft.id,
+            'name_ru', ft.name_ru,
+            'category', ft.category,
+            'due_date', ft.due_date,
+            'status', ft.status
+        ) order by ft.due_date
+    ), '[]'::jsonb) into v_upcoming_tasks
+    from public.farm_tasks ft
+    where ft.organization_id = p_organization_id
+      and ft.status in ('scheduled', 'reminded', 'in_progress', 'overdue')
+      and ft.due_date <= current_date + interval '30 days';
+
+    -- Build result
+    v_result := jsonb_build_object(
+        'farm', v_farm,
+        'herd_groups', v_herd_groups,
+        'feed_inventory', v_feed_inventory,
+        'active_vet_cases', v_active_vet_cases,
+        'upcoming_tasks', v_upcoming_tasks
+    );
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_farm_summary(uuid, uuid) is
+    'RPC-08 | Dok 3 §3 | Slice 3
+     Cross-domain farm summary: herd groups (+ category/breed names),
+     feed inventory (+ item/category names), active vet cases, upcoming tasks.
+     STABLE read — no side effects.
+     Used by: F03 (Herd Overview), F15 (Feed Inventory), AI Gateway context.';
+
+
+
+-- ============================================================
+-- SLICE 3: Add new RPCs to rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_log_herd_event',   'rpc_log_herd_event',   null, 'd01_kernel.sql (Slice 3)', 'RPC-07: Append-only herd event log'),
+    ('rpc_get_farm_summary', 'rpc_get_farm_summary',  null, 'd01_kernel.sql (Slice 3)', 'RPC-08: Cross-domain farm summary (herd + feed + vet + tasks)')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- END Slice 3 d01_kernel.sql RPCs
+-- ============================================================
+

@@ -890,3 +890,570 @@ on conflict do nothing;
 --   OR 005_vet.sql (Veterinary module)
 --   Recommended: 005_vet.sql (D48: Feed/Vet boundary — AI links them)
 -- ============================================================
+
+
+-- ============================================================
+-- SLICE 3: Feed Planning RPCs
+-- RPC-21: rpc_upsert_feed_inventory
+-- RPC-22: rpc_save_ration
+-- RPC-23: rpc_archive_ration
+-- RPC-24: rpc_get_current_ration
+-- ============================================================
+
+-- ============================================================
+-- RPC-21: rpc_upsert_feed_inventory
+-- Dok 3 §5 | Callers: [WEB] [AI]
+-- D-S3-1: Individual fields per call (not batch jsonb).
+-- D45: Layered Truth — data_source determines confidence.
+-- Events: feed.inventory.updated (Dok 4 §3.4)
+-- ============================================================
+create or replace function public.rpc_upsert_feed_inventory(
+    p_organization_id   uuid,
+    p_farm_id           uuid,
+    p_feed_item_id      uuid,
+    p_quantity_kg       numeric,
+    p_price_per_kg      numeric     default null,
+    p_data_source       text        default 'platform'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_inventory_id  uuid;
+    v_confidence    int;
+    v_qty_before    numeric;
+    v_is_new        boolean := false;
+begin
+    -- Validate required fields
+    if p_feed_item_id is null then
+        raise exception 'FEED_ITEM_REQUIRED: p_feed_item_id cannot be null'
+            using errcode = 'P0001';
+    end if;
+    if p_quantity_kg is null or p_quantity_kg < 0 then
+        raise exception 'INVALID_QUANTITY: p_quantity_kg must be >= 0'
+            using errcode = 'P0001';
+    end if;
+
+    -- Ownership check: farm belongs to organization
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    -- Validate feed_item exists and is active
+    if not exists (
+        select 1 from public.feed_items where id = p_feed_item_id and is_active = true
+    ) then
+        raise exception 'FEED_ITEM_NOT_FOUND: feed_item % not found or inactive',
+            p_feed_item_id using errcode = 'P0001';
+    end if;
+
+    -- D45: Confidence mapping from data_source
+    v_confidence := case p_data_source
+        when 'registration'  then 25
+        when 'ai_extracted'  then 50
+        when 'platform'      then 75
+        when 'erp'           then 95
+        else 75  -- default to platform level
+    end;
+
+    -- Get current quantity for event payload (before upsert)
+    select quantity_kg into v_qty_before
+    from public.farm_feed_inventory
+    where farm_id = p_farm_id and feed_item_id = p_feed_item_id;
+
+    if v_qty_before is null then
+        v_is_new := true;
+        v_qty_before := 0;
+    end if;
+
+    -- UPSERT: unique(farm_id, feed_item_id)
+    insert into public.farm_feed_inventory (
+        farm_id,
+        organization_id,
+        feed_item_id,
+        quantity_kg,
+        data_source,
+        confidence,
+        last_updated_date,
+        notes
+    ) values (
+        p_farm_id,
+        p_organization_id,
+        p_feed_item_id,
+        p_quantity_kg,
+        p_data_source,
+        v_confidence,
+        current_date,
+        null
+    )
+    on conflict (farm_id, feed_item_id) do update
+        set quantity_kg       = excluded.quantity_kg,
+            data_source       = excluded.data_source,
+            confidence        = excluded.confidence,
+            last_updated_date = excluded.last_updated_date
+    returning id into v_inventory_id;
+
+    -- Emit event: feed.inventory.updated (Dok 4 §3.4)
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'feed.inventory.updated',
+        'farm_feed_inventory',
+        v_inventory_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'farm_id', p_farm_id,
+            'items', jsonb_build_array(
+                jsonb_build_object(
+                    'feed_item_id', p_feed_item_id,
+                    'qty_kg_before', v_qty_before,
+                    'qty_kg_after', p_quantity_kg
+                )
+            ),
+            'data_source', p_data_source
+        ),
+        false
+    );
+
+    return jsonb_build_object(
+        'inventory_id', v_inventory_id,
+        'is_new', v_is_new,
+        'quantity_kg', p_quantity_kg,
+        'confidence', v_confidence
+    );
+end;
+$$;
+
+comment on function public.rpc_upsert_feed_inventory(uuid, uuid, uuid, numeric, numeric, text) is
+    'RPC-21 | Dok 3 §5 | Slice 3
+     D-S3-1: Individual fields per call (not batch).
+     D45: Layered Truth — confidence auto-set from data_source.
+     UPSERT on unique(farm_id, feed_item_id).
+     Events: feed.inventory.updated.
+     AI Gateway: must use save_confirmation_payload first (P-AI-3).';
+
+
+
+-- ============================================================
+-- RPC-22: rpc_save_ration
+-- Dok 3 §5 | Callers: [WEB] [AI]
+-- Creates ration header + inserts new RationVersion (append-only D51).
+-- Trigger fn_ration_version_set_current maintains is_current flag.
+-- Trigger fn_ration_auto_activate sets status=active on first version.
+-- Events: feed.ration.created (Dok 4 §3.4)
+-- ============================================================
+create or replace function public.rpc_save_ration(
+    p_organization_id       uuid,
+    p_farm_id               uuid,
+    p_herd_group_id         uuid        default null,
+    p_animal_category_id    uuid        default null,
+    p_breed_id              uuid        default null,
+    p_period_type_id        uuid        default null,
+    p_avg_weight_kg         numeric     default null,
+    p_head_count            int         default null,
+    p_objective             text        default 'growth',
+    p_shelter_type          text        default 'combined',
+    p_target_daily_gain_kg  numeric     default null,
+    p_ration_id             uuid        default null,   -- null = create new, uuid = add version
+    p_items                 jsonb       default '[]',    -- feed items array
+    p_results               jsonb       default '{}',    -- LP solver results
+    p_calculated_by         text        default 'edge_function',
+    p_notes                 text        default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_ration_id         uuid;
+    v_version_id        uuid;
+    v_version_number    int;
+    v_category_id       uuid;
+    v_is_new_ration     boolean := false;
+begin
+    -- Ownership check: farm belongs to organization
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    if p_ration_id is null then
+        -- CREATE new ration header
+        -- animal_category_id is required for new rations
+        v_category_id := p_animal_category_id;
+        if v_category_id is null and p_herd_group_id is not null then
+            -- Derive from herd group
+            select animal_category_id into v_category_id
+            from public.herd_groups
+            where id = p_herd_group_id and is_active = true;
+        end if;
+
+        if v_category_id is null then
+            raise exception 'ANIMAL_CATEGORY_REQUIRED: p_animal_category_id or p_herd_group_id must be provided'
+                using errcode = 'P0001';
+        end if;
+
+        if p_avg_weight_kg is null or p_avg_weight_kg <= 0 then
+            raise exception 'WEIGHT_REQUIRED: p_avg_weight_kg must be > 0'
+                using errcode = 'P0001';
+        end if;
+
+        -- Archive any existing active ration for this herd group (if applicable)
+        if p_herd_group_id is not null then
+            update public.rations
+            set status = 'archived', updated_at = now()
+            where farm_id = p_farm_id
+              and herd_group_id = p_herd_group_id
+              and status = 'active';
+        end if;
+
+        insert into public.rations (
+            farm_id,
+            organization_id,
+            herd_group_id,
+            animal_category_id,
+            breed_id,
+            period_type_id,
+            avg_weight_kg,
+            head_count,
+            objective,
+            shelter_type,
+            target_daily_gain_kg,
+            status,
+            is_quick_mode,
+            notes,
+            created_by
+        ) values (
+            p_farm_id,
+            p_organization_id,
+            p_herd_group_id,
+            v_category_id,
+            p_breed_id,
+            p_period_type_id,
+            p_avg_weight_kg,
+            coalesce(p_head_count, 1),
+            p_objective,
+            p_shelter_type,
+            p_target_daily_gain_kg,
+            'draft',
+            false,
+            p_notes,
+            public.fn_current_user_id()
+        )
+        returning id into v_ration_id;
+
+        v_is_new_ration := true;
+    else
+        -- ADD VERSION to existing ration
+        v_ration_id := p_ration_id;
+
+        -- Verify ration exists and belongs to org
+        if not exists (
+            select 1 from public.rations
+            where id = v_ration_id
+              and organization_id = p_organization_id
+              and status in ('draft', 'active')
+        ) then
+            raise exception 'RATION_NOT_FOUND: ration % not found or archived',
+                v_ration_id using errcode = 'P0001';
+        end if;
+
+        -- Read existing ration params for version snapshot
+        select avg_weight_kg, head_count, period_type_id, objective, shelter_type
+        into p_avg_weight_kg, p_head_count, p_period_type_id, p_objective, p_shelter_type
+        from public.rations
+        where id = v_ration_id;
+    end if;
+
+    -- Determine next version number
+    select coalesce(max(version_number), 0) + 1 into v_version_number
+    from public.ration_versions
+    where ration_id = v_ration_id;
+
+    -- D51: Append-only INSERT (never UPDATE ration_versions)
+    -- Triggers: fn_ration_version_set_current (BEFORE INSERT) sets is_current
+    -- Triggers: fn_ration_auto_activate (AFTER INSERT) sets ration status=active
+    insert into public.ration_versions (
+        ration_id,
+        version_number,
+        items,
+        results,
+        calc_avg_weight_kg,
+        calc_head_count,
+        calc_period_type_code,
+        calc_objective,
+        calc_shelter_type,
+        calculated_by
+    ) values (
+        v_ration_id,
+        v_version_number,
+        p_items,
+        p_results,
+        p_avg_weight_kg,
+        coalesce(p_head_count, 1),
+        (select code from public.period_types where id = p_period_type_id),
+        p_objective,
+        p_shelter_type,
+        p_calculated_by
+    )
+    returning id into v_version_id;
+
+    -- Emit event: feed.ration.created (Dok 4 §3.4)
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'feed.ration.created',
+        'rations',
+        v_ration_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'ration_id', v_ration_id,
+            'farm_id', p_farm_id,
+            'herd_group_id', p_herd_group_id,
+            'version_number', v_version_number,
+            'is_new_ration', v_is_new_ration
+        ),
+        false
+    );
+
+    return jsonb_build_object(
+        'ration_id', v_ration_id,
+        'version_id', v_version_id,
+        'version_number', v_version_number,
+        'is_new_ration', v_is_new_ration
+    );
+end;
+$$;
+
+comment on function public.rpc_save_ration(uuid, uuid, uuid, uuid, uuid, uuid, numeric, int, text, text, numeric, uuid, jsonb, jsonb, text, text) is
+    'RPC-22 | Dok 3 §5 | Slice 3
+     p_ration_id=null → creates new ration + first version.
+     p_ration_id=uuid → adds new version to existing ration (D51 append-only).
+     Auto-archives previous active ration for same herd_group.
+     Triggers: fn_ration_version_set_current (is_current flag),
+               fn_ration_auto_activate (draft→active on first version).
+     Events: feed.ration.created.
+     D87: Called by Edge Function calculate_ration or AI Gateway.';
+
+
+
+-- ============================================================
+-- RPC-23: rpc_archive_ration
+-- Dok 3 §5 | Callers: [WEB] [AI]
+-- FSM: active → archived (soft-archive, P7)
+-- Events: feed.ration.archived (Dok 4 §3.4)
+-- ============================================================
+create or replace function public.rpc_archive_ration(
+    p_organization_id   uuid,
+    p_ration_id         uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_current_status    text;
+    v_farm_id           uuid;
+begin
+    -- Get ration and verify ownership
+    select status, farm_id into v_current_status, v_farm_id
+    from public.rations
+    where id = p_ration_id
+      and organization_id = p_organization_id;
+
+    if v_current_status is null then
+        raise exception 'RATION_NOT_FOUND: ration % not found for organization %',
+            p_ration_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    if v_current_status = 'archived' then
+        -- Already archived — idempotent
+        return true;
+    end if;
+
+    -- FSM: only draft or active can transition to archived
+    if v_current_status not in ('draft', 'active') then
+        raise exception 'INVALID_STATUS_TRANSITION: cannot archive ration in status %',
+            v_current_status using errcode = 'P0001';
+    end if;
+
+    update public.rations
+    set status = 'archived', updated_at = now()
+    where id = p_ration_id;
+
+    -- Emit event: feed.ration.archived (Dok 4 §3.4)
+    insert into public.platform_events (
+        event_type,
+        entity_type,
+        entity_id,
+        organization_id,
+        actor_type,
+        actor_id,
+        payload,
+        is_audit
+    ) values (
+        'feed.ration.archived',
+        'rations',
+        p_ration_id,
+        p_organization_id,
+        'farmer',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'ration_id', p_ration_id,
+            'farm_id', v_farm_id,
+            'reason', 'user_archived'
+        ),
+        false
+    );
+
+    return true;
+end;
+$$;
+
+comment on function public.rpc_archive_ration(uuid, uuid) is
+    'RPC-23 | Dok 3 §5 | Slice 3
+     FSM: draft|active → archived. Idempotent (already archived = true).
+     Soft-archive: ration and versions retained for history.
+     Events: feed.ration.archived.';
+
+
+
+-- ============================================================
+-- RPC-24: rpc_get_current_ration
+-- Dok 3 §5 | Callers: [WEB] [AI]
+-- D-S3-2: Farm-level return — all active rations for the farm.
+-- Returns array of rations with current version + nutrient summary.
+-- ============================================================
+create or replace function public.rpc_get_current_ration(
+    p_organization_id   uuid,
+    p_farm_id           uuid
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+    v_result jsonb;
+begin
+    -- Ownership check
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    select coalesce(jsonb_agg(ration_data order by ac.code), '[]'::jsonb)
+    into v_result
+    from (
+        select
+            jsonb_build_object(
+                'ration_id', r.id,
+                'herd_group_id', r.herd_group_id,
+                'animal_category_id', r.animal_category_id,
+                'animal_category_code', ac.code,
+                'animal_category_name_ru', ac.name_ru,
+                'breed_id', r.breed_id,
+                'breed_name_ru', b.name_ru,
+                'avg_weight_kg', r.avg_weight_kg,
+                'head_count', r.head_count,
+                'objective', r.objective,
+                'shelter_type', r.shelter_type,
+                'target_daily_gain_kg', r.target_daily_gain_kg,
+                'status', r.status,
+                'created_at', r.created_at,
+                'current_version', (
+                    select jsonb_build_object(
+                        'version_id', rv.id,
+                        'version_number', rv.version_number,
+                        'items', rv.items,
+                        'results', rv.results,
+                        'calculated_by', rv.calculated_by,
+                        'created_at', rv.created_at
+                    )
+                    from public.ration_versions rv
+                    where rv.ration_id = r.id
+                      and rv.is_current = true
+                    limit 1
+                ),
+                'version_count', (
+                    select count(*)
+                    from public.ration_versions rv
+                    where rv.ration_id = r.id
+                )
+            ) as ration_data,
+            ac.code  -- for ordering
+        from public.rations r
+        join public.animal_categories ac on ac.id = r.animal_category_id
+        left join public.breeds b on b.id = r.breed_id
+        where r.farm_id = p_farm_id
+          and r.organization_id = p_organization_id
+          and r.status = 'active'
+    ) sub
+    join public.animal_categories ac on ac.code = sub.code;
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_current_ration(uuid, uuid) is
+    'RPC-24 | Dok 3 §5 | Slice 3
+     D-S3-2: Farm-level return — all active rations for the farm.
+     Each ration includes current version (is_current=true) with items + results.
+     STABLE read — no side effects.
+     Used by: F17 (Ration Viewer), AI Gateway feed context.';
+
+
+
+-- ============================================================
+-- SLICE 3: Add new RPCs to rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_upsert_feed_inventory', 'rpc_upsert_feed_inventory', null, 'd03_feed.sql (Slice 3)', 'RPC-21: UPSERT feed inventory (D-S3-1 individual fields)'),
+    ('rpc_save_ration',           'rpc_save_ration',           null, 'd03_feed.sql (Slice 3)', 'RPC-22: Create/version ration (D51 append-only versions)'),
+    ('rpc_archive_ration',        'rpc_archive_ration',        null, 'd03_feed.sql (Slice 3)', 'RPC-23: Archive ration (FSM: active→archived)'),
+    ('rpc_get_current_ration',    'rpc_get_current_ration',    null, 'd03_feed.sql (Slice 3)', 'RPC-24: Farm-level active rations (D-S3-2)')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- END Slice 3 d03_feed.sql RPCs
+-- ============================================================
+

@@ -32,6 +32,9 @@
 | L-SCHEMA-1 | 2026-03-19 | Process | SQL column names diverge from Dok 1 entity names. DB Agent must verify against deployed schema before writing JOINs. 4 critical defects caught (DEF-017..020). |
 | D-DS-1 | 2026-03-22 | UI/Design | Full migration to TURAN Design System v11. Unified AppShell for farmer + admin. Mobile adaptation deferred. |
 | D-DS-2 | 2026-03-22 | UI/Design | DS v11.1: low-saturation dark theme (4-8%), surface hierarchy (Level 0-3), inputs=bg-background. |
+| D-S3-1 | 2026-03-30 | RPC/Feed | Feed inventory RPC: individual fields, not batch jsonb |
+| D-S3-2 | 2026-03-30 | RPC/Feed | Current ration: farm-level return (all groups in one call) |
+| D-S3-3 | 2026-03-30 | Documentation | Dok 6 Slice 3 review: 8 findings fixed (4 Significant, 4 Minor) |
 
 ---
 
@@ -381,3 +384,70 @@ Component rules documented in tokens.ts:
 - Easy: clear visual depth on dark backgrounds
 - Easy: inputs always visible inside cards (darker than card bg)
 - Easy: documented rules prevent future inconsistency
+
+---
+
+### D-S3-1 — Feed Inventory RPC: Individual Fields (Not Batch)
+
+**Date:** 2026-03-30
+**Domain:** RPC / Feed
+
+**WHAT:** `rpc_upsert_feed_inventory` (RPC-21) accepts individual fields per call: `(p_organization_id, p_farm_id, p_feed_item_id, p_quantity_kg, p_price_per_kg?, p_data_source)`. NOT a jsonb array of items.
+
+**WHY:** Two options:
+- (A) Individual fields — simpler UI, one form submit = one call, P-AI-3 confirmation flow per-item ✅ CHOSEN
+- (B) jsonb array — batch update, fewer round-trips, better for AI bulk extraction
+
+Option A chosen. Slice 3 is farmer manual entry (one feed item at a time). Batch mode can be added as a separate `rpc_upsert_feed_inventory_batch` later (P7 additive, not breaking).
+
+**CONSEQUENCES:**
+- Easy: simple UI hook, clear error per item
+- Easy: AI confirmation flow works naturally (one confirmation = one item)
+- Hard: AI bulk extraction from "у меня 5 тонн сена и 2 тонны ячменя" requires multiple RPC calls (acceptable for Slice 3)
+
+---
+
+### D-S3-2 — Current Ration: Farm-Level Return
+
+**Date:** 2026-03-30
+**Domain:** RPC / Feed
+
+**WHAT:** `rpc_get_current_ration` (RPC-24) takes `(p_organization_id, p_farm_id)` and returns ALL active rations for the farm as jsonb array. One element per herd group that has an active ration.
+
+**WHY:** Two options:
+- (A) Farm-level return (all groups) — one call, F17 shows everything ✅ CHOSEN
+- (B) Per-group return — UI calls N times, or needs wrapper
+
+F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3-5 groups typically). One call is cleaner.
+
+**CONSEQUENCES:**
+- Easy: F17 loads with one RPC call
+- Easy: small payload (3-5 groups × 5-10 feed items each)
+- Neutral: client-side filtering trivial if needed
+
+---
+
+### D-S3-3 — Dok 6 Slice 3 Review: 8 Findings Fixed
+
+**Date:** 2026-03-30
+**Domain:** Documentation / Quality
+
+**WHAT:** Architect review of Dok 6 Slice 3 found 8 issues (4 Significant, 4 Minor). All fixed in v1.1:
+
+| # | Sev | Fix |
+|---|-----|-----|
+| F-1 | Significant | F04: `p_animal_category_code` (text), not `_id` (uuid) — matches deployed SQL |
+| F-2 | Significant | F04: added `p_actor_id` param — required by deployed `rpc_upsert_herd_group` |
+| F-3 | Significant | F16: confirmed individual fields (D-S3-1), not jsonb batch |
+| F-4 | Significant | F17: confirmed farm-level return (D-S3-2), `p_farm_id` not `p_herd_group_id` |
+| F-5 | Minor | F15: added confidence badge (D45 Layered Truth) |
+| F-6 | Minor | F16: documented confidence=75 for platform data source |
+| F-7 | Minor | F17: documented ration FSM transition ownership |
+| F-8 | Minor | F18: documented Edge Function endpoint path and I/O schema |
+
+**WHY:** F-1 and F-2 were blocking — UI Agent would have called RPC with wrong param types. Caught by cross-referencing Dok 6 against deployed SQL in d07.
+
+**CONSEQUENCES:**
+- Easy: UI Agent can now implement F04 without hitting type mismatch
+- Easy: DB Agent has clear spec for RPC-21 and RPC-24 signatures
+- Lesson reinforced: always verify Dok 6 contracts against SQL before handing off to implementation agents

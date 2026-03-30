@@ -1,8 +1,8 @@
 # Dok 6 — Interface Contracts: Slice 3 "Сколько корма нужно?"
 
-> Version: 1.0 | Date: 2026-03-19
+> Version: 1.1 | Date: 2026-03-30
 > Author: Architect Agent
-> Status: ✅ APPROVED — CEO decisions resolved 2026-03-19
+> Status: ✅ APPROVED — v1.1 review fixes (D-S3-1, D-S3-2, D-S3-3) applied 2026-03-30
 >
 > **Scope:** 6 farmer screens (F03, F04, F15–F18) — herd overview + feed management.
 > **User story:** Farmer sees herd overview → adds/edits groups → manages feed inventory → views ration → gets feed budget.
@@ -105,17 +105,21 @@ F03-HerdOverview
    Edit mode (groupId): pre-fill from context
 
 2. Form:
-   - Select: animal_category (from animal_categories table) — required
+   - Select: animal_category — display name_ru, store `code` (text, not uuid!) — required
    - Input: head_count (integer > 0) — required
    - Input: avg_weight_kg (numeric, optional)
    - Select: breed_id (from breeds table, optional)
 
 3. Submit → rpc_upsert_herd_group({
      p_organization_id, p_farm_id,
-     p_animal_category_id, p_head_count,
-     p_avg_weight_kg, p_breed_id,
-     p_herd_group_id (null for create)
+     p_animal_category_code (text — e.g. 'BULL_CALF'),
+     p_head_count, p_avg_weight_kg, p_breed_id,
+     p_herd_group_id (null for create),
+     p_actor_id (auth.uid())
    })
+
+   ⚠️ NOTE: SQL signature uses `p_animal_category_code` (text),
+   NOT `p_animal_category_id` (uuid). UI select must store code, not id.
 
 4. On success → log herd event via rpc_log_herd_event() + redirect to F03
 ```
@@ -124,7 +128,7 @@ F03-HerdOverview
 
 | RPC | When called | Input | Output |
 |-----|------------|-------|--------|
-| `rpc_upsert_herd_group` (RPC-06) | Submit | `{ p_organization_id, p_farm_id, p_animal_category_id, p_head_count, p_avg_weight_kg?, p_breed_id? }` | `{ herd_group_id }` |
+| `rpc_upsert_herd_group` (RPC-06) | Submit | `{ p_organization_id, p_farm_id, p_animal_category_code (text!), p_head_count, p_avg_weight_kg?, p_breed_id?, p_actor_id }` | `{ herd_group_id }` |
 | `rpc_log_herd_event` (RPC-07) | After successful upsert | `{ p_organization_id, p_farm_id, p_herd_group_id, p_event_type, p_value_after, p_data_source }` | `uuid` |
 
 ### Reference Data
@@ -190,6 +194,7 @@ F15-FeedInventory
 │   ├── QuantityKg (formatted: "1,250 кг" or "1.2 т")
 │   ├── PricePerKg (if available)
 │   ├── DataSourceBadge
+│   ├── ConfidenceBadge (D45 Layered Truth: 25/50/75/95 → low/med/high/verified)
 │   └── EditButton → F16
 ├── AddFeedButton → F16
 └── EmptyState "Добавьте корма для расчёта рациона"
@@ -220,7 +225,8 @@ F15-FeedInventory
      Grouped by feed_category for easier selection
    - Input: quantity_kg (numeric > 0) — required
    - Input: price_per_kg (numeric, optional) — farmer override (D47)
-   - Select: data_source — default 'platform' (manual entry = L3)
+   - data_source: always 'platform' for manual entry (hidden from user)
+   - confidence: set to 75 for platform entries (D45 Layered Truth)
 
 3. Submit → rpc_upsert_feed_inventory({
      p_organization_id, p_farm_id,
@@ -251,7 +257,7 @@ F15-FeedInventory
 | Route | `/cabinet/ration` |
 | Auth | Authenticated farmer |
 | User story | Фермер видит текущий рацион для каждой группы: какие корма, сколько кг/день, нутриенты. Может запросить расчёт. |
-| RPCs | `rpc_get_current_ration` (RPC-24) → active ration + version |
+| RPCs | `rpc_get_current_ration` (RPC-24) → all active rations for farm (D-S3-2: farm-level, not per-group) |
 
 ### User Flow
 
@@ -267,6 +273,9 @@ F15-FeedInventory
 
 3. "Рассчитать рацион" → triggers calculate_ration Edge Function
    (Slice 3 Backend: POST to Supabase Edge Function)
+   - Edge Function creates ration (status=draft), then saves version
+   - Farmer clicks "Применить" → rpc_save_ration sets status=active
+   - Status transitions: draft→active (farmer), active→archived (farmer or system)
 
 4. Version history (collapsible):
    - Previous ration versions with dates
@@ -302,7 +311,7 @@ F17-RationViewer
 | Route | `/cabinet/ration/budget` |
 | Auth | Authenticated farmer |
 | User story | Фермер видит прогноз расхода кормов: сколько кормов нужно на период, хватает ли запасов, сколько докупить. |
-| RPCs | `get_feed_budget` Edge Function → computed budget |
+| RPCs | `get_feed_budget` Edge Function (POST `/functions/v1/get-feed-budget`) |
 
 ### User Flow
 
@@ -418,3 +427,48 @@ F18 (Feed Budget)
    - **Total for period:** cost for entire herd × selected period (30/60/90 days)
 
    Both views in one screen. Per-head-per-day at top as summary metric, total-for-period in the detail table.
+
+
+---
+
+## CTO Decisions (2026-03-30) — Architect Review Fixes
+
+### D-S3-1 — Feed Inventory RPC: Individual Fields
+
+**WHAT:** `rpc_upsert_feed_inventory` (RPC-21) accepts individual fields per call, not jsonb array.
+
+**Signature:** `(p_organization_id, p_farm_id, p_feed_item_id, p_quantity_kg, p_price_per_kg?, p_data_source default 'platform')`
+
+**WHY:** Simpler UI (one form = one call). P-AI-3 confirmation works per-item. Batch mode can be added as separate RPC later (P7 additive).
+
+### D-S3-2 — Current Ration: Farm-Level Return
+
+**WHAT:** `rpc_get_current_ration` (RPC-24) takes `p_farm_id`, returns array of all active rations for the farm with their current versions.
+
+**Signature:** `(p_organization_id, p_farm_id)` → `jsonb[]` (one element per herd group with active ration)
+
+**WHY:** F17 shows all groups on one page. One RPC call, small dataset. Per-group filtering done client-side.
+
+### F-1 Fix — animal_category_code, not _id
+
+**WHAT:** `rpc_upsert_herd_group` (RPC-06, deployed in d07) uses `p_animal_category_code` (text), not `p_animal_category_id` (uuid). UI select stores code.
+
+### F-2 Fix — p_actor_id required
+
+**WHAT:** `rpc_upsert_herd_group` requires `p_actor_id` (uuid). UI passes `auth.uid()`.
+
+### F-5/F-6 Fix — Confidence display + mapping
+
+**WHAT:** F15 shows confidence badge (D45 Layered Truth). F16 sets confidence=75 for platform data source.
+
+### F-7 Fix — Status transition ownership
+
+**WHAT:** Ration FSM transitions: draft→active (farmer confirms), active→archived (farmer or system). Documented in F17 flow.
+
+### F-8 Fix — Edge Function endpoint
+
+**WHAT:** `get_feed_budget` endpoint path documented: POST `/functions/v1/get-feed-budget`.
+
+**Input:** `{ organization_id, farm_id, period_days: 30|60|90 }`
+
+**Output:** `{ per_head_per_day: { total_cost, feeds[] }, total_budget: { total_cost, feeds[], deficit_count, days_until_shortage } }`
