@@ -35,6 +35,7 @@
 | D-S3-1 | 2026-03-30 | RPC/Feed | Feed inventory RPC: individual fields, not batch jsonb |
 | D-S3-2 | 2026-03-30 | RPC/Feed | Current ration: farm-level return (all groups in one call) |
 | D-S3-3 | 2026-03-30 | Documentation | Dok 6 Slice 3 review: 8 findings fixed (4 Significant, 4 Minor) |
+| D-GATE-S3 | 2026-03-30 | Gate | Slice 3 QA pass + Architect sign-off. 0 critical. DEF-023/024/025 accepted. |
 
 ---
 
@@ -451,3 +452,37 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - Easy: UI Agent can now implement F04 without hitting type mismatch
 - Easy: DB Agent has clear spec for RPC-21 and RPC-24 signatures
 - Lesson reinforced: always verify Dok 6 contracts against SQL before handing off to implementation agents
+
+---
+
+### D-GATE-S3 — Slice 3 Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-03-30
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 3 "Сколько корма нужно?" passed QA gate and received Architect sign-off.
+
+**QA Results:**
+- `cross_check.sh`: 0 critical, 1 significant (d05 pre-existing, Slice 4 scope)
+- 6 RPCs verified: signatures, SECURITY DEFINER, org_id, registry entries
+- Ration FSM: CHECK constraint + auto-activate trigger + archive validation
+- P-AI-1..5 compliance: all pass
+- TypeScript build: 0 errors
+- Events: 4 Dok 4 event types emitted correctly
+
+**Accepted tech debt:**
+- DEF-023: UI pages use `.from()` for reference table lookups (animal_categories, feed_items). No security risk. Refactor in cleanup pass.
+- DEF-024: Backend feed.py `.table("feed_items")` for code→id resolution (read-only).
+- DEF-025: Minor query optimization in rpc_get_current_ration.
+
+**Deliverables:**
+- DB: 6 RPCs (RPC-07, 08, 21-24) in d01 + d03
+- Backend: 5 feed tools, extraction rules (C-NEW-1), 2 Edge Functions
+- UI: 6 screens (F03, F04, F15-F18) with 8 routes
+- Dok 6: v1.1 with 8 review fixes
+- Decisions: D-S3-1, D-S3-2, D-S3-3
+
+**CONSEQUENCES:**
+- Easy: Slice 3 code is on main, deployable
+- Easy: farmer can manage herd groups, feed inventory, view rations, check budget
+- Next: Slice 4 (Operations) — or Slice 2-style quick slice if needed
