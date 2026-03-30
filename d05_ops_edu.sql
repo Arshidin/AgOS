@@ -3519,3 +3519,172 @@ on conflict (sql_name) do update
 -- D-NEW-3 ✅  embedding_queue: structured async embedding pipeline
 -- D-NEW-4 ✅  fn_generate_production_plan: batch task/KPI INSERT
 -- ============================================================
+
+
+-- ============================================================
+-- SLICE 4: Operations RPCs
+-- RPC-37: rpc_get_active_plan
+-- ============================================================
+
+-- ============================================================
+-- RPC-37: rpc_get_active_plan
+-- Dok 3 §7 | Callers: [WEB] [AI]
+-- D-S4-3: Comprehensive jsonb — plan + phases + task/KPI summaries.
+-- Serves F19 (Plan Overview), F21 (Timeline), F23 (KPI Dashboard).
+-- ============================================================
+create or replace function public.rpc_get_active_plan(
+    p_organization_id   uuid,
+    p_farm_id           uuid
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+    v_plan_id       uuid;
+    v_plan          jsonb;
+    v_phases        jsonb;
+    v_tasks_summary jsonb;
+    v_kpis_summary  jsonb;
+begin
+    -- Ownership check
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    -- Find active plan (D82: one active plan per farm)
+    select id into v_plan_id
+    from public.farm_production_plans
+    where farm_id = p_farm_id
+      and organization_id = p_organization_id
+      and status = 'active'
+    limit 1;
+
+    if v_plan_id is null then
+        -- No active plan — return null (UI shows empty state)
+        return null;
+    end if;
+
+    -- Plan header with expert name and template name
+    select jsonb_build_object(
+        'id', fpp.id,
+        'name', fpp.name,
+        'status', fpp.status,
+        'cycle_start_date', fpp.cycle_start_date,
+        'cycle_end_date', fpp.cycle_end_date,
+        'activated_at', fpp.activated_at,
+        'expert_name', (
+            select u.full_name
+            from public.expert_profiles ep
+            join public.users u on u.id = ep.user_id
+            where ep.id = fpp.expert_profile_id
+        ),
+        'template_name', (
+            select pct.name_ru
+            from public.production_cycle_templates pct
+            where pct.id = fpp.cycle_template_id
+        )
+    ) into v_plan
+    from public.farm_production_plans fpp
+    where fpp.id = v_plan_id;
+
+    -- Phases with task counts and herd group info
+    select coalesce(jsonb_agg(
+        jsonb_build_object(
+            'id', fp.id,
+            'name_ru', fp.name_ru,
+            'herd_group_id', fp.herd_group_id,
+            'herd_group_name', (
+                select ac.name_ru
+                from public.herd_groups hg
+                join public.animal_categories ac on ac.id = hg.animal_category_id
+                where hg.id = fp.herd_group_id
+            ),
+            'start_date', fp.start_date,
+            'end_date', fp.end_date,
+            'status', fp.status,
+            'is_sale_phase', fp.is_sale_phase,
+            'target_sale_month', fp.target_sale_month,
+            'tasks_total', (
+                select count(*) from public.farm_tasks ft
+                where ft.farm_phase_id = fp.id
+            ),
+            'tasks_completed', (
+                select count(*) from public.farm_tasks ft
+                where ft.farm_phase_id = fp.id and ft.status = 'completed'
+            ),
+            'tasks_overdue', (
+                select count(*) from public.farm_tasks ft
+                where ft.farm_phase_id = fp.id and ft.status = 'overdue'
+            )
+        ) order by fp.start_date
+    ), '[]'::jsonb) into v_phases
+    from public.farm_phases fp
+    where fp.plan_id = v_plan_id;
+
+    -- Tasks summary (across all phases)
+    select jsonb_build_object(
+        'total', count(*),
+        'completed', count(*) filter (where ft.status = 'completed'),
+        'overdue', count(*) filter (where ft.status = 'overdue'),
+        'upcoming_7d', count(*) filter (
+            where ft.status in ('scheduled', 'reminded')
+            and ft.due_date <= current_date + 7
+        )
+    ) into v_tasks_summary
+    from public.farm_tasks ft
+    join public.farm_phases fp on fp.id = ft.farm_phase_id
+    where fp.plan_id = v_plan_id;
+
+    -- KPIs summary (across all phases)
+    select jsonb_build_object(
+        'total', count(*),
+        'achieved', count(*) filter (where fk.status = 'achieved'),
+        'missed', count(*) filter (where fk.status = 'missed'),
+        'pending', count(*) filter (where fk.status = 'pending')
+    ) into v_kpis_summary
+    from public.farm_kpis fk
+    join public.farm_phases fp on fp.id = fk.farm_phase_id
+    where fp.plan_id = v_plan_id;
+
+    return jsonb_build_object(
+        'plan', v_plan,
+        'phases', v_phases,
+        'tasks_summary', v_tasks_summary,
+        'kpis_summary', v_kpis_summary
+    );
+end;
+$$;
+
+comment on function public.rpc_get_active_plan(uuid, uuid) is
+    'RPC-37 | Dok 3 §7 | Slice 4
+     D-S4-3: Comprehensive read — plan + phases (with task/KPI counts) + summaries.
+     D82: One active plan per farm (partial unique index).
+     Returns null if no active plan (UI shows empty state).
+     STABLE read — no side effects.
+     Serves: F19 (Plan Overview), F21 (Timeline), F23 (KPI Dashboard).';
+
+
+-- ============================================================
+-- SLICE 4: Add new RPC to rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_get_active_plan', 'rpc_get_active_plan', null, 'd05_ops_edu.sql (Slice 4)', 'RPC-37: Active plan + phases + task/KPI summaries (D-S4-3)')
+on conflict (sql_name) do update
+    set dok3_name      = excluded.dok3_name,
+        dok5_tool_name = excluded.dok5_tool_name,
+        notes          = excluded.notes,
+        created_in     = excluded.created_in;
+
+-- ============================================================
+-- END Slice 4 d05_ops_edu.sql RPCs
+-- ============================================================
+
