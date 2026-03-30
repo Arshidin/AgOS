@@ -39,6 +39,7 @@
 | D-S4-1 | 2026-03-30 | Scope | RPC-44 + RPC-45 deferred to Slice 6 (admin-only, no farmer screens) |
 | D-S4-2 | 2026-03-30 | Architecture | Proactive alerts (RPC-43) via Backend only, no farmer UI |
 | D-S4-3 | 2026-03-30 | RPC | rpc_get_active_plan: single comprehensive RPC for F19/F21/F23 |
+| D-GATE-S4 | 2026-03-30 | Gate | Slice 4 QA pass + Architect sign-off. 0 critical, 0 new defects. |
 
 ---
 
@@ -527,3 +528,33 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 **WHAT:** `rpc_get_active_plan` (RPC-37) returns comprehensive jsonb: plan + phases[] (with task/KPI counts) + tasks_summary + kpis_summary. One RPC serves F19, F21, F23.
 
 **WHY:** Farmer plan screens are read-heavy, write-light. One round-trip for all data. Small payload (1 plan, ~10 phases, summary counts).
+
+---
+
+### D-GATE-S4 — Slice 4 Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-03-30
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 4 "Мой план на сезон" passed QA gate and received Architect sign-off.
+
+**QA Results:**
+- `cross_check.sh`: 0 critical, 1 significant (pre-existing d05, not Slice 4 scope)
+- RPC-37 verified: SECURITY DEFINER, org_id, registry entry
+- L-NEW-2: 0 advisory locks in ai_gateway, SKIP LOCKED in claim_pending_notifications
+- P-AI-1: ops tools use only supabase.rpc(), 0 direct table access
+- UI: 0 `.from()` calls in plan pages (clean — no DEF-023 regression)
+- FSM: farm_phases (4 states), farm_tasks (6 states), farm_kpis (3 states) verified
+- TypeScript: 0 errors
+- No new defects found
+
+**Deliverables:**
+- DB: 1 RPC (RPC-37 rpc_get_active_plan) in d05
+- Backend: 4 ops tools + proactive dispatch endpoint
+- UI: 5 screens (F19–F23) with 5 routes
+- Dok 6: v1.0 with CTO decisions D-S4-1..D-S4-3
+
+**CONSEQUENCES:**
+- Easy: Slice 4 on main, deployable
+- Easy: farmer can view plan, manage tasks, check timeline, shift dates, track KPIs
+- Next: Slice 6 (Expert) or deploy + feedback
