@@ -36,6 +36,9 @@
 | D-S3-2 | 2026-03-30 | RPC/Feed | Current ration: farm-level return (all groups in one call) |
 | D-S3-3 | 2026-03-30 | Documentation | Dok 6 Slice 3 review: 8 findings fixed (4 Significant, 4 Minor) |
 | D-GATE-S3 | 2026-03-30 | Gate | Slice 3 QA pass + Architect sign-off. 0 critical. DEF-023/024/025 accepted. |
+| D-S4-1 | 2026-03-30 | Scope | RPC-44 + RPC-45 deferred to Slice 6 (admin-only, no farmer screens) |
+| D-S4-2 | 2026-03-30 | Architecture | Proactive alerts (RPC-43) via Backend only, no farmer UI |
+| D-S4-3 | 2026-03-30 | RPC | rpc_get_active_plan: single comprehensive RPC for F19/F21/F23 |
 
 ---
 
@@ -486,3 +489,41 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - Easy: Slice 3 code is on main, deployable
 - Easy: farmer can manage herd groups, feed inventory, view rations, check budget
 - Next: Slice 4 (Operations) — or Slice 2-style quick slice if needed
+
+---
+
+### D-S4-1 — RPC-44, RPC-45 Deferred to Slice 6
+
+**Date:** 2026-03-30
+**Domain:** Scope / Operations
+
+**WHAT:** `rpc_add_knowledge_chunk` (RPC-44) and `rpc_restrict_organization` (RPC-45) moved from Slice 4 to Slice 6 (Admin/Expert).
+
+**WHY:** Both are admin-only operations. Slice 4 farmer screens (F19–F23) don't need them. Implementing them now adds scope without farmer value.
+
+**CONSEQUENCES:**
+- Easy: Slice 4 DB scope reduced to 1 new RPC (RPC-37)
+- Easy: faster delivery to farmers
+- Hard: proactive alerts and restrictions deferred — but farmer doesn't manage these anyway
+
+---
+
+### D-S4-2 — Proactive Alerts via Backend Only
+
+**Date:** 2026-03-30
+**Domain:** Architecture / Operations
+
+**WHAT:** `rpc_create_proactive_alert` (RPC-43) implemented by Backend Agent as part of SKIP LOCKED proactive dispatch pipeline. No farmer-facing UI — alerts arrive as WhatsApp notifications.
+
+**WHY:** Farmer doesn't create alerts. System/AI creates them based on events (feed.inventory.low, ops.task.overdue). Farmer receives notification, not a management screen.
+
+---
+
+### D-S4-3 — Single RPC for Plan Screens
+
+**Date:** 2026-03-30
+**Domain:** RPC / Operations
+
+**WHAT:** `rpc_get_active_plan` (RPC-37) returns comprehensive jsonb: plan + phases[] (with task/KPI counts) + tasks_summary + kpis_summary. One RPC serves F19, F21, F23.
+
+**WHY:** Farmer plan screens are read-heavy, write-light. One round-trip for all data. Small payload (1 plan, ~10 phases, summary counts).
