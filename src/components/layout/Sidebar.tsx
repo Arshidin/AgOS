@@ -10,6 +10,7 @@ import {
   Users,
   BookOpen,
   Calculator,
+  ClipboardList,
   PanelLeftClose,
   Search,
   Sun,
@@ -57,6 +58,7 @@ const FARMER_NAV: NavItem[] = [
   { id: 'vet', icon: Stethoscope, label: 'Vet', route: '/cabinet/vet/new' },
   { id: 'feed', icon: Wheat, label: 'Feed', route: '/cabinet/feed' },
   { id: 'ration', icon: Calculator, label: 'Ration', route: '/cabinet/ration' },
+  { id: 'plan', icon: ClipboardList, label: 'Plan', route: '/cabinet/plan' },
 ]
 
 const ADMIN_NAV: NavItem[] = [

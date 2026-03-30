@@ -19,6 +19,11 @@ import { FeedInventory } from '@/pages/cabinet/feed/FeedInventory'
 import { FeedItemForm } from '@/pages/cabinet/feed/FeedItemForm'
 import { RationViewer } from '@/pages/cabinet/ration/RationViewer'
 import { FeedBudget } from '@/pages/cabinet/ration/FeedBudget'
+import { ProductionPlan } from '@/pages/cabinet/plan/ProductionPlan'
+import { TaskList } from '@/pages/cabinet/plan/TaskList'
+import { Timeline } from '@/pages/cabinet/plan/Timeline'
+import { CascadePreview } from '@/pages/cabinet/plan/CascadePreview'
+import { KpiDashboard } from '@/pages/cabinet/plan/KpiDashboard'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
@@ -62,6 +67,11 @@ function App() {
                 <Route path="feed/:inventoryId" element={<FeedItemForm />} />
                 <Route path="ration" element={<RationViewer />} />
                 <Route path="ration/budget" element={<FeedBudget />} />
+                <Route path="plan" element={<ProductionPlan />} />
+                <Route path="plan/tasks" element={<TaskList />} />
+                <Route path="plan/timeline" element={<Timeline />} />
+                <Route path="plan/cascade/:phaseId" element={<CascadePreview />} />
+                <Route path="plan/kpi" element={<KpiDashboard />} />
               </Route>
             </Route>
 
