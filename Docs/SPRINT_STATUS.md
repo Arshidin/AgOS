@@ -1,6 +1,6 @@
 # AGOS Sprint Status
 
-> Last updated: 2026-03-30 by DB Agent (Slice 3 session)
+> Last updated: 2026-03-30 by Backend Agent (Slice 3 session)
 
 ---
 
@@ -49,11 +49,25 @@
 - Significant: 1 (d05 `rpc_start_production_plan` missing org_id — Slice 4 scope)
 - All new functions: SECURITY DEFINER ✅, organization_id ✅, no duplicates ✅
 
-### Backend Agent — AI Gateway (Slice 3) 📋 NOT STARTED
-- AI-03 feed tool
-- EXTRACTION_RULES (C-NEW-1)
-- `calculate_ration` Edge Function (NASEM LP)
-- `get_feed_budget` Edge Function
+### Backend Agent — AI Gateway (Slice 3) ✅ COMPLETE
+
+| Component | File | Status | Notes |
+|-----------|------|--------|-------|
+| Feed tools (5 tools) | `ai_gateway/tools/feed.py` | ✅ Implemented | get_feeding_plan, get_farm_summary, get_current_ration, update_feed_inventory, log_herd_event |
+| EXTRACTION_RULES (C-NEW-1) | `ai_gateway/extraction/rules.py` | ✅ Implemented | Animal category + feed item mapping (RU/KK → EN DB codes) |
+| `calculate_ration` Edge Function | `supabase/functions/calculate-ration/index.ts` | ✅ Implemented | Greedy cost-minimization with NASEM nutrient constraints. Saves via rpc_save_ration. |
+| `get_feed_budget` Edge Function | `supabase/functions/get-feed-budget/index.ts` | ✅ Implemented | Per-head + total budget with deficit tracking. Uses rpc_get_current_ration. |
+| Zootechnician role signals | `ai_gateway/nodes.py` | ✅ Implemented | Feed/ration/herd keywords (RU+KK) trigger zootechnician role |
+| Feed tool dispatch | `ai_gateway/nodes.py` | ✅ Implemented | 5 feed tools wired into execute_tools_node |
+
+### P-AI Principle Verification (Slice 3)
+
+| Principle | Status | How |
+|-----------|--------|-----|
+| P-AI-1 | ✅ | All writes via supabase.rpc(). Feed tools call rpc_upsert_feed_inventory, rpc_log_herd_event. Edge Functions call rpc_save_ration. |
+| P-AI-2 | ✅ | organization_id injected from state in every RPC call. |
+| P-AI-3 | ✅ | update_feed_inventory marked as confirmation-required. Extraction rules build confirmation payloads. |
+| P-AI-5 | ✅ | Compliance filter runs on all responses (unchanged from Slice 1). |
 
 ### UI Agent — Screens (Slice 3) 📋 NOT STARTED
 - F03 (Herd Overview), F04 (Add/Edit Herd Group)
@@ -76,6 +90,6 @@
 ## Next Steps (Slice 3 inner flow)
 1. ~~Architect: Dok 6 contracts~~ ✅
 2. ~~DB Agent: RPC-07, 08, 21–24~~ ✅
-3. **Backend Agent: AI-03 + Edge Functions** ← NEXT
-4. UI Agent: 6 screens
+3. ~~Backend Agent: AI-03 + Edge Functions~~ ✅
+4. **UI Agent: 6 screens** ← NEXT
 5. QA Agent: gate check

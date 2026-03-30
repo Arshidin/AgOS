@@ -17,6 +17,7 @@ from ai_gateway.config import get_settings, get_supabase
 from ai_gateway.compliance import run_compliance_filter
 from ai_gateway.prompts import build_system_prompt
 from ai_gateway.tools.vet import VET_TOOL_DEFINITIONS, execute_vet_tool
+from ai_gateway.tools.feed import FEED_TOOL_DEFINITIONS, execute_feed_tool
 
 logger = logging.getLogger("agos.gateway.nodes")
 
@@ -46,6 +47,19 @@ ROLE_SIGNALS = {
         ],
         "kk": ["сатамын", "баға", "сатып алушы", "тірі салмақ"],
     },
+    "zootechnician": {
+        "ru": [
+            "корм", "кормлен", "рацион", "сено", "силос", "ячмен",
+            "пшениц", "зерно", "запас", "стадо", "поголов",
+            "группа", "бычк", "телк", "нетел", "откорм",
+            "кг корм", "тонн", "сколько корм", "чем кормить",
+            "рассчитать", "бюджет", "дефицит",
+        ],
+        "kk": [
+            "жем", "азық", "рацион", "шөп", "арпа", "бидай",
+            "мал", "бас", "топ",
+        ],
+    },
     "consultant": {
         "ru": [
             "субсиди", "документ", "членство", "закон", "справка",
@@ -68,7 +82,7 @@ TOOLS_BY_ROLE = {
     "vet": VET_TOOL_DEFINITIONS,
     # Slice 1 scope: only vet tools implemented.
     # Other roles get no tools for now (general conversation only).
-    "zootechnician": [],
+    "zootechnician": FEED_TOOL_DEFINITIONS,
     "consultant": [],
     "trading_agent": [],
 }
@@ -519,7 +533,7 @@ def execute_tools_node(state: dict) -> dict:
         logger.info("Executing tool: %s (org=%s)", tool_name, org_id[:8])
 
         # Dispatch to appropriate tool module
-        # Slice 1: only vet tools
+        # Vet tools (Slice 1)
         if tool_name in ("create_vet_case", "add_symptoms", "get_diagnosis", "get_treatment_protocols"):
             result = execute_vet_tool(
                 tool_name=tool_name,
@@ -527,8 +541,17 @@ def execute_tools_node(state: dict) -> dict:
                 organization_id=org_id,
                 supabase=supabase,
             )
+        # Feed tools (Slice 3)
+        elif tool_name in ("get_feeding_plan", "get_farm_summary", "get_current_ration",
+                           "update_feed_inventory", "log_herd_event"):
+            result = execute_feed_tool(
+                tool_name=tool_name,
+                tool_input=tool_input,
+                organization_id=org_id,
+                supabase=supabase,
+            )
         else:
-            result = {"error": f"Tool '{tool_name}' not implemented in Slice 1"}
+            result = {"error": f"Tool '{tool_name}' not implemented"}
             logger.warning("Unimplemented tool called: %s", tool_name)
 
         all_results.append({
