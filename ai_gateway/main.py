@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agos.gateway")
 
-app = FastAPI(title="AgOS AI Gateway", version="0.2.0-slice1")
+app = FastAPI(title="AgOS AI Gateway", version="0.4.0-slice4")
 
 
 @app.get("/health")
@@ -208,11 +208,23 @@ async def process_notifications(request: Request):
 
 
 @app.post("/proactive/dispatch")
-async def proactive_dispatch():
+async def proactive_dispatch(request: Request):
     """
-    pg_cron consumer endpoint.
-    Dok 5 §12: SKIP LOCKED batch=50 (L-NEW-2 — NOT advisory locks).
+    Dok 5 §12: pg_cron consumer endpoint.
+    L-NEW-2: SKIP LOCKED batch processing (NOT advisory locks).
+    Called by pg_cron every 5 minutes via net.http_post.
+    Requires INTERNAL_API_KEY header.
+    """
+    from ai_gateway.notification_worker import process_notification_batch
 
-    TODO Sprint B4: implement per Dok 5 §12.
-    """
-    return {"status": "scaffold", "dispatched": 0}
+    settings = get_settings()
+    if settings.INTERNAL_API_KEY:
+        api_key = request.headers.get("x-api-key", "") or request.headers.get("authorization", "").removeprefix("Bearer ")
+        if api_key != settings.INTERNAL_API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+    # L-NEW-2: No advisory lock — SKIP LOCKED in claim_pending_notifications
+    # is the real concurrency protection. Two instances both call claim,
+    # which uses FOR UPDATE SKIP LOCKED — they get different batches.
+    result = process_notification_batch()
+    return {"status": "ok", **result}

@@ -18,6 +18,7 @@ from ai_gateway.compliance import run_compliance_filter
 from ai_gateway.prompts import build_system_prompt
 from ai_gateway.tools.vet import VET_TOOL_DEFINITIONS, execute_vet_tool
 from ai_gateway.tools.feed import FEED_TOOL_DEFINITIONS, execute_feed_tool
+from ai_gateway.tools.ops import OPS_TOOL_DEFINITIONS, execute_ops_tool
 
 logger = logging.getLogger("agos.gateway.nodes")
 
@@ -82,7 +83,7 @@ TOOLS_BY_ROLE = {
     "vet": VET_TOOL_DEFINITIONS,
     # Slice 1 scope: only vet tools implemented.
     # Other roles get no tools for now (general conversation only).
-    "zootechnician": FEED_TOOL_DEFINITIONS,
+    "zootechnician": FEED_TOOL_DEFINITIONS + OPS_TOOL_DEFINITIONS,
     "consultant": [],
     "trading_agent": [],
 }
@@ -545,6 +546,15 @@ def execute_tools_node(state: dict) -> dict:
         elif tool_name in ("get_feeding_plan", "get_farm_summary", "get_current_ration",
                            "update_feed_inventory", "log_herd_event"):
             result = execute_feed_tool(
+                tool_name=tool_name,
+                tool_input=tool_input,
+                organization_id=org_id,
+                supabase=supabase,
+            )
+        # Ops tools (Slice 4)
+        elif tool_name in ("get_farm_tasks", "complete_farm_task",
+                           "get_production_plan", "get_active_plan"):
+            result = execute_ops_tool(
                 tool_name=tool_name,
                 tool_input=tool_input,
                 organization_id=org_id,
