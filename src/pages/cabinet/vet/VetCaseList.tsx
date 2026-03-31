@@ -1,0 +1,140 @@
+/**
+ * F12 — Мои ветеринарные случаи (Farmer Vet Case List)
+ * Route: /cabinet/vet
+ * Shows all vet cases for the farmer's organization.
+ */
+import { useNavigate } from 'react-router-dom'
+import { Plus, ChevronRight } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/hooks/useAuth'
+import { useRpc } from '@/hooks/useRpc'
+
+interface VetCaseSummary {
+  id: string
+  severity: string | null
+  status: string
+  symptoms_text: string | null
+  affected_head_count: number | null
+  created_at: string
+  created_via: string
+}
+
+interface FarmSummary {
+  active_vet_cases: VetCaseSummary[]
+}
+
+const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+  open: { label: 'Открыт', variant: 'default' },
+  in_progress: { label: 'В работе', variant: 'default' },
+  escalated: { label: 'У эксперта', variant: 'destructive' },
+  resolved: { label: 'Закрыт', variant: 'outline' },
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'bg-red-600 text-white',
+  severe: 'bg-orange-500 text-white',
+  moderate: 'bg-yellow-500 text-black',
+  mild: 'bg-green-600 text-white',
+}
+
+export function VetCaseList() {
+  const navigate = useNavigate()
+  const { organization, farm } = useAuth()
+
+  const { data, isLoading } = useRpc<FarmSummary>('rpc_get_farm_summary', {
+    p_organization_id: organization?.id,
+    p_farm_id: farm?.id,
+  }, { enabled: !!organization?.id && !!farm?.id })
+
+  const cases = data?.active_vet_cases ?? []
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 p-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Ветеринарные случаи</h1>
+          {cases.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {cases.length} активных обращений
+            </p>
+          )}
+        </div>
+        <Button onClick={() => navigate('/cabinet/vet/new')}>
+          <Plus className="mr-2 h-4 w-4" />
+          Сообщить о болезни
+        </Button>
+      </div>
+
+      {cases.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground mb-4">
+              Нет активных ветеринарных обращений
+            </p>
+            <Button variant="outline" onClick={() => navigate('/cabinet/vet/new')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Создать обращение
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {cases.map((c) => {
+            const st = STATUS_LABELS[c.status] ?? { label: c.status, variant: 'secondary' as const }
+            return (
+              <Card
+                key={c.id}
+                className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate(`/cabinet/vet/${c.id}`)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        {c.severity && (
+                          <Badge className={`text-xs ${SEVERITY_COLORS[c.severity] || ''}`}>
+                            {c.severity}
+                          </Badge>
+                        )}
+                        <Badge variant={st.variant} className="text-xs">
+                          {st.label}
+                        </Badge>
+                      </div>
+                      <p className="text-sm line-clamp-2">
+                        {c.symptoms_text || 'Нет описания симптомов'}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        {c.affected_head_count && (
+                          <span>{c.affected_head_count} гол.</span>
+                        )}
+                        <span>
+                          {new Date(c.created_at).toLocaleDateString('ru-RU', {
+                            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-3" />
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}

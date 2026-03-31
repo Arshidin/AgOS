@@ -60,7 +60,7 @@ const FARMER_NAV: NavItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/cabinet' },
   { id: 'farm', icon: Leaf, label: 'Farm', route: '/cabinet/farm' },
   { id: 'herd', icon: Fence, label: 'Herd', route: '/cabinet/herd' },
-  { id: 'vet', icon: Stethoscope, label: 'Vet', route: '/cabinet/vet/new' },
+  { id: 'vet', icon: Stethoscope, label: 'Vet', route: '/cabinet/vet' },
   { id: 'feed', icon: Wheat, label: 'Feed', route: '/cabinet/feed' },
   { id: 'ration', icon: Calculator, label: 'Ration', route: '/cabinet/ration' },
   { id: 'plan', icon: ClipboardList, label: 'Plan', route: '/cabinet/plan' },

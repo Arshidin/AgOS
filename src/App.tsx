@@ -12,6 +12,7 @@ import { Registration } from '@/pages/registration/Registration'
 import { AppShell } from '@/components/layout/AppShell'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
+import { VetCaseList } from '@/pages/cabinet/vet/VetCaseList'
 import { VetCaseDetail } from '@/pages/cabinet/vet/VetCaseDetail'
 import { CabinetDashboard } from '@/pages/cabinet/CabinetDashboard'
 import { HerdOverview } from '@/pages/cabinet/herd/HerdOverview'
@@ -67,6 +68,7 @@ function App() {
               <Route path="/cabinet" element={<AppShell />}>
                 <Route index element={<CabinetDashboard />} />
                 <Route path="farm" element={<FarmProfile />} />
+                <Route path="vet" element={<VetCaseList />} />
                 <Route path="vet/new" element={<ReportSick />} />
                 <Route path="vet/:caseId" element={<VetCaseDetail />} />
                 <Route path="herd" element={<HerdOverview />} />

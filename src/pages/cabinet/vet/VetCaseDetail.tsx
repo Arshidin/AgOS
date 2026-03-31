@@ -154,7 +154,7 @@ export function VetCaseDetail() {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => navigate('/cabinet')}
+          onClick={() => navigate('/cabinet/vet')}
           className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -179,7 +179,7 @@ export function VetCaseDetail() {
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/cabinet')}
+            onClick={() => navigate('/cabinet/vet')}
             className="p-1.5 text-[var(--fg2)] hover:text-[var(--fg)] transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
