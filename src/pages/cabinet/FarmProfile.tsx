@@ -24,11 +24,11 @@ const CALVING_SYSTEMS = [
 ]
 
 const ACTIVITY_TYPES = [
-  { id: 'beef_cattle', label: 'Мясное скотоводство' },
-  { id: 'dairy_cattle', label: 'Молочное скотоводство' },
-  { id: 'sheep', label: 'Овцеводство' },
-  { id: 'goat', label: 'Козоводство' },
-  { id: 'horse', label: 'Коневодство' },
+  { id: 'cow_calf', label: 'Мясное маточное стадо' },
+  { id: 'finishing', label: 'Откорм' },
+  { id: 'dairy', label: 'Молочное скотоводство' },
+  { id: 'breeding', label: 'Племенное разведение' },
+  { id: 'mixed', label: 'Смешанное' },
 ]
 
 interface HerdGroupFormData {
@@ -418,31 +418,29 @@ export function FarmProfile() {
         {/* Existing groups */}
         {farm?.herd_groups && farm.herd_groups.length > 0 ? (
           <div className="space-y-2">
-            {farm.herd_groups.map((group) => (
+            {farm.herd_groups.map((group, i) => (
               <div
-                key={group.id}
+                key={group.id || `group-${i}`}
                 className="flex items-center justify-between p-3 bg-[var(--bg)] rounded-lg"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--fg)] truncate">
-                    {group.animal_category_name || group.animal_category_code}
-                    {group.breed_name ? ` (${group.breed_name})` : ''}
+                    {(group as any).category_name || group.animal_category_name || group.animal_category_code || 'Группа'}
+                    {((group as any).breed_name || group.breed_name) ? ` (${(group as any).breed_name || group.breed_name})` : ''}
                   </p>
                   <p className="text-xs text-[var(--fg2)] mt-0.5">
                     {group.head_count} гол.
                     {group.avg_weight_kg ? ` / ${group.avg_weight_kg} кг` : ''}
-                    {' '}
-                    <span className="text-[var(--fg2)]/50">
-                      {group.data_source === 'ai_extracted' ? 'AI' : 'ручной ввод'}
-                    </span>
                   </p>
                 </div>
-                <button
-                  onClick={() => editHerdGroup(group)}
-                  className="p-2 text-[var(--fg2)] hover:text-[var(--fg)]"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
+                {group.id && (
+                  <button
+                    onClick={() => editHerdGroup(group)}
+                    className="p-2 text-[var(--fg2)] hover:text-[var(--fg)]"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
