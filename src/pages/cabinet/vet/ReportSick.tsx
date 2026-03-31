@@ -53,12 +53,34 @@ export function ReportSick() {
 
     setIsSubmitting(true)
     try {
+      // Step 1: Create AI conversation
+      let conversationId: string | null = null
+      const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
+      if (gatewayUrl) {
+        try {
+          const convResp = await fetch(`${gatewayUrl}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              organization_id: organization.id,
+              user_message: symptomsText.trim(),
+              farm_id: farmId,
+              phone: userContext?.phone || undefined,
+              channel: 'web',
+            }),
+          })
+          const convData = await convResp.json()
+          conversationId = convData?.conversation_id || null
+        } catch { /* Gateway offline — continue without AI */ }
+      }
+
+      // Step 2: Create vet case with conversation link
       const { data, error } = await supabase.rpc('rpc_create_vet_case', {
         p_organization_id: organization.id,
         p_farm_id: farmId,
         p_herd_group_id: herdGroupId || null,
         p_symptoms_text: symptomsText.trim(),
-        p_severity: null, // CEO decision: AI determines severity
+        p_severity: null,
         p_affected_heads: affectedHeads ? parseInt(affectedHeads) : null,
         p_created_via: 'cabinet_farmer',
       })
@@ -69,23 +91,16 @@ export function ReportSick() {
       }
 
       const result = data as { vet_case_id: string } | null
-      toast.success('Обращение создано. AI анализирует симптомы...')
 
-      // Trigger AI Gateway to process the case (fire-and-forget)
-      const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
-      if (gatewayUrl && result?.vet_case_id) {
-        fetch(`${gatewayUrl}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            organization_id: organization.id,
-            user_message: symptomsText.trim(),
-            farm_id: farmId,
-            phone: userContext?.phone || undefined,
-            channel: 'web',
-          }),
-        }).catch(() => {}) // fire-and-forget, UI already redirected
+      // Step 3: Link conversation to vet case
+      if (result?.vet_case_id && conversationId) {
+        await supabase.from('vet_cases')
+          .update({ conversation_id: conversationId })
+          .eq('id', result.vet_case_id)
+          .then(() => {})
       }
+
+      toast.success(conversationId ? 'Обращение создано. AI анализирует...' : 'Обращение создано')
 
       if (result?.vet_case_id) {
         navigate(`/cabinet/vet/${result.vet_case_id}`)

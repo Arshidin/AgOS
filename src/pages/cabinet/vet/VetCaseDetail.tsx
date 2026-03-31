@@ -93,24 +93,10 @@ export function VetCaseDetail() {
 
       setVetCase(data as unknown as VetCaseData)
 
-      // Load AI messages for this org's latest conversation
-      if (organization?.id) {
-        const { data: convs } = await supabase
-          .from('ai_conversations')
-          .select('id')
-          .eq('organization_id', organization.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
-        if (convs?.[0]?.id) {
-          const { data: msgs } = await supabase
-            .from('ai_messages')
-            .select('role, content_text, created_at')
-            .eq('conversation_id', convs[0].id)
-            .order('created_at', { ascending: true })
-            .limit(20)
-          if (msgs?.length) setAiMessages(msgs)
-        }
+      // AI messages come from RPC now (via conversation_id link)
+      const caseData = data as any
+      if (caseData?.ai_messages) {
+        setAiMessages(caseData.ai_messages)
       }
     } catch (err) {
       setError('Ошибка загрузки данных')
