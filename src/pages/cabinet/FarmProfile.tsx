@@ -10,16 +10,17 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import type { Farm, HerdGroup } from '@/contexts/AuthContext'
 
 const SHELTER_TYPES = [
-  { value: 'open', label: 'Открытое содержание' },
-  { value: 'semi_open', label: 'Полуоткрытое' },
-  { value: 'closed', label: 'Закрытое (коровник)' },
-  { value: 'combined', label: 'Комбинированное' },
+  { value: 'stall', label: 'Стойловое (закрытое)' },
+  { value: 'pasture', label: 'Пастбищное (открытое)' },
+  { value: 'mixed', label: 'Смешанное' },
+  { value: 'feedlot', label: 'Откормочная площадка' },
 ]
 
 const CALVING_SYSTEMS = [
-  { value: 'seasonal_spring', label: 'Сезонный (весна)' },
-  { value: 'seasonal_autumn', label: 'Сезонный (осень)' },
+  { value: 'spring', label: 'Весенний (март–май)' },
+  { value: 'autumn', label: 'Осенний (сен–ноя)' },
   { value: 'year_round', label: 'Круглогодичный' },
+  { value: 'two_season', label: 'Весна + осень' },
 ]
 
 const ACTIVITY_TYPES = [
@@ -48,24 +49,15 @@ const EMPTY_HERD_FORM: HerdGroupFormData = {
 
 // Hardcoded for now (P8 future: from DB)
 const ANIMAL_CATEGORIES = [
-  { code: 'bulls_under_6m', name: 'Бычки до 6 мес' },
-  { code: 'bulls_6_12m', name: 'Бычки 6-12 мес' },
-  { code: 'bulls_12_18m', name: 'Бычки 12-18 мес' },
-  { code: 'bulls_over_18m', name: 'Бычки 18+ мес' },
-  { code: 'heifers_under_12m', name: 'Тёлки до 12 мес' },
-  { code: 'heifers_12_24m', name: 'Тёлки 12-24 мес' },
-  { code: 'cows', name: 'Коровы' },
-  { code: 'breeding_bulls', name: 'Быки-производители' },
-]
-
-const BREEDS_LIST = [
-  { id: 'kazakh_whiteheaded', name: 'Казахская белоголовая' },
-  { id: 'angus', name: 'Ангус' },
-  { id: 'hereford', name: 'Герефорд' },
-  { id: 'simmental', name: 'Симментальская' },
-  { id: 'auliekol', name: 'Аулиекольская' },
-  { id: 'kalmyk', name: 'Калмыцкая' },
-  { id: 'mixed', name: 'Смешанная' },
+  { code: 'YOUNG_CALF', name: 'Телята отъёмные (3-8 мес)' },
+  { code: 'BULL_CALF', name: 'Бычки (8-18 мес)' },
+  { code: 'STEER', name: 'Бычки на откорме (12-30 мес)' },
+  { code: 'HEIFER_YOUNG', name: 'Тёлки (8-18 мес)' },
+  { code: 'HEIFER_PREG', name: 'Нетели (18-30 мес)' },
+  { code: 'COW', name: 'Коровы (30+ мес)' },
+  { code: 'COW_CULL', name: 'Коровы выбракованные' },
+  { code: 'BULL_BREEDING', name: 'Быки-производители' },
+  { code: 'BULL_CULL', name: 'Быки выбракованные' },
 ]
 
 export function FarmProfile() {
@@ -89,6 +81,13 @@ export function FarmProfile() {
   const [herdForm, setHerdForm] = useState<HerdGroupFormData>(EMPTY_HERD_FORM)
   const [isSavingHerd, setIsSavingHerd] = useState(false)
   const [herdErrors, setHerdErrors] = useState<Record<string, string>>({})
+
+  // Load breeds from DB (P8)
+  const [breedsDb, setBreedsDb] = useState<Array<{id: string; name: string}>>([])
+  useEffect(() => {
+    supabase.from('breeds').select('id, name_ru').eq('is_active', true).order('name_ru')
+      .then(({ data }) => { if (data) setBreedsDb(data.map(b => ({ id: b.id, name: b.name_ru }))) })
+  }, [])
 
   // Sync farm data to local state
   useEffect(() => {
@@ -457,7 +456,7 @@ export function FarmProfile() {
                 className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
               >
                 <option value="">Не указана</option>
-                {BREEDS_LIST.map((b) => (
+                {breedsDb.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
