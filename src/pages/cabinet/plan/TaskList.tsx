@@ -36,7 +36,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 const TABS = [
   { key: 'upcoming', label: 'Предстоящие', filter: (t: Task) => ['scheduled', 'reminded', 'in_progress'].includes(t.status) },
   { key: 'overdue', label: 'Просроченные', filter: (t: Task) => t.status === 'overdue' },
-  { key: 'done', label: 'Выполненные', filter: (t: Task) => ['completed', 'skipped'].includes(t.status) },
 ]
 
 function relativeDays(dateStr: string): string {

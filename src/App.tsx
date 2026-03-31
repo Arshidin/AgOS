@@ -4,7 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
-import { RequireAdmin } from '@/components/guards/RequireAdmin'
+
+import { RequireExpert } from '@/components/guards/RequireExpert'
 import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
@@ -84,7 +85,7 @@ function App() {
               </Route>
             </Route>
 
-            <Route element={<RequireAdmin />}>
+            <Route element={<RequireExpert />}>
               <Route path="/admin" element={<AppShell />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="membership" element={<MembershipQueue />} />

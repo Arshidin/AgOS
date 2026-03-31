@@ -53,6 +53,18 @@ export function HerdOverview() {
   const groups = data?.herd_groups ?? []
   const totalHeads = groups.reduce((sum, g) => sum + (g.head_count || 0), 0)
 
+  if (!farm) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold mb-4">Моё стадо</h1>
+        <Card><CardContent className="p-8 text-center">
+          <p className="text-muted-foreground mb-4">Сначала создайте ферму</p>
+          <Button variant="outline" onClick={() => navigate('/cabinet/farm')}>Создать ферму</Button>
+        </CardContent></Card>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-4 p-6">

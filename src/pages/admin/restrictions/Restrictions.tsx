@@ -37,7 +37,7 @@ export function Restrictions() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Ограничения</h1>
-        <Button><Plus className="mr-2 h-4 w-4" />Создать</Button>
+        <Button onClick={() => { const t = prompt('Тип ограничения: withdrawal_period / quarantine / disease_suspected'); if (t) alert('Используйте rpc_restrict_organization через Supabase Dashboard для создания ограничений. Полная форма будет в Slice 6b.') }}><Plus className="mr-2 h-4 w-4" />Создать</Button>
       </div>
       {loading ? <Skeleton className="h-32 w-full" /> : (
         <>

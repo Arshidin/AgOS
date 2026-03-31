@@ -111,7 +111,7 @@ export function FarmProfile() {
     setIsSavingFarm(true)
     try {
       const { error } = await supabase.rpc('rpc_upsert_farm', {
-        p_organization_id: organization.id,
+        p_organization_id: organization!.id,
         p_farm_id: farm?.id || null,
         p_name: farmName.trim(),
         p_region_id: null,
@@ -141,8 +141,9 @@ export function FarmProfile() {
 
     try {
       const { error } = await supabase.rpc('rpc_set_farm_activity_types', {
+        p_organization_id: organization!.id,
         p_farm_id: farm.id,
-        p_activity_type_ids: newActivities,
+        p_activity_types: newActivities,
       })
       if (error) {
         toast.error('Ошибка сохранения')
@@ -177,7 +178,7 @@ export function FarmProfile() {
     setIsSavingHerd(true)
     try {
       const { error } = await supabase.rpc('rpc_upsert_herd_group', {
-        p_organization_id: organization.id,
+        p_organization_id: organization!.id,
         p_farm_id: farm.id,
         p_herd_group_id: herdForm.id || null,
         p_animal_category_code: herdForm.animal_category_code,

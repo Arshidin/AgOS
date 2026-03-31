@@ -1250,7 +1250,7 @@ create trigger trg_vacc_plan_items_upd      before update on public.vaccination_
 -- D57: VetCase critical severity → auto-escalate
 -- -------------------------------------------------------
 create or replace function public.fn_vet_case_auto_escalate()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     -- Только для новых critical случаев или при апдейте severity на critical
     if new.severity = 'critical' and
@@ -1291,7 +1291,7 @@ create trigger trg_vet_case_auto_escalate
 -- D94: Disease validated → auto-create KnowledgeChunk
 -- -------------------------------------------------------
 create or replace function public.fn_disease_create_knowledge_chunk()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare
     v_chunk_id uuid;
     v_content  text;
@@ -1366,7 +1366,7 @@ create trigger trg_disease_create_knowledge_chunk
 -- D98: VetRecommendation medication → create health_restriction
 -- -------------------------------------------------------
 create or replace function public.fn_create_health_restriction_from_rec()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare
     v_withdrawal_days int;
     v_herd_group_id   uuid;
@@ -1429,7 +1429,7 @@ create trigger trg_health_restriction_from_rec
 -- D97: VaccinationPlanItem completed → update plan_item status
 -- -------------------------------------------------------
 create or replace function public.fn_vaccination_record_complete_plan_item()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     if new.vaccination_plan_item_id is not null then
         update public.vaccination_plan_items
@@ -1453,7 +1453,7 @@ create trigger trg_vacc_record_complete_item
 -- D97: HerdGroup created → check if vaccination_plan needs readiness update
 -- -------------------------------------------------------
 create or replace function public.fn_check_vaccination_plan_readiness()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     -- Если у фермы есть pending vaccination_plan — отмечаем как готовый к review
     update public.vaccination_plans
@@ -1477,7 +1477,7 @@ create trigger trg_vacc_plan_readiness_on_herd
 -- VetDiagnosis INSERT → update VetCase status to in_progress
 -- -------------------------------------------------------
 create or replace function public.fn_vet_case_progress_on_diagnosis()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     update public.vet_cases
     set status = 'in_progress', updated_at = now()
@@ -2575,4 +2575,52 @@ insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, creat
     ('rpc_report_epidemic_signal',   'rpc_report_epidemic_signal',   null, 'd04_vet.sql (Slice 6a)', 'RPC-32: Epidemic signal detection (D59)')
 on conflict (sql_name) do update
     set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+
+
+-- ============================================================
+-- FIX S-1: rpc_activate_vaccination_plan
+-- Missing FSM transition: pending_review → active
+-- Expert reviews and approves a vaccination plan.
+-- ============================================================
+create or replace function public.rpc_activate_vaccination_plan(
+    p_organization_id       uuid,
+    p_vaccination_plan_id   uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not public.fn_is_expert() and not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: expert or admin required' using errcode = 'P0001';
+    end if;
+
+    update public.vaccination_plans
+    set status = 'active', reviewed_at = now(), updated_at = now()
+    where id = p_vaccination_plan_id
+      and organization_id = p_organization_id
+      and status = 'pending_review';
+
+    if not found then
+        raise exception 'PLAN_NOT_FOUND_OR_WRONG_STATUS' using errcode = 'P0001';
+    end if;
+
+    return true;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_activate_vaccination_plan', null, 'd04_vet.sql (Fix S-1)', 'Activate vaccination plan: pending_review → active')
+on conflict (sql_name) do update set notes = excluded.notes;
+
+
+
+-- ============================================================
+-- FIX S-8: Unique constraint for health_restrictions idempotency
+-- Prevents duplicate restrictions for same (herd_group, restriction_type, ends_at)
+-- ============================================================
+create unique index if not exists idx_hr_unique_active
+    on public.health_restrictions (herd_group_id, restriction_type, ends_at);
 

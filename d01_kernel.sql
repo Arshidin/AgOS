@@ -3964,6 +3964,15 @@ begin
     -- Load context via rpc_get_ai_farm_context if farm_id is set
     -- NOTE: rpc_get_ai_farm_context is defined in d07_ai_gateway.sql
     -- We call it here only if it exists; otherwise return minimal context
+    -- S-11 FIX: verify farm belongs to organization before loading context
+    if p_farm_id is not null then
+        if not exists (
+            select 1 from public.farms
+            where id = p_farm_id and organization_id = p_organization_id and is_active = true
+        ) then
+            p_farm_id := null;  -- silently ignore invalid farm_id, don't block conversation
+        end if;
+    end if;
     if p_farm_id is not null then
         begin
             select public.rpc_get_ai_farm_context(p_organization_id, p_farm_id)

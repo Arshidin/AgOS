@@ -632,7 +632,7 @@ create trigger trg_feeding_periods_updated_at
 -- ration_versions: maintain is_current flag
 -- When a new version is inserted, set all previous versions to is_current=false
 create or replace function public.fn_ration_version_set_current()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     -- Set all previous versions of this ration to not current
     update public.ration_versions
@@ -655,7 +655,7 @@ create trigger trg_ration_version_set_current
 
 -- rations: auto-activate when first RationVersion is created
 create or replace function public.fn_ration_auto_activate()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 begin
     update public.rations
     set status = 'active', updated_at = now()
@@ -1456,4 +1456,14 @@ on conflict (sql_name) do update
 -- ============================================================
 -- END Slice 3 d03_feed.sql RPCs
 -- ============================================================
+
+
+
+-- ============================================================
+-- FIX S-3: Partial unique index — one active ration per herd_group
+-- Prevents race condition in concurrent rpc_save_ration calls.
+-- ============================================================
+create unique index if not exists idx_rations_one_active_per_group
+    on public.rations (farm_id, herd_group_id)
+    where status = 'active' and herd_group_id is not null;
 
