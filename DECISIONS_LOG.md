@@ -40,6 +40,9 @@
 | D-S4-2 | 2026-03-30 | Architecture | Proactive alerts (RPC-43) via Backend only, no farmer UI |
 | D-S4-3 | 2026-03-30 | RPC | rpc_get_active_plan: single comprehensive RPC for F19/F21/F23 |
 | D-GATE-S4 | 2026-03-30 | Gate | Slice 4 QA pass + Architect sign-off. 0 critical, 0 new defects. |
+| D-S6-1 | 2026-03-31 | UI | Expert/Admin list screens use .from() with RLS (accepted for M/A-series) |
+| D-S6-2 | 2026-03-31 | Scope | RPC-30 deferred — RPC-29 auto-generates items from protocol |
+| D-S6-3 | 2026-03-31 | Scope | Slice 6b (A06-A10) deferred to after farmer feedback |
 
 ---
 
@@ -558,3 +561,32 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - Easy: Slice 4 on main, deployable
 - Easy: farmer can view plan, manage tasks, check timeline, shift dates, track KPIs
 - Next: Slice 6 (Expert) or deploy + feedback
+
+---
+
+### D-S6-1 — Expert/Admin List Screens Use .from() with RLS
+
+**Date:** 2026-03-31
+**Domain:** UI / Architecture
+
+**WHAT:** M01, M03, M05, A03, A04, A05 use `.from('table')` with admin/expert RLS policies instead of dedicated list RPCs.
+
+**WHY:** These are data-dense admin tables where creating 6 list RPCs adds boilerplate without security benefit. RLS policies already exist for expert/admin SELECT. Pattern accepted for M/A-series screens (not F-series farmer screens).
+
+---
+
+### D-S6-2 — RPC-30 Deferred
+
+**Date:** 2026-03-31
+**Domain:** Scope
+
+**WHAT:** `rpc_add_vaccination_plan_item` (RPC-30) deferred. RPC-29 generates items from protocol automatically.
+
+---
+
+### D-S6-3 — Slice 6b Deferred
+
+**Date:** 2026-03-31
+**Domain:** Scope
+
+**WHAT:** A06–A10 (user management, settings, role assignment) deferred to after farmer feedback. Slice 6a = Expert core (9 screens).
