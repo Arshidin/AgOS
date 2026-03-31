@@ -91,7 +91,7 @@ begin
                         select jsonb_build_object(
                             'ration_id',         rv.ration_id,
                             'version_number',    rv.version_number,
-                            'total_dm_per_head', rv.total_dm_per_head_kg
+                            'total_dm_per_head', (rv.results->>'total_dm_kg')::numeric
                         )
                         from   public.ration_versions rv
                         join   public.rations r2 on r2.id = rv.ration_id
@@ -1608,7 +1608,7 @@ begin
                     'current_version', (
                         select jsonb_build_object(
                             'version_number',    rv.version_number,
-                            'total_dm_per_head', rv.total_dm_per_head_kg,
+                            'total_dm_per_head', (rv.results->>'total_dm_kg')::numeric,
                             'cost_per_head',     rv.cost_per_head_tenge
                         )
                         from   public.ration_versions rv

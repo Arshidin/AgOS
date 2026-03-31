@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from ai_gateway.config import get_settings, get_supabase
 from ai_gateway.graph import compiled_graph
@@ -24,6 +25,14 @@ logging.basicConfig(
 logger = logging.getLogger("agos.gateway")
 
 app = FastAPI(title="AgOS AI Gateway", version="0.4.0-slice4")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
