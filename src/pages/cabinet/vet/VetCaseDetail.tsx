@@ -71,6 +71,7 @@ export function VetCaseDetail() {
   const navigate = useNavigate()
 
   const [vetCase, setVetCase] = useState<VetCaseData | null>(null)
+  const [aiMessages, setAiMessages] = useState<Array<{role: string; content_text: string; created_at: string}>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'error'>('connecting')
@@ -91,6 +92,28 @@ export function VetCaseDetail() {
       }
 
       setVetCase(data as unknown as VetCaseData)
+
+      // Load AI messages related to this vet case
+      // Find conversations for this org, then get messages
+      const caseCreatedAt = (data as any)?.created_at
+      if (caseCreatedAt && organization?.id) {
+        const { data: convs } = await supabase
+          .from('ai_conversations')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .gte('created_at', new Date(new Date(caseCreatedAt).getTime() - 60000).toISOString())
+          .lte('created_at', new Date(new Date(caseCreatedAt).getTime() + 300000).toISOString())
+          .limit(1)
+        if (convs?.[0]?.id) {
+          const { data: msgs } = await supabase
+            .from('ai_messages')
+            .select('role, content_text, created_at')
+            .eq('conversation_id', convs[0].id)
+            .order('created_at', { ascending: true })
+            .limit(20)
+          if (msgs) setAiMessages(msgs)
+        }
+      }
     } catch (err) {
       setError('Ошибка загрузки данных')
       console.error(err)
@@ -291,6 +314,21 @@ export function VetCaseDetail() {
           </div>
         )}
       </div>
+
+      {/* AI Response */}
+      {aiMessages.filter(m => m.role === 'assistant').length > 0 && (
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
+          <h3 className="text-sm font-medium text-[var(--fg)]">Ответ AI-ветеринара</h3>
+          {aiMessages.filter(m => m.role === 'assistant').map((msg, idx) => (
+            <div key={idx} className="p-3 bg-[var(--bg)] rounded-lg text-sm text-[var(--fg)]/80 whitespace-pre-wrap">
+              {msg.content_text}
+              <p className="text-[10px] text-[var(--fg2)] mt-2">
+                {new Date(msg.created_at).toLocaleString('ru-RU')}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Diagnoses */}
       <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
