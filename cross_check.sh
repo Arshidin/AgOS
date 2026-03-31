@@ -166,6 +166,34 @@ fi
 
 echo ""
 
+
+echo ""
+echo "--- CHECK 6: UI values match SQL CHECK constraints ---"
+UI_ERRORS=0
+
+# shelter_type
+for val in $(grep -oP "value: '\K[^']*" src/pages/cabinet/FarmProfile.tsx 2>/dev/null | head -4); do
+  if ! grep -q "'$val'" d01_kernel.sql 2>/dev/null; then
+    echo "  CRITICAL: UI shelter_type '$val' not in SQL"
+    UI_ERRORS=$((UI_ERRORS + 1))
+  fi
+done
+
+# animal_category codes
+for val in $(grep -oP "code: '\K[A-Z_]*" src/pages/cabinet/FarmProfile.tsx 2>/dev/null); do
+  if ! grep -q "'$val'" d01_kernel.sql 2>/dev/null; then
+    echo "  CRITICAL: UI animal_category '$val' not in SQL"
+    UI_ERRORS=$((UI_ERRORS + 1))
+  fi
+done
+
+if [ $UI_ERRORS -eq 0 ]; then
+  echo "  OK: All UI values match SQL constraints"
+else
+  echo "  FOUND: $UI_ERRORS UI value mismatches"
+  CRITICAL=$((CRITICAL + UI_ERRORS))
+fi
+
 # ----------------------------------------------------------
 # SUMMARY
 # ----------------------------------------------------------
