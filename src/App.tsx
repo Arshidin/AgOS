@@ -27,6 +27,15 @@ import { KpiDashboard } from '@/pages/cabinet/plan/KpiDashboard'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
+import { VetCaseQueue } from '@/pages/admin/expert/VetCaseQueue'
+import { CaseConsultation } from '@/pages/admin/expert/CaseConsultation'
+import { VaccinationPlans } from '@/pages/admin/expert/VaccinationPlans'
+import { RecordVaccination } from '@/pages/admin/expert/RecordVaccination'
+import { EpidemicSignals } from '@/pages/admin/expert/EpidemicSignals'
+import { ExpertKpi } from '@/pages/admin/expert/ExpertKpi'
+import { KnowledgeBase } from '@/pages/admin/knowledge/KnowledgeBase'
+import { Restrictions } from '@/pages/admin/restrictions/Restrictions'
+import { AuditLog } from '@/pages/admin/audit/AuditLog'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -80,6 +89,15 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="membership" element={<MembershipQueue />} />
                 <Route path="membership/:applicationId" element={<MembershipDecision />} />
+                <Route path="expert/queue" element={<VetCaseQueue />} />
+                <Route path="expert/case/:caseId" element={<CaseConsultation />} />
+                <Route path="expert/vaccination" element={<VaccinationPlans />} />
+                <Route path="expert/vaccination/:planId/record" element={<RecordVaccination />} />
+                <Route path="expert/epidemic" element={<EpidemicSignals />} />
+                <Route path="expert/kpi" element={<ExpertKpi />} />
+                <Route path="knowledge" element={<KnowledgeBase />} />
+                <Route path="restrictions" element={<Restrictions />} />
+                <Route path="audit" element={<AuditLog />} />
               </Route>
             </Route>
 

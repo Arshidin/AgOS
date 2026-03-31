@@ -11,6 +11,11 @@ import {
   BookOpen,
   Calculator,
   ClipboardList,
+  Syringe,
+  Shield,
+  FileText,
+  Activity,
+  BarChart3,
   PanelLeftClose,
   Search,
   Sun,
@@ -64,8 +69,13 @@ const FARMER_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/admin' },
   { id: 'membership', icon: Users, label: 'Membership', route: '/admin/membership' },
-  { id: 'users', icon: Users, label: 'Users', route: '/admin/users' },
+  { id: 'vet-queue', icon: Stethoscope, label: 'Vet Cases', route: '/admin/expert/queue' },
+  { id: 'vaccination', icon: Syringe, label: 'Vaccination', route: '/admin/expert/vaccination' },
+  { id: 'epidemic', icon: Activity, label: 'Epidemic', route: '/admin/expert/epidemic' },
+  { id: 'expert-kpi', icon: BarChart3, label: 'Expert KPI', route: '/admin/expert/kpi' },
   { id: 'knowledge', icon: BookOpen, label: 'Knowledge', route: '/admin/knowledge' },
+  { id: 'restrictions', icon: Shield, label: 'Restrictions', route: '/admin/restrictions' },
+  { id: 'audit', icon: FileText, label: 'Audit', route: '/admin/audit' },
 ]
 
 /* ---- Icon button helper ---- */
