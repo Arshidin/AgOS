@@ -81,6 +81,7 @@ export function ReportSick() {
             organization_id: organization.id,
             user_message: symptomsText.trim(),
             farm_id: farmId,
+            phone: userContext?.phone || undefined,
             channel: 'web',
           }),
         }).catch(() => {}) // fire-and-forget, UI already redirected
