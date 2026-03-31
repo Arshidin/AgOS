@@ -67,6 +67,7 @@ export function FarmProfile() {
   const membership = userContext?.memberships?.[0]
 
   // Farm edit state
+  const [isEditingFarm, setIsEditingFarm] = useState(false)
   const [farmName, setFarmName] = useState('')
   const [shelterType, setShelterType] = useState('')
   const [calvingSystem, setCalvingSystem] = useState('')
@@ -95,6 +96,9 @@ export function FarmProfile() {
       setFarmName(farm.name || '')
       setShelterType(farm.shelter_type || '')
       setCalvingSystem(farm.calving_system || '')
+      setIsEditingFarm(false) // switch to view mode when farm loaded
+    } else {
+      setIsEditingFarm(true) // no farm = show create form
     }
   }, [farm])
 
@@ -124,10 +128,9 @@ export function FarmProfile() {
         toast.error(error.message || 'Ошибка сохранения')
         return
       }
-      toast.success('Данные фермы сохранены')
+      toast.success(farm ? 'Данные фермы обновлены' : 'Ферма создана!')
       await refreshContext()
-      // Scroll to herd groups section after save
-      document.getElementById('herd-section')?.scrollIntoView({ behavior: 'smooth' })
+      setIsEditingFarm(false)
     } catch (err) {
       toast.error('Ошибка сохранения')
       console.error(err)
@@ -272,59 +275,110 @@ export function FarmProfile() {
         </div>
       )}
 
-      {/* Farm Info Section */}
-      <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
-        <h3 className="text-sm font-medium text-[var(--fg)]">Данные фермы</h3>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-[var(--fg2)] mb-1 block">Название фермы *</label>
-            <input
-              value={farmName}
-              onChange={(e) => { setFarmName(e.target.value); if (farmNameError) setFarmNameError(false) }}
-              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-              style={{ borderColor: farmNameError ? 'var(--red)' : undefined }}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-[var(--fg2)] mb-1 block">Тип содержания</label>
-            <select
-              value={shelterType}
-              onChange={(e) => setShelterType(e.target.value)}
-              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+      {/* Farm Info Section — VIEW or EDIT */}
+      {farm && !isEditingFarm ? (
+        /* VIEW MODE: Farm card */
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-[var(--fg)]">Данные фермы</h3>
+            <button
+              onClick={() => setIsEditingFarm(true)}
+              className="flex items-center gap-1.5 text-xs text-[var(--cta)] font-medium hover:opacity-80"
             >
-              <option value="">Не указано</option>
-              {SHELTER_TYPES.map((st) => (
-                <option key={st.value} value={st.value}>{st.label}</option>
-              ))}
-            </select>
+              <Pencil className="h-3.5 w-3.5" />
+              Изменить
+            </button>
           </div>
-
-          <div>
-            <label className="text-xs text-[var(--fg2)] mb-1 block">Система отёлов</label>
-            <select
-              value={calvingSystem}
-              onChange={(e) => setCalvingSystem(e.target.value)}
-              className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-            >
-              <option value="">Не указано</option>
-              {CALVING_SYSTEMS.map((cs) => (
-                <option key={cs.value} value={cs.value}>{cs.label}</option>
-              ))}
-            </select>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-[var(--fg2)]">Название</span>
+              <span className="text-sm font-medium text-[var(--fg)]">{farm.name}</span>
+            </div>
+            {farm.shelter_type && (
+              <div className="flex justify-between">
+                <span className="text-sm text-[var(--fg2)]">Содержание</span>
+                <span className="text-sm text-[var(--fg)]">
+                  {SHELTER_TYPES.find(s => s.value === farm.shelter_type)?.label || farm.shelter_type}
+                </span>
+              </div>
+            )}
+            {farm.calving_system && (
+              <div className="flex justify-between">
+                <span className="text-sm text-[var(--fg2)]">Отёлы</span>
+                <span className="text-sm text-[var(--fg)]">
+                  {CALVING_SYSTEMS.find(c => c.value === farm.calving_system)?.label || farm.calving_system}
+                </span>
+              </div>
+            )}
           </div>
-
-          <button
-            onClick={handleSaveFarm}
-            disabled={isSavingFarm}
-            className="w-full h-11 bg-[var(--fg)] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
-          >
-            {isSavingFarm && <Loader2 className="h-4 w-4 animate-spin" />}
-            Сохранить
-          </button>
         </div>
-      </div>
+      ) : (
+        /* EDIT MODE: Form */
+        <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
+          <h3 className="text-sm font-medium text-[var(--fg)]">
+            {farm ? 'Редактировать ферму' : 'Создать ферму'}
+          </h3>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-[var(--fg2)] mb-1 block">Название фермы *</label>
+              <input
+                value={farmName}
+                onChange={(e) => { setFarmName(e.target.value); if (farmNameError) setFarmNameError(false) }}
+                className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+                style={{ borderColor: farmNameError ? 'var(--red)' : undefined }}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-[var(--fg2)] mb-1 block">Тип содержания</label>
+              <select
+                value={shelterType}
+                onChange={(e) => setShelterType(e.target.value)}
+                className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+              >
+                <option value="">Не указано</option>
+                {SHELTER_TYPES.map((st) => (
+                  <option key={st.value} value={st.value}>{st.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-[var(--fg2)] mb-1 block">Система отёлов</label>
+              <select
+                value={calvingSystem}
+                onChange={(e) => setCalvingSystem(e.target.value)}
+                className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+              >
+                <option value="">Не указано</option>
+                {CALVING_SYSTEMS.map((cs) => (
+                  <option key={cs.value} value={cs.value}>{cs.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveFarm}
+                disabled={isSavingFarm}
+                className="flex-1 h-11 bg-[var(--fg)] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                {isSavingFarm && <Loader2 className="h-4 w-4 animate-spin" />}
+                {farm ? 'Сохранить' : 'Создать ферму'}
+              </button>
+              {farm && (
+                <button
+                  onClick={() => { setIsEditingFarm(false); setFarmName(farm.name || ''); setShelterType(farm.shelter_type || ''); setCalvingSystem(farm.calving_system || '') }}
+                  className="h-11 px-4 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
+                >
+                  Отмена
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Activity Types */}
       <div className="bg-card rounded-[10px] border border-border p-5 space-y-3">
