@@ -105,7 +105,10 @@ export function FarmProfile() {
       return
     }
     setFarmNameError(false)
-    if (!organization?.id) return
+    if (!organization?.id) {
+      toast.error('Организация не найдена. Перезагрузите страницу.')
+      return
+    }
 
     setIsSavingFarm(true)
     try {
@@ -123,6 +126,8 @@ export function FarmProfile() {
       }
       toast.success('Данные фермы сохранены')
       await refreshContext()
+      // Scroll to herd groups section after save
+      document.getElementById('herd-section')?.scrollIntoView({ behavior: 'smooth' })
     } catch (err) {
       toast.error('Ошибка сохранения')
       console.error(err)
@@ -172,7 +177,10 @@ export function FarmProfile() {
     setHerdErrors(errs)
     if (Object.keys(errs).length > 0) return
 
-    if (!organization?.id || !farm?.id) return
+    if (!organization?.id || !farm?.id) {
+      toast.error('Сначала сохраните ферму')
+      return
+    }
 
     setIsSavingHerd(true)
     try {
@@ -337,7 +345,7 @@ export function FarmProfile() {
       </div>
 
       {/* Herd Groups */}
-      <div className="bg-card rounded-[10px] border border-border p-5 space-y-4">
+      <div id="herd-section" className="bg-card rounded-[10px] border border-border p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-[var(--fg)]">Группы животных</h3>
           <button

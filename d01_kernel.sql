@@ -4861,3 +4861,9 @@ insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, creat
 values ('rpc_restrict_organization', 'rpc_restrict_organization', null, 'd01_kernel.sql (Slice 6a)', 'RPC-45: Health restriction (D98 TSP safety gate)')
 on conflict (sql_name) do update set notes = excluded.notes, created_in = excluded.created_in;
 
+
+
+-- FIX: Unique index for rpc_upsert_herd_group ON CONFLICT
+create unique index if not exists idx_herd_groups_farm_category
+    on public.herd_groups (farm_id, animal_category_id);
+
