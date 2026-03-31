@@ -71,6 +71,11 @@ export function HerdGroupForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!organization?.id || !farm?.id) {
+      toast.error('Сначала создайте ферму')
+      navigate('/cabinet/farm')
+      return
+    }
     if (!categoryCode || !headCount) {
       toast.error('Заполните обязательные поля')
       return

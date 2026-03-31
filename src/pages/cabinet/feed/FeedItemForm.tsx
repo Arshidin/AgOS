@@ -83,6 +83,11 @@ export function FeedItemForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!organization?.id || !farm?.id) {
+      toast.error('Сначала создайте ферму')
+      navigate('/cabinet/farm')
+      return
+    }
     if (!feedItemId || !quantityKg) {
       toast.error('Заполните обязательные поля')
       return

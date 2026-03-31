@@ -134,9 +134,9 @@ export function TaskList() {
                       size="sm"
                       variant="outline"
                       onClick={() => completeMutation.mutate({
-                        p_organization_id: organization!.id,
+                        p_organization_id: organization?.id || '',
                         p_task_id: task.task_id,
-                        p_actor_id: userContext!.user_id,
+                        p_actor_id: userContext?.user_id || '',
                       } as any)}
                       disabled={completeMutation.isPending}
                     >

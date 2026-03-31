@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
 
+import { RequireAdmin } from '@/components/guards/RequireAdmin'
 import { RequireExpert } from '@/components/guards/RequireExpert'
 import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
@@ -87,17 +88,24 @@ function App() {
               </Route>
             </Route>
 
+            {/* Expert routes: fn_is_expert() OR fn_is_admin() */}
             <Route element={<RequireExpert />}>
               <Route path="/admin" element={<AppShell />}>
                 <Route index element={<AdminDashboard />} />
-                <Route path="membership" element={<MembershipQueue />} />
-                <Route path="membership/:applicationId" element={<MembershipDecision />} />
                 <Route path="expert/queue" element={<VetCaseQueue />} />
                 <Route path="expert/case/:caseId" element={<CaseConsultation />} />
                 <Route path="expert/vaccination" element={<VaccinationPlans />} />
                 <Route path="expert/vaccination/:planId/record" element={<RecordVaccination />} />
                 <Route path="expert/epidemic" element={<EpidemicSignals />} />
                 <Route path="expert/kpi" element={<ExpertKpi />} />
+              </Route>
+            </Route>
+
+            {/* Admin-only routes: fn_is_admin() only */}
+            <Route element={<RequireAdmin />}>
+              <Route path="/admin" element={<AppShell />}>
+                <Route path="membership" element={<MembershipQueue />} />
+                <Route path="membership/:applicationId" element={<MembershipDecision />} />
                 <Route path="knowledge" element={<KnowledgeBase />} />
                 <Route path="restrictions" element={<Restrictions />} />
                 <Route path="audit" element={<AuditLog />} />
