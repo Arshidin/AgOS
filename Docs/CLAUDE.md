@@ -655,3 +655,7 @@ Integration ──► Full E2E
 Inner flow per slice:
   Architect(Dok 6) → DB → Backend → UI → QA → Architect(sign-off)
 ```
+
+### UI value codes must match SQL CHECK constraints
+FarmProfile hardcoded `shelter_type: 'open'` while SQL CHECK allows only `'stall'|'pasture'|'mixed'|'feedlot'`. Same for `calving_system`, `animal_categories`, `breeds`. Every INSERT silently failed. Root cause: static analysis (TypeScript, cross_check.sh) cannot catch value-level mismatches. Fix: (1) Always load reference data from DB, never hardcode (P8). (2) Add smoke test that calls each new RPC with actual UI values. (3) QA must verify CHECK constraint values match UI selects.
+
