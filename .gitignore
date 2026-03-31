@@ -32,3 +32,7 @@ Thumbs.db
 
 # Supabase
 supabase/.temp/
+
+# Old design system prompts (migrated in D-DS-1)
+Design_System/
+tsconfig.tsbuildinfo
