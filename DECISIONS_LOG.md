@@ -611,3 +611,24 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - DB: 6 RPCs (RPC-28,29,31,32 in d04 + RPC-44 d05 + RPC-45 d01)
 - Backend: 3 expert tools (AI-11..13)
 - UI: 9 screens (M01–M06 + A03–A05)
+
+---
+
+### D-GW-1 — AI Gateway User Resolution: Org Owner Fallback
+
+**Date:** 2026-03-31
+**Domain:** Architecture / AI Gateway
+
+**WHAT:** `rpc_start_ai_conversation` now has 3-tier user resolution:
+1. JWT (`fn_current_user_id()`) — for direct Supabase calls
+2. Phone (`resolve_user_by_phone`) — for WhatsApp webhook
+3. Org owner fallback — for Web Cabinet when JWT not forwarded
+
+**WHY:** Web Cabinet calls Gateway via plain `fetch` without forwarding Supabase JWT. Gateway uses `service_role` key, so `fn_current_user_id()` returns null. Org owner fallback is safe because `organization_id` comes from authenticated context.
+
+**Correct long-term fix:** UI sends Supabase session JWT in Authorization header → Gateway validates and extracts `user_id`. This is a Slice 7+ task.
+
+**CONSEQUENCES:**
+- Easy: AI Gateway works for Web Cabinet immediately
+- Safe: org_id is from authenticated context, owner lookup is deterministic
+- Tech debt: JWT forwarding deferred — must implement before multi-user organizations
