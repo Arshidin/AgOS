@@ -4773,3 +4773,82 @@ on conflict (sql_name) do update
 -- END Slice 3 d01_kernel.sql RPCs
 -- ============================================================
 
+
+
+-- ============================================================
+-- SLICE 6a: RPC-45 rpc_restrict_organization
+-- Admin: create health restriction on organization. D98 TSP safety gate.
+-- ============================================================
+create or replace function public.rpc_restrict_organization(
+    p_organization_id       uuid,
+    p_herd_group_id         uuid,
+    p_restriction_type      text        default 'disease_suspected',
+    p_reason                text        default null,
+    p_valid_until           timestamptz default null,
+    p_vet_case_id           uuid        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_restriction_id uuid;
+    v_ends_at timestamptz;
+begin
+    -- Admin check
+    if not public.fn_is_admin() and not public.fn_is_expert() then
+        raise exception 'FORBIDDEN: admin or expert access required' using errcode = 'P0001';
+    end if;
+
+    -- Validate restriction type
+    if p_restriction_type not in ('medication_withdrawal', 'quarantine', 'disease_suspected', 'lab_pending') then
+        raise exception 'INVALID_RESTRICTION_TYPE: %', p_restriction_type using errcode = 'P0001';
+    end if;
+
+    -- Verify herd group belongs to organization
+    if not exists (
+        select 1 from public.herd_groups hg
+        join public.farms f on f.id = hg.farm_id
+        where hg.id = p_herd_group_id and f.organization_id = p_organization_id and hg.is_active = true
+    ) then
+        raise exception 'HERD_GROUP_NOT_FOUND' using errcode = 'P0001';
+    end if;
+
+    v_ends_at := coalesce(p_valid_until, now() + interval '30 days');
+
+    insert into public.health_restrictions (
+        herd_group_id, organization_id, restriction_type,
+        vet_case_id, starts_at, ends_at, is_active
+    ) values (
+        p_herd_group_id, p_organization_id, p_restriction_type,
+        p_vet_case_id, now(), v_ends_at, true
+    )
+    returning id into v_restriction_id;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'vet.restriction.created', 'health_restrictions', v_restriction_id, p_organization_id,
+        'admin', public.fn_current_user_id(),
+        jsonb_build_object('restriction_id', v_restriction_id, 'restriction_type', p_restriction_type,
+            'herd_group_id', p_herd_group_id, 'ends_at', v_ends_at),
+        true  -- audit-worthy
+    );
+
+    return v_restriction_id;
+end;
+$$;
+
+comment on function public.rpc_restrict_organization(uuid, uuid, text, text, timestamptz, uuid) is
+    'RPC-45 | Dok 3 §9 | Slice 6a
+     D98: TSP safety gate. Creates health_restriction blocking batch creation.
+     Admin or expert can create. Auto-deactivated when ends_at passes.
+     Events: vet.restriction.created (is_audit=true).';
+
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+values ('rpc_restrict_organization', 'rpc_restrict_organization', null, 'd01_kernel.sql (Slice 6a)', 'RPC-45: Health restriction (D98 TSP safety gate)')
+on conflict (sql_name) do update set notes = excluded.notes, created_in = excluded.created_in;
+

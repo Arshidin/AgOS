@@ -2207,3 +2207,373 @@ on conflict (code) do nothing;
 --
 -- Next migration: 005_ops_edu.sql (Operations 10 + Education 8 = 18 tables)
 -- ============================================================
+
+
+-- ============================================================
+-- SLICE 6a: Expert Console RPCs
+-- RPC-28: rpc_close_vet_case
+-- RPC-29: rpc_create_vaccination_plan
+-- RPC-31: rpc_record_vaccination
+-- RPC-32: rpc_report_epidemic_signal
+-- ============================================================
+
+-- ============================================================
+-- RPC-28: rpc_close_vet_case
+-- Dok 3 §6 | Callers: [WEB]
+-- FSM: in_progress|escalated → resolved. If death → rpc_log_herd_event.
+-- Events: vet.case.closed (Dok 4)
+-- ============================================================
+create or replace function public.rpc_close_vet_case(
+    p_organization_id   uuid,
+    p_vet_case_id       uuid,
+    p_outcome           text        default 'recovered',
+    p_resolution_notes  text        default null,
+    p_actor_id          uuid        default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_case record;
+begin
+    -- Load and verify case
+    select * into v_case
+    from public.vet_cases
+    where id = p_vet_case_id and organization_id = p_organization_id;
+
+    if v_case is null then
+        raise exception 'VET_CASE_NOT_FOUND: case % not found', p_vet_case_id
+            using errcode = 'P0001';
+    end if;
+
+    if v_case.status not in ('open', 'in_progress', 'escalated') then
+        raise exception 'INVALID_STATUS: cannot close case in status %', v_case.status
+            using errcode = 'P0001';
+    end if;
+
+    -- Validate outcome
+    if p_outcome not in ('recovered', 'died', 'referral') then
+        raise exception 'INVALID_OUTCOME: must be recovered|died|referral, got %', p_outcome
+            using errcode = 'P0001';
+    end if;
+
+    -- Close the case
+    update public.vet_cases
+    set status = 'resolved',
+        resolved_at = now(),
+        resolution_notes = p_resolution_notes,
+        updated_at = now()
+    where id = p_vet_case_id;
+
+    -- If death → log herd event (cross-domain)
+    if p_outcome = 'died' and v_case.herd_group_id is not null then
+        perform public.rpc_log_herd_event(
+            p_organization_id := p_organization_id,
+            p_farm_id := v_case.farm_id,
+            p_herd_group_id := v_case.herd_group_id,
+            p_event_type := 'death',
+            p_value_after := coalesce(v_case.affected_head_count, 1)::numeric,
+            p_data_source := 'platform',
+            p_notes := 'Vet case closed: ' || coalesce(p_resolution_notes, ''),
+            p_metadata := jsonb_build_object('vet_case_id', p_vet_case_id)
+        );
+    end if;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'vet.case.closed', 'vet_cases', p_vet_case_id, p_organization_id,
+        'expert', coalesce(p_actor_id, public.fn_current_user_id()),
+        jsonb_build_object('vet_case_id', p_vet_case_id, 'outcome', p_outcome,
+            'farm_id', v_case.farm_id),
+        true  -- audit-worthy
+    );
+
+    return true;
+end;
+$$;
+
+comment on function public.rpc_close_vet_case(uuid, uuid, text, text, uuid) is
+    'RPC-28 | Dok 3 §6 | Slice 6a
+     FSM: open|in_progress|escalated → resolved.
+     If outcome=died → logs HerdEvent(death) via rpc_log_herd_event.
+     Events: vet.case.closed (is_audit=true).';
+
+
+-- ============================================================
+-- RPC-29: rpc_create_vaccination_plan
+-- Dok 3 §6 | Callers: [WEB] [AI]
+-- D60: Protocol→Plan→Items. Status=pending_review (D97).
+-- Events: vet.vaccination.plan_created
+-- ============================================================
+create or replace function public.rpc_create_vaccination_plan(
+    p_organization_id           uuid,
+    p_farm_id                   uuid,
+    p_vaccination_protocol_id   uuid,
+    p_plan_year                 int         default null,
+    p_herd_group_id             uuid        default null,
+    p_name                      text        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_plan_id       uuid;
+    v_protocol      record;
+    v_year          int;
+    v_plan_name     text;
+begin
+    -- Ownership check
+    if not exists (
+        select 1 from public.farms
+        where id = p_farm_id and organization_id = p_organization_id and is_active = true
+    ) then
+        raise exception 'FORBIDDEN: farm % does not belong to organization %',
+            p_farm_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    -- Load protocol
+    select * into v_protocol
+    from public.vaccination_protocols
+    where id = p_vaccination_protocol_id and is_active = true;
+
+    if v_protocol is null then
+        raise exception 'PROTOCOL_NOT_FOUND: vaccination protocol % not found',
+            p_vaccination_protocol_id using errcode = 'P0001';
+    end if;
+
+    v_year := coalesce(p_plan_year, extract(year from current_date)::int);
+    v_plan_name := coalesce(p_name, v_protocol.name_ru || ' — ' || v_year::text);
+
+    -- Create plan in pending_review status (D97)
+    insert into public.vaccination_plans (
+        farm_id, organization_id, name, plan_year,
+        generated_trigger, status
+    ) values (
+        p_farm_id, p_organization_id, v_plan_name, v_year,
+        'expert_manual', 'pending_review'
+    )
+    returning id into v_plan_id;
+
+    -- Generate items from protocol for each applicable herd group
+    -- If specific herd_group_id provided, use it; otherwise generate for all groups on farm
+    insert into public.vaccination_plan_items (
+        vaccination_plan_id, organization_id, vaccination_protocol_id,
+        herd_group_id, scheduled_date, head_count_planned, dose_number
+    )
+    select
+        v_plan_id, p_organization_id, p_vaccination_protocol_id,
+        hg.id,
+        (v_year::text || '-' || lpad(v_protocol.month_start::text, 2, '0') || '-01')::date,
+        hg.head_count,
+        1  -- first dose
+    from public.herd_groups hg
+    where hg.farm_id = p_farm_id
+      and hg.is_active = true
+      and (p_herd_group_id is null or hg.id = p_herd_group_id);
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'vet.vaccination.plan_created', 'vaccination_plans', v_plan_id, p_organization_id,
+        'expert', public.fn_current_user_id(),
+        jsonb_build_object('plan_id', v_plan_id, 'farm_id', p_farm_id,
+            'protocol_id', p_vaccination_protocol_id, 'year', v_year),
+        false
+    );
+
+    return v_plan_id;
+end;
+$$;
+
+comment on function public.rpc_create_vaccination_plan(uuid, uuid, uuid, int, uuid, text) is
+    'RPC-29 | Dok 3 §6 | Slice 6a
+     D60: Protocol→Plan→Items. Status=pending_review (D97).
+     Auto-generates items for all herd groups (or specific one).
+     Events: vet.vaccination.plan_created.';
+
+
+-- ============================================================
+-- RPC-31: rpc_record_vaccination
+-- Dok 3 §6 | Callers: [WEB] [AI]
+-- D101: Append-only. Triggers plan_item completion + health_restriction.
+-- Events: vet.vaccination.completed
+-- ============================================================
+create or replace function public.rpc_record_vaccination(
+    p_organization_id               uuid,
+    p_vaccination_plan_item_id      uuid,
+    p_vet_product_id                uuid,
+    p_actual_heads_vaccinated       int,
+    p_vaccine_batch_number          text        default null,
+    p_administered_by               uuid        default null,
+    p_notes                         text        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_record_id     uuid;
+    v_plan_item     record;
+    v_product       record;
+begin
+    -- Load plan item and verify ownership
+    select vpi.*, vp.farm_id
+    into v_plan_item
+    from public.vaccination_plan_items vpi
+    join public.vaccination_plans vp on vp.id = vpi.vaccination_plan_id
+    where vpi.id = p_vaccination_plan_item_id
+      and vpi.organization_id = p_organization_id;
+
+    if v_plan_item is null then
+        raise exception 'PLAN_ITEM_NOT_FOUND' using errcode = 'P0001';
+    end if;
+
+    if v_plan_item.status = 'completed' then
+        raise exception 'ALREADY_COMPLETED: plan item already recorded' using errcode = 'P0001';
+    end if;
+
+    -- Validate vet product
+    select * into v_product
+    from public.vet_products
+    where id = p_vet_product_id and is_active = true;
+
+    if v_product is null then
+        raise exception 'VET_PRODUCT_NOT_FOUND' using errcode = 'P0001';
+    end if;
+
+    -- D101: Append-only INSERT
+    insert into public.vaccination_records (
+        vaccination_plan_item_id, organization_id, herd_group_id,
+        vet_product_id, vaccine_batch_number, vaccine_expiry_date,
+        administered_by, actual_heads_vaccinated, notes
+    ) values (
+        p_vaccination_plan_item_id, p_organization_id, v_plan_item.herd_group_id,
+        p_vet_product_id, p_vaccine_batch_number, v_product.expiry_date,
+        coalesce(p_administered_by, public.fn_current_user_id()),
+        p_actual_heads_vaccinated, p_notes
+    )
+    returning id into v_record_id;
+
+    -- Trigger fn_vaccination_record_complete_plan_item fires automatically (AFTER INSERT)
+    -- It sets plan_item.status = 'completed'
+
+    -- D63/D98: If withdrawal period > 0, create health restriction
+    -- Trigger fn_create_health_restriction_from_rec handles this IF vaccination
+    -- has a withdrawal period defined on the vet_product
+    -- For explicit handling when trigger doesn't cover vaccines:
+    if v_product.withdrawal_period_meat_days is not null and v_product.withdrawal_period_meat_days > 0 then
+        insert into public.health_restrictions (
+            herd_group_id, organization_id, restriction_type,
+            starts_at, ends_at, is_active
+        ) values (
+            v_plan_item.herd_group_id, p_organization_id, 'medication_withdrawal',
+            now(), now() + (v_product.withdrawal_period_meat_days || ' days')::interval,
+            true
+        )
+        on conflict do nothing;  -- idempotent if restriction already exists
+    end if;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'vet.vaccination.completed', 'vaccination_records', v_record_id, p_organization_id,
+        'expert', public.fn_current_user_id(),
+        jsonb_build_object('record_id', v_record_id, 'plan_item_id', p_vaccination_plan_item_id,
+            'product_id', p_vet_product_id, 'heads', p_actual_heads_vaccinated),
+        true  -- audit-worthy
+    );
+
+    return v_record_id;
+end;
+$$;
+
+comment on function public.rpc_record_vaccination(uuid, uuid, uuid, int, text, uuid, text) is
+    'RPC-31 | Dok 3 §6 | Slice 6a
+     D101: Append-only vaccination record. Triggers plan_item completion.
+     D63/D98: Creates health_restriction if withdrawal_period > 0.
+     Events: vet.vaccination.completed (is_audit=true).';
+
+
+-- ============================================================
+-- RPC-32: rpc_report_epidemic_signal
+-- Dok 3 §6 | Callers: [AI] [ADMIN]
+-- D59: Creates epidemic signal in detected status.
+-- Events: vet.signal.detected
+-- ============================================================
+create or replace function public.rpc_report_epidemic_signal(
+    p_organization_id   uuid,
+    p_region_id         uuid,
+    p_disease_id        uuid        default null,
+    p_case_count        int         default 1,
+    p_time_window_days  int         default 14,
+    p_severity          text        default 'watch',
+    p_notes             text        default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_signal_id uuid;
+begin
+    -- Validate severity
+    if p_severity not in ('watch', 'warning', 'alert', 'emergency') then
+        raise exception 'INVALID_SEVERITY: must be watch|warning|alert|emergency'
+            using errcode = 'P0001';
+    end if;
+
+    insert into public.epidemic_signals (
+        region_id, disease_id, case_count, time_window_days,
+        severity, status, notes
+    ) values (
+        p_region_id, p_disease_id, p_case_count, p_time_window_days,
+        p_severity, 'detected', p_notes
+    )
+    returning id into v_signal_id;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'vet.signal.detected', 'epidemic_signals', v_signal_id, p_organization_id,
+        'system', public.fn_current_user_id(),
+        jsonb_build_object('signal_id', v_signal_id, 'region_id', p_region_id,
+            'disease_id', p_disease_id, 'severity', p_severity, 'case_count', p_case_count),
+        true  -- audit-worthy
+    );
+
+    return v_signal_id;
+end;
+$$;
+
+comment on function public.rpc_report_epidemic_signal(uuid, uuid, uuid, int, int, text, text) is
+    'RPC-32 | Dok 3 §6 | Slice 6a
+     D59: Creates epidemic signal in detected status. Expert reviews in M05.
+     Events: vet.signal.detected (is_audit=true).';
+
+
+-- ============================================================
+-- SLICE 6a: rpc_name_registry for d04
+-- ============================================================
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_close_vet_case',           'rpc_close_vet_case',           null, 'd04_vet.sql (Slice 6a)', 'RPC-28: Close vet case + death→herd event'),
+    ('rpc_create_vaccination_plan',  'rpc_create_vaccination_plan',  null, 'd04_vet.sql (Slice 6a)', 'RPC-29: Protocol→Plan→Items (D60, D97)'),
+    ('rpc_record_vaccination',       'rpc_record_vaccination',       null, 'd04_vet.sql (Slice 6a)', 'RPC-31: Append-only record + health restriction (D101, D98)'),
+    ('rpc_report_epidemic_signal',   'rpc_report_epidemic_signal',   null, 'd04_vet.sql (Slice 6a)', 'RPC-32: Epidemic signal detection (D59)')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+

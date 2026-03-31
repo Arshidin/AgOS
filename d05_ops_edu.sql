@@ -3688,3 +3688,69 @@ on conflict (sql_name) do update
 -- END Slice 4 d05_ops_edu.sql RPCs
 -- ============================================================
 
+
+
+-- ============================================================
+-- SLICE 6a: RPC-44 rpc_add_knowledge_chunk
+-- Admin: add content to knowledge base for AI RAG.
+-- ============================================================
+create or replace function public.rpc_add_knowledge_chunk(
+    p_organization_id   uuid,
+    p_title             text,
+    p_content           text,
+    p_source_domain     text        default 'faq',
+    p_language          text        default 'ru',
+    p_metadata          jsonb       default null,
+    p_source_url        text        default null,
+    p_is_published      boolean     default false
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_chunk_id uuid;
+begin
+    -- Admin check
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: admin access required' using errcode = 'P0001';
+    end if;
+
+    if p_title is null or p_content is null then
+        raise exception 'TITLE_AND_CONTENT_REQUIRED' using errcode = 'P0001';
+    end if;
+
+    insert into public.knowledge_chunks (
+        source_domain, title, content, language,
+        metadata, source_url, is_published
+    ) values (
+        p_source_domain, p_title, p_content, p_language,
+        p_metadata, p_source_url, p_is_published
+    )
+    returning id into v_chunk_id;
+
+    -- Emit event (embedding worker will pick this up)
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'platform.knowledge.chunk_added', 'knowledge_chunks', v_chunk_id, p_organization_id,
+        'admin', public.fn_current_user_id(),
+        jsonb_build_object('chunk_id', v_chunk_id, 'source_domain', p_source_domain, 'title', p_title),
+        false
+    );
+
+    return v_chunk_id;
+end;
+$$;
+
+comment on function public.rpc_add_knowledge_chunk(uuid, text, text, text, text, jsonb, text, boolean) is
+    'RPC-44 | Dok 3 §9 | Slice 6a
+     Admin: add knowledge chunk for AI RAG. Embedding processed async by worker.
+     D70: All domains in one table. D71: is_published=false until expert review.';
+
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+values ('rpc_add_knowledge_chunk', 'rpc_add_knowledge_chunk', null, 'd05_ops_edu.sql (Slice 6a)', 'RPC-44: Admin knowledge base CRUD')
+on conflict (sql_name) do update set notes = excluded.notes, created_in = excluded.created_in;
+
