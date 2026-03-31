@@ -71,6 +71,21 @@ export function ReportSick() {
       const result = data as { vet_case_id: string } | null
       toast.success('Обращение создано. AI анализирует симптомы...')
 
+      // Trigger AI Gateway to process the case (fire-and-forget)
+      const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
+      if (gatewayUrl && result?.vet_case_id) {
+        fetch(`${gatewayUrl}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organization_id: organization.id,
+            user_message: symptomsText.trim(),
+            farm_id: farmId,
+            channel: 'web',
+          }),
+        }).catch(() => {}) // fire-and-forget, UI already redirected
+      }
+
       if (result?.vet_case_id) {
         navigate(`/cabinet/vet/${result.vet_case_id}`)
       } else {
