@@ -53,28 +53,7 @@ export function ReportSick() {
 
     setIsSubmitting(true)
     try {
-      // Step 1: Create AI conversation
-      let conversationId: string | null = null
-      const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
-      if (gatewayUrl) {
-        try {
-          const convResp = await fetch(`${gatewayUrl}/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              organization_id: organization.id,
-              user_message: symptomsText.trim(),
-              farm_id: farmId,
-              phone: userContext?.phone || undefined,
-              channel: 'web',
-            }),
-          })
-          const convData = await convResp.json()
-          conversationId = convData?.conversation_id || null
-        } catch { /* Gateway offline — continue without AI */ }
-      }
-
-      // Step 2: Create vet case with conversation link
+      // Step 1: Create vet case first
       const { data, error } = await supabase.rpc('rpc_create_vet_case', {
         p_organization_id: organization.id,
         p_farm_id: farmId,
@@ -91,21 +70,39 @@ export function ReportSick() {
       }
 
       const result = data as { vet_case_id: string } | null
-
-      // Step 3: Link conversation to vet case
-      if (result?.vet_case_id && conversationId) {
-        await supabase.from('vet_cases')
-          .update({ conversation_id: conversationId })
-          .eq('id', result.vet_case_id)
-          .then(() => {})
+      if (!result?.vet_case_id) {
+        navigate('/cabinet')
+        return
       }
 
-      toast.success(conversationId ? 'Обращение создано. AI анализирует...' : 'Обращение создано')
+      toast.success('Обращение создано. AI анализирует...')
+      navigate(`/cabinet/vet/${result.vet_case_id}`)
 
-      if (result?.vet_case_id) {
-        navigate(`/cabinet/vet/${result.vet_case_id}`)
-      } else {
-        navigate('/cabinet')
+      // Step 2: Create dedicated conversation for this case + get AI response (async)
+      const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
+      if (gatewayUrl) {
+        fetch(`${gatewayUrl}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organization_id: organization.id,
+            user_message: `[VET_CASE:${result.vet_case_id}] ${symptomsText.trim()}`,
+            farm_id: farmId,
+            phone: userContext?.phone || undefined,
+            channel: 'web',
+          }),
+        })
+          .then(r => r.json())
+          .then(d => {
+            // Link conversation to vet case
+            if (d?.conversation_id) {
+              supabase.from('vet_cases')
+                .update({ conversation_id: d.conversation_id })
+                .eq('id', result.vet_case_id)
+                .then(() => {})
+            }
+          })
+          .catch(() => {})
       }
     } catch (err) {
       toast.error('Ошибка создания обращения')

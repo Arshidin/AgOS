@@ -93,11 +93,14 @@ async def chat(request: Request):
     if not conversation_id:
         # Create/reuse conversation via RPC-40
         try:
+            # Force new conversation for vet cases (each case = separate conversation)
+            force_new = user_message.startswith("[VET_CASE:")
             conv_result = supabase.rpc("rpc_start_ai_conversation", {
                 "p_organization_id": organization_id,
                 "p_farm_id": farm_id,
                 "p_phone": phone,
                 "p_language": "ru",
+                "p_force_new": force_new,
             }).execute()
             conv_data = conv_result.data
             conversation_id = conv_data.get("conv_id")

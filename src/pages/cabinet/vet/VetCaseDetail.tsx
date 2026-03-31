@@ -110,37 +110,24 @@ export function VetCaseDetail() {
     loadCase()
   }, [organization?.id, caseId])
 
-  // Realtime subscription on platform_events
+  // Poll for AI response every 3s until we get one
   useEffect(() => {
     if (!organization?.id || !caseId) return
+    if (aiMessages.length > 0) { setRealtimeStatus('live'); return }
 
-    const channel = supabase
-      .channel(`vet-case-${caseId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'platform_events',
-          filter: `entity_id=eq.${caseId}`,
-        },
-        () => {
-          // Refetch case data on any new event
-          loadCase()
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('live')
-        } else if (status === 'CHANNEL_ERROR') {
-          setRealtimeStatus('error')
-        }
-      })
+    setRealtimeStatus('connecting')
+    const interval = setInterval(() => {
+      loadCase()
+    }, 3000)
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [organization?.id, caseId])
+    // Stop polling after 60s
+    const timeout = setTimeout(() => {
+      clearInterval(interval)
+      setRealtimeStatus('error')
+    }, 60000)
+
+    return () => { clearInterval(interval); clearTimeout(timeout) }
+  }, [organization?.id, caseId, aiMessages.length])
 
   if (isLoading) {
     return (
