@@ -50,14 +50,12 @@ export function CascadePreview() {
   }
 
   async function handleApply() {
-    if (!preview || preview.length === 0 || !phaseId) return
-    const shiftDays = preview[0]?.shift_days
-    if (!shiftDays) return
+    if (!preview || preview.length === 0 || !phaseId || !newDate) return
 
     try {
       const { error } = await supabase.rpc('fn_shift_phase_cascade', {
         p_phase_id: phaseId,
-        p_shift_days: shiftDays,
+        p_new_start_date: newDate,
         p_actor_id: userContext!.user_id,
       })
       if (error) throw error

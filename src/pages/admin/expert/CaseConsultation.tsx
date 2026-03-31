@@ -82,7 +82,7 @@ export function CaseConsultation() {
               <Button size="sm" onClick={() => diagMutation.mutate({
                 p_organization_id: organization!.id, p_vet_case_id: caseId,
                 p_diagnosis_text: diagText, p_confidence_pct: parseInt(diagConfidence),
-                p_source: 'expert_manual', p_is_final: false, p_diagnosed_by: userContext!.user_id,
+                p_source: 'expert_confirmed', p_is_final: false, p_diagnosed_by: userContext!.user_id,
               } as any)} disabled={!diagText}>Сохранить диагноз</Button>
             </div>
           )}

@@ -1166,7 +1166,7 @@ begin
         into   v_restriction
         from   public.health_restrictions
         where  herd_group_id = p_herd_group_id
-          and  is_active     = true
+          and  ends_at > now()
         order by ends_at desc   -- самое позднее = самый долгий блок
         limit 1;
 

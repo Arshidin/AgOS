@@ -26,6 +26,8 @@ export function RecordVaccination() {
   const { organization } = useAuth()
   const [items, setItems] = useState<PlanItem[]>([])
   const [selectedItem, setSelectedItem] = useState<string>('')
+  const [vetProductId, setVetProductId] = useState<string>('')
+  const [vetProducts, setVetProducts] = useState<Array<{id: string; name_ru: string}>>([])
   const [heads, setHeads] = useState('')
   const [batchNum, setBatchNum] = useState('')
   const [, setLoading] = useState(true)
@@ -37,6 +39,12 @@ export function RecordVaccination() {
       .order('scheduled_date')
       .then(({ data }) => { setItems(data || []); setLoading(false) })
   }, [planId])
+
+  useEffect(() => {
+    supabase.from('vet_products').select('id, name_ru')
+      .eq('product_type', 'vaccine').eq('is_active', true)
+      .then(({ data }) => { setVetProducts(data || []) })
+  }, [])
 
   const recordMutation = useRpcMutation('rpc_record_vaccination', {
     successMessage: 'Вакцинация записана',
@@ -65,11 +73,18 @@ export function RecordVaccination() {
                 </option>
               ))}
             </select>
+            <div><Label>Препарат (вакцина) *</Label>
+              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={vetProductId} onChange={e => setVetProductId(e.target.value)} required>
+                <option value="">Выберите вакцину</option>
+                {vetProducts.map(vp => <option key={vp.id} value={vp.id}>{vp.name_ru}</option>)}
+              </select>
+            </div>
             <div><Label>Кол-во привитых голов *</Label><Input type="number" min={1} value={heads} onChange={e => setHeads(e.target.value)} required /></div>
             <div><Label>Номер серии вакцины (D101)</Label><Input value={batchNum} onChange={e => setBatchNum(e.target.value)} placeholder="Для экспортного сертификата" /></div>
-            <Button className="w-full" disabled={!selectedItem || !heads} onClick={() => recordMutation.mutate({
+            <Button className="w-full" disabled={!selectedItem || !vetProductId || !heads} onClick={() => recordMutation.mutate({
               p_organization_id: organization!.id, p_vaccination_plan_item_id: selectedItem,
-              p_vet_product_id: null, p_actual_heads_vaccinated: parseInt(heads),
+              p_vet_product_id: vetProductId, p_actual_heads_vaccinated: parseInt(heads),
               p_vaccine_batch_number: batchNum || null,
             } as any)}>Записать вакцинацию</Button>
           </CardContent>

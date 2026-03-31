@@ -2370,7 +2370,7 @@ begin
     select
         v_plan_id, p_organization_id, p_vaccination_protocol_id,
         hg.id,
-        (v_year::text || '-' || lpad(v_protocol.month_start::text, 2, '0') || '-01')::date,
+        (v_year::text || '-' || lpad(coalesce(v_protocol.seasonal_months[1], 1)::text, 2, '0') || '-01')::date,
         hg.head_count,
         1  -- first dose
     from public.herd_groups hg
@@ -2474,11 +2474,10 @@ begin
     if v_product.withdrawal_period_meat_days is not null and v_product.withdrawal_period_meat_days > 0 then
         insert into public.health_restrictions (
             herd_group_id, organization_id, restriction_type,
-            starts_at, ends_at, is_active
+            starts_at, ends_at
         ) values (
             v_plan_item.herd_group_id, p_organization_id, 'medication_withdrawal',
-            now(), now() + (v_product.withdrawal_period_meat_days || ' days')::interval,
-            true
+            now(), now() + (v_product.withdrawal_period_meat_days || ' days')::interval
         )
         on conflict do nothing;  -- idempotent if restriction already exists
     end if;

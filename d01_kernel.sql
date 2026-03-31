@@ -4822,7 +4822,7 @@ begin
         vet_case_id, starts_at, ends_at, is_active
     ) values (
         p_herd_group_id, p_organization_id, p_restriction_type,
-        p_vet_case_id, now(), v_ends_at, true
+        p_vet_case_id, now(), v_ends_at
     )
     returning id into v_restriction_id;
 
