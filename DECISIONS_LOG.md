@@ -43,6 +43,7 @@
 | D-S6-1 | 2026-03-31 | UI | Expert/Admin list screens use .from() with RLS (accepted for M/A-series) |
 | D-S6-2 | 2026-03-31 | Scope | RPC-30 deferred — RPC-29 auto-generates items from protocol |
 | D-S6-3 | 2026-03-31 | Scope | Slice 6b (A06-A10) deferred to after farmer feedback |
+| D-GATE-S6a | 2026-03-31 | Gate | Slice 6a QA pass + Architect sign-off. 0 critical, 0 new defects. |
 
 ---
 
@@ -590,3 +591,23 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 **Domain:** Scope
 
 **WHAT:** A06–A10 (user management, settings, role assignment) deferred to after farmer feedback. Slice 6a = Expert core (9 screens).
+
+---
+
+### D-GATE-S6a — Slice 6a Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-03-31
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 6a "Эксперт-консоль" passed QA gate.
+
+**QA Results:**
+- cross_check.sh: 0 critical
+- 6 new RPCs: all unique, SECURITY DEFINER, org_id
+- TypeScript: 0 errors
+- No new defects
+
+**Deliverables:**
+- DB: 6 RPCs (RPC-28,29,31,32 in d04 + RPC-44 d05 + RPC-45 d01)
+- Backend: 3 expert tools (AI-11..13)
+- UI: 9 screens (M01–M06 + A03–A05)
