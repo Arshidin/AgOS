@@ -19,6 +19,7 @@ from ai_gateway.prompts import build_system_prompt
 from ai_gateway.tools.vet import VET_TOOL_DEFINITIONS, execute_vet_tool
 from ai_gateway.tools.feed import FEED_TOOL_DEFINITIONS, execute_feed_tool
 from ai_gateway.tools.ops import OPS_TOOL_DEFINITIONS, execute_ops_tool
+from ai_gateway.tools.expert import EXPERT_TOOL_DEFINITIONS, execute_expert_tool
 
 logger = logging.getLogger("agos.gateway.nodes")
 
@@ -80,7 +81,7 @@ ROLE_COMMANDS = {
 
 # Tool definitions per role (Dok 5 §6.6)
 TOOLS_BY_ROLE = {
-    "vet": VET_TOOL_DEFINITIONS,
+    "vet": VET_TOOL_DEFINITIONS + EXPERT_TOOL_DEFINITIONS,
     # Slice 1 scope: only vet tools implemented.
     # Other roles get no tools for now (general conversation only).
     "zootechnician": FEED_TOOL_DEFINITIONS + OPS_TOOL_DEFINITIONS,
@@ -546,6 +547,14 @@ def execute_tools_node(state: dict) -> dict:
         elif tool_name in ("get_feeding_plan", "get_farm_summary", "get_current_ration",
                            "update_feed_inventory", "log_herd_event"):
             result = execute_feed_tool(
+                tool_name=tool_name,
+                tool_input=tool_input,
+                organization_id=org_id,
+                supabase=supabase,
+            )
+        # Expert tools (Slice 6a)
+        elif tool_name in ("get_vaccination_schedule", "complete_vaccination_item", "close_vet_case"):
+            result = execute_expert_tool(
                 tool_name=tool_name,
                 tool_input=tool_input,
                 organization_id=org_id,
