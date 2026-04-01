@@ -12,9 +12,6 @@ import { supabase } from '@/lib/supabase'
 
 export function RoleAssignment() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const { organization } = useAuth()
   const [admins, setAdmins] = useState<any[]>([])
   const [experts, setExperts] = useState<any[]>([])
@@ -33,6 +30,9 @@ export function RoleAssignment() {
   const assignMutation = useRpcMutation('rpc_assign_role', {
     successMessage: 'Роль назначена', onSuccess: () => { load(); setUserId('') },
   })
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

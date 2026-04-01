@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 
 export function SystemSettings() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (

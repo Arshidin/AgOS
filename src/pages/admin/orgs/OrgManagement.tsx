@@ -7,9 +7,6 @@ import { supabase } from '@/lib/supabase'
 
 export function OrgManagement() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const [orgs, setOrgs] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -19,6 +16,9 @@ export function OrgManagement() {
     if (search) q = q.ilike('legal_name', `%${search}%`)
     q.then(({ data }) => { setOrgs(data || []); setLoading(false) })
   }, [search])
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

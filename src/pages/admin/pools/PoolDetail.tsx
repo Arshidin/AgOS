@@ -20,9 +20,6 @@ const NEXT_STATUS: Record<string, string> = {
 
 export function PoolDetail() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const navigate = useNavigate()
   const { poolId } = useParams()
   const { organization } = useAuth()
@@ -54,6 +51,9 @@ export function PoolDetail() {
   const rollbackMutation = useRpcMutation('rpc_rollback_batch_match', {
     successMessage: 'Матч отменён', onSuccess: load,
   })
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   if (loading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" /><Skeleton className="h-48 w-full" /></div>
   if (!pool) return <div className="p-6"><Button variant="ghost" onClick={() => navigate('/admin/pools')}><ArrowLeft className="mr-2 h-4 w-4" />Назад</Button><p className="mt-4 text-muted-foreground">Пул не найден</p></div>

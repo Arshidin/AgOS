@@ -11,9 +11,6 @@ import { supabase } from '@/lib/supabase'
 
 export function PriceGridManagement() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const { organization } = useAuth()
   const [prices, setPrices] = useState<any[]>([])
   const [skus, setSkus] = useState<any[]>([])
@@ -33,6 +30,9 @@ export function PriceGridManagement() {
   const setMutation = useRpcMutation('rpc_set_price_grid', {
     successMessage: 'Цена обновлена', onSuccess: () => { load(); setSkuId(''); setBasePrice(''); setPremium('0') },
   })
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

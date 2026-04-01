@@ -8,9 +8,6 @@ import { supabase } from '@/lib/supabase'
 
 export function UserManagement() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -20,6 +17,9 @@ export function UserManagement() {
     if (search) q = q.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
     q.then(({ data }) => { setUsers(data || []); setLoading(false) })
   }, [search])
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

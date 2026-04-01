@@ -10,9 +10,6 @@ import { supabase } from '@/lib/supabase'
 
 export function PoolQueue() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const navigate = useNavigate()
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,6 +21,9 @@ export function PoolQueue() {
   }, [])
 
   const ST: Record<string, string> = { draft: 'Черновик', active: 'Активен', closed: 'Закрыт', expired: 'Истёк' }
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

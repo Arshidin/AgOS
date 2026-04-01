@@ -6,9 +6,6 @@ import { supabase } from '@/lib/supabase'
 
 export function RegionDirectory() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -16,6 +13,9 @@ export function RegionDirectory() {
     supabase.from('regions').select('id, code, name_ru, name_kk, parent_id').order('name_ru')
       .then(({ data }) => { setRegions(data || []); setLoading(false) })
   }, [])
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

@@ -25,9 +25,6 @@ const DOMAIN_LABELS: Record<string, string> = {
 
 export function KnowledgeBase() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const { organization } = useAuth()
   const [chunks, setChunks] = useState<Chunk[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +46,9 @@ export function KnowledgeBase() {
     successMessage: 'Чанк добавлен',
     onSuccess: () => { setShowAdd(false); setTitle(''); setContent(''); load() },
   })
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">

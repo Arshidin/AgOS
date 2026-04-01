@@ -17,9 +17,6 @@ interface AuditEntry {
 
 export function AuditLog() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return null
-  if (!isAdmin) return null
-
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -27,6 +24,9 @@ export function AuditLog() {
     supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100)
       .then(({ data }) => { setEntries(data || []); setLoading(false) })
   }, [])
+
+  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isAdmin) return null
 
   return (
     <div className="space-y-6 p-6">
