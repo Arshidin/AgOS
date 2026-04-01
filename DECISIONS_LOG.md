@@ -45,6 +45,7 @@
 | D-S6-3 | 2026-03-31 | Scope | Slice 6b (A06-A10) deferred to after farmer feedback |
 | D-GATE-S6a | 2026-03-31 | Gate | Slice 6a QA pass + Architect sign-off. 0 critical, 0 new defects. |
 | D-LEGAL-1 | 2026-04-01 | Legal | Slice 5 Market: build without legal gate (CEO decision). Legal review before public launch. |
+| D-GATE-S5a | 2026-04-01 | Gate | Slice 5a QA pass. 3 RPCs + 9 tools + 4 screens. Disclaimer in all price responses. |
 
 ---
 
@@ -651,3 +652,16 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - Easy: Market development unblocked, parallel with legal process
 - Risk: Must NOT launch market features to public without legal sign-off
 - Tech: disclaimer_text will be placeholder until legal provides text
+
+---
+
+### D-GATE-S5a — Slice 5a Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-04-01
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 5a "Хочу продать бычков" (farmer part) passed QA gate.
+
+**QA:** cross_check.sh 0 critical. TypeScript 0 errors. 3 RPCs unique. Disclaimer in all price responses.
+
+**Deliverables:** 3 RPCs (RPC-11,17,18), 9 market tools, 4 screens (F05,F06,F08,F09).
