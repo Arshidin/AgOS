@@ -211,13 +211,15 @@ Already implemented: RPC-09, RPC-10.
 |------|--------|----------|
 | **DB Gate** | ✅ PASSED (0 critical, 7 significant) | All application code |
 | **Dok 6 Gate (Slice 1)** | ✅ PASSED (2026-03-18) | F01, F02, F10, F11 contracts approved |
-| **Legal Gate** | ⬜ Not started | Slice 5 (Market) |
+| **Legal Gate** | 🟡 D-LEGAL-1: review before public launch | Slice 5 public deploy |
 | **Slice 1 Gate** | ✅ **PASSED** (2026-03-19) | QA pass + Architect sign-off. DEF-013 accepted. |
 | **Slice 2 Gate** | ✅ **PASSED** (2026-03-19) | QA pass + Architect sign-off. |
-| **Slice 3 Gate** | ⬜ Not started | Merge Slice 3 to main |
-| **Slice 4 Gate** | ⬜ Not started | Merge Slice 4 to main |
-| **Slice 5 Gate** | ⬜ Not started | Merge Slice 5 to main |
-| **Slice 6 Gate** | ⬜ Not started | Merge Slice 6 to main |
+| **Slice 3 Gate** | ✅ **PASSED** (2026-03-30) | D-GATE-S3 |
+| **Slice 4 Gate** | ✅ **PASSED** (2026-03-30) | D-GATE-S4 |
+| **Slice 5a Gate** | ✅ **PASSED** (2026-04-01) | D-GATE-S5a. 3 RPCs + 9 tools + 4 farmer screens. |
+| **Slice 5b Gate** | ✅ **PASSED** (2026-04-01) | D-GATE-S5b. DEF-021..026 resolved. QA 0 critical. |
+| **Slice 6a Gate** | ✅ **PASSED** (2026-03-31) | D-GATE-S6a |
+| **Slice 6b Gate** | ⏸ Deferred | D-S6-3: after farmer feedback |
 | **Slice 7 Gate** | ⬜ Not started | Merge Slice 7 to main |
 
 ---
@@ -229,3 +231,8 @@ Already implemented: RPC-09, RPC-10.
 | Slice 0 (Foundation) | 2026-03-18 | 1 day | DB Gate passed, cross_check.sh created |
 | Slice 1 (Sick Calf) | 2026-03-19 | 2 days | 9 RPCs, AI Gateway, 4 screens, QA passed |
 | Slice 2 (Membership) | 2026-03-19 | 1 day | 2 RPCs, WA notification worker, 2 admin screens, QA passed |
+| Slice 3 (Feed) | 2026-03-30 | ~10 days | 6 RPCs, feed tools, 6 screens, QA passed |
+| Slice 4 (Operations) | 2026-03-30 | 1 day | 4 RPCs, ops tools + proactive, 5 screens, QA passed |
+| Slice 5a (Market Farmer) | 2026-04-01 | 2 days | 3 RPCs, 9 AI tools, 4 screens, QA passed. D-LEGAL-1 |
+| Slice 5b (Market Admin) | 2026-04-01 | 1 day | 7 RPCs, 3 admin screens. DEF-021..026 found+fixed. |
+| Slice 6a (Expert Console) | 2026-03-31 | 1 day | RPCs 28..32, M01–M06 + A03–A05, QA passed |

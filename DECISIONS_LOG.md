@@ -46,6 +46,7 @@
 | D-GATE-S6a | 2026-03-31 | Gate | Slice 6a QA pass + Architect sign-off. 0 critical, 0 new defects. |
 | D-LEGAL-1 | 2026-04-01 | Legal | Slice 5 Market: build without legal gate (CEO decision). Legal review before public launch. |
 | D-GATE-S5a | 2026-04-01 | Gate | Slice 5a QA pass. 3 RPCs + 9 tools + 4 screens. Disclaimer in all price responses. |
+| D-GATE-S5b | 2026-04-01 | Gate | Slice 5b QA pass + Architect sign-off. 7 RPCs. DEF-021..026 found and resolved. 0 critical at gate. |
 
 ---
 
