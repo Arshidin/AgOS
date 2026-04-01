@@ -20,6 +20,7 @@ from ai_gateway.tools.vet import VET_TOOL_DEFINITIONS, execute_vet_tool
 from ai_gateway.tools.feed import FEED_TOOL_DEFINITIONS, execute_feed_tool
 from ai_gateway.tools.ops import OPS_TOOL_DEFINITIONS, execute_ops_tool
 from ai_gateway.tools.expert import EXPERT_TOOL_DEFINITIONS, execute_expert_tool
+from ai_gateway.tools.market import MARKET_TOOL_DEFINITIONS, execute_market_tool
 
 logger = logging.getLogger("agos.gateway.nodes")
 
@@ -86,7 +87,7 @@ TOOLS_BY_ROLE = {
     # Other roles get no tools for now (general conversation only).
     "zootechnician": FEED_TOOL_DEFINITIONS + OPS_TOOL_DEFINITIONS,
     "consultant": [],
-    "trading_agent": [],
+    "trading_agent": MARKET_TOOL_DEFINITIONS,
 }
 
 # Language detection (Dok 5 §9.2 L-3)
@@ -564,6 +565,16 @@ def execute_tools_node(state: dict) -> dict:
         elif tool_name in ("get_farm_tasks", "complete_farm_task",
                            "get_production_plan", "get_active_plan"):
             result = execute_ops_tool(
+                tool_name=tool_name,
+                tool_input=tool_input,
+                organization_id=org_id,
+                supabase=supabase,
+            )
+        # Market tools (Slice 5a)
+        elif tool_name in ("get_price_grid", "get_aggregated_supply", "get_aggregated_demand",
+                           "get_org_batches", "create_batch", "publish_batch",
+                           "cancel_batch", "get_price_for_sku", "get_market_summary"):
+            result = execute_market_tool(
                 tool_name=tool_name,
                 tool_input=tool_input,
                 organization_id=org_id,
