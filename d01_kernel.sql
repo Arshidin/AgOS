@@ -4867,3 +4867,58 @@ on conflict (sql_name) do update set notes = excluded.notes, created_in = exclud
 create unique index if not exists idx_herd_groups_farm_category
     on public.herd_groups (farm_id, animal_category_id);
 
+
+
+-- ============================================================
+-- SLICE 6b: rpc_assign_role
+-- Admin assigns/revokes admin or expert roles.
+-- ============================================================
+create or replace function public.rpc_assign_role(
+    p_organization_id   uuid,
+    p_target_user_id    uuid,
+    p_role_type         text,       -- 'admin' | 'expert'
+    p_action            text        default 'grant',  -- 'grant' | 'revoke'
+    p_specialization    text        default 'general'
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: admin required' using errcode = 'P0001';
+    end if;
+
+    if p_role_type = 'admin' then
+        if p_action = 'grant' then
+            insert into public.admin_roles (user_id, role)
+            values (p_target_user_id, 'admin')
+            on conflict (user_id) do nothing;
+        else
+            update public.admin_roles set is_active = false where user_id = p_target_user_id;
+        end if;
+    elsif p_role_type = 'expert' then
+        if p_action = 'grant' then
+            insert into public.expert_profiles (user_id, specialization)
+            values (p_target_user_id, p_specialization)
+            on conflict (user_id) do nothing;
+        else
+            update public.expert_profiles set is_active = false where user_id = p_target_user_id;
+        end if;
+    else
+        raise exception 'INVALID_ROLE_TYPE: must be admin or expert' using errcode = 'P0001';
+    end if;
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('identity.role.changed','users',p_target_user_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('target_user_id',p_target_user_id,'role_type',p_role_type,'action',p_action),true);
+
+    return true;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_assign_role', null, 'd01_kernel.sql (Slice 6b)', 'Admin assign/revoke admin or expert roles')
+on conflict (sql_name) do update set notes = excluded.notes;
+

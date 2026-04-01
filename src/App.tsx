@@ -46,6 +46,11 @@ import { AuditLog } from '@/pages/admin/audit/AuditLog'
 import { PoolQueue } from '@/pages/admin/pools/PoolQueue'
 import { PoolDetail } from '@/pages/admin/pools/PoolDetail'
 import { PriceGridManagement } from '@/pages/admin/pricing/PriceGridManagement'
+import { UserManagement } from '@/pages/admin/users/UserManagement'
+import { RoleAssignment } from '@/pages/admin/roles/RoleAssignment'
+import { OrgManagement } from '@/pages/admin/orgs/OrgManagement'
+import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
+import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -123,6 +128,11 @@ function App() {
                 <Route path="pools" element={<PoolQueue />} />
                 <Route path="pools/:poolId" element={<PoolDetail />} />
                 <Route path="pricing" element={<PriceGridManagement />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="roles" element={<RoleAssignment />} />
+                <Route path="orgs" element={<OrgManagement />} />
+                <Route path="regions" element={<RegionDirectory />} />
+                <Route path="settings" element={<SystemSettings />} />
               </Route>
             </Route>
 

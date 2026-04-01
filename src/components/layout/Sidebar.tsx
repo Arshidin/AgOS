@@ -14,6 +14,10 @@ import {
   ShoppingCart,
   Package,
   DollarSign,
+  UserCog,
+  Building2,
+  MapPin,
+  Settings,
   Syringe,
   Shield,
   FileText,
@@ -90,6 +94,11 @@ const ADMIN_NAV: NavItem[] = [
   { id: 'audit', icon: FileText, label: 'Audit', route: '/admin/audit' },
   { id: 'pools', icon: Package, label: 'Pools', route: '/admin/pools' },
   { id: 'pricing', icon: DollarSign, label: 'Pricing', route: '/admin/pricing' },
+  { id: 'users', icon: UserCog, label: 'Users', route: '/admin/users' },
+  { id: 'roles', icon: Users, label: 'Roles', route: '/admin/roles' },
+  { id: 'orgs', icon: Building2, label: 'Orgs', route: '/admin/orgs' },
+  { id: 'regions', icon: MapPin, label: 'Regions', route: '/admin/regions' },
+  { id: 'settings', icon: Settings, label: 'Settings', route: '/admin/settings' },
 ]
 
 /* ---- Icon button helper ---- */
