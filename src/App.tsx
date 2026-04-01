@@ -43,6 +43,9 @@ import { ExpertKpi } from '@/pages/admin/expert/ExpertKpi'
 import { KnowledgeBase } from '@/pages/admin/knowledge/KnowledgeBase'
 import { Restrictions } from '@/pages/admin/restrictions/Restrictions'
 import { AuditLog } from '@/pages/admin/audit/AuditLog'
+import { PoolQueue } from '@/pages/admin/pools/PoolQueue'
+import { PoolDetail } from '@/pages/admin/pools/PoolDetail'
+import { PriceGridManagement } from '@/pages/admin/pricing/PriceGridManagement'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -117,6 +120,9 @@ function App() {
                 <Route path="knowledge" element={<KnowledgeBase />} />
                 <Route path="restrictions" element={<Restrictions />} />
                 <Route path="audit" element={<AuditLog />} />
+                <Route path="pools" element={<PoolQueue />} />
+                <Route path="pools/:poolId" element={<PoolDetail />} />
+                <Route path="pricing" element={<PriceGridManagement />} />
               </Route>
             </Route>
 

@@ -1207,3 +1207,207 @@ on conflict (sql_name) do update
 -- END Slice 5a d02_tsp.sql RPCs
 -- ============================================================
 
+
+
+-- ============================================================
+-- SLICE 5b: Market Admin RPCs (7 functions)
+-- ============================================================
+
+-- RPC-12: rpc_create_pool_request
+create or replace function public.rpc_create_pool_request(
+    p_organization_id uuid, p_total_heads int, p_target_month date,
+    p_region_id uuid default null, p_accepted_categories jsonb default '[]'
+)
+returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_id uuid;
+begin
+    insert into public.pool_requests (organization_id, total_heads, target_month, region_id, accepted_categories, status)
+    values (p_organization_id, p_total_heads, p_target_month, p_region_id, p_accepted_categories, 'draft')
+    returning id into v_id;
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.pool_request.created','pool_requests',v_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('request_id',v_id,'total_heads',p_total_heads,'target_month',p_target_month),false);
+    return v_id;
+end; $$;
+
+-- RPC-13: rpc_activate_pool_request
+create or replace function public.rpc_activate_pool_request(
+    p_organization_id uuid, p_request_id uuid
+)
+returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_req record; v_pool_id uuid;
+begin
+    select * into v_req from public.pool_requests where id = p_request_id and organization_id = p_organization_id;
+    if v_req is null then raise exception 'REQUEST_NOT_FOUND' using errcode = 'P0001'; end if;
+    if v_req.status != 'draft' then raise exception 'INVALID_STATUS: must be draft' using errcode = 'P0001'; end if;
+
+    update public.pool_requests set status = 'active', updated_at = now() where id = p_request_id;
+
+    insert into public.pools (pool_request_id, target_heads, matched_heads, status)
+    values (p_request_id, v_req.total_heads, 0, 'filling')
+    returning id into v_pool_id;
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.pool.created','pools',v_pool_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('pool_id',v_pool_id,'request_id',p_request_id,'target_heads',v_req.total_heads),true);
+
+    return jsonb_build_object('request_id', p_request_id, 'pool_id', v_pool_id);
+end; $$;
+
+-- RPC-14: rpc_match_batch_to_pool
+create or replace function public.rpc_match_batch_to_pool(
+    p_organization_id uuid, p_pool_id uuid, p_batch_id uuid,
+    p_matched_heads int, p_price_per_kg int default null
+)
+returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_match_id uuid; v_pool record;
+begin
+    select * into v_pool from public.pools where id = p_pool_id and status = 'filling';
+    if v_pool is null then raise exception 'POOL_NOT_FILLING' using errcode = 'P0001'; end if;
+
+    if not exists (select 1 from public.batches where id = p_batch_id and status = 'published') then
+        raise exception 'BATCH_NOT_PUBLISHED' using errcode = 'P0001'; end if;
+
+    insert into public.pool_matches (pool_id, batch_id, matched_heads, reference_price_at_match)
+    values (p_pool_id, p_batch_id, p_matched_heads, p_price_per_kg)
+    returning id into v_match_id;
+
+    -- Update batch status
+    update public.batches set status = 'matched', matched_at = now(), updated_at = now() where id = p_batch_id;
+
+    -- Update pool counter
+    update public.pools set matched_heads = matched_heads + p_matched_heads, updated_at = now() where id = p_pool_id;
+
+    -- Auto-fill if target reached
+    if (v_pool.matched_heads + p_matched_heads) >= v_pool.target_heads then
+        update public.pools set status = 'filled', filled_at = now(), updated_at = now() where id = p_pool_id;
+    end if;
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.batch.matched','pool_matches',v_match_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('match_id',v_match_id,'pool_id',p_pool_id,'batch_id',p_batch_id,'heads',p_matched_heads),true);
+
+    return v_match_id;
+end; $$;
+
+-- RPC-15: rpc_advance_pool_status
+create or replace function public.rpc_advance_pool_status(
+    p_organization_id uuid, p_pool_id uuid, p_new_status text
+)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_pool record; v_valid_transitions jsonb;
+begin
+    select * into v_pool from public.pools where id = p_pool_id;
+    if v_pool is null then raise exception 'POOL_NOT_FOUND' using errcode = 'P0001'; end if;
+
+    -- FSM validation
+    v_valid_transitions := jsonb_build_object(
+        'filling', '["filled","closed"]'::jsonb,
+        'filled', '["executing","closed"]'::jsonb,
+        'executing', '["dispatched","executed","closed"]'::jsonb,
+        'dispatched', '["delivered","closed"]'::jsonb,
+        'delivered', '["executed","closed"]'::jsonb
+    );
+
+    if not (v_valid_transitions->v_pool.status) @> to_jsonb(p_new_status) then
+        raise exception 'INVALID_TRANSITION: % → % not allowed', v_pool.status, p_new_status
+            using errcode = 'P0001';
+    end if;
+
+    update public.pools set status = p_new_status, updated_at = now() where id = p_pool_id;
+
+    -- D40: reveal contacts at executing transition
+    if p_new_status = 'executing' then
+        update public.pools set mpk_contact_revealed_at = now(), executing_at = now() where id = p_pool_id;
+    end if;
+    if p_new_status = 'filled' then update public.pools set filled_at = now() where id = p_pool_id; end if;
+    if p_new_status = 'executed' then update public.pools set executed_at = now() where id = p_pool_id; end if;
+    if p_new_status = 'closed' then update public.pools set closed_at = now(), closed_by = public.fn_current_user_id() where id = p_pool_id; end if;
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.pool.status_changed','pools',p_pool_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('pool_id',p_pool_id,'from',v_pool.status,'to',p_new_status),true);
+
+    return true;
+end; $$;
+
+-- RPC-16: rpc_rollback_batch_match
+create or replace function public.rpc_rollback_batch_match(
+    p_organization_id uuid, p_pool_id uuid, p_batch_id uuid, p_reason text default null
+)
+returns boolean language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_match record;
+begin
+    select * into v_match from public.pool_matches where pool_id = p_pool_id and batch_id = p_batch_id;
+    if v_match is null then raise exception 'MATCH_NOT_FOUND' using errcode = 'P0001'; end if;
+
+    delete from public.pool_matches where id = v_match.id;
+
+    update public.pools set matched_heads = matched_heads - v_match.matched_heads, updated_at = now() where id = p_pool_id;
+    -- If was filled, revert to filling
+    update public.pools set status = 'filling' where id = p_pool_id and status = 'filled';
+
+    update public.batches set status = 'published', rollback_reason = p_reason, rollback_at = now(), updated_at = now() where id = p_batch_id;
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.match.rolled_back','pool_matches',v_match.id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('pool_id',p_pool_id,'batch_id',p_batch_id,'reason',p_reason),true);
+
+    return true;
+end; $$;
+
+-- RPC-19: rpc_set_price_grid
+create or replace function public.rpc_set_price_grid(
+    p_organization_id uuid, p_sku_id uuid, p_base_price_per_kg int,
+    p_premium_per_kg int default 0, p_region_id uuid default null
+)
+returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_id uuid;
+begin
+    if not public.fn_is_admin() then raise exception 'FORBIDDEN' using errcode = 'P0001'; end if;
+
+    insert into public.price_grids (tsp_sku_id, region_id, base_price_per_kg, premium_per_kg, valid_from, is_active)
+    values (p_sku_id, p_region_id, p_base_price_per_kg, p_premium_per_kg, current_date, true)
+    on conflict (tsp_sku_id, region_id, valid_from) do update
+        set base_price_per_kg = excluded.base_price_per_kg,
+            premium_per_kg = excluded.premium_per_kg,
+            is_active = true,
+            updated_at = now()
+    returning id into v_id;
+
+    -- fn_log_price_grid_change trigger fires automatically
+
+    insert into public.platform_events (event_type,entity_type,entity_id,organization_id,actor_type,actor_id,payload,is_audit)
+    values ('market.price.updated','price_grids',v_id,p_organization_id,'admin',public.fn_current_user_id(),
+        jsonb_build_object('sku_id',p_sku_id,'base_price',p_base_price_per_kg,'premium',p_premium_per_kg),true);
+
+    return v_id;
+end; $$;
+
+-- RPC-20: rpc_publish_price_index_value
+create or replace function public.rpc_publish_price_index_value(
+    p_organization_id uuid, p_index_id uuid, p_period_date date, p_value numeric
+)
+returns uuid language plpgsql security definer set search_path = public, pg_temp as $$
+declare v_id uuid;
+begin
+    if not public.fn_is_admin() then raise exception 'FORBIDDEN' using errcode = 'P0001'; end if;
+
+    insert into public.price_index_values (price_index_id, period_date, avg_price_per_kg, published)
+    values (p_index_id, p_period_date, p_value, true)
+    returning id into v_id;
+
+    return v_id;
+end; $$;
+
+-- Registry
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes) values
+    ('rpc_create_pool_request','rpc_create_pool_request','d02_tsp.sql (Slice 5b)','RPC-12'),
+    ('rpc_activate_pool_request','rpc_activate_pool_request','d02_tsp.sql (Slice 5b)','RPC-13'),
+    ('rpc_match_batch_to_pool','rpc_match_batch_to_pool','d02_tsp.sql (Slice 5b)','RPC-14'),
+    ('rpc_advance_pool_status','rpc_advance_pool_status','d02_tsp.sql (Slice 5b)','RPC-15'),
+    ('rpc_rollback_batch_match','rpc_rollback_batch_match','d02_tsp.sql (Slice 5b)','RPC-16'),
+    ('rpc_set_price_grid','rpc_set_price_grid','d02_tsp.sql (Slice 5b)','RPC-19'),
+    ('rpc_publish_price_index_value','rpc_publish_price_index_value','d02_tsp.sql (Slice 5b)','RPC-20')
+on conflict (sql_name) do update set notes = excluded.notes, created_in = excluded.created_in;
+

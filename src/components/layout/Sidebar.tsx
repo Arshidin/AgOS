@@ -12,6 +12,8 @@ import {
   Calculator,
   ClipboardList,
   ShoppingCart,
+  Package,
+  DollarSign,
   Syringe,
   Shield,
   FileText,
@@ -86,6 +88,8 @@ const ADMIN_NAV: NavItem[] = [
   { id: 'knowledge', icon: BookOpen, label: 'Knowledge', route: '/admin/knowledge' },
   { id: 'restrictions', icon: Shield, label: 'Restrictions', route: '/admin/restrictions' },
   { id: 'audit', icon: FileText, label: 'Audit', route: '/admin/audit' },
+  { id: 'pools', icon: Package, label: 'Pools', route: '/admin/pools' },
+  { id: 'pricing', icon: DollarSign, label: 'Pricing', route: '/admin/pricing' },
 ]
 
 /* ---- Icon button helper ---- */
