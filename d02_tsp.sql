@@ -983,3 +983,227 @@ values (
 --             PeriodType*, FarmFeedInventory, Ration, RationVersion,
 --             FeedingPlan, FeedingPeriod (10 entities)
 -- ============================================================
+
+
+-- ============================================================
+-- SLICE 5a: Market Farmer RPCs
+-- D-LEGAL-1: Build without legal gate (CEO decision 2026-04-01)
+-- RPC-11: rpc_cancel_batch
+-- RPC-17: rpc_get_price_for_sku
+-- RPC-18: rpc_get_market_summary
+-- ============================================================
+
+-- ============================================================
+-- RPC-11: rpc_cancel_batch
+-- Dok 3 §4 | Callers: [WEB] [AI] [ADMIN]
+-- FSM: draft|published → cancelled. Matched requires rollback first.
+-- Events: market.batch.cancelled
+-- ============================================================
+create or replace function public.rpc_cancel_batch(
+    p_organization_id   uuid,
+    p_batch_id          uuid,
+    p_reason            text        default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_batch record;
+begin
+    select * into v_batch
+    from public.batches
+    where id = p_batch_id and organization_id = p_organization_id;
+
+    if v_batch is null then
+        raise exception 'BATCH_NOT_FOUND' using errcode = 'P0001';
+    end if;
+
+    if v_batch.status = 'cancelled' then
+        return true;  -- idempotent
+    end if;
+
+    if v_batch.status not in ('draft', 'published') then
+        raise exception 'INVALID_STATUS: cannot cancel batch in status %', v_batch.status
+            using errcode = 'P0001';
+    end if;
+
+    -- If published, check no matches exist
+    if v_batch.status = 'published' then
+        if exists (select 1 from public.pool_matches where batch_id = p_batch_id) then
+            raise exception 'HAS_MATCHES: batch has pool matches, rollback first'
+                using errcode = 'P0001';
+        end if;
+    end if;
+
+    update public.batches
+    set status = 'cancelled',
+        cancelled_at = now(),
+        rollback_reason = p_reason,
+        updated_at = now()
+    where id = p_batch_id;
+
+    -- Emit event
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'market.batch.cancelled', 'batches', p_batch_id, p_organization_id,
+        'farmer', public.fn_current_user_id(),
+        jsonb_build_object('batch_id', p_batch_id, 'reason', p_reason,
+            'previous_status', v_batch.status),
+        true
+    );
+
+    return true;
+end;
+$$;
+
+comment on function public.rpc_cancel_batch(uuid, uuid, text) is
+    'RPC-11 | Dok 3 §4 | Slice 5a
+     FSM: draft|published → cancelled. Published requires no matches.
+     Idempotent (already cancelled = true).
+     Events: market.batch.cancelled (is_audit=true).';
+
+
+-- ============================================================
+-- RPC-17: rpc_get_price_for_sku
+-- Dok 3 §4 | Callers: [WEB] [AI]
+-- Returns price + MANDATORY disclaimer_text (Article 171)
+-- ============================================================
+create or replace function public.rpc_get_price_for_sku(
+    p_organization_id   uuid,
+    p_sku_id            uuid,
+    p_region_id         uuid        default null
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+    v_result jsonb;
+begin
+    select jsonb_build_object(
+        'sku_id', pg.tsp_sku_id,
+        'sku_name', s.name_ru,
+        'region_id', pg.region_id,
+        'base_price_per_kg', pg.base_price_per_kg,
+        'premium_per_kg', pg.premium_per_kg,
+        'total_price_per_kg', pg.base_price_per_kg + pg.premium_per_kg,
+        'valid_from', pg.valid_from,
+        'disclaimer_text', 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное.'
+    ) into v_result
+    from public.price_grids pg
+    join public.tsp_skus s on s.id = pg.tsp_sku_id
+    where pg.tsp_sku_id = p_sku_id
+      and pg.is_active = true
+      and (p_region_id is null or pg.region_id = p_region_id or pg.region_id is null)
+    order by
+        case when pg.region_id = p_region_id then 0 else 1 end,  -- region match first
+        pg.valid_from desc
+    limit 1;
+
+    -- If no price found, return null with disclaimer
+    if v_result is null then
+        v_result := jsonb_build_object(
+            'sku_id', p_sku_id,
+            'base_price_per_kg', null,
+            'disclaimer_text', 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное.'
+        );
+    end if;
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_price_for_sku(uuid, uuid, uuid) is
+    'RPC-17 | Dok 3 §4 | Slice 5a
+     Returns price for SKU + region with MANDATORY disclaimer_text (Article 171).
+     Region matching: exact match first, then national (null region).
+     STABLE read — no side effects.';
+
+
+-- ============================================================
+-- RPC-18: rpc_get_market_summary
+-- Dok 3 §4 | Callers: [WEB] [AI]
+-- Anonymous aggregates: supply by SKU, demand by category.
+-- MANDATORY disclaimer_text.
+-- ============================================================
+create or replace function public.rpc_get_market_summary(
+    p_organization_id   uuid,
+    p_region_id         uuid        default null,
+    p_month             date        default null
+)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+    v_month         date;
+    v_supply        jsonb;
+    v_demand        jsonb;
+begin
+    v_month := coalesce(p_month, date_trunc('month', current_date)::date);
+
+    -- Supply: aggregate published + matched batches by SKU (anonymous)
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'sku_id', b.tsp_sku_id,
+        'sku_name', s.name_ru,
+        'total_heads', sum(b.heads),
+        'batch_count', count(*),
+        'avg_weight_kg', round(avg(b.avg_weight_kg), 1)
+    )), '[]'::jsonb) into v_supply
+    from public.batches b
+    join public.tsp_skus s on s.id = b.tsp_sku_id
+    where b.status in ('published', 'matched')
+      and b.target_month = v_month
+      and (p_region_id is null or b.region_id = p_region_id)
+    group by b.tsp_sku_id, s.name_ru;
+
+    -- Demand: aggregate active pool requests (anonymous)
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'total_heads', pr.total_heads,
+        'target_month', pr.target_month,
+        'status', pr.status
+    )), '[]'::jsonb) into v_demand
+    from public.pool_requests pr
+    where pr.status = 'active'
+      and pr.target_month = v_month
+      and (p_region_id is null or pr.region_id = p_region_id);
+
+    return jsonb_build_object(
+        'month', v_month,
+        'region_id', p_region_id,
+        'supply', v_supply,
+        'demand', v_demand,
+        'disclaimer_text', 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное.'
+    );
+end;
+$$;
+
+comment on function public.rpc_get_market_summary(uuid, uuid, date) is
+    'RPC-18 | Dok 3 §4 | Slice 5a
+     Anonymous market aggregates: supply by SKU + demand by MPK category.
+     All farmer identities anonymized. MANDATORY disclaimer_text.
+     STABLE read — no side effects.';
+
+
+-- ============================================================
+-- SLICE 5a: rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_cancel_batch',        'rpc_cancel_batch',        null, 'd02_tsp.sql (Slice 5a)', 'RPC-11: Cancel batch (draft|published → cancelled)'),
+    ('rpc_get_price_for_sku',   'rpc_get_price_for_sku',   null, 'd02_tsp.sql (Slice 5a)', 'RPC-17: Price + disclaimer (Article 171)'),
+    ('rpc_get_market_summary',  'rpc_get_market_summary',  null, 'd02_tsp.sql (Slice 5a)', 'RPC-18: Anonymous market aggregates + disclaimer')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+-- ============================================================
+-- END Slice 5a d02_tsp.sql RPCs
+-- ============================================================
+
