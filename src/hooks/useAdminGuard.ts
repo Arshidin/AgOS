@@ -1,30 +1,22 @@
 /**
- * Hook: redirects non-admin users away from admin-only pages.
- * Used inside A-series pages that require fn_is_admin().
- * RequireExpert is the outer gate (expert OR admin).
- * This hook is the inner gate (admin ONLY).
+ * Hook: checks admin role from AuthContext (0 RPC calls).
+ * Used inside A-series pages for inner admin-only gate.
  */
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useEffect } from 'react'
 import { toast } from 'sonner'
 
-export function useAdminGuard(): { isAdmin: boolean | null; checking: boolean } {
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
-  const [checking, setChecking] = useState(true)
+export function useAdminGuard(): { isAdmin: boolean; checking: boolean } {
+  const { isAdmin, isContextLoading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    supabase.rpc('fn_is_admin').then(({ data }) => {
-      const admin = !!data
-      setIsAdmin(admin)
-      setChecking(false)
-      if (!admin) {
-        toast.error('Только для администраторов')
-        navigate('/admin')
-      }
-    })
-  }, [navigate])
+    if (!isContextLoading && !isAdmin) {
+      toast.error('Только для администраторов')
+      navigate('/admin')
+    }
+  }, [isAdmin, isContextLoading, navigate])
 
-  return { isAdmin, checking }
+  return { isAdmin, checking: isContextLoading }
 }

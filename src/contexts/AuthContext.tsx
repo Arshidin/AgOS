@@ -41,6 +41,8 @@ export interface Membership {
 }
 
 export interface UserContext {
+  is_admin: boolean
+  is_expert: boolean
   user_id: string
   full_name: string | null
   phone: string | null
