@@ -1393,8 +1393,8 @@ declare v_id uuid;
 begin
     if not public.fn_is_admin() then raise exception 'FORBIDDEN' using errcode = 'P0001'; end if;
 
-    insert into public.price_index_values (price_index_id, period_date, avg_price_per_kg, published)
-    values (p_index_id, p_period_date, p_value, true)
+    insert into public.price_index_values (index_id, period_date, value_per_kg, data_source, published, published_by, published_at)
+    values (p_index_id, p_period_date, p_value, 'expert_assessment', true, public.fn_current_user_id(), now())
     returning id into v_id;
 
     return v_id;

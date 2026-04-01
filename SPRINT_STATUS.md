@@ -96,12 +96,12 @@ Already implemented: RPC-33..36.
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | A11–A15 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice5b-Market-Admin.md` |
-| DB | RPC-12..16, 19, 20 (d02) | ✅ Implemented | All 7 RPCs in d02_tsp.sql + registry. ⚠️ DEF-026 |
+| DB | RPC-12..16, 19, 20 (d02) | ✅ Implemented | All 7 RPCs in d02_tsp.sql + registry. DEF-026 fixed (2026-04-01) |
 | Backend | — | ✅ n/a | No new AI tools for admin screens |
 | UI | A11 (PoolQueue), A12-A14 (PoolDetail), A15 (PriceGridManagement) | 🔧 Fixed | DEF-021..024 resolved by UI Agent (2026-04-01) |
 | QA | Slice 5b gate | ⬜ Pending | Awaiting QA gate |
 
-⚠️ DEF-026 (Critical, DB): RPC-20 `rpc_publish_price_index_value` — INSERT uses wrong column names (`price_index_id` → `index_id`, `avg_price_per_kg` → `value_per_kg`) and missing required `data_source`. DB Agent must fix before price index publish works.
+✅ DEF-026 (Fixed 2026-04-01): RPC-20 `rpc_publish_price_index_value` — corrected INSERT column names (`price_index_id` → `index_id`, `avg_price_per_kg` → `value_per_kg`), added required `data_source='expert_assessment'`, `published_by`, `published_at`.
 
 Already implemented: RPC-09, RPC-10.
 
@@ -201,7 +201,7 @@ Already implemented: RPC-09, RPC-10.
 | DEF-023 | Significant | `PriceGridManagement.tsx` (A15) | `rpc_publish_price_index_value` (RPC-20) not implemented — price index section absent | ✅ Fixed (2026-04-01) — index form + history table added |
 | DEF-024 | **Critical** | `PoolDetail.tsx`, `PriceGridManagement.tsx` | Antitrust disclaimer missing on price screens (Article 171) | ✅ Fixed (2026-04-01) — amber disclaimer card added |
 | DEF-025 | Minor | `d02_tsp.sql` RPC-19 | ON CONFLICT `(tsp_sku_id, region_id, valid_from)` — NULL region_id won't trigger constraint | 🟡 Known — verify deployed constraint |
-| DEF-026 | **Critical** | `d02_tsp.sql` RPC-20 | `rpc_publish_price_index_value` INSERT uses `price_index_id`/`avg_price_per_kg` but table has `index_id`/`value_per_kg`; missing required `data_source` | ⬜ DB Agent must fix |
+| DEF-026 | **Critical** | `d02_tsp.sql` RPC-20 | `rpc_publish_price_index_value` INSERT uses `price_index_id`/`avg_price_per_kg` but table has `index_id`/`value_per_kg`; missing required `data_source` | ✅ Fixed (2026-04-01) |
 
 ---
 
