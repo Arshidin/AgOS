@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/ui/page-header'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
@@ -134,21 +135,23 @@ export function ReportSick() {
         {farms.length > 1 ? (
           <div>
             <label className="text-xs text-[var(--fg2)] mb-1 block">Ферма *</label>
-            <select
-              value={farmId}
-              onChange={(e) => {
-                setFarmId(e.target.value)
+            <Select
+              value={farmId || undefined}
+              onValueChange={(v) => {
+                setFarmId(v)
                 setHerdGroupId('')
                 if (errors.farm) setErrors((prev) => ({ ...prev, farm: '' }))
               }}
-              className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-              style={{ borderColor: errors.farm ? 'var(--red)' : undefined }}
             >
-              <option value="">Выберите ферму</option>
-              {farms.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+              <SelectTrigger className="h-12" style={{ borderColor: errors.farm ? 'var(--red)' : undefined }}>
+                <SelectValue placeholder="Выберите ферму" />
+              </SelectTrigger>
+              <SelectContent>
+                {farms.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.farm && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.farm}</p>}
           </div>
         ) : farms.length === 1 ? (
@@ -169,20 +172,20 @@ export function ReportSick() {
             <label className="text-xs text-[var(--fg2)] mb-1 block">
               Какая группа животных? (необязательно)
             </label>
-            <select
-              value={herdGroupId}
-              onChange={(e) => setHerdGroupId(e.target.value)}
-              className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-            >
-              <option value="">Не знаю / Вся ферма</option>
-              {herdGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.animal_category_name || g.animal_category_code}
-                  {g.breed_name ? ` (${g.breed_name})` : ''}
-                  {` — ${g.head_count} гол.`}
-                </option>
-              ))}
-            </select>
+            <Select value={herdGroupId || undefined} onValueChange={setHerdGroupId}>
+              <SelectTrigger className="h-12">
+                <SelectValue placeholder="Не знаю / Вся ферма" />
+              </SelectTrigger>
+              <SelectContent>
+                {herdGroups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.animal_category_name || g.animal_category_code}
+                    {g.breed_name ? ` (${g.breed_name})` : ''}
+                    {` — ${g.head_count} гол.`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
