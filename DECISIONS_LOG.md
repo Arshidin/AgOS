@@ -665,3 +665,13 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 **QA:** cross_check.sh 0 critical. TypeScript 0 errors. 3 RPCs unique. Disclaimer in all price responses.
 
 **Deliverables:** 3 RPCs (RPC-11,17,18), 9 market tools, 4 screens (F05,F06,F08,F09).
+
+---
+
+### D-GATE-S5b — Slice 5b Gate: Deployed
+
+**Date:** 2026-04-01
+**Domain:** Gate
+
+**WHAT:** Slice 5b Market Admin deployed. 7 RPCs + 3 screens.
+D-S5-4: A12/13/14 merged into Pool Detail lifecycle screen.
