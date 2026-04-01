@@ -11,6 +11,7 @@ import {
   BookOpen,
   Calculator,
   ClipboardList,
+  ShoppingCart,
   Syringe,
   Shield,
   FileText,
@@ -64,6 +65,7 @@ const FARMER_NAV: NavItem[] = [
   { id: 'feed', icon: Wheat, label: 'Feed', route: '/cabinet/feed' },
   { id: 'ration', icon: Calculator, label: 'Ration', route: '/cabinet/ration' },
   { id: 'plan', icon: ClipboardList, label: 'Plan', route: '/cabinet/plan' },
+  { id: 'market', icon: ShoppingCart, label: 'Market', route: '/cabinet/market' },
 ]
 
 const EXPERT_NAV: NavItem[] = [

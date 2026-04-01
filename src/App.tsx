@@ -27,6 +27,10 @@ import { TaskList } from '@/pages/cabinet/plan/TaskList'
 import { Timeline } from '@/pages/cabinet/plan/Timeline'
 import { CascadePreview } from '@/pages/cabinet/plan/CascadePreview'
 import { KpiDashboard } from '@/pages/cabinet/plan/KpiDashboard'
+import { MarketDashboard } from '@/pages/cabinet/market/MarketDashboard'
+import { CreateBatch } from '@/pages/cabinet/market/CreateBatch'
+import { BatchDetail } from '@/pages/cabinet/market/BatchDetail'
+import { PriceInfo } from '@/pages/cabinet/market/PriceInfo'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
 import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
@@ -85,6 +89,10 @@ function App() {
                 <Route path="plan/timeline" element={<Timeline />} />
                 <Route path="plan/cascade/:phaseId" element={<CascadePreview />} />
                 <Route path="plan/kpi" element={<KpiDashboard />} />
+                <Route path="market" element={<MarketDashboard />} />
+                <Route path="market/new" element={<CreateBatch />} />
+                <Route path="market/batch/:batchId" element={<BatchDetail />} />
+                <Route path="market/prices" element={<PriceInfo />} />
               </Route>
             </Route>
 
