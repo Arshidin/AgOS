@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/ui/page-header'
+import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
@@ -125,7 +126,7 @@ export function ReportSick() {
   }
 
   return (
-    <div className="p-7 max-w-3xl space-y-6">
+    <div className="p-6 max-w-3xl space-y-6">
       <PageHeader title="Сообщить о болезни" description="AI проанализирует симптомы" />
 
       <div className="space-y-4">
@@ -148,7 +149,7 @@ export function ReportSick() {
                 <option key={f.id} value={f.id}>{f.name}</option>
               ))}
             </select>
-            {errors.farm && <p className="text-xs text-red-500 mt-1">{errors.farm}</p>}
+            {errors.farm && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.farm}</p>}
           </div>
         ) : farms.length === 1 ? (
           <div className="p-3 bg-[var(--bg)] rounded-xl">
@@ -190,19 +191,19 @@ export function ReportSick() {
           <label className="text-xs text-[var(--fg2)] mb-1 block">
             Опишите что случилось *
           </label>
-          <textarea
+          <Textarea
             value={symptomsText}
             onChange={(e) => {
               setSymptomsText(e.target.value)
               if (errors.symptoms) setErrors((prev) => ({ ...prev, symptoms: '' }))
             }}
             placeholder="Например: телёнок не ест второй день, температура 40 градусов, вялый"
-            className="reg-input w-full h-32 px-3 py-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)] resize-none"
+            className="h-32 resize-none"
             style={{ borderColor: errors.symptoms ? 'var(--red)' : undefined }}
           />
           <div className="flex items-center justify-between mt-1">
             {errors.symptoms ? (
-              <p className="text-xs text-red-500">{errors.symptoms}</p>
+              <p className="text-xs" style={{ color: 'var(--red)' }}>{errors.symptoms}</p>
             ) : (
               <span />
             )}
@@ -229,7 +230,7 @@ export function ReportSick() {
             className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
             style={{ borderColor: errors.affected ? 'var(--red)' : undefined }}
           />
-          {errors.affected && <p className="text-xs text-red-500 mt-1">{errors.affected}</p>}
+          {errors.affected && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.affected}</p>}
         </div>
       </div>
 

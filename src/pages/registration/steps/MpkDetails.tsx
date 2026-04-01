@@ -91,7 +91,7 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        {errors.company_type && <p className="text-xs text-red-500 -mt-2 px-1">{errors.company_type}</p>}
+        {errors.company_type && <p className="text-xs -mt-2 px-1" style={{ color: 'var(--red)' }}>{errors.company_type}</p>}
 
         <button
           type="button"
@@ -106,7 +106,7 @@ export function MpkDetails({ formData, onChange, onNext }: MpkDetailsProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        {errors.monthly_volume && <p className="text-xs text-red-500 -mt-2 px-1">{errors.monthly_volume}</p>}
+        {errors.monthly_volume && <p className="text-xs -mt-2 px-1" style={{ color: 'var(--red)' }}>{errors.monthly_volume}</p>}
 
         {/* MPK extra fields (Step 5b equivalent) */}
         <ChipSelect

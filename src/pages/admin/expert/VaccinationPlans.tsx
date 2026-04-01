@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useExpertGuard } from '@/hooks/useExpertGuard'
 import { supabase } from '@/lib/supabase'
 
 interface VacPlan {
@@ -22,6 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export function VaccinationPlans() {
+  const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
   const [plans, setPlans] = useState<VacPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,6 +32,9 @@ export function VaccinationPlans() {
     supabase.from('vaccination_plans').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => { setPlans(data || []); setLoading(false) })
   }, [])
+
+  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isExpert) return null
 
   return (
     <div className="space-y-6 p-6">

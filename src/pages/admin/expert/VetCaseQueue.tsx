@@ -3,12 +3,13 @@
  * Dok 6 Slice 6a: /admin/expert/queue
  * Auth: fn_is_expert(). D-S6-1: uses .from() with expert RLS.
  */
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useExpertGuard } from '@/hooks/useExpertGuard'
 import { supabase } from '@/lib/supabase'
 
 interface VetCase {
@@ -17,15 +18,18 @@ interface VetCase {
   affected_head_count: number | null; created_at: string; created_via: string
 }
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-600 text-white', severe: 'bg-orange-500 text-white',
-  moderate: 'bg-yellow-500', mild: 'bg-green-500 text-white',
+const SEVERITY_STYLES: Record<string, React.CSSProperties> = {
+  critical: { background: 'var(--red)', color: 'var(--cta-fg)' },
+  severe:   { background: 'var(--amber)', color: 'var(--cta-fg)' },
+  moderate: { background: 'var(--amber)', color: 'var(--cta-fg)' },
+  mild:     { background: 'var(--green)', color: 'var(--cta-fg)' },
 }
 const STATUS_LABELS: Record<string, string> = {
   open: 'Открыт', in_progress: 'В работе', escalated: 'Эскалация', resolved: 'Закрыт',
 }
 
 export function VetCaseQueue() {
+  const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
   const [cases, setCases] = useState<VetCase[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,6 +42,9 @@ export function VetCaseQueue() {
     else if (statusFilter !== 'all') query = query.eq('status', statusFilter)
     query.then(({ data }) => { setCases(data || []); setLoading(false) })
   }, [statusFilter])
+
+  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isExpert) return null
 
   return (
     <div className="space-y-6 p-6">
@@ -59,7 +66,7 @@ export function VetCaseQueue() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      {c.severity && <Badge className={`text-xs ${SEVERITY_COLORS[c.severity] || ''}`}>{c.severity}</Badge>}
+                      {c.severity && <Badge className="text-xs" style={SEVERITY_STYLES[c.severity]}>{c.severity}</Badge>}
                       <Badge variant="secondary" className="text-xs">{STATUS_LABELS[c.status] || c.status}</Badge>
                     </div>
                     <p className="mt-2 text-sm line-clamp-2">{c.symptoms_text || 'Нет описания'}</p>

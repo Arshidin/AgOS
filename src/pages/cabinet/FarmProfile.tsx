@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Farm, HerdGroup } from '@/contexts/AuthContext'
 
 const SHELTER_TYPES = [
@@ -249,7 +250,7 @@ export function FarmProfile() {
     : 'Зарегистрирован'
 
   return (
-    <div className="p-7 max-w-3xl space-y-6">
+    <div className="p-6 max-w-3xl space-y-6">
       {/* Header */}
       <PageHeader title="Профиль фермы" description="Данные о вашем хозяйстве" />
       <div className="flex items-center justify-between">
@@ -332,30 +333,30 @@ export function FarmProfile() {
 
             <div>
               <label className="text-xs text-[var(--fg2)] mb-1 block">Тип содержания</label>
-              <select
-                value={shelterType}
-                onChange={(e) => setShelterType(e.target.value)}
-                className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-              >
-                <option value="">Не указано</option>
-                {SHELTER_TYPES.map((st) => (
-                  <option key={st.value} value={st.value}>{st.label}</option>
-                ))}
-              </select>
+              <Select value={shelterType || undefined} onValueChange={setShelterType}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Не указано" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHELTER_TYPES.map((st) => (
+                    <SelectItem key={st.value} value={st.value}>{st.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <label className="text-xs text-[var(--fg2)] mb-1 block">Система отёлов</label>
-              <select
-                value={calvingSystem}
-                onChange={(e) => setCalvingSystem(e.target.value)}
-                className="reg-input w-full h-11 px-3 bg-[var(--bg)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
-              >
-                <option value="">Не указано</option>
-                {CALVING_SYSTEMS.map((cs) => (
-                  <option key={cs.value} value={cs.value}>{cs.label}</option>
-                ))}
-              </select>
+              <Select value={calvingSystem || undefined} onValueChange={setCalvingSystem}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Не указано" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CALVING_SYSTEMS.map((cs) => (
+                    <SelectItem key={cs.value} value={cs.value}>{cs.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex gap-2">
@@ -457,21 +458,23 @@ export function FarmProfile() {
           <div className="border border-[var(--bd)] rounded-lg p-3 space-y-3 bg-[var(--bg)]">
             <div>
               <label className="text-xs text-[var(--fg2)] mb-1 block">Категория *</label>
-              <select
-                value={herdForm.animal_category_code}
-                onChange={(e) => {
-                  setHerdForm((f) => ({ ...f, animal_category_code: e.target.value }))
+              <Select
+                value={herdForm.animal_category_code || undefined}
+                onValueChange={(v) => {
+                  setHerdForm((f) => ({ ...f, animal_category_code: v }))
                   if (herdErrors.category) setHerdErrors((e2) => ({ ...e2, category: '' }))
                 }}
-                className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
-                style={{ borderColor: herdErrors.category ? 'var(--red)' : undefined }}
               >
-                <option value="">Выберите категорию</option>
-                {ANIMAL_CATEGORIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-              {herdErrors.category && <p className="text-xs text-red-500 mt-1">{herdErrors.category}</p>}
+                <SelectTrigger className="h-10" style={{ borderColor: herdErrors.category ? 'var(--red)' : undefined }}>
+                  <SelectValue placeholder="Выберите категорию" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANIMAL_CATEGORIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {herdErrors.category && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.category}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -489,7 +492,7 @@ export function FarmProfile() {
                   className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
                   style={{ borderColor: herdErrors.head_count ? 'var(--red)' : undefined }}
                 />
-                {herdErrors.head_count && <p className="text-xs text-red-500 mt-1">{herdErrors.head_count}</p>}
+                {herdErrors.head_count && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.head_count}</p>}
               </div>
               <div>
                 <label className="text-xs text-[var(--fg2)] mb-1 block">Ср. вес (кг)</label>
@@ -504,22 +507,25 @@ export function FarmProfile() {
                   className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
                   style={{ borderColor: herdErrors.avg_weight ? 'var(--red)' : undefined }}
                 />
-                {herdErrors.avg_weight && <p className="text-xs text-red-500 mt-1">{herdErrors.avg_weight}</p>}
+                {herdErrors.avg_weight && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.avg_weight}</p>}
               </div>
             </div>
 
             <div>
               <label className="text-xs text-[var(--fg2)] mb-1 block">Порода</label>
-              <select
-                value={herdForm.breed_id}
-                onChange={(e) => setHerdForm((f) => ({ ...f, breed_id: e.target.value }))}
-                className="reg-input w-full h-10 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-lg text-sm text-[var(--fg)]"
+              <Select
+                value={herdForm.breed_id || undefined}
+                onValueChange={(v) => setHerdForm((f) => ({ ...f, breed_id: v }))}
               >
-                <option value="">Не указана</option>
-                {breedsDb.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Не указана" />
+                </SelectTrigger>
+                <SelectContent>
+                  {breedsDb.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex gap-2">

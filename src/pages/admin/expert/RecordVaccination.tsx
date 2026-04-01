@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
+import { useExpertGuard } from '@/hooks/useExpertGuard'
 import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
 
@@ -21,6 +22,7 @@ interface PlanItem {
 }
 
 export function RecordVaccination() {
+  const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
   const { planId } = useParams()
   const { organization } = useAuth()
@@ -50,6 +52,9 @@ export function RecordVaccination() {
     successMessage: 'Вакцинация записана',
     onSuccess: () => navigate('/admin/expert/vaccination'),
   })
+
+  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isExpert) return null
 
   return (
     <div className="space-y-6 p-6 max-w-lg mx-auto">

@@ -8,8 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { useExpertGuard } from '@/hooks/useExpertGuard'
 
 export function ExpertKpi() {
+  const { isExpert, checking: expertChecking } = useExpertGuard()
   const { userContext } = useAuth()
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -21,6 +23,8 @@ export function ExpertKpi() {
       .then(({ data }) => { setStats(data); setLoading(false) })
   }, [userContext?.user_id])
 
+  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isExpert) return null
   if (loading) return <div className="p-6"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-32 w-full" /></div>
 
   return (

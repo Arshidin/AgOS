@@ -66,7 +66,7 @@ export function FloatingInput({
         {label}
       </label>
       {error && (
-        <p className="text-xs text-red-500 mt-1 px-1">{error}</p>
+        <p className="text-xs mt-1 px-1" style={{ color: 'var(--red)' }}>{error}</p>
       )}
     </div>
   )

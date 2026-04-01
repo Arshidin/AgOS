@@ -14,9 +14,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
+import { useExpertGuard } from '@/hooks/useExpertGuard'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 
 export function CaseConsultation() {
+  const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
   const { caseId } = useParams()
   const { organization, userContext } = useAuth()
@@ -38,6 +40,8 @@ export function CaseConsultation() {
     onSuccess: () => navigate('/admin/expert/queue'),
   })
 
+  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (!isExpert) return null
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" /><Skeleton className="h-64 w-full" /></div>
   if (!caseDetail) return <div className="p-6 text-muted-foreground">Кейс не найден</div>
 

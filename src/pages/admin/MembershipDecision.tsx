@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle, XCircle, Loader2, Building2, MapPin, Hash, Calendar, Users2, Leaf } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 
@@ -137,13 +139,12 @@ export function MembershipDecision() {
   if (!detail) {
     return (
       <div className="space-y-4">
-        <button
-          onClick={() => navigate('/admin/membership')}
-          className="flex items-center gap-2 text-sm text-[var(--fg2)] hover:text-[var(--fg)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Назад к списку
-        </button>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/membership')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <span className="text-sm text-muted-foreground">Назад к списку</span>
+        </div>
         <div className="p-6 bg-card rounded-[10px] border border-border text-center">
           <p className="text-sm text-[var(--fg2)]">Заявка не найдена</p>
         </div>
@@ -157,18 +158,14 @@ export function MembershipDecision() {
   )
 
   return (
-    <div className="p-7 max-w-3xl space-y-5">
+    <div className="p-6 max-w-3xl space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <button
-            onClick={() => navigate('/admin/membership')}
-            className="flex items-center gap-1.5 text-sm text-[var(--fg2)] hover:text-[var(--fg)] mb-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Назад к списку
-          </button>
-          <h2 className="text-xl font-semibold text-[var(--fg)]">Заявка на членство</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/membership')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Заявка на членство</h2>
         </div>
         <StatusBadge status={detail.status} label={STATUS_LABELS[detail.status] ?? detail.status} />
       </div>
@@ -378,43 +375,31 @@ export function MembershipDecision() {
       )}
 
       {/* Confirmation dialog */}
-      {confirmAction && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-card rounded-[10px] p-6 max-w-sm w-full space-y-4" role="alertdialog" aria-labelledby="confirm-dialog-title">
-            <h3 id="confirm-dialog-title" className="font-medium text-[var(--fg)]">
+      <Dialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
               {confirmAction === 'approved' ? 'Одобрить заявку?' : 'Отклонить заявку?'}
-            </h3>
-            <p className="text-sm text-[var(--fg2)]">
-              {confirmAction === 'approved'
-                ? `${detail.org_name} получит статус "${LEVEL_LABELS[detail.to_level] ?? detail.to_level}". Фермер получит уведомление в WhatsApp.`
-                : `Заявка ${detail.org_name} будет отклонена. Фермер получит уведомление в WhatsApp.`
-              }
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmAction(null)}
-                aria-label="Отменить действие"
-                className="flex-1 px-4 py-2 border border-[var(--bd)] rounded-lg text-sm text-[var(--fg2)] hover:bg-[var(--bg)]"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleDecision}
-                disabled={processMutation.isPending}
-                aria-label={confirmAction === 'approved' ? 'Подтвердить одобрение' : 'Подтвердить отклонение'}
-                className="flex-1 px-4 py-2 rounded-lg text-sm text-white font-medium disabled:opacity-50 hover:brightness-90"
-                style={{ background: confirmAction === 'approved' ? 'var(--green)' : 'var(--red)' }}
-              >
-                {processMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                ) : (
-                  'Подтвердить'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {confirmAction === 'approved'
+              ? `${detail?.org_name} получит статус "${LEVEL_LABELS[detail?.to_level ?? ''] ?? detail?.to_level}". Фермер получит уведомление в WhatsApp.`
+              : `Заявка ${detail?.org_name} будет отклонена. Фермер получит уведомление в WhatsApp.`
+            }
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>Отмена</Button>
+            <Button
+              onClick={handleDecision}
+              disabled={processMutation.isPending}
+              style={{ background: confirmAction === 'approved' ? 'var(--green)' : 'var(--red)', color: '#fff' }}
+            >
+              {processMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Подтвердить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

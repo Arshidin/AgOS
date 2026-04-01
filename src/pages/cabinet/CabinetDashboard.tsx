@@ -9,7 +9,7 @@ export function CabinetDashboard() {
 
   if (isContextLoading) {
     return (
-      <div className="p-7 max-w-3xl space-y-4">
+      <div className="p-6 max-w-3xl space-y-4">
         <Skeleton className="h-8 w-48" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
@@ -21,12 +21,12 @@ export function CabinetDashboard() {
   const orgName = userContext?.organizations?.[0]?.name || 'Моя ферма'
 
   return (
-    <div className="p-7 max-w-3xl">
+    <div className="p-6 max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--fg)' }}>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
           {orgName}
         </h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--fg2)' }}>
+        <p className="text-sm mt-1 text-[var(--fg2)]">
           Добро пожаловать в кабинет фермера
         </p>
       </div>
@@ -55,15 +55,12 @@ export function CabinetDashboard() {
             <Stethoscope className="w-5 h-5" style={{ color: 'var(--red)' }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium" style={{ color: 'var(--fg)' }}>Сообщить о болезни</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--fg2)' }}>
+            <p className="text-sm font-medium text-foreground">Сообщить о болезни</p>
+            <p className="text-xs mt-0.5 text-[var(--fg2)]">
               AI проанализирует симптомы и предложит рекомендации
             </p>
           </div>
-          <ChevronRight
-            className="w-4 h-4 shrink-0 transition-colors"
-            style={{ color: 'var(--fg3)' }}
-          />
+          <ChevronRight className="w-4 h-4 shrink-0 transition-colors text-[var(--fg3)]" />
         </button>
 
         <button
@@ -89,17 +86,14 @@ export function CabinetDashboard() {
             <Leaf className="w-5 h-5" style={{ color: 'var(--green)' }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium" style={{ color: 'var(--fg)' }}>Профиль фермы</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--fg2)' }}>
+            <p className="text-sm font-medium text-foreground">Профиль фермы</p>
+            <p className="text-xs mt-0.5 text-[var(--fg2)]">
               {farm
                 ? `${farm.name} — ${farm.herd_groups?.length || 0} групп`
                 : 'Заполните данные о ферме'}
             </p>
           </div>
-          <ChevronRight
-            className="w-4 h-4 shrink-0 transition-colors"
-            style={{ color: 'var(--fg3)' }}
-          />
+          <ChevronRight className="w-4 h-4 shrink-0 transition-colors text-[var(--fg3)]" />
         </button>
       </div>
     </div>

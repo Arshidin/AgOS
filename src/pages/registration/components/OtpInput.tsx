@@ -45,7 +45,7 @@ export function OtpInput({
         </InputOTP>
       </div>
       {error && (
-        <p className="text-xs text-red-500 text-center">{error}</p>
+        <p className="text-xs text-center" style={{ color: 'var(--red)' }}>{error}</p>
       )}
     </div>
   )

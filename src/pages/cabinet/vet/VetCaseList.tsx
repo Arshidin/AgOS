@@ -3,6 +3,7 @@
  * Route: /cabinet/vet
  * Shows all vet cases for the farmer's organization.
  */
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,11 +34,11 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
   resolved: { label: 'Закрыт', variant: 'outline' },
 }
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: 'bg-red-600 text-white',
-  severe: 'bg-orange-500 text-white',
-  moderate: 'bg-yellow-500 text-black',
-  mild: 'bg-green-600 text-white',
+const SEVERITY_STYLES: Record<string, React.CSSProperties> = {
+  critical: { background: 'var(--red)',   color: '#fff' },
+  severe:   { background: 'var(--amber)', color: '#fff' },
+  moderate: { background: 'var(--amber)', color: '#fff' },
+  mild:     { background: 'var(--green)', color: '#fff' },
 }
 
 export function VetCaseList() {
@@ -105,7 +106,7 @@ export function VetCaseList() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         {c.severity && (
-                          <Badge className={`text-xs ${SEVERITY_COLORS[c.severity] || ''}`}>
+                          <Badge className="text-xs" style={SEVERITY_STYLES[c.severity]}>
                             {c.severity}
                           </Badge>
                         )}

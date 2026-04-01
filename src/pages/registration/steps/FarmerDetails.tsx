@@ -98,7 +98,7 @@ export function FarmerDetails({ formData, onChange, onNext }: FarmerDetailsProps
           </svg>
         </button>
         {errors.herd_size && (
-          <p className="text-xs text-red-500 -mt-2 px-1">{errors.herd_size}</p>
+          <p className="text-xs -mt-2 px-1" style={{ color: 'var(--red)' }}>{errors.herd_size}</p>
         )}
 
         <button

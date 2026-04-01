@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2, AlertTriangle, Clock, Shield } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatusBadge, SeverityBadge } from '@/components/ui/status-badge'
@@ -168,16 +169,13 @@ export function VetCaseDetail() {
   }
 
   return (
-    <div className="p-7 max-w-3xl space-y-5">
+    <div className="p-6 max-w-3xl space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/cabinet/vet')}
-            className="p-1.5 text-[var(--fg2)] hover:text-[var(--fg)] transition-colors"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/vet')}>
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </Button>
           <div>
             <PageHeader title="Ветеринарный случай" />
             <div className="flex items-center gap-2">
