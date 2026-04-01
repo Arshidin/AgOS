@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useShell } from './ShellContext'
 import {
@@ -155,9 +156,18 @@ export function Sidebar() {
 
   // Pick nav items based on current route prefix and role
   const isAdminSection = location.pathname.startsWith('/admin')
-  // Show full admin nav only to admins; experts see expert-only nav
-  const isAdmin = role === 'admin'
-  const navItems = isAdminSection ? (isAdmin ? ADMIN_NAV : EXPERT_NAV) : FARMER_NAV
+
+  // Check admin status via RPC (not org_type which is always 'farmer')
+  const [isAdminRole, setIsAdminRole] = useState(false)
+  useEffect(() => {
+    if (isAdminSection) {
+      import('@/lib/supabase').then(({ supabase }) => {
+        supabase.rpc('fn_is_admin').then(({ data }) => setIsAdminRole(!!data))
+      })
+    }
+  }, [isAdminSection])
+
+  const navItems = isAdminSection ? (isAdminRole ? ADMIN_NAV : EXPERT_NAV) : FARMER_NAV
 
   // Determine active nav item
   const getIsActive = (item: NavItem) => {
