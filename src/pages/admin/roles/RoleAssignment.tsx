@@ -1,3 +1,4 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +11,10 @@ import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
 
 export function RoleAssignment() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const { organization } = useAuth()
   const [admins, setAdmins] = useState<any[]>([])
   const [experts, setExperts] = useState<any[]>([])

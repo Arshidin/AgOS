@@ -1,3 +1,4 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -6,6 +7,10 @@ import { Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 export function UserManagement() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)

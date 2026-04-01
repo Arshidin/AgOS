@@ -1,3 +1,4 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
@@ -8,6 +9,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabase'
 
 export function PoolQueue() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const navigate = useNavigate()
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

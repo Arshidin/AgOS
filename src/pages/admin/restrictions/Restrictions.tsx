@@ -3,6 +3,7 @@
  * Dok 6 Slice 6a: /admin/restrictions
  * Auth: fn_is_admin(). RPC: rpc_restrict_organization (RPC-45). D-S6-1: .from() for list.
  */
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,6 +23,10 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 export function Restrictions() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const [restrictions, setRestrictions] = useState<Restriction[]>([])
   const [loading, setLoading] = useState(true)
 

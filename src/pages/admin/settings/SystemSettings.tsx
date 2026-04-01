@@ -1,7 +1,12 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
 export function SystemSettings() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Системные настройки</h1>

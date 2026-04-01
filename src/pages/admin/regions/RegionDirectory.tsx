@@ -1,9 +1,14 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabase'
 
 export function RegionDirectory() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 

@@ -1,3 +1,4 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
@@ -18,6 +19,10 @@ const NEXT_STATUS: Record<string, string> = {
 }
 
 export function PoolDetail() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const navigate = useNavigate()
   const { poolId } = useParams()
   const { organization } = useAuth()

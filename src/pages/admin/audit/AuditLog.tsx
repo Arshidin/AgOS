@@ -3,6 +3,7 @@
  * Dok 6 Slice 6a: /admin/audit
  * Auth: fn_is_admin(). Read-only. D-S6-1: .from() with admin RLS.
  */
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,10 @@ interface AuditEntry {
 }
 
 export function AuditLog() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
 

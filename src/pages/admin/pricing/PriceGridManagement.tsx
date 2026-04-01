@@ -1,3 +1,4 @@
+import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,10 @@ import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
 
 export function PriceGridManagement() {
+  const { isAdmin, checking: adminChecking } = useAdminGuard()
+  if (adminChecking) return null
+  if (!isAdmin) return null
+
   const { organization } = useAuth()
   const [prices, setPrices] = useState<any[]>([])
   const [skus, setSkus] = useState<any[]>([])
