@@ -9,7 +9,7 @@ export function CabinetDashboard() {
 
   if (isContextLoading) {
     return (
-      <div className="p-6 max-w-3xl space-y-4">
+      <div className="p-6 max-w-3xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
@@ -21,7 +21,7 @@ export function CabinetDashboard() {
   const orgName = userContext?.organizations?.[0]?.name || 'Моя ферма'
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-xl font-bold tracking-tight text-foreground">
           {orgName}

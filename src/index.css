@@ -85,7 +85,8 @@
     --bd: #302e2a;
     --bd-s: #242220;
     --bd-h: #444038;
-    --accent: #F0A020;
+    --brand: #F0A020;
+    --accent: 45 4.8% 16.5%;  /* shadcn hover surface = --bg-m (HSL) */
     --cta: #e6e2dc;
     --cta-fg: #141312;
     --cta-h: #f0ebe2;
@@ -114,8 +115,7 @@
     --secondary-foreground: 36 16.7% 88.2%;
     --muted: 45 4.8% 16.5%;             /* #2c2b28 */
     --muted-foreground: 30 4% 39.2%;    /* #686460 */
-    --accent-hsl: 38 88% 53%;           /* #F0A020 */
-    --accent-foreground: 30 5.3% 7.5%;
+    --accent-foreground: 36 16.7% 88.2%; /* #e6e2dc — light text on dark hover bg */
     --destructive: 6 70% 60%;           /* #e06050 */
     --destructive-foreground: 36 16.7% 96%;
     --border: 40 6.7% 17.6%;            /* #302e2a */
@@ -152,7 +152,8 @@
     --bd: #d9d1c5;
     --bd-s: #e6e0d6;
     --bd-h: #c4baa8;
-    --accent: #E8920B;
+    --brand: #E8920B;
+    --accent: 39 23.3% 85.7%;           /* shadcn hover surface = --bg-m (HSL) */
     --cta: #3d2b1f;
     --cta-fg: #faf8f4;
     --cta-h: #2c1e14;
@@ -179,8 +180,7 @@
     --secondary-foreground: 24 32.6% 18%;
     --muted: 39 23.3% 85.7%;            /* #e3ddd2 */
     --muted-foreground: 32 12.7% 60%;   /* #a69a8c */
-    --accent-hsl: 36 90% 48%;           /* #E8920B */
-    --accent-foreground: 24 32.6% 18%;
+    --accent-foreground: 24 32.6% 18%;  /* #3d2b1f — dark text on light hover bg */
     --destructive: 4 65% 48%;           /* #c0392b */
     --destructive-foreground: 40 37.5% 96.9%;
     --border: 36 20.8% 81.2%;           /* #d9d1c5 */

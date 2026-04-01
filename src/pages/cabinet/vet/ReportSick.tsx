@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Send, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PageHeader } from '@/components/ui/page-header'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/hooks/useAuth'
@@ -22,6 +21,7 @@ export function ReportSick() {
   const [affectedHeads, setAffectedHeads] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showOptional, setShowOptional] = useState(false)
 
   // Auto-select farm if single
   if (farms.length === 1 && !farmId && farms[0]) {
@@ -37,7 +37,7 @@ export function ReportSick() {
       errs.farm = 'Выберите ферму'
     }
     if (!symptomsText.trim() || symptomsText.trim().length < 10) {
-      errs.symptoms = 'Опишите симптомы подробнее (минимум 10 символов)'
+      errs.symptoms = 'Опишите подробнее — минимум 10 символов'
     }
     if (affectedHeads) {
       const n = parseInt(affectedHeads)
@@ -55,7 +55,6 @@ export function ReportSick() {
 
     setIsSubmitting(true)
     try {
-      // Step 1: Create vet case first
       const { data, error } = await supabase.rpc('rpc_create_vet_case', {
         p_organization_id: organization.id,
         p_farm_id: farmId,
@@ -80,7 +79,7 @@ export function ReportSick() {
       toast.success('Обращение создано. AI анализирует...')
       navigate(`/cabinet/vet/${result.vet_case_id}`)
 
-      // Step 2: Create dedicated conversation for this case + get AI response (async)
+      // Async: create AI conversation and link it
       const gatewayUrl = import.meta.env.VITE_AI_GATEWAY_URL
       if (gatewayUrl) {
         fetch(`${gatewayUrl}/chat`, {
@@ -96,7 +95,6 @@ export function ReportSick() {
         })
           .then(r => r.json())
           .then(d => {
-            // Link conversation to vet case
             if (d?.conversation_id) {
               supabase.rpc('rpc_link_vet_case_conversation', {
                 p_organization_id: organization.id,
@@ -117,70 +115,88 @@ export function ReportSick() {
 
   if (isContextLoading) {
     return (
-      <div className="space-y-4">
+      <div className="p-6 max-w-xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-xl" />
         <Skeleton className="h-12 w-full rounded-xl" />
       </div>
     )
   }
 
+  const noFarms = farms.length === 0
+
   return (
-    <div className="p-6 max-w-3xl space-y-6">
-      <PageHeader title="Сообщить о болезни" description="AI проанализирует симптомы" />
+    <div className="p-6 max-w-xl mx-auto space-y-5">
 
-      <div className="space-y-4">
-        {/* Farm selector */}
-        {farms.length > 1 ? (
-          <div>
-            <label className="text-xs text-[var(--fg2)] mb-1 block">Ферма *</label>
-            <Select
-              value={farmId || undefined}
-              onValueChange={(v) => {
-                setFarmId(v)
-                setHerdGroupId('')
-                if (errors.farm) setErrors((prev) => ({ ...prev, farm: '' }))
-              }}
-            >
-              <SelectTrigger className="h-12" style={{ borderColor: errors.farm ? 'var(--red)' : undefined }}>
-                <SelectValue placeholder="Выберите ферму" />
-              </SelectTrigger>
-              <SelectContent>
-                {farms.map((f) => (
-                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.farm && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.farm}</p>}
-          </div>
-        ) : farms.length === 1 ? (
-          <div className="p-3 bg-[var(--bg)] rounded-xl">
-            <p className="text-sm text-[var(--fg)] font-medium">{farms[0]?.name}</p>
-          </div>
-        ) : (
-          <div className="p-3 rounded-xl" style={{ background: 'rgba(179,122,16,0.08)', border: '1px solid rgba(179,122,16,0.15)' }}>
-            <p className="text-sm" style={{ color: 'var(--amber)' }}>
-              У вас нет ферм. Сначала создайте ферму в разделе "Профиль".
-            </p>
-          </div>
-        )}
+      {/* Page title */}
+      <div>
+        <h1 className="text-xl font-semibold text-[var(--fg)] tracking-tight">Сообщить о болезни</h1>
+        <p className="text-sm text-[var(--fg2)] mt-0.5">AI проанализирует симптомы и предложит рекомендации</p>
+      </div>
 
-        {/* Herd group selector */}
+      {/* No farms warning */}
+      {noFarms && (
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(179,122,16,0.08)', border: '1px solid rgba(179,122,16,0.18)' }}>
+          <p className="text-sm font-medium" style={{ color: 'var(--amber)' }}>Нет фермы</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--fg2)' }}>
+            Сначала создайте ферму в разделе «Профиль».
+          </p>
+        </div>
+      )}
+
+      {/* Card: farm + group */}
+      <div className="rounded-xl border border-[var(--bd)] bg-[var(--bg-c)] divide-y divide-[var(--bd)]">
+
+        {/* Farm row */}
+        <div className="px-4 py-3">
+          <p className="text-xs text-[var(--fg2)] mb-2 font-medium uppercase tracking-wide">Ферма</p>
+          {farms.length > 1 ? (
+            <>
+              <Select
+                value={farmId || undefined}
+                onValueChange={(v) => {
+                  setFarmId(v)
+                  setHerdGroupId('')
+                  if (errors.farm) setErrors((prev) => ({ ...prev, farm: '' }))
+                }}
+              >
+                <SelectTrigger
+                  className="h-10 bg-transparent border-0 px-0 text-[var(--fg)] font-medium focus:ring-0 shadow-none"
+                  style={{ borderColor: errors.farm ? 'var(--red)' : undefined }}
+                >
+                  <SelectValue placeholder="Выберите ферму..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {farms.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.farm && (
+                <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.farm}</p>
+              )}
+            </>
+          ) : farms.length === 1 ? (
+            <p className="text-sm font-medium text-[var(--fg)]">{farms[0]?.name}</p>
+          ) : (
+            <p className="text-sm text-[var(--fg3)]">—</p>
+          )}
+        </div>
+
+        {/* Herd group row — only if groups exist */}
         {herdGroups.length > 0 && (
-          <div>
-            <label className="text-xs text-[var(--fg2)] mb-1 block">
-              Какая группа животных? (необязательно)
-            </label>
+          <div className="px-4 py-3">
+            <p className="text-xs text-[var(--fg2)] mb-2 font-medium uppercase tracking-wide">Группа животных</p>
             <Select value={herdGroupId || undefined} onValueChange={setHerdGroupId}>
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder="Не знаю / Вся ферма" />
+              <SelectTrigger className="h-10 bg-transparent border-0 px-0 text-[var(--fg)] font-medium focus:ring-0 shadow-none">
+                <SelectValue placeholder="Вся ферма / не знаю" />
               </SelectTrigger>
               <SelectContent>
                 {herdGroups.map((g) => (
                   <SelectItem key={g.id} value={g.id}>
                     {g.animal_category_name || g.animal_category_code}
-                    {g.breed_name ? ` (${g.breed_name})` : ''}
+                    {g.breed_name ? ` · ${g.breed_name}` : ''}
                     {` — ${g.head_count} гол.`}
                   </SelectItem>
                 ))}
@@ -188,38 +204,48 @@ export function ReportSick() {
             </Select>
           </div>
         )}
+      </div>
 
-        {/* Symptoms */}
-        <div>
-          <label className="text-xs text-[var(--fg2)] mb-1 block">
-            Опишите что случилось *
-          </label>
-          <Textarea
-            value={symptomsText}
-            onChange={(e) => {
-              setSymptomsText(e.target.value)
-              if (errors.symptoms) setErrors((prev) => ({ ...prev, symptoms: '' }))
-            }}
-            placeholder="Например: телёнок не ест второй день, температура 40 градусов, вялый"
-            className="h-32 resize-none"
-            style={{ borderColor: errors.symptoms ? 'var(--red)' : undefined }}
-          />
-          <div className="flex items-center justify-between mt-1">
-            {errors.symptoms ? (
-              <p className="text-xs" style={{ color: 'var(--red)' }}>{errors.symptoms}</p>
-            ) : (
-              <span />
-            )}
-            <span className="text-xs text-[var(--fg2)]/50">
-              {symptomsText.length}/5000
-            </span>
-          </div>
+      {/* Card: symptoms */}
+      <div className="rounded-xl border border-[var(--bd)] bg-[var(--bg-c)] p-4 space-y-2">
+        <label className="text-xs text-[var(--fg2)] font-medium uppercase tracking-wide block">
+          Что случилось <span style={{ color: 'var(--red)' }}>*</span>
+        </label>
+        <Textarea
+          value={symptomsText}
+          onChange={(e) => {
+            setSymptomsText(e.target.value)
+            if (errors.symptoms) setErrors((prev) => ({ ...prev, symptoms: '' }))
+          }}
+          placeholder="Например: телёнок не ест второй день, температура 40°, вялый, выделения из носа"
+          className="min-h-[120px] resize-none bg-transparent border-[var(--bd)] focus-visible:border-[var(--cta)] text-sm"
+          style={{ borderColor: errors.symptoms ? 'var(--red)' : undefined }}
+          maxLength={5000}
+        />
+        <div className="flex items-center justify-between">
+          {errors.symptoms ? (
+            <p className="text-xs" style={{ color: 'var(--red)' }}>{errors.symptoms}</p>
+          ) : (
+            <span className="text-xs text-[var(--fg3)]">Чем подробнее — тем точнее анализ AI</span>
+          )}
+          <span className="text-xs text-[var(--fg3)] tabular-nums">{symptomsText.length}/5000</span>
         </div>
+      </div>
 
-        {/* Affected heads */}
-        <div>
-          <label className="text-xs text-[var(--fg2)] mb-1 block">
-            Сколько голов болеет? (необязательно)
+      {/* Optional: affected heads — collapsible */}
+      <button
+        type="button"
+        onClick={() => setShowOptional((v) => !v)}
+        className="flex items-center gap-1.5 text-sm text-[var(--fg2)] hover:text-[var(--fg)] transition-colors"
+      >
+        {showOptional ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        {showOptional ? 'Скрыть' : 'Добавить количество голов'}
+      </button>
+
+      {showOptional && (
+        <div className="rounded-xl border border-[var(--bd)] bg-[var(--bg-c)] p-4 space-y-2">
+          <label className="text-xs text-[var(--fg2)] font-medium uppercase tracking-wide block">
+            Сколько голов болеет
           </label>
           <input
             type="number"
@@ -230,21 +256,30 @@ export function ReportSick() {
             }}
             placeholder="0"
             min="1"
-            className="reg-input w-full h-12 px-3 bg-[var(--bg-c)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)]"
+            className="w-full h-10 px-3 bg-[var(--bg-s)] border border-[var(--bd)] rounded-xl text-sm text-[var(--fg)] outline-none focus:border-[var(--cta)] transition-colors"
             style={{ borderColor: errors.affected ? 'var(--red)' : undefined }}
           />
-          {errors.affected && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{errors.affected}</p>}
+          {errors.affected && (
+            <p className="text-xs" style={{ color: 'var(--red)' }}>{errors.affected}</p>
+          )}
         </div>
-      </div>
+      )}
 
+      {/* Submit */}
       <button
         onClick={handleSubmit}
-        disabled={isSubmitting || farms.length === 0}
-        className="w-full h-12 bg-[var(--fg)] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40"
+        disabled={isSubmitting || noFarms}
+        className="w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
+        style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
       >
-        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        {isSubmitting ? 'Отправка...' : 'Отправить'}
+        {isSubmitting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Send className="h-4 w-4" />
+        )}
+        {isSubmitting ? 'Отправка...' : 'Отправить на анализ AI'}
       </button>
+
     </div>
   )
 }

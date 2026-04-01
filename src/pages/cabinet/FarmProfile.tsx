@@ -250,7 +250,7 @@ export function FarmProfile() {
     : 'Зарегистрирован'
 
   return (
-    <div className="p-6 max-w-3xl space-y-6">
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <PageHeader title="Профиль фермы" description="Данные о вашем хозяйстве" />
       <div className="flex items-center justify-between">

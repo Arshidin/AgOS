@@ -169,7 +169,7 @@ export function VetCaseDetail() {
   }
 
   return (
-    <div className="p-6 max-w-3xl space-y-5">
+    <div className="p-6 max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
