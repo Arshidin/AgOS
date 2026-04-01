@@ -44,6 +44,7 @@
 | D-S6-2 | 2026-03-31 | Scope | RPC-30 deferred — RPC-29 auto-generates items from protocol |
 | D-S6-3 | 2026-03-31 | Scope | Slice 6b (A06-A10) deferred to after farmer feedback |
 | D-GATE-S6a | 2026-03-31 | Gate | Slice 6a QA pass + Architect sign-off. 0 critical, 0 new defects. |
+| D-LEGAL-1 | 2026-04-01 | Legal | Slice 5 Market: build without legal gate (CEO decision). Legal review before public launch. |
 
 ---
 
@@ -632,3 +633,21 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 - Easy: AI Gateway works for Web Cabinet immediately
 - Safe: org_id is from authenticated context, owner lookup is deterministic
 - Tech debt: JWT forwarding deferred — must implement before multi-user organizations
+
+---
+
+### D-LEGAL-1 — Slice 5 Market: Build Without Legal Gate
+
+**Date:** 2026-04-01
+**Domain:** Legal / Scope
+
+**WHAT:** CEO decision to build Slice 5 (Market) technical functionality without waiting for Article 171 legal review. Legal review will happen separately before public launch of market features.
+
+**WHY:** Legal review timeline unknown. Technical work can proceed in parallel. Market screens can be built with disclaimer placeholders.
+
+**RISK:** If market features go live to real users without legal sign-off, Article 171 violation is possible. Mitigation: market screens are behind admin/farmer auth, not public. Disclaimer fields exist in architecture (`disclaimer_text` in price RPCs). Legal review adds the actual text.
+
+**CONSEQUENCES:**
+- Easy: Market development unblocked, parallel with legal process
+- Risk: Must NOT launch market features to public without legal sign-off
+- Tech: disclaimer_text will be placeholder until legal provides text
