@@ -96,10 +96,11 @@ export function ReportSick() {
           .then(d => {
             // Link conversation to vet case
             if (d?.conversation_id) {
-              supabase.from('vet_cases')
-                .update({ conversation_id: d.conversation_id })
-                .eq('id', result.vet_case_id)
-                .then(() => {})
+              supabase.rpc('rpc_link_vet_case_conversation', {
+                p_organization_id: organization.id,
+                p_vet_case_id: result.vet_case_id,
+                p_conversation_id: d.conversation_id,
+              }).then(() => {})
             }
           })
           .catch(() => {})

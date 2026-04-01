@@ -1,84 +1,58 @@
 # AGOS Sprint Status
 
-> Last updated: 2026-03-30 by Architect (post-deploy)
+> Last updated: 2026-04-01 by Architect (post-audit)
 
 ---
 
-## Slice 0 — Foundation ✅ COMPLETE (2026-03-17)
-## Slice 1 — "У телёнка температура" ✅ COMPLETE (D-GATE-S1, 2026-03-19)
-## Slice 2 — Членство ✅ COMPLETE (D-GATE-S2, 2026-03-19)
-## Slice 3 — "Сколько корма нужно?" ✅ COMPLETE (D-GATE-S3, 2026-03-30)
-## Slice 4 — "Мой план на сезон" ✅ COMPLETE (D-GATE-S4, 2026-03-30)
+## Completed Slices
 
----
+| Slice | Gate | Date |
+|-------|------|------|
+| Slice 0 — Foundation | DB Gate | 2026-03-17 |
+| Slice 1 — Sick Calf | D-GATE-S1 | 2026-03-19 |
+| Slice 2 — Membership | D-GATE-S2 | 2026-03-19 |
+| Slice 3 — Feed Planning | D-GATE-S3 | 2026-03-30 |
+| Slice 4 — Operations | D-GATE-S4 | 2026-03-30 |
+| Slice 6a — Expert Console | D-GATE-S6a | 2026-03-31 |
 
-## Deployed to Production (2026-03-30)
+## Deployed Infrastructure
 
-### Supabase RPCs (7 new)
-| RPC | Function | Deployed |
-|-----|----------|----------|
-| RPC-07 | `rpc_log_herd_event` | ✅ |
-| RPC-08 | `rpc_get_farm_summary` | ✅ |
-| RPC-21 | `rpc_upsert_feed_inventory` | ✅ |
-| RPC-22 | `rpc_save_ration` | ✅ |
-| RPC-23 | `rpc_archive_ration` | ✅ |
-| RPC-24 | `rpc_get_current_ration` | ✅ |
-| RPC-37 | `rpc_get_active_plan` | ✅ |
+| Component | URL/Status |
+|-----------|------------|
+| Frontend (Vercel) | https://ag-os.vercel.app |
+| AI Gateway (Railway) | https://agos-production.up.railway.app |
+| Supabase | mwtbozflyldcadypherr (ap-south-1) |
+| Edge Functions | calculate-ration, get-feed-budget (ACTIVE) |
 
-### Supabase Edge Functions (2 new)
-| Function | Deployed |
-|----------|----------|
-| `calculate-ration` | ✅ ACTIVE |
-| `get-feed-budget` | ✅ ACTIVE |
+## Screens (28 total)
 
-### Frontend (Vercel, auto-deploy)
-| Screen | Route | Deployed |
-|--------|-------|----------|
-| F03 Herd Overview | `/cabinet/herd` | ✅ |
-| F04 Herd Group Form | `/cabinet/herd/add` | ✅ |
-| F15 Feed Inventory | `/cabinet/feed` | ✅ |
-| F16 Feed Item Form | `/cabinet/feed/add` | ✅ |
-| F17 Ration Viewer | `/cabinet/ration` | ✅ |
-| F18 Feed Budget | `/cabinet/ration/budget` | ✅ |
-| F19 Production Plan | `/cabinet/plan` | ✅ |
-| F20 Task List | `/cabinet/plan/tasks` | ✅ |
-| F21 Timeline | `/cabinet/plan/timeline` | ✅ |
-| F22 Cascade Preview | `/cabinet/plan/cascade/:id` | ✅ |
-| F23 KPI Dashboard | `/cabinet/plan/kpi` | ✅ |
+| Series | Count | Screens |
+|--------|-------|---------|
+| Farmer (F) | 16 | F01-F04, F10-F12, F15-F23 |
+| Admin (A) | 6 | A01-A05, AdminDashboard |
+| Expert (M) | 6 | M01-M06 |
 
----
+## RPCs Deployed (26+)
 
-## Cumulative Stats
+Slice 1: RPC-01,02,04,05/05b,25,26,27,40 + AI-01..23
+Slice 2: RPC-03, rpc_get_membership_queue
+Slice 3: RPC-07,08,21-24
+Slice 4: RPC-37
+Slice 6a: RPC-28,29,31,32,44,45 + rpc_activate_vaccination_plan
 
-| Metric | Count |
-|--------|-------|
-| Slices complete | 5 (0–4) |
-| Farmer screens (F-series) | 15 |
-| Admin screens (A-series) | 3 |
-| RPCs deployed | 20+ |
-| AI tools (Gateway) | 14 (4 vet + 5 feed + 4 ops + 1 context) |
-| Edge Functions | 2 |
-| Gate passes | 4 (S1–S4) |
+## Blocked
 
----
+| Slice | Blocker |
+|-------|---------|
+| Slice 5 (Market) | Legal gate (Article 171) |
+| Slice 6b (Admin A06-A10) | Low priority |
+| Slice 7 (Education) | Ready |
 
 ## Open Tech Debt
 
 | ID | Severity | Description |
 |----|----------|-------------|
-| DEF-013 | Minor | 3x `.table()` in nodes.py |
-| DEF-023 | Significant | UI `.from()` on reference tables (Slice 3) |
-| DEF-024 | Minor | Backend feed.py `.table("feed_items")` for code→id |
-| D-F01-3 | Minor | org_type CHECK mismatch — pending CEO |
-
----
-
-## Next Slices
-
-| Slice | Status | Blocked By |
-|-------|--------|------------|
-| **Slice 5 (Market)** | ⛔ BLOCKED | Legal gate (Article 171) |
-| **Slice 6 (Expert)** | READY | Nothing — can start |
-| **Slice 7 (Education)** | READY after Slice 6 | Slice 6 DB |
-
-**Recommended:** Deploy → farmer feedback → Slice 6 (Expert Console)
+| DEF-009 | Known | fn_my_org_ids/fn_is_admin/fn_is_expert dual defs (d01 naive + d07 JWT) |
+| DEF-023 | Low | Farmer pages .from() on reference tables |
+| S-1 | Significant | rpc_start_production_plan missing p_organization_id |
+| S-2/S-3 | Significant | Seed ON CONFLICT without UNIQUE (nutrient_requirements, epidemic_thresholds) |

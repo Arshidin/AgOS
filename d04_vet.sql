@@ -2624,3 +2624,34 @@ on conflict (sql_name) do update set notes = excluded.notes;
 create unique index if not exists idx_hr_unique_active
     on public.health_restrictions (herd_group_id, restriction_type, ends_at);
 
+
+
+-- ============================================================
+-- FIX H-1: rpc_link_vet_case_conversation
+-- Links a vet case to its AI conversation (called from web cabinet)
+-- ============================================================
+create or replace function public.rpc_link_vet_case_conversation(
+    p_organization_id   uuid,
+    p_vet_case_id       uuid,
+    p_conversation_id   uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    update public.vet_cases
+    set conversation_id = p_conversation_id, updated_at = now()
+    where id = p_vet_case_id and organization_id = p_organization_id;
+    if not found then
+        raise exception 'VET_CASE_NOT_FOUND' using errcode = 'P0001';
+    end if;
+    return true;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_link_vet_case_conversation', null, 'd04_vet.sql (Fix H-1)', 'Link vet case to AI conversation')
+on conflict (sql_name) do update set notes = excluded.notes;
+

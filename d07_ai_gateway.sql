@@ -1609,7 +1609,7 @@ begin
                         select jsonb_build_object(
                             'version_number',    rv.version_number,
                             'total_dm_per_head', (rv.results->>'total_dm_kg')::numeric,
-                            'cost_per_head',     rv.cost_per_head_tenge
+                            'cost_per_head',     (rv.results->>'total_cost_per_day')::numeric
                         )
                         from   public.ration_versions rv
                         where  rv.ration_id  = r.id

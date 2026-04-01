@@ -66,6 +66,14 @@ const FARMER_NAV: NavItem[] = [
   { id: 'plan', icon: ClipboardList, label: 'Plan', route: '/cabinet/plan' },
 ]
 
+const EXPERT_NAV: NavItem[] = [
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/admin' },
+  { id: 'vet-queue', icon: Stethoscope, label: 'Vet Cases', route: '/admin/expert/queue' },
+  { id: 'vaccination', icon: Syringe, label: 'Vaccination', route: '/admin/expert/vaccination' },
+  { id: 'epidemic', icon: Activity, label: 'Epidemic', route: '/admin/expert/epidemic' },
+  { id: 'expert-kpi', icon: BarChart3, label: 'Expert KPI', route: '/admin/expert/kpi' },
+]
+
 const ADMIN_NAV: NavItem[] = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/admin' },
   { id: 'membership', icon: Users, label: 'Membership', route: '/admin/membership' },
@@ -132,7 +140,9 @@ export function Sidebar() {
 
   // Pick nav items based on current route prefix and role
   const isAdminSection = location.pathname.startsWith('/admin')
-  const navItems = isAdminSection ? ADMIN_NAV : FARMER_NAV
+  // Show full admin nav only to admins; experts see expert-only nav
+  const isAdmin = role === 'admin'
+  const navItems = isAdminSection ? (isAdmin ? ADMIN_NAV : EXPERT_NAV) : FARMER_NAV
 
   // Determine active nav item
   const getIsActive = (item: NavItem) => {
