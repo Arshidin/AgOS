@@ -1,3 +1,10 @@
+/**
+ * A12/A13/A14 — Pool Detail (pool lifecycle: filling → closed)
+ * Dok 6 Slice 5b: /admin/pools/:poolId
+ * RPCs: rpc_match_batch_to_pool (14), rpc_advance_pool_status (15), rpc_rollback_batch_match (16)
+ * D40: contacts revealed ONLY at executing status transition
+ * Article 171: antitrust disclaimer MUST be visible (price data shown)
+ */
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -11,6 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
+
+const DISCLAIMER = 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное. Ст. 171 ПК РК.'
 
 const POOL_STATUS_ORDER = ['filling','filled','executing','dispatched','delivered','executed','closed']
 const NEXT_STATUS: Record<string, string> = {
@@ -68,6 +77,11 @@ export function PoolDetail() {
         <h1 className="text-2xl font-semibold">Пул</h1>
         <Badge>{pool.status}</Badge>
       </div>
+
+      {/* DEF-024: Antitrust disclaimer — Article 171, mandatory on all price screens A11–A15 */}
+      <Card className="border-amber-500/30 bg-amber-50/50">
+        <CardContent className="p-3 text-xs text-amber-800">{DISCLAIMER}</CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-5 space-y-2">

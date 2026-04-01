@@ -5,7 +5,7 @@
 
 ---
 
-## Current Phase: Slice 3 (Feed Planning)
+## Current Phase: Slice 5b (Market Admin) — UI fixes in review
 
 ### Slice 0 — Foundation
 
@@ -81,15 +81,27 @@ Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 
 Already implemented: RPC-33..36.
 
-### Slice 5 — "Хочу продать бычков" (Market) — ⛔ BLOCKED by legal gate
+### Slice 5a — Market Farmer (F05–F09) — ✅ Gate PASSED (2026-04-01)
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
-| Dok 6 | F05–F09, A11–A15 | ⬜ Not started | |
-| DB | RPC-11..20 (d02) | ⬜ Not started | |
-| Backend | AI-16..21 market tools + disclaimer | ⬜ Not started | |
-| UI | F05–F09, A11–A15 | ⬜ Not started | 10 screens |
-| QA | Slice 5 gate | ⬜ Not started | |
+| Dok 6 | F05–F09 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice5a-Market-Farmer.md` |
+| DB | RPC-11, RPC-17, RPC-18 (d02) | ✅ Implemented | rpc_cancel_batch, rpc_get_price_for_sku, rpc_get_market_summary |
+| Backend | AI-16..21 market tools + disclaimer | ✅ Implemented | D-LEGAL-1: built without legal gate |
+| UI | F05–F09 (farmer market: dashboard, batch, prices) | ✅ Implemented | Antitrust disclaimer in all price views |
+| QA | Slice 5a gate | ✅ **PASSED** (2026-04-01) | D-GATE-S5a |
+
+### Slice 5b — Market Admin (A11–A15) — 🔧 UI fixes applied, pending QA
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Dok 6 | A11–A15 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice5b-Market-Admin.md` |
+| DB | RPC-12..16, 19, 20 (d02) | ✅ Implemented | All 7 RPCs in d02_tsp.sql + registry. ⚠️ DEF-026 |
+| Backend | — | ✅ n/a | No new AI tools for admin screens |
+| UI | A11 (PoolQueue), A12-A14 (PoolDetail), A15 (PriceGridManagement) | 🔧 Fixed | DEF-021..024 resolved by UI Agent (2026-04-01) |
+| QA | Slice 5b gate | ⬜ Pending | Awaiting QA gate |
+
+⚠️ DEF-026 (Critical, DB): RPC-20 `rpc_publish_price_index_value` — INSERT uses wrong column names (`price_index_id` → `index_id`, `avg_price_per_kg` → `value_per_kg`) and missing required `data_source`. DB Agent must fix before price index publish works.
 
 Already implemented: RPC-09, RPC-10.
 
@@ -184,6 +196,12 @@ Already implemented: RPC-09, RPC-10.
 | DEF-018 | **Critical** | `d01_kernel.sql` | `o.org_type` doesn't exist — need JOIN on `organization_type_assignments` | ✅ Fixed (2026-03-19) — tested on Supabase |
 | DEF-019 | **Critical** | `d01_kernel.sql` | `hg.animal_category_code` → `hg.animal_category_id` (uuid), join on `ac.id` not `ac.code` | ✅ Fixed (2026-03-19) — tested on Supabase |
 | DEF-020 | Significant | `d01_kernel.sql` | `activity_types` table doesn't exist — `fat.activity_type` is plain text | ✅ Fixed (2026-03-19) — tested on Supabase |
+| DEF-021 | Significant | `PoolQueue.tsx` (A11) | Create button was stub — not wired to `rpc_create_pool_request` | ✅ Fixed (2026-04-01) — dialog + RPC-12 call |
+| DEF-022 | Significant | `PoolQueue.tsx` (A11) | `rpc_activate_pool_request` (RPC-13) never called — draft requests couldn't start pipeline | ✅ Fixed (2026-04-01) — Activate button per draft request |
+| DEF-023 | Significant | `PriceGridManagement.tsx` (A15) | `rpc_publish_price_index_value` (RPC-20) not implemented — price index section absent | ✅ Fixed (2026-04-01) — index form + history table added |
+| DEF-024 | **Critical** | `PoolDetail.tsx`, `PriceGridManagement.tsx` | Antitrust disclaimer missing on price screens (Article 171) | ✅ Fixed (2026-04-01) — amber disclaimer card added |
+| DEF-025 | Minor | `d02_tsp.sql` RPC-19 | ON CONFLICT `(tsp_sku_id, region_id, valid_from)` — NULL region_id won't trigger constraint | 🟡 Known — verify deployed constraint |
+| DEF-026 | **Critical** | `d02_tsp.sql` RPC-20 | `rpc_publish_price_index_value` INSERT uses `price_index_id`/`avg_price_per_kg` but table has `index_id`/`value_per_kg`; missing required `data_source` | ⬜ DB Agent must fix |
 
 ---
 
