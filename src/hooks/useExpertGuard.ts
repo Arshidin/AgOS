@@ -8,15 +8,15 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 
 export function useExpertGuard(): { isExpert: boolean; checking: boolean } {
-  const { isExpert, isContextLoading } = useAuth()
+  const { isExpert, isAdmin, isContextLoading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isContextLoading && !isExpert) {
+    if (!isContextLoading && !isExpert && !isAdmin) {
       toast.error('Только для экспертов')
-      navigate('/expert')
+      navigate('/admin')
     }
-  }, [isExpert, isContextLoading, navigate])
+  }, [isExpert, isAdmin, isContextLoading, navigate])
 
-  return { isExpert, checking: isContextLoading }
+  return { isExpert: isExpert || isAdmin, checking: isContextLoading }
 }
