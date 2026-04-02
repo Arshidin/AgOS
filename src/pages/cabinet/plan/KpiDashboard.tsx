@@ -41,12 +41,12 @@ export function KpiDashboard() {
   }, { enabled: !!organization?.id && !!farm?.id })
 
   if (isLoading) {
-    return <div className="p-6"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-48 w-full" /></div>
+    return <div className="page"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-48 w-full" /></div>
   }
 
   if (!data) {
     return (
-      <div className="p-6">
+      <div className="page">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}><ArrowLeft className="h-5 w-5" /></Button>
           <h1 className="text-2xl font-semibold">Показатели</h1>
@@ -59,7 +59,7 @@ export function KpiDashboard() {
   const ks = data.kpis_summary
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
           <ArrowLeft className="h-5 w-5" />

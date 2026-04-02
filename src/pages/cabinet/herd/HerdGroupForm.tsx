@@ -125,7 +125,7 @@ export function HerdGroupForm() {
   }
 
   return (
-    <div className="p-6">
+    <div className="page">
       <Card>
         <CardHeader>
           <CardTitle>{isEdit ? 'Редактировать группу' : 'Новая группа'}</CardTitle>

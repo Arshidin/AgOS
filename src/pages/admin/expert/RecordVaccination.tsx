@@ -53,11 +53,11 @@ export function RecordVaccination() {
     onSuccess: () => navigate('/admin/expert/vaccination'),
   })
 
-  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/expert/vaccination')}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-semibold">Запись вакцинации</h1>

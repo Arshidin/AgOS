@@ -88,11 +88,11 @@ export function PriceGridManagement() {
     onSuccess: () => { loadIndices(); setSelectedIndexId(''); setIndexPeriod(''); setIndexValue('') },
   })
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Управление ценами</h1>
 
       {/* DEF-024: Antitrust disclaimer — Article 171, mandatory on all price screens A11–A15 */}

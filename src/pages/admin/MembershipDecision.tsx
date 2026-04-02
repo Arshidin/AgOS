@@ -158,7 +158,7 @@ export function MembershipDecision() {
   )
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="page space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

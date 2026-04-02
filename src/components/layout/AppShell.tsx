@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { ShellProvider, useShell } from './ShellContext'
+import { TopbarProvider } from './TopbarContext'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { DetailPanel } from './DetailPanel'
@@ -32,13 +33,15 @@ function ShellGrid({ children }: { children?: ReactNode }) {
       <main
         style={{
           gridColumn: panelOpen ? '2 / 3' : '2 / -1',
-          overflow: 'auto',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
         }}
       >
-        {children ?? <Outlet />}
+        <div className="page-scroll">
+          {children ?? <Outlet />}
+        </div>
       </main>
       {panelOpen && <DetailPanel />}
     </div>
@@ -48,7 +51,9 @@ function ShellGrid({ children }: { children?: ReactNode }) {
 export function AppShell({ children }: { children?: ReactNode }) {
   return (
     <ShellProvider>
-      <ShellGrid>{children}</ShellGrid>
+      <TopbarProvider>
+        <ShellGrid>{children}</ShellGrid>
+      </TopbarProvider>
     </ShellProvider>
   )
 }

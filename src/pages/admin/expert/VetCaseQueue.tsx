@@ -43,11 +43,11 @@ export function VetCaseQueue() {
     query.then(({ data }) => { setCases(data || []); setLoading(false) })
   }, [statusFilter])
 
-  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Ветеринарные кейсы</h1>
       <div className="flex gap-2">
         {[{ key: 'active', label: 'Активные' }, { key: 'resolved', label: 'Закрытые' }, { key: 'all', label: 'Все' }].map(f => (

@@ -40,12 +40,12 @@ export function Timeline() {
   }, { enabled: !!organization?.id && !!farm?.id })
 
   if (isLoading) {
-    return <div className="p-6"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-64 w-full" /></div>
+    return <div className="page"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-64 w-full" /></div>
   }
 
   if (!data) {
     return (
-      <div className="p-6">
+      <div className="page">
         <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}><ArrowLeft className="h-5 w-5" /></Button>
         <Card className="mt-4"><CardContent className="p-8 text-center text-muted-foreground">План не создан</CardContent></Card>
       </div>
@@ -73,7 +73,7 @@ export function Timeline() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
           <ArrowLeft className="h-5 w-5" />

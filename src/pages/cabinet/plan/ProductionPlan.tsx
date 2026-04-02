@@ -54,7 +54,7 @@ export function ProductionPlan() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="page space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -64,7 +64,7 @@ export function ProductionPlan() {
 
   if (!data) {
     return (
-      <div className="p-6">
+      <div className="page">
         <h1 className="text-2xl font-semibold mb-4">Мой план на сезон</h1>
         <Card>
           <CardContent className="p-8 text-center">
@@ -84,7 +84,7 @@ export function ProductionPlan() {
   const progress = ts.total > 0 ? Math.round((ts.completed / ts.total) * 100) : 0
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Мой план на сезон</h1>
 
       {/* Plan card */}

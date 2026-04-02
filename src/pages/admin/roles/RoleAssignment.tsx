@@ -31,11 +31,11 @@ export function RoleAssignment() {
     successMessage: 'Роль назначена', onSuccess: () => { load(); setUserId('') },
   })
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Управление ролями</h1>
 
       <Card>

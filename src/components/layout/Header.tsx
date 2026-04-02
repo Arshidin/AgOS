@@ -1,6 +1,7 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, NavLink } from 'react-router-dom'
 import { PanelLeft } from 'lucide-react'
 import { useShell } from './ShellContext'
+import { useTopbarConfig } from './TopbarContext'
 
 /**
  * Route-to-title mapping.
@@ -39,8 +40,11 @@ function getPageTitle(pathname: string): string {
 export function Header() {
   const { sidebar, cycleSidebar, panelOpen } = useShell()
   const location = useLocation()
+  const { config } = useTopbarConfig()
 
-  const title = getPageTitle(location.pathname)
+  const title = config.title ?? getPageTitle(location.pathname)
+  const tabs = config.tabs
+  const actions = config.actions
 
   return (
     <header
@@ -85,11 +89,34 @@ export function Header() {
           </button>
         )}
         <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h1>
+
+        {tabs && tabs.length > 0 && (
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {tabs.map((tab) => (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                end
+                style={({ isActive }) => ({
+                  fontSize: 13,
+                  fontWeight: 500,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  textDecoration: 'none',
+                  color: isActive ? 'var(--fg)' : 'var(--fg3)',
+                  background: isActive ? 'var(--bg-m)' : 'none',
+                  transition: 'all 80ms',
+                })}
+              >
+                {tab.label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
       </div>
 
-      {/* Right side: placeholder for future tabs, filter, export, CTA */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {/* Buttons will be added per-screen via Dok 6 contracts */}
+        {actions}
       </div>
     </header>
   )

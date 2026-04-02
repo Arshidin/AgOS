@@ -14,11 +14,11 @@ export function RegionDirectory() {
       .then(({ data }) => { setRegions(data || []); setLoading(false) })
   }, [])
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Регионы</h1>
       {loading ? <Skeleton className="h-48 w-full" /> : (
         <Card><CardContent className="p-0">

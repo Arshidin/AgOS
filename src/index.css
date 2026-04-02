@@ -4,7 +4,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AppShell panel slide-in animation */
+/* ═══ AppShell Layout Primitives ═══ */
+
+/* Scrollable region inside <main> — only vertical scroll, contains overscroll */
+.page-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Page root — fills 100% of the scroll region, padding instead of max-width */
+.page {
+  width: 100%;
+  padding: 28px 28px 48px;
+}
+
+/* ═══ AppShell panel slide-in animation ═══ */
 @keyframes shellPanelSlideIn {
   from { transform: translateX(10px); opacity: 0; }
   to   { transform: none; opacity: 1; }

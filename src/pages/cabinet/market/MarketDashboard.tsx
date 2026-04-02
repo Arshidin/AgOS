@@ -35,11 +35,11 @@ export function MarketDashboard() {
   const batchList = batches?.batches ?? batches ?? []
 
   if (batchesLoading) {
-    return <div className="space-y-4 p-6"><Skeleton className="h-8 w-48" /><Skeleton className="h-32 w-full" /></div>
+    return <div className="page space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32 w-full" /></div>
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Рынок</h1>
         <div className="flex gap-2">

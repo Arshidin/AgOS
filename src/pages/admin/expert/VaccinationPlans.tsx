@@ -33,11 +33,11 @@ export function VaccinationPlans() {
       .then(({ data }) => { setPlans(data || []); setLoading(false) })
   }, [])
 
-  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Планы вакцинации</h1>
         <Button><Plus className="mr-2 h-4 w-4" />Создать план</Button>

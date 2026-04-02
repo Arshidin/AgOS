@@ -23,12 +23,12 @@ export function ExpertKpi() {
       .then(({ data }) => { setStats(data); setLoading(false) })
   }, [userContext?.user_id])
 
-  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null
-  if (loading) return <div className="p-6"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-32 w-full" /></div>
+  if (loading) return <div className="page"><Skeleton className="h-8 w-32 mb-4" /><Skeleton className="h-32 w-full" /></div>
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Мои показатели</h1>
       <div className="grid grid-cols-2 gap-4">
         <Card><CardContent className="p-5 text-center">

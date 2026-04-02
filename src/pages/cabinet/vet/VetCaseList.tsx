@@ -54,7 +54,7 @@ export function VetCaseList() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="page space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
@@ -63,7 +63,7 @@ export function VetCaseList() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Ветеринарные случаи</h1>

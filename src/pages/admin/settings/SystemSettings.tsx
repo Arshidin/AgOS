@@ -4,11 +4,11 @@ import { Badge } from '@/components/ui/badge'
 
 export function SystemSettings() {
   const { isAdmin, checking: adminChecking } = useAdminGuard()
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Системные настройки</h1>
       <Card>
         <CardHeader><CardTitle className="text-lg">Статус платформы</CardTitle></CardHeader>

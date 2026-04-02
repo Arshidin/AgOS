@@ -32,11 +32,11 @@ export function EpidemicSignals() {
       .then(({ data }) => { setSignals(data || []); setLoading(false) })
   }, [])
 
-  if (expertChecking) return <div className="p-6">Проверка доступа...</div>
+  if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Эпидемиология</h1>
       {loading ? <Skeleton className="h-32 w-full" /> : signals.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">Нет активных сигналов</CardContent></Card>

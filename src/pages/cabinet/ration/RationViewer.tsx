@@ -110,7 +110,7 @@ export function RationViewer() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="page space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-48 w-full" />
       </div>
@@ -120,7 +120,7 @@ export function RationViewer() {
   const activeRations = rations || []
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Рацион кормления</h1>
         <Button onClick={handleCalculate} disabled={calculating}>

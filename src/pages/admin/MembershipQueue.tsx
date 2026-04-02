@@ -102,7 +102,7 @@ export function MembershipQueue() {
   const totalPages = Math.ceil(totalCount / 20)
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="page space-y-5">
       {/* Header */}
       <PageHeader title="Заявки на членство" actions={
         totalCount > 0 ? (

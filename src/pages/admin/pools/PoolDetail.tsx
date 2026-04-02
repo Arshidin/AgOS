@@ -61,17 +61,17 @@ export function PoolDetail() {
     successMessage: 'Матч отменён', onSuccess: load,
   })
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
-  if (loading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" /><Skeleton className="h-48 w-full" /></div>
-  if (!pool) return <div className="p-6"><Button variant="ghost" onClick={() => navigate('/admin/pools')}><ArrowLeft className="mr-2 h-4 w-4" />Назад</Button><p className="mt-4 text-muted-foreground">Пул не найден</p></div>
+  if (loading) return <div className="page"><Skeleton className="h-8 w-48 mb-4" /><Skeleton className="h-48 w-full" /></div>
+  if (!pool) return <div className="page"><Button variant="ghost" onClick={() => navigate('/admin/pools')}><ArrowLeft className="mr-2 h-4 w-4" />Назад</Button><p className="mt-4 text-muted-foreground">Пул не найден</p></div>
 
   const nextStatus = NEXT_STATUS[pool.status]
   const isContactRevealed = !!pool.mpk_contact_revealed_at
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pools')}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-semibold">Пул</h1>

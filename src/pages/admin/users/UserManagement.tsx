@@ -18,11 +18,11 @@ export function UserManagement() {
     q.then(({ data }) => { setUsers(data || []); setLoading(false) })
   }, [search])
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <h1 className="text-2xl font-semibold">Пользователи</h1>
       <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input className="pl-9" placeholder="Поиск по имени, телефону..." value={search} onChange={e => setSearch(e.target.value)} />

@@ -35,11 +35,11 @@ export function Restrictions() {
   const active = restrictions.filter(r => r.is_active)
   const expired = restrictions.filter(r => !r.is_active)
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Ограничения</h1>
         <Button onClick={() => { const t = prompt('Тип ограничения: withdrawal_period / quarantine / disease_suspected'); if (t) alert('Используйте rpc_restrict_organization через Supabase Dashboard для создания ограничений. Полная форма будет в Slice 6b.') }}><Plus className="mr-2 h-4 w-4" />Создать</Button>

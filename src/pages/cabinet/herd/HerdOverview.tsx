@@ -55,7 +55,7 @@ export function HerdOverview() {
 
   if (!farm) {
     return (
-      <div className="p-6">
+      <div className="page">
         <h1 className="text-2xl font-semibold mb-4">Моё стадо</h1>
         <Card><CardContent className="p-8 text-center">
           <p className="text-muted-foreground mb-4">Сначала создайте ферму</p>
@@ -67,7 +67,7 @@ export function HerdOverview() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="page space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -76,7 +76,7 @@ export function HerdOverview() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Моё стадо</h1>

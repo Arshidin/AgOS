@@ -67,7 +67,7 @@ export function CreateBatch() {
   }
 
   return (
-    <div className="p-6">
+    <div className="page">
       {hasRestrictions && (
         <Card className="mb-4 border-destructive">
           <CardContent className="p-4 text-sm text-destructive">

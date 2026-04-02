@@ -96,11 +96,11 @@ export function PoolQueue() {
     } as any)
   }
 
-  if (adminChecking) return <div className="p-6">Проверка доступа...</div>
+  if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="page space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Пул-запросы</h1>
         <Button onClick={() => setShowCreate(true)}>
