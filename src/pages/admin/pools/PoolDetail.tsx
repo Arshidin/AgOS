@@ -71,7 +71,7 @@ export function PoolDetail() {
   const isContactRevealed = !!pool.mpk_contact_revealed_at
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl mx-auto">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pools')}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-semibold">Пул</h1>

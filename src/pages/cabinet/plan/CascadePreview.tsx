@@ -68,7 +68,7 @@ export function CascadePreview() {
   }
 
   return (
-    <div className="space-y-6 p-6 max-w-2xl mx-auto">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
           <ArrowLeft className="h-5 w-5" />

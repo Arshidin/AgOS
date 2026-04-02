@@ -6,7 +6,7 @@ export function AdminDashboard() {
   const navigate = useNavigate()
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 space-y-6">
       <PageHeader title="Панель управления" description="Администрирование TURAN" />
 
       <div className="grid gap-4 sm:grid-cols-2">

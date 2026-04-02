@@ -9,7 +9,7 @@ export function CabinetDashboard() {
 
   if (isContextLoading) {
     return (
-      <div className="p-6 max-w-3xl mx-auto space-y-4">
+      <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-48" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
         <Skeleton className="h-24 w-full rounded-[10px]" style={{ background: 'var(--bg-m)' }} />

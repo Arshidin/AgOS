@@ -35,6 +35,7 @@ function ShellGrid({ children }: { children?: ReactNode }) {
           overflow: 'auto',
           display: 'flex',
           flexDirection: 'column',
+          minWidth: 0,
         }}
       >
         {children ?? <Outlet />}

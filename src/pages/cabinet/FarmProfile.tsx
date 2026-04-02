@@ -268,7 +268,7 @@ export function FarmProfile() {
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (isContextLoading) {
     return (
-      <div className="max-w-4xl mx-auto p-6 space-y-5">
+      <div className="p-6 space-y-5">
         <Skeleton className="h-40 w-full rounded-xl" />
         <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 296px' }}>
           <Skeleton className="h-56 rounded-xl" />
@@ -284,7 +284,7 @@ export function FarmProfile() {
   // ── Create-farm state ────────────────────────────────────────────────────────
   if (!farm || isCreating) {
     return (
-      <div className="p-6 max-w-lg mx-auto">
+      <div className="p-6">
         <div className="flex items-start gap-4 mb-8">
           <div
             className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-base font-semibold select-none"
@@ -355,7 +355,7 @@ export function FarmProfile() {
 
   // ── Main layout (farm exists) ─────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="p-6">
 
       {/* ── HERO CARD ─────────────────────────────────────────────────────────── */}
       <div

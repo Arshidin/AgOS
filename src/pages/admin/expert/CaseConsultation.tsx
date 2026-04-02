@@ -48,7 +48,7 @@ export function CaseConsultation() {
   const c = caseDetail
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl mx-auto">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/expert/queue')}><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="text-2xl font-semibold">Кейс</h1>

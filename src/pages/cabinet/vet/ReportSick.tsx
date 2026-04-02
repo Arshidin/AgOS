@@ -115,7 +115,7 @@ export function ReportSick() {
 
   if (isContextLoading) {
     return (
-      <div className="p-6 max-w-xl mx-auto space-y-4">
+      <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-28 w-full rounded-xl" />
         <Skeleton className="h-36 w-full rounded-xl" />
@@ -127,7 +127,7 @@ export function ReportSick() {
   const noFarms = farms.length === 0
 
   return (
-    <div className="p-6 max-w-xl mx-auto space-y-5">
+    <div className="p-6 space-y-5">
 
       {/* Page title */}
       <div>

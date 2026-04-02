@@ -129,7 +129,7 @@ export function FeedItemForm() {
   }, {})
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
+    <div className="p-6">
       <Card>
         <CardHeader>
           <CardTitle>{isEdit ? 'Обновить запас' : 'Добавить корм'}</CardTitle>
