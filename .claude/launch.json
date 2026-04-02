@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Frontend (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
       "name": "AI Gateway (FastAPI)",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "uvicorn", "ai_gateway.main:app", "--loop", "asyncio", "--http", "h11", "--port", "8000"],

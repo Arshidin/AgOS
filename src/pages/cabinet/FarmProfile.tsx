@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Plus, Pencil, Stethoscope, Check, X, AlertTriangle } from 'lucide-react'
+import {
+  Loader2, Plus, Pencil, AlertTriangle, X,
+  Home, Calendar, ChevronRight, Activity,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
@@ -10,25 +13,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Farm, HerdGroup } from '@/contexts/AuthContext'
 
 const SHELTER_TYPES = [
-  { value: 'stall', label: 'Стойловое (закрытое)' },
-  { value: 'pasture', label: 'Пастбищное (открытое)' },
-  { value: 'mixed', label: 'Смешанное' },
-  { value: 'feedlot', label: 'Откормочная площадка' },
+  { value: 'stall',    label: 'Стойловое (закрытое)' },
+  { value: 'pasture',  label: 'Пастбищное (открытое)' },
+  { value: 'mixed',    label: 'Смешанное' },
+  { value: 'feedlot',  label: 'Откормочная площадка' },
 ]
 
 const CALVING_SYSTEMS = [
-  { value: 'spring', label: 'Весенний (март–май)' },
-  { value: 'autumn', label: 'Осенний (сен–ноя)' },
-  { value: 'year_round', label: 'Круглогодичный' },
-  { value: 'two_season', label: 'Весна + осень' },
+  { value: 'spring',      label: 'Весенний (март–май)' },
+  { value: 'autumn',      label: 'Осенний (сен–ноя)' },
+  { value: 'year_round',  label: 'Круглогодичный' },
+  { value: 'two_season',  label: 'Весна + осень' },
 ]
 
 const ACTIVITY_TYPES = [
-  { id: 'cow_calf', label: 'Мясное маточное стадо' },
+  { id: 'cow_calf',  label: 'Мясное маточное стадо' },
   { id: 'finishing', label: 'Откорм' },
-  { id: 'dairy', label: 'Молочное скотоводство' },
-  { id: 'breeding', label: 'Племенное разведение' },
-  { id: 'mixed', label: 'Смешанное' },
+  { id: 'dairy',     label: 'Молочное скотоводство' },
+  { id: 'breeding',  label: 'Племенное разведение' },
+  { id: 'mixed',     label: 'Смешанное' },
+]
+
+const ANIMAL_CATEGORIES = [
+  { code: 'YOUNG_CALF',    name: 'Телята отъёмные (3-8 мес)' },
+  { code: 'BULL_CALF',     name: 'Бычки (8-18 мес)' },
+  { code: 'STEER',         name: 'Бычки на откорме (12-30 мес)' },
+  { code: 'HEIFER_YOUNG',  name: 'Тёлки (8-18 мес)' },
+  { code: 'HEIFER_PREG',   name: 'Нетели (18-30 мес)' },
+  { code: 'COW',           name: 'Коровы (30+ мес)' },
+  { code: 'COW_CULL',      name: 'Коровы выбракованные' },
+  { code: 'BULL_BREEDING', name: 'Быки-производители' },
+  { code: 'BULL_CULL',     name: 'Быки выбракованные' },
 ]
 
 interface HerdGroupFormData {
@@ -47,37 +62,32 @@ const EMPTY_HERD_FORM: HerdGroupFormData = {
   breed_id: '',
 }
 
-const ANIMAL_CATEGORIES = [
-  { code: 'YOUNG_CALF', name: 'Телята отъёмные (3-8 мес)' },
-  { code: 'BULL_CALF', name: 'Бычки (8-18 мес)' },
-  { code: 'STEER', name: 'Бычки на откорме (12-30 мес)' },
-  { code: 'HEIFER_YOUNG', name: 'Тёлки (8-18 мес)' },
-  { code: 'HEIFER_PREG', name: 'Нетели (18-30 мес)' },
-  { code: 'COW', name: 'Коровы (30+ мес)' },
-  { code: 'COW_CULL', name: 'Коровы выбракованные' },
-  { code: 'BULL_BREEDING', name: 'Быки-производители' },
-  { code: 'BULL_CULL', name: 'Быки выбракованные' },
-]
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function CharRow({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string | null }) {
   return (
-    <p className="text-[10px] uppercase tracking-widest font-semibold mb-4"
-       style={{ color: 'var(--fg3)' }}>
-      {children}
-    </p>
-  )
-}
-
-function PropRow({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="grid grid-cols-[140px_1fr] gap-x-4 py-2.5 border-b border-[var(--bd)] last:border-0">
-      <span className="text-sm" style={{ color: 'var(--fg3)' }}>{label}</span>
-      <span className="text-sm font-medium" style={{ color: value ? 'var(--fg)' : 'var(--fg3)' }}>
-        {value || '—'}
-      </span>
+    <div
+      className="flex items-center gap-3 px-2 py-2 rounded-lg transition-colors"
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <div
+        className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 border"
+        style={{ background: 'var(--bg)', borderColor: 'var(--bd)', color: 'var(--fg2)' }}
+      >
+        {icon}
+      </div>
+      <div>
+        <div className="text-[11px] mb-px" style={{ color: 'var(--fg3)' }}>{label}</div>
+        <div className="text-[13px] font-semibold" style={{ color: value ? 'var(--fg)' : 'var(--fg3)' }}>
+          {value || '—'}
+        </div>
+      </div>
     </div>
   )
 }
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function FarmProfile() {
   const { userContext, isContextLoading, organization, refreshContext } = useAuth()
@@ -85,21 +95,25 @@ export function FarmProfile() {
   const farm = userContext?.farms?.[0] as Farm | undefined
   const membership = userContext?.memberships?.[0]
 
-  const [isEditingFarm, setIsEditingFarm] = useState(false)
+  // ── Farm form state ──────────────────────────────────────────────────────────
+  const [isCreating, setIsCreating] = useState(false)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [farmName, setFarmName] = useState('')
   const [shelterType, setShelterType] = useState('')
   const [calvingSystem, setCalvingSystem] = useState('')
   const [isSavingFarm, setIsSavingFarm] = useState(false)
   const [farmNameError, setFarmNameError] = useState(false)
 
+  // ── Activities ───────────────────────────────────────────────────────────────
   const [activities, setActivities] = useState<string[]>([])
 
+  // ── Herd group form ──────────────────────────────────────────────────────────
   const [showHerdForm, setShowHerdForm] = useState(false)
   const [herdForm, setHerdForm] = useState<HerdGroupFormData>(EMPTY_HERD_FORM)
   const [isSavingHerd, setIsSavingHerd] = useState(false)
   const [herdErrors, setHerdErrors] = useState<Record<string, string>>({})
-
   const [breedsDb, setBreedsDb] = useState<Array<{ id: string; name: string }>>([])
+
   useEffect(() => {
     supabase.from('breeds').select('id, name_ru').eq('is_active', true).order('name_ru')
       .then(({ data }) => { if (data) setBreedsDb(data.map(b => ({ id: b.id, name: b.name_ru }))) })
@@ -110,31 +124,34 @@ export function FarmProfile() {
       setFarmName(farm.name || '')
       setShelterType(farm.shelter_type || '')
       setCalvingSystem(farm.calving_system || '')
-      setIsEditingFarm(false)
+      setIsCreating(false)
     } else {
-      setIsEditingFarm(true)
+      setIsCreating(true)
     }
   }, [farm])
 
-  const cancelEdit = () => {
-    setIsEditingFarm(false)
+  // ── Sheet handlers ───────────────────────────────────────────────────────────
+  const openSheet = () => {
+    setFarmName(farm?.name || '')
+    setShelterType(farm?.shelter_type || '')
+    setCalvingSystem(farm?.calving_system || '')
+    setFarmNameError(false)
+    setIsSheetOpen(true)
+  }
+
+  const closeSheet = () => {
+    setIsSheetOpen(false)
     setFarmName(farm?.name || '')
     setShelterType(farm?.shelter_type || '')
     setCalvingSystem(farm?.calving_system || '')
     setFarmNameError(false)
   }
 
-  const handleSaveFarm = async () => {
-    if (!farmName.trim()) {
-      setFarmNameError(true)
-      toast.error('Введите название фермы')
-      return
-    }
+  // ── Save farm ────────────────────────────────────────────────────────────────
+  const handleSaveFarm = async (onSuccess?: () => void) => {
+    if (!farmName.trim()) { setFarmNameError(true); toast.error('Введите название фермы'); return }
     setFarmNameError(false)
-    if (!organization?.id) {
-      toast.error('Организация не найдена. Перезагрузите страницу.')
-      return
-    }
+    if (!organization?.id) { toast.error('Организация не найдена. Перезагрузите страницу.'); return }
     setIsSavingFarm(true)
     try {
       const { error } = await supabase.rpc('rpc_upsert_farm', {
@@ -148,7 +165,8 @@ export function FarmProfile() {
       if (error) { toast.error(error.message || 'Ошибка сохранения'); return }
       toast.success(farm ? 'Данные фермы обновлены' : 'Ферма создана!')
       await refreshContext()
-      setIsEditingFarm(false)
+      setIsCreating(false)
+      onSuccess?.()
     } catch (err) {
       toast.error('Ошибка сохранения')
       console.error(err)
@@ -157,6 +175,7 @@ export function FarmProfile() {
     }
   }
 
+  // ── Activities ───────────────────────────────────────────────────────────────
   const handleActivityToggle = async (activityId: string) => {
     if (!farm?.id) return
     const newActivities = activities.includes(activityId)
@@ -175,6 +194,7 @@ export function FarmProfile() {
     }
   }
 
+  // ── Herd group ───────────────────────────────────────────────────────────────
   const handleSaveHerdGroup = async () => {
     const errs: Record<string, string> = {}
     if (!herdForm.animal_category_code) errs.category = 'Выберите категорию'
@@ -224,51 +244,52 @@ export function FarmProfile() {
     setHerdErrors({})
   }
 
-  // ─── Derived ─────────────────────────────────────────────────────────────────
+  // ── Derived ──────────────────────────────────────────────────────────────────
   const totalHeads = farm?.herd_groups?.reduce((s, g) => s + (g.head_count || 0), 0) || 0
   const groupCount = farm?.herd_groups?.length || 0
   const hasRestrictions = (userContext?.health_restrictions?.length || 0) > 0
 
+  const groupsWithWeight = farm?.herd_groups?.filter(g => g.avg_weight_kg) || []
+  const avgWeight = groupsWithWeight.length > 0
+    ? Math.round(groupsWithWeight.reduce((s, g) => s + g.avg_weight_kg!, 0) / groupsWithWeight.length)
+    : 0
+
   const membershipBadgeStatus =
-    membership?.status === 'active' ? 'approved' :
+    membership?.status === 'active'    ? 'approved' :
     membership?.status === 'applicant' ? 'submitted' : 'open'
   const membershipLabel =
-    membership?.status === 'active' ? 'Член ассоциации' :
+    membership?.status === 'active'    ? 'Член ассоциации' :
     membership?.status === 'applicant' ? 'Заявка подана' : 'Зарегистрирован'
 
-  const shelterLabel = SHELTER_TYPES.find(s => s.value === farm?.shelter_type)?.label
-  const calvingLabel = CALVING_SYSTEMS.find(c => c.value === farm?.calving_system)?.label
-
-  // ─── Plural helper ────────────────────────────────────────────────────────────
+  const shelterLabel  = SHELTER_TYPES.find(s => s.value === farm?.shelter_type)?.label
+  const calvingLabel  = CALVING_SYSTEMS.find(c => c.value === farm?.calving_system)?.label
   const groupWord = groupCount === 1 ? 'группа' : groupCount < 5 ? 'группы' : 'групп'
 
-  // ─── Loading ──────────────────────────────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (isContextLoading) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-5">
-        <div className="flex items-start gap-4">
-          <Skeleton className="w-11 h-11 rounded-xl shrink-0" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="h-5 w-28" />
+      <div className="max-w-4xl mx-auto p-6 space-y-5">
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 296px' }}>
+          <Skeleton className="h-56 rounded-xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-36 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
           </div>
         </div>
-        <Skeleton className="h-px w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-px w-full" />
-        <Skeleton className="h-32 w-full" />
       </div>
     )
   }
 
-  // ─── Create-farm state (no farm yet) ──────────────────────────────────────────
-  if (!farm) {
+  // ── Create-farm state ────────────────────────────────────────────────────────
+  if (!farm || isCreating) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-6 max-w-lg mx-auto">
         <div className="flex items-start gap-4 mb-8">
-          <div className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-base font-semibold select-none"
-            style={{ background: 'var(--bg-m)', color: 'var(--fg3)' }}>
+          <div
+            className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-base font-semibold select-none"
+            style={{ background: 'var(--bg-m)', color: 'var(--fg3)' }}
+          >
             Ф
           </div>
           <div>
@@ -296,7 +317,7 @@ export function FarmProfile() {
                 border: `1px solid ${farmNameError ? 'var(--red)' : 'var(--bd)'}`,
                 color: 'var(--fg)',
               }}
-              onFocus={e => (e.target.style.borderColor = farmNameError ? 'var(--red)' : 'var(--cta)')}
+              onFocus={e => (e.target.style.borderColor = farmNameError ? 'var(--red)' : 'var(--blue)')}
               onBlur={e => (e.target.style.borderColor = farmNameError ? 'var(--red)' : 'var(--bd)')}
             />
           </div>
@@ -319,7 +340,7 @@ export function FarmProfile() {
             </Select>
           </div>
           <button
-            onClick={handleSaveFarm}
+            onClick={() => handleSaveFarm()}
             disabled={isSavingFarm}
             className="w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 mt-2 transition-opacity disabled:opacity-40"
             style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
@@ -332,354 +353,565 @@ export function FarmProfile() {
     )
   }
 
-  // ─── Main layout (farm exists) ────────────────────────────────────────────────
+  // ── Main layout (farm exists) ─────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
 
-      {/* ── HERO ───────────────────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-4 mb-8">
-        {/* Farm avatar */}
+      {/* ── HERO CARD ─────────────────────────────────────────────────────────── */}
+      <div
+        className="rounded-xl overflow-hidden border mb-5"
+        style={{ background: 'var(--bg-c)', borderColor: 'var(--bd)', boxShadow: 'var(--sh-sm)' }}
+      >
+        {/* Brand band */}
         <div
-          className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-base font-semibold select-none"
-          style={{ background: 'var(--bg-m)', color: 'var(--fg2)' }}
-        >
-          {(farmName || 'Ф').charAt(0).toUpperCase()}
-        </div>
+          className="h-1.5"
+          style={{ background: 'linear-gradient(90deg, var(--brand) 0%, var(--amber) 100%)' }}
+        />
 
-        <div className="flex-1 min-w-0">
-          {/* Name row */}
-          <div className="flex items-center justify-between gap-3">
-            {isEditingFarm ? (
-              <input
-                value={farmName}
-                onChange={e => { setFarmName(e.target.value); setFarmNameError(false) }}
-                autoFocus
-                className="flex-1 text-xl font-semibold bg-transparent outline-none border-b pb-px transition-colors"
-                style={{
-                  color: 'var(--fg)',
-                  borderColor: farmNameError ? 'var(--red)' : 'var(--cta)',
-                }}
-                placeholder="Название фермы"
-              />
-            ) : (
-              <h1 className="text-xl font-semibold tracking-tight truncate" style={{ color: 'var(--fg)' }}>
-                {farm.name}
-              </h1>
-            )}
+        <div className="p-5 pb-6">
+          {/* Top row: avatar + name/tags */}
+          <div className="flex items-start gap-4 mb-5">
+            <div
+              className="w-[52px] h-[52px] rounded-xl shrink-0 flex items-center justify-center text-lg font-bold border select-none"
+              style={{ background: 'var(--bg-m)', color: 'var(--fg)', borderColor: 'var(--bd)' }}
+            >
+              {(farm.name || 'Ф').charAt(0).toUpperCase()}
+            </div>
 
-            {/* Edit / Save / Cancel */}
-            {isEditingFarm ? (
-              <div className="flex items-center gap-1 shrink-0">
+            <div className="flex-1 min-w-0">
+              {/* Name + pencil + badge */}
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--fg)' }}>
+                  {farm.name}
+                </h1>
                 <button
-                  onClick={handleSaveFarm}
-                  disabled={isSavingFarm}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-opacity disabled:opacity-40"
-                  style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
+                  onClick={openSheet}
+                  title="Переименовать ферму"
+                  className="w-6 h-6 rounded-md flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors shrink-0"
+                  style={{ color: 'var(--fg3)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-m)'; e.currentTarget.style.color = 'var(--fg2)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fg3)' }}
                 >
-                  {isSavingFarm ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                  Сохранить
+                  <Pencil className="h-3 w-3" />
                 </button>
-                <button
-                  onClick={cancelEdit}
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-[var(--fg3)] hover:text-[var(--fg)] transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <StatusBadge status={membershipBadgeStatus} label={membershipLabel} />
               </div>
-            ) : (
-              <button
-                onClick={() => setIsEditingFarm(true)}
-                className="shrink-0 flex items-center gap-1.5 text-xs transition-colors"
-                style={{ color: 'var(--fg3)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg3)')}
-              >
-                <Pencil className="h-3 w-3" />
-                Изменить
-              </button>
-            )}
-          </div>
 
-          {/* Subtitle — metadata strip */}
-          {!isEditingFarm && (shelterLabel || calvingLabel) && (
-            <p className="text-sm mt-0.5 flex items-center gap-1.5 flex-wrap" style={{ color: 'var(--fg2)' }}>
-              {shelterLabel}
-              {shelterLabel && calvingLabel && <span style={{ color: 'var(--bd-h)' }}>·</span>}
-              {calvingLabel}
-            </p>
-          )}
-
-          {/* Stats strip */}
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <StatusBadge status={membershipBadgeStatus} label={membershipLabel} />
-            {totalHeads > 0 && (
-              <span className="text-xs" style={{ color: 'var(--fg3)' }}>
-                {totalHeads.toLocaleString('ru-RU')} гол.
-              </span>
-            )}
-            {groupCount > 0 && (
-              <span className="text-xs" style={{ color: 'var(--fg3)' }}>
-                {groupCount} {groupWord}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── EDIT FIELDS (shelter + calving) ───────────────────────────────────── */}
-      {isEditingFarm && (
-        <div className="mb-8 space-y-3 p-4 rounded-xl border"
-          style={{ borderColor: 'var(--bd)', background: 'var(--bg-c)' }}>
-          <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--fg2)' }}>Тип содержания</label>
-            <Select value={shelterType || undefined} onValueChange={setShelterType}>
-              <SelectTrigger className="h-10 bg-transparent"><SelectValue placeholder="Не указано" /></SelectTrigger>
-              <SelectContent>
-                {SHELTER_TYPES.map(st => <SelectItem key={st.value} value={st.value}>{st.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--fg2)' }}>Система отёлов</label>
-            <Select value={calvingSystem || undefined} onValueChange={setCalvingSystem}>
-              <SelectTrigger className="h-10 bg-transparent"><SelectValue placeholder="Не указано" /></SelectTrigger>
-              <SelectContent>
-                {CALVING_SYSTEMS.map(cs => <SelectItem key={cs.value} value={cs.value}>{cs.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
-
-      {/* ── SECTION: ХАРАКТЕРИСТИКИ (view only) ──────────────────────────────── */}
-      {!isEditingFarm && (
-        <section className="mb-8">
-          <SectionLabel>Характеристики</SectionLabel>
-          <PropRow label="Тип содержания" value={shelterLabel} />
-          <PropRow label="Система отёлов" value={calvingLabel} />
-        </section>
-      )}
-
-      {/* ── SECTION: ВИДЫ ДЕЯТЕЛЬНОСТИ ───────────────────────────────────────── */}
-      <section className="mb-8">
-        <SectionLabel>Виды деятельности</SectionLabel>
-        <div className="flex flex-wrap gap-2">
-          {ACTIVITY_TYPES.map(at => {
-            const selected = activities.includes(at.id)
-            return (
-              <button
-                key={at.id}
-                onClick={() => handleActivityToggle(at.id)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-                style={{
-                  background: selected ? 'var(--cta)' : 'var(--bg-m)',
-                  color: selected ? 'var(--cta-fg)' : 'var(--fg2)',
-                  border: `1px solid ${selected ? 'transparent' : 'var(--bd)'}`,
-                }}
-              >
-                {at.label}
-              </button>
-            )
-          })}
-        </div>
-        {activities.length === 0 && (
-          <p className="text-xs mt-2" style={{ color: 'var(--fg3)' }}>
-            Нажмите на категорию чтобы выбрать
-          </p>
-        )}
-      </section>
-
-      {/* ── SECTION: ПОГОЛОВЬЕ ───────────────────────────────────────────────── */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <SectionLabel>Поголовье</SectionLabel>
-          <button
-            onClick={() => { setHerdForm(EMPTY_HERD_FORM); setShowHerdForm(true); setHerdErrors({}) }}
-            className="flex items-center gap-1 text-xs transition-colors -mt-4"
-            style={{ color: 'var(--fg3)' }}
-            onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg)')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg3)')}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Добавить
-          </button>
-        </div>
-
-        {/* Herd rows */}
-        {farm.herd_groups && farm.herd_groups.length > 0 ? (
-          <div>
-            {farm.herd_groups.map(group => (
-              <div
-                key={group.id}
-                className="flex items-center justify-between py-3 border-b group"
-                style={{ borderColor: 'var(--bd)' }}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--fg)' }}>
-                    {group.animal_category_name || group.animal_category_code}
-                  </p>
-                  {group.breed_name && (
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--fg3)' }}>
-                      {group.breed_name}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 shrink-0">
-                  <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--fg)' }}>
-                    {group.head_count} гол.
-                  </span>
-                  {group.avg_weight_kg != null && (
-                    <span className="text-xs tabular-nums w-14 text-right" style={{ color: 'var(--fg3)' }}>
-                      {group.avg_weight_kg} кг
-                    </span>
-                  )}
-                  <button
-                    onClick={() => editHerdGroup(group)}
-                    className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color: 'var(--fg3)' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg)')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg3)')}
+              {/* Tags: shelter + calving */}
+              <div className="flex flex-wrap gap-1.5">
+                {shelterLabel && (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border"
+                    style={{ borderColor: 'var(--bd)', color: 'var(--fg2)', background: 'var(--bg)' }}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                    <Home className="h-3 w-3 shrink-0" />
+                    {shelterLabel}
+                  </span>
+                )}
+                {calvingLabel && (
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border"
+                    style={{ borderColor: 'var(--bd)', color: 'var(--fg2)', background: 'var(--bg)' }}
+                  >
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    {calvingLabel}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* KPI row */}
+          <div
+            className="grid grid-cols-3 gap-px rounded-xl overflow-hidden border"
+            style={{ borderColor: 'var(--bd)', background: 'var(--bd)' }}
+          >
+            {[
+              { label: 'Всего голов',   value: totalHeads > 0 ? String(totalHeads) : '—', sub: 'гол. на ферме' },
+              { label: 'Групп',         value: groupCount > 0 ? String(groupCount) : '—', sub: 'производственные' },
+              { label: 'Членство',      value: membershipLabel,                            sub: 'статус в ассоциации', small: true },
+            ].map(kpi => (
+              <div key={kpi.label} className="px-4 py-3.5 flex flex-col gap-0.5" style={{ background: 'var(--bg-c)' }}>
+                <span
+                  className="text-[11px] font-medium uppercase tracking-wider"
+                  style={{ color: 'var(--fg3)' }}
+                >
+                  {kpi.label}
+                </span>
+                <span
+                  className="font-bold tracking-tight leading-none"
+                  style={{ color: 'var(--fg)', fontSize: kpi.small ? '15px' : '20px' }}
+                >
+                  {kpi.value}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--fg2)' }}>{kpi.sub}</span>
               </div>
             ))}
           </div>
-        ) : (
-          !showHerdForm && (
-            <div className="py-8 text-center">
-              <p className="text-sm" style={{ color: 'var(--fg3)' }}>Нет групп животных</p>
-              <button
-                onClick={() => { setHerdForm(EMPTY_HERD_FORM); setShowHerdForm(true) }}
-                className="mt-1.5 text-sm underline underline-offset-2 transition-colors"
-                style={{ color: 'var(--fg2)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg2)')}
+        </div>
+      </div>
+
+      {/* ── CONTENT GRID ──────────────────────────────────────────────────────── */}
+      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1fr 296px' }}>
+
+        {/* LEFT: О ферме card ──────────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-4">
+          <div
+            className="rounded-xl border overflow-hidden"
+            style={{ background: 'var(--bg-c)', borderColor: 'var(--bd)', boxShadow: 'var(--sh-sm)' }}
+          >
+            {/* Card header */}
+            <div className="px-5 pt-4 pb-0 flex items-center justify-between">
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--fg3)' }}
               >
-                Добавить первую группу
+                О ферме
+              </span>
+              <button
+                onClick={openSheet}
+                className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-md text-[11px] font-semibold border cursor-pointer transition-colors"
+                style={{ background: 'var(--blue-m)', borderColor: 'rgba(69,113,184,0.22)', color: 'var(--blue)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(69,113,184,0.13)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--blue-m)')}
+              >
+                <Pencil className="h-2.5 w-2.5" />
+                Редактировать
               </button>
             </div>
-          )
-        )}
 
-        {/* Inline herd form */}
-        {showHerdForm && (
-          <div className="mt-4 p-4 rounded-xl border space-y-3"
-            style={{ borderColor: 'var(--bd)', background: 'var(--bg-c)' }}>
-            <p className="text-xs font-semibold" style={{ color: 'var(--fg2)' }}>
-              {herdForm.id ? 'Редактировать группу' : 'Новая группа'}
-            </p>
-            <div>
-              <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Категория *</label>
-              <Select
-                value={herdForm.animal_category_code || undefined}
-                onValueChange={v => { setHerdForm(f => ({ ...f, animal_category_code: v })); if (herdErrors.category) setHerdErrors(e => ({ ...e, category: '' })) }}
+            {/* Char-list */}
+            <div className="px-3 py-2">
+              <CharRow icon={<Home className="h-3.5 w-3.5" />}     label="Тип содержания" value={shelterLabel} />
+              <CharRow icon={<Calendar className="h-3.5 w-3.5" />} label="Система отёлов"  value={calvingLabel} />
+            </div>
+
+            {/* Divider */}
+            <div className="mx-5 my-1" style={{ height: 1, background: 'var(--bd-s)' }} />
+
+            {/* Activities section */}
+            <div className="px-5 pt-3 pb-5">
+              <p
+                className="text-[11px] font-semibold uppercase tracking-wider mb-2.5"
+                style={{ color: 'var(--fg3)' }}
               >
-                <SelectTrigger className="h-10" style={{ borderColor: herdErrors.category ? 'var(--red)' : undefined }}>
-                  <SelectValue placeholder="Выберите категорию" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ANIMAL_CATEGORIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              {herdErrors.category && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.category}</p>}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Голов *</label>
-                <input
-                  type="number" min="1"
-                  value={herdForm.head_count}
-                  onChange={e => { setHerdForm(f => ({ ...f, head_count: e.target.value })); if (herdErrors.head_count) setHerdErrors(e => ({ ...e, head_count: '' })) }}
-                  placeholder="0"
-                  className="w-full h-10 px-3 rounded-xl text-sm outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  style={{ background: 'var(--bg-s)', border: `1px solid ${herdErrors.head_count ? 'var(--red)' : 'var(--bd)'}`, color: 'var(--fg)' }}
-                  onFocus={e => (e.target.style.borderColor = herdErrors.head_count ? 'var(--red)' : 'var(--cta)')}
-                  onBlur={e => (e.target.style.borderColor = herdErrors.head_count ? 'var(--red)' : 'var(--bd)')}
-                />
-                {herdErrors.head_count && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.head_count}</p>}
+                Виды деятельности
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {ACTIVITY_TYPES.map(at => {
+                  const selected = activities.includes(at.id)
+                  return (
+                    <button
+                      key={at.id}
+                      onClick={() => handleActivityToggle(at.id)}
+                      className="px-3 py-1.5 rounded-full text-xs border cursor-pointer transition-all"
+                      style={{
+                        background:   selected ? 'var(--blue-m)' : 'transparent',
+                        borderColor:  selected ? 'rgba(69,113,184,0.25)' : 'var(--bd)',
+                        color:        selected ? 'var(--blue)' : 'var(--fg2)',
+                        fontWeight:   selected ? 600 : 400,
+                      }}
+                    >
+                      {at.label}
+                    </button>
+                  )
+                })}
               </div>
+              {activities.length === 0 && (
+                <p className="text-[11px] mt-2" style={{ color: 'var(--fg3)' }}>
+                  Нажмите на категорию чтобы выбрать
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Health restriction warning */}
+          {hasRestrictions && (
+            <div
+              className="flex items-start gap-3 p-4 rounded-xl"
+              style={{ background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.14)' }}
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
               <div>
-                <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Ср. вес (кг)</label>
-                <input
-                  type="number" min="1" max="2000"
-                  value={herdForm.avg_weight_kg}
-                  onChange={e => { setHerdForm(f => ({ ...f, avg_weight_kg: e.target.value })); if (herdErrors.avg_weight) setHerdErrors(e => ({ ...e, avg_weight: '' })) }}
-                  placeholder="—"
-                  className="w-full h-10 px-3 rounded-xl text-sm outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  style={{ background: 'var(--bg-s)', border: `1px solid ${herdErrors.avg_weight ? 'var(--red)' : 'var(--bd)'}`, color: 'var(--fg)' }}
-                  onFocus={e => (e.target.style.borderColor = herdErrors.avg_weight ? 'var(--red)' : 'var(--cta)')}
-                  onBlur={e => (e.target.style.borderColor = herdErrors.avg_weight ? 'var(--red)' : 'var(--bd)')}
-                />
-                {herdErrors.avg_weight && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.avg_weight}</p>}
+                <p className="text-sm font-semibold" style={{ color: 'var(--red)' }}>Ограничение на продажу</p>
+                {userContext!.health_restrictions.map(hr => (
+                  <p key={hr.id} className="text-xs mt-0.5" style={{ color: 'var(--red)' }}>
+                    {hr.reason} — до {new Date(hr.expires_at).toLocaleDateString('ru-RU')}
+                  </p>
+                ))}
               </div>
             </div>
+          )}
+        </div>
 
-            <div>
-              <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Порода</label>
-              <Select value={herdForm.breed_id || undefined} onValueChange={v => setHerdForm(f => ({ ...f, breed_id: v }))}>
-                <SelectTrigger className="h-10"><SelectValue placeholder="Не указана" /></SelectTrigger>
-                <SelectContent>
-                  {breedsDb.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+        {/* RIGHT: Livestock + Disease ─────────────────────────────────────────── */}
+        <div className="flex flex-col gap-4">
 
-            <div className="flex gap-2 pt-1">
+          {/* Livestock card */}
+          <div
+            className="rounded-xl border overflow-hidden"
+            style={{ background: 'var(--bg-c)', borderColor: 'var(--bd)', boxShadow: 'var(--sh-sm)' }}
+          >
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b"
+              style={{ borderColor: 'var(--bd-s)' }}
+            >
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--fg3)' }}
+              >
+                Поголовье
+              </span>
               <button
-                onClick={handleSaveHerdGroup}
-                disabled={isSavingHerd}
-                className="flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-40"
-                style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
+                onClick={() => { setHerdForm(EMPTY_HERD_FORM); setShowHerdForm(true); setHerdErrors({}) }}
+                className="inline-flex items-center gap-1 text-[12px] font-semibold px-2.5 py-1 rounded-md border cursor-pointer transition-colors"
+                style={{ color: 'var(--blue)', borderColor: 'rgba(69,113,184,0.25)', background: 'var(--blue-m)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(69,113,184,0.13)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--blue-m)')}
               >
-                {isSavingHerd && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {herdForm.id ? 'Обновить' : 'Добавить'}
+                <Plus className="h-2.5 w-2.5" strokeWidth={2.5} />
+                Добавить
               </button>
+            </div>
+
+            {/* Total summary */}
+            {totalHeads > 0 && (
+              <div
+                className="flex items-center justify-between px-4 py-3 border-b"
+                style={{ borderColor: 'var(--bd-s)', background: 'var(--bg)' }}
+              >
+                <div>
+                  <div
+                    className="font-bold tracking-tight leading-none"
+                    style={{ fontSize: 22, color: 'var(--fg)' }}
+                  >
+                    {totalHeads}{' '}
+                    <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg2)' }}>гол.</span>
+                  </div>
+                  <div className="text-[11px] mt-0.5" style={{ color: 'var(--fg3)' }}>всего на ферме</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px]" style={{ color: 'var(--fg3)' }}>
+                    <strong style={{ color: 'var(--fg2)', fontWeight: 600 }}>{groupCount}</strong>{' '}
+                    {groupWord}
+                  </div>
+                  {avgWeight > 0 && (
+                    <div className="text-[11px] mt-0.5" style={{ color: 'var(--fg3)' }}>
+                      сред. вес{' '}
+                      <strong style={{ color: 'var(--fg2)', fontWeight: 600 }}>{avgWeight} кг</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Group rows */}
+            {farm.herd_groups && farm.herd_groups.length > 0 ? (
+              farm.herd_groups.map((group, idx) => {
+                const pct = totalHeads > 0 ? Math.round((group.head_count / totalHeads) * 100) : 0
+                const isLast = idx === farm.herd_groups!.length - 1
+                return (
+                  <div
+                    key={group.id}
+                    onClick={() => editHerdGroup(group)}
+                    className="flex items-center gap-2.5 px-4 py-3 cursor-pointer transition-colors"
+                    style={{ borderBottom: isLast ? 'none' : '1px solid var(--bd-s)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-semibold mb-0.5" style={{ color: 'var(--fg)' }}>
+                        {group.animal_category_name || group.animal_category_code}
+                      </div>
+                      <div className="text-[11px] mb-1.5" style={{ color: 'var(--fg3)' }}>
+                        {group.breed_name || 'Порода не указана'}
+                      </div>
+                      <div
+                        className="w-full rounded-full overflow-hidden"
+                        style={{ height: 3, background: 'var(--bg-m)' }}
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${pct}%`, background: 'var(--blue)' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div
+                        className="text-sm font-bold tabular-nums"
+                        style={{ color: 'var(--fg)' }}
+                      >
+                        {group.head_count} гол.
+                      </div>
+                      {group.avg_weight_kg != null && (
+                        <div className="text-[11px] mt-0.5" style={{ color: 'var(--fg3)' }}>
+                          ~{group.avg_weight_kg} кг/гол.
+                        </div>
+                      )}
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--fg3)' }} />
+                  </div>
+                )
+              })
+            ) : (
+              !showHerdForm && (
+                <div className="py-8 text-center px-4">
+                  <p className="text-sm" style={{ color: 'var(--fg3)' }}>Нет групп животных</p>
+                  <button
+                    onClick={() => { setHerdForm(EMPTY_HERD_FORM); setShowHerdForm(true) }}
+                    className="mt-1.5 text-sm underline underline-offset-2"
+                    style={{ color: 'var(--fg2)' }}
+                  >
+                    Добавить первую группу
+                  </button>
+                </div>
+              )
+            )}
+
+            {/* Inline herd form */}
+            {showHerdForm && (
+              <div
+                className="p-4 space-y-3 border-t"
+                style={{ borderColor: 'var(--bd)' }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--fg2)' }}>
+                  {herdForm.id ? 'Редактировать группу' : 'Новая группа'}
+                </p>
+
+                <div>
+                  <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Категория *</label>
+                  <Select
+                    value={herdForm.animal_category_code || undefined}
+                    onValueChange={v => { setHerdForm(f => ({ ...f, animal_category_code: v })); if (herdErrors.category) setHerdErrors(e => ({ ...e, category: '' })) }}
+                  >
+                    <SelectTrigger
+                      className="h-9"
+                      style={{ borderColor: herdErrors.category ? 'var(--red)' : undefined }}
+                    >
+                      <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ANIMAL_CATEGORIES.map(c => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {herdErrors.category && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.category}</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Голов *</label>
+                    <input
+                      type="number" min="1"
+                      value={herdForm.head_count}
+                      onChange={e => { setHerdForm(f => ({ ...f, head_count: e.target.value })); if (herdErrors.head_count) setHerdErrors(e => ({ ...e, head_count: '' })) }}
+                      placeholder="0"
+                      className="w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      style={{ background: 'var(--bg)', border: `1px solid ${herdErrors.head_count ? 'var(--red)' : 'var(--bd)'}`, color: 'var(--fg)' }}
+                      onFocus={e => (e.target.style.borderColor = herdErrors.head_count ? 'var(--red)' : 'var(--blue)')}
+                      onBlur={e => (e.target.style.borderColor = herdErrors.head_count ? 'var(--red)' : 'var(--bd)')}
+                    />
+                    {herdErrors.head_count && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.head_count}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Ср. вес (кг)</label>
+                    <input
+                      type="number" min="1" max="2000"
+                      value={herdForm.avg_weight_kg}
+                      onChange={e => { setHerdForm(f => ({ ...f, avg_weight_kg: e.target.value })); if (herdErrors.avg_weight) setHerdErrors(e => ({ ...e, avg_weight: '' })) }}
+                      placeholder="—"
+                      className="w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      style={{ background: 'var(--bg)', border: `1px solid ${herdErrors.avg_weight ? 'var(--red)' : 'var(--bd)'}`, color: 'var(--fg)' }}
+                      onFocus={e => (e.target.style.borderColor = herdErrors.avg_weight ? 'var(--red)' : 'var(--blue)')}
+                      onBlur={e => (e.target.style.borderColor = herdErrors.avg_weight ? 'var(--red)' : 'var(--bd)')}
+                    />
+                    {herdErrors.avg_weight && <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>{herdErrors.avg_weight}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs mb-1.5 block" style={{ color: 'var(--fg2)' }}>Порода</label>
+                  <Select
+                    value={herdForm.breed_id || undefined}
+                    onValueChange={v => setHerdForm(f => ({ ...f, breed_id: v }))}
+                  >
+                    <SelectTrigger className="h-9"><SelectValue placeholder="Не указана" /></SelectTrigger>
+                    <SelectContent>
+                      {breedsDb.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={handleSaveHerdGroup}
+                    disabled={isSavingHerd}
+                    className="flex-1 h-9 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-40 cursor-pointer"
+                    style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
+                  >
+                    {isSavingHerd && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {herdForm.id ? 'Обновить' : 'Добавить'}
+                  </button>
+                  <button
+                    onClick={() => { setShowHerdForm(false); setHerdForm(EMPTY_HERD_FORM); setHerdErrors({}) }}
+                    className="h-9 px-3 text-sm rounded-lg border cursor-pointer transition-colors"
+                    style={{ color: 'var(--fg2)', borderColor: 'var(--bd)', background: 'transparent' }}
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Disease action card */}
+          <div
+            onClick={() => navigate('/cabinet/vet/new')}
+            className="flex items-center gap-3 rounded-xl border px-4 py-3.5 cursor-pointer transition-colors"
+            style={{ background: 'var(--bg-c)', borderColor: 'var(--bd)', boxShadow: 'var(--sh-sm)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(192,57,43,0.4)'
+              e.currentTarget.style.background = 'rgba(192,57,43,0.04)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--bd)'
+              e.currentTarget.style.background = 'var(--bg-c)'
+            }}
+          >
+            <div
+              className="w-[34px] h-[34px] rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.18)', color: 'var(--red)' }}
+            >
+              <Activity className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-[13px] font-semibold" style={{ color: 'var(--red)' }}>
+                Сообщить о болезни
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: 'var(--fg3)' }}>
+                Зарегистрировать ветеринарный случай
+              </div>
+            </div>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--fg3)' }} />
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── EDIT SHEET ────────────────────────────────────────────────────────── */}
+      {isSheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-stretch justify-end"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={e => { if (e.target === e.currentTarget) closeSheet() }}
+        >
+          <div
+            className="w-[460px] flex flex-col border-l"
+            style={{
+              background: 'var(--bg-c)',
+              borderColor: 'var(--bd)',
+              animation: 'shellPanelSlideIn 200ms var(--ease)',
+            }}
+          >
+            {/* Sheet header */}
+            <div
+              className="flex items-center justify-between px-5 py-4 border-b shrink-0"
+              style={{ borderColor: 'var(--bd)' }}
+            >
+              <div>
+                <div className="text-sm font-bold" style={{ color: 'var(--fg)' }}>Редактировать ферму</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--fg2)' }}>
+                  Название, тип содержания, система отёлов
+                </div>
+              </div>
               <button
-                onClick={() => { setShowHerdForm(false); setHerdForm(EMPTY_HERD_FORM); setHerdErrors({}) }}
-                className="h-10 px-4 text-sm rounded-xl transition-colors"
+                onClick={closeSheet}
+                className="w-7 h-7 rounded-md flex items-center justify-center border-0 bg-transparent cursor-pointer transition-colors"
                 style={{ color: 'var(--fg2)' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--fg2)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-m)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {/* Sheet body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--fg2)' }}>
+                  Название фермы
+                </label>
+                <input
+                  value={farmName}
+                  onChange={e => { setFarmName(e.target.value); setFarmNameError(false) }}
+                  placeholder="Например: КХ «Айгерим»"
+                  className="w-full h-9 px-3 rounded-lg text-sm outline-none transition-colors"
+                  style={{
+                    background: 'var(--bg)',
+                    border: `1px solid ${farmNameError ? 'var(--red)' : 'var(--bd)'}`,
+                    color: 'var(--fg)',
+                    fontFamily: 'inherit',
+                  }}
+                  onFocus={e => (e.target.style.borderColor = farmNameError ? 'var(--red)' : 'var(--blue)')}
+                  onBlur={e => (e.target.style.borderColor = farmNameError ? 'var(--red)' : 'var(--bd)')}
+                />
+                {farmNameError && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Введите название фермы</p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--fg2)' }}>
+                  Тип содержания
+                </label>
+                <Select value={shelterType || undefined} onValueChange={setShelterType}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Не указано" /></SelectTrigger>
+                  <SelectContent>
+                    {SHELTER_TYPES.map(st => <SelectItem key={st.value} value={st.value}>{st.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--fg2)' }}>
+                  Система отёлов
+                </label>
+                <Select value={calvingSystem || undefined} onValueChange={setCalvingSystem}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Не указано" /></SelectTrigger>
+                  <SelectContent>
+                    {CALVING_SYSTEMS.map(cs => <SelectItem key={cs.value} value={cs.value}>{cs.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Sheet footer */}
+            <div
+              className="px-5 py-3.5 border-t flex gap-2 shrink-0"
+              style={{ borderColor: 'var(--bd)' }}
+            >
+              <button
+                onClick={closeSheet}
+                className="h-9 px-4 rounded-lg text-sm border cursor-pointer transition-colors"
+                style={{ color: 'var(--fg2)', borderColor: 'var(--bd)', background: 'transparent' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-m)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 Отмена
               </button>
+              <button
+                onClick={() => handleSaveFarm(closeSheet)}
+                disabled={isSavingFarm}
+                className="flex-1 h-9 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 transition-opacity"
+                style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
+              >
+                {isSavingFarm && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Сохранить изменения
+              </button>
             </div>
           </div>
-        )}
-      </section>
-
-      {/* ── HEALTH RESTRICTION WARNING ────────────────────────────────────────── */}
-      {hasRestrictions && (
-        <section className="mb-8 pt-6 border-t" style={{ borderColor: 'var(--bd)' }}>
-          <div className="flex items-start gap-3 p-4 rounded-xl"
-            style={{ background: 'rgba(192,57,43,0.07)', border: '1px solid rgba(192,57,43,0.14)' }}>
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--red)' }}>Ограничение на продажу</p>
-              {userContext!.health_restrictions.map(hr => (
-                <p key={hr.id} className="text-xs mt-0.5" style={{ color: 'var(--red)' }}>
-                  {hr.reason} — до {new Date(hr.expires_at).toLocaleDateString('ru-RU')}
-                </p>
-              ))}
-            </div>
-          </div>
-        </section>
+        </div>
       )}
-
-      {/* ── QUICK ACTION ─────────────────────────────────────────────────────── */}
-      <div className="pt-6 border-t" style={{ borderColor: 'var(--bd)' }}>
-        <button
-          onClick={() => navigate('/cabinet/vet/new')}
-          className="flex items-center gap-2 text-sm transition-opacity hover:opacity-70"
-          style={{ color: 'var(--red)' }}
-        >
-          <Stethoscope className="h-4 w-4" />
-          Сообщить о болезни
-        </button>
-      </div>
 
     </div>
   )
