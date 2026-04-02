@@ -270,7 +270,7 @@ export function FarmProfile() {
     return (
       <div className="p-6 space-y-5">
         <Skeleton className="h-40 w-full rounded-xl" />
-        <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 360px' }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 420px' }}>
           <Skeleton className="h-56 rounded-xl" />
           <div className="space-y-4">
             <Skeleton className="h-36 rounded-xl" />
@@ -452,7 +452,7 @@ export function FarmProfile() {
       </div>
 
       {/* ── CONTENT GRID ──────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1fr 360px' }}>
+      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1fr 420px' }}>
 
         {/* LEFT: О ферме card ──────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4">
