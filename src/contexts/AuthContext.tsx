@@ -115,14 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       setIsLoading(false)
-      if (s) {
+      if (event === 'SIGNED_IN') {
+        // Load context only on actual sign-in, not on TOKEN_REFRESHED
         loadContext()
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setUserContext(null)
       }
+      // TOKEN_REFRESHED: session already updated via setSession — no reload needed
     })
 
     return () => subscription.unsubscribe()
