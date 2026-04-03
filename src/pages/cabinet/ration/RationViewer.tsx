@@ -272,7 +272,7 @@ function RationCard({ ration, onRecalculate }: { ration: RationData; onRecalcula
                 kgPerDay={item.quantity_kg_per_day}
                 kgPerMonth={item.quantity_kg_per_day * 30}
                 pct={totalKgPerDay > 0 ? (item.quantity_kg_per_day / totalKgPerDay) * 100 : 0}
-                color={BAR_COLORS[idx % BAR_COLORS.length]}
+                color={BAR_COLORS[idx % BAR_COLORS.length] ?? 'var(--brand)'}
               />
             ))}
 
@@ -387,7 +387,7 @@ function RationCard({ ration, onRecalculate }: { ration: RationData; onRecalcula
               Потребность группы на месяц
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-              {items.slice(0, 3).map((item, idx) => (
+              {items.slice(0, 3).map((item) => (
                 <div
                   key={item.feed_item_id}
                   style={{
