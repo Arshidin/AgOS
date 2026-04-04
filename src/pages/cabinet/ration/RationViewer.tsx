@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { Calculator, Loader2, AlertTriangle } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
+import type { HerdGroup } from '@/contexts/AuthContext'
 import { useRpc } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -452,11 +453,118 @@ function RationCard({ ration, onRecalculate }: { ration: RationData; onRecalcula
   )
 }
 
+// ── Aggregated totals across all groups ───────────────────────────────────────
+function AggregatedSummary({ rations }: { rations: RationData[] }) {
+  const rationsWith = rations.filter(r => r.current_version?.items?.length)
+  if (rationsWith.length < 2) return null
+
+  // Collect all unique feed codes
+  const feedMap: Record<string, { kgPerDayTotal: number; costPerDayTotal: number }> = {}
+  for (const r of rationsWith) {
+    const headCount = r.head_count ?? 1
+    for (const item of (r.current_version?.items ?? [])) {
+      if (!feedMap[item.feed_item_code]) feedMap[item.feed_item_code] = { kgPerDayTotal: 0, costPerDayTotal: 0 }
+      feedMap[item.feed_item_code]!.kgPerDayTotal += item.quantity_kg_per_day * headCount
+      feedMap[item.feed_item_code]!.costPerDayTotal += (item.cost_per_day ?? 0) * headCount
+    }
+  }
+
+  const feeds = Object.entries(feedMap)
+  const totalKgPerDay = feeds.reduce((s, [, v]) => s + v.kgPerDayTotal, 0)
+  const totalCostPerDay = feeds.reduce((s, [, v]) => s + v.costPerDayTotal, 0)
+  const totalHeads = rationsWith.reduce((s, r) => s + (r.head_count ?? 0), 0)
+
+  return (
+    <div style={{
+      background: 'var(--bg-c)',
+      border: '1px solid var(--bd)',
+      borderRadius: 12,
+      overflow: 'hidden',
+      boxShadow: 'var(--sh-sm)',
+    }}>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--bd)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--fg)' }}>Сводный рацион фермы</div>
+          <div style={{ fontSize: 12, color: 'var(--fg3)', marginTop: 2 }}>{totalHeads} гол · {rationsWith.length} групп</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)' }}>{Math.round(totalKgPerDay).toLocaleString('ru-RU')} кг/сут</div>
+          {totalCostPerDay > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--fg3)' }}>{totalCostPerDay.toLocaleString('ru-RU')} ₸/сут</div>
+          )}
+        </div>
+      </div>
+      <div style={{ padding: '12px 20px' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+          Потребность в кормах (все группы / сутки)
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+          {feeds.map(([code, val]) => (
+            <div key={code} style={{ background: 'var(--bg)', border: '1px solid var(--bd)', borderRadius: 8, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 4 }}>{code}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)' }}>{Math.round(val.kgPerDayTotal).toLocaleString('ru-RU')}</div>
+              <div style={{ fontSize: 11, color: 'var(--fg3)' }}>кг/сут · {Math.round(val.kgPerDayTotal * 30).toLocaleString('ru-RU')} кг/мес</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Group row (no ration yet) ─────────────────────────────────────────────────
+function NoRationGroupRow({
+  group,
+  onCalculate,
+  isCalculating,
+}: {
+  group: HerdGroup
+  onCalculate: () => void
+  isCalculating: boolean
+}) {
+  return (
+    <div style={{
+      background: 'var(--bg-c)',
+      border: '1px solid var(--bd)',
+      borderRadius: 12,
+      padding: '16px 20px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+    }}>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>
+          {group.animal_category_name}
+          {group.breed_name && <span style={{ fontWeight: 400, color: 'var(--fg3)', fontSize: 13, marginLeft: 8 }}>{group.breed_name}</span>}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--fg3)', marginTop: 3 }}>
+          {group.head_count} гол · {group.avg_weight_kg ?? '—'} кг · рацион не рассчитан
+        </div>
+      </div>
+      <button
+        onClick={onCalculate}
+        disabled={isCalculating}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 8,
+          border: 'none', background: 'var(--cta)', color: 'var(--cta-fg)', cursor: 'pointer',
+          opacity: isCalculating ? 0.5 : 1, flexShrink: 0,
+        }}
+      >
+        {isCalculating ? <Loader2 size={13} className="animate-spin" /> : <Calculator size={13} />}
+        Рассчитать
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export function RationViewer() {
   const navigate = useNavigate()
-  const { organization, farm } = useAuth()
-  const [calculating, setCalculating] = useState(false)
+  const { organization, farm, userContext } = useAuth()
+  // calculatingGroupId — id группы для которой идёт расчёт
+  const [calculatingGroupId, setCalculatingGroupId] = useState<string | null>(null)
 
   const { data: rations, isLoading, refetch } = useRpc<RationData[]>(
     'rpc_get_current_ration',
@@ -464,20 +572,13 @@ export function RationViewer() {
     { enabled: !!organization?.id && !!farm?.id },
   )
 
-  async function handleCalculate() {
+  // Все группы скота фермы из контекста
+  const herdGroups = userContext?.farms?.[0]?.herd_groups ?? []
+
+  async function handleCalculateGroup(group: HerdGroup) {
     if (!organization?.id || !farm?.id) return
-    setCalculating(true)
+    setCalculatingGroupId(group.id)
     try {
-      const { data: summary } = await supabase.rpc('rpc_get_farm_summary', {
-        p_organization_id: organization.id,
-        p_farm_id: farm.id,
-      })
-      const groups = summary?.herd_groups || []
-      if (groups.length === 0) {
-        toast.error('Сначала добавьте группы скота')
-        return
-      }
-      const group = groups[0]
       const { error } = await supabase.functions.invoke('calculate-ration', {
         body: {
           organization_id: organization.id,
@@ -495,116 +596,80 @@ export function RationViewer() {
     } catch (err: any) {
       toast.error(err.message || 'Ошибка расчёта')
     } finally {
-      setCalculating(false)
+      setCalculatingGroupId(null)
     }
   }
 
   if (isLoading) {
     return (
       <div className="page space-y-4">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-          <Skeleton className="h-20 rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
-          <Skeleton className="h-20 rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
-          <Skeleton className="h-20 rounded-[10px]" style={{ background: 'var(--bg-m)' }} />
-        </div>
-        <Skeleton className="h-12 w-full rounded-[8px]" style={{ background: 'var(--bg-m)' }} />
-        <Skeleton className="h-12 w-full rounded-[8px]" style={{ background: 'var(--bg-m)' }} />
-        <Skeleton className="h-12 w-full rounded-[8px]" style={{ background: 'var(--bg-m)' }} />
+        <Skeleton className="h-24 w-full rounded-[12px]" style={{ background: 'var(--bg-m)' }} />
+        <Skeleton className="h-24 w-full rounded-[12px]" style={{ background: 'var(--bg-m)' }} />
+        <Skeleton className="h-24 w-full rounded-[12px]" style={{ background: 'var(--bg-m)' }} />
       </div>
     )
   }
 
-  const activeRations = rations || []
-
-  if (activeRations.length === 0) {
+  // Нет групп скота вообще
+  if (herdGroups.length === 0) {
     return (
       <div className="page">
-        <div
-          style={{
-            background: 'var(--bg-c)',
-            border: '1px solid var(--bd)',
-            borderRadius: 12,
-            padding: '40px 24px',
-            textAlign: 'center',
-          }}
-        >
+        <div style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 12, padding: '40px 24px', textAlign: 'center' }}>
           <p style={{ color: 'var(--fg3)', fontSize: 14, marginBottom: 20 }}>
-            Добавьте группы скота и корма для расчёта рациона
+            Сначала добавьте группы скота на ферме
           </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => navigate('/cabinet/herd')}
-              style={{
-                fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8,
-                border: '1px solid var(--bd)', background: 'var(--bg)', color: 'var(--fg2)', cursor: 'pointer',
-              }}
-            >
-              Группы скота
-            </button>
-            <button
-              onClick={() => navigate('/cabinet/feed')}
-              style={{
-                fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8,
-                border: '1px solid var(--bd)', background: 'var(--bg)', color: 'var(--fg2)', cursor: 'pointer',
-              }}
-            >
-              Корма
-            </button>
-            <button
-              onClick={handleCalculate}
-              disabled={calculating}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8,
-                border: 'none', background: 'var(--cta)', color: 'var(--cta-fg)', cursor: 'pointer',
-                opacity: calculating ? 0.5 : 1,
-              }}
-            >
-              {calculating && <Loader2 size={13} className="animate-spin" />}
-              <Calculator size={13} />
-              Рассчитать рацион
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/cabinet/herd')}
+            style={{ fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 8, border: '1px solid var(--bd)', background: 'var(--bg)', color: 'var(--fg2)', cursor: 'pointer' }}
+          >
+            Перейти к стаду
+          </button>
         </div>
       </div>
     )
   }
 
+  // Индекс активных рационов по herd_group_id
+  const rationByGroupId = (rations ?? []).reduce<Record<string, RationData>>((acc, r) => {
+    if (r.herd_group_id) acc[r.herd_group_id] = r
+    return acc
+  }, {})
+
   return (
-    <div className="page space-y-5">
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          onClick={handleCalculate}
-          disabled={calculating}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 8,
-            border: 'none', background: 'var(--cta)', color: 'var(--cta-fg)', cursor: 'pointer',
-            opacity: calculating ? 0.5 : 1,
-          }}
-        >
-          {calculating ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
-          Рассчитать рацион
-        </button>
-      </div>
+    <div className="page space-y-4">
 
-      {activeRations.map((ration) => (
-        <RationCard key={ration.ration_id} ration={ration} onRecalculate={handleCalculate} />
-      ))}
+      {/* Рационы по каждой группе */}
+      {herdGroups.map((group) => {
+        const ration = rationByGroupId[group.id]
+        if (ration) {
+          return (
+            <RationCard
+              key={group.id}
+              ration={ration}
+              onRecalculate={() => handleCalculateGroup(group)}
+            />
+          )
+        }
+        return (
+          <NoRationGroupRow
+            key={group.id}
+            group={group}
+            onCalculate={() => handleCalculateGroup(group)}
+            isCalculating={calculatingGroupId === group.id}
+          />
+        )
+      })}
 
+      {/* Сводный агрегат (если 2+ групп с рационами) */}
+      <AggregatedSummary rations={rations ?? []} />
+
+      {/* Бюджет кормления */}
       <button
         onClick={() => navigate('/cabinet/ration/budget')}
         style={{
-          width: '100%',
-          padding: '11px 16px',
-          borderRadius: 8,
-          border: '1px solid var(--bd)',
-          background: 'var(--bg-c)',
-          color: 'var(--fg2)',
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: 'pointer',
-          transition: 'all 80ms',
+          width: '100%', padding: '11px 16px', borderRadius: 8,
+          border: '1px solid var(--bd)', background: 'var(--bg-c)', color: 'var(--fg2)',
+          fontSize: 13, fontWeight: 500, cursor: 'pointer', transition: 'all 80ms',
         }}
         onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-m)'; e.currentTarget.style.color = 'var(--fg)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-c)'; e.currentTarget.style.color = 'var(--fg2)' }}

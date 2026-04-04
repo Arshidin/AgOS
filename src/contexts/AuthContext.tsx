@@ -23,6 +23,7 @@ export interface Farm {
 export interface HerdGroup {
   id: string
   farm_id: string
+  animal_category_id: string
   animal_category_code: string
   animal_category_name: string
   breed_name: string | null
