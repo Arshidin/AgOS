@@ -19,8 +19,11 @@ import { HerdOverview } from '@/pages/cabinet/herd/HerdOverview'
 import { HerdGroupForm } from '@/pages/cabinet/herd/HerdGroupForm'
 import { FeedInventory } from '@/pages/cabinet/feed/FeedInventory'
 import { FeedItemForm } from '@/pages/cabinet/feed/FeedItemForm'
-import { RationViewer } from '@/pages/cabinet/ration/RationViewer'
-import { FeedBudget } from '@/pages/cabinet/ration/FeedBudget'
+import { RationPage } from '@/pages/cabinet/ration/RationPage'
+import { Calculator as RationCalculator } from '@/pages/cabinet/ration/tabs/Calculator'
+import { GroupRations } from '@/pages/cabinet/ration/tabs/GroupRations'
+import { Summary as RationSummary } from '@/pages/cabinet/ration/tabs/Summary'
+import { Budget as RationBudget } from '@/pages/cabinet/ration/tabs/Budget'
 import { ProductionPlan } from '@/pages/cabinet/plan/ProductionPlan'
 import { TaskList } from '@/pages/cabinet/plan/TaskList'
 import { Timeline } from '@/pages/cabinet/plan/Timeline'
@@ -89,8 +92,12 @@ function App() {
                 <Route path="feed" element={<FeedInventory />} />
                 <Route path="feed/add" element={<FeedItemForm />} />
                 <Route path="feed/:inventoryId" element={<FeedItemForm />} />
-                <Route path="ration" element={<RationViewer />} />
-                <Route path="ration/budget" element={<FeedBudget />} />
+                <Route path="ration" element={<RationPage />}>
+                  <Route path="calculator" element={<RationCalculator />} />
+                  <Route path="groups" element={<GroupRations />} />
+                  <Route path="summary" element={<RationSummary />} />
+                  <Route path="budget" element={<RationBudget />} />
+                </Route>
                 <Route path="plan" element={<ProductionPlan />} />
                 <Route path="plan/tasks" element={<TaskList />} />
                 <Route path="plan/timeline" element={<Timeline />} />
