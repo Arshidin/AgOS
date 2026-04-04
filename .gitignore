@@ -37,3 +37,4 @@ supabase/.temp/
 Design_System/
 tsconfig.tsbuildinfo
 .vercel
+.superpowers/
