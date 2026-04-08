@@ -104,6 +104,46 @@ export function ConsultingDashboard() {
     return `${(n * 100).toFixed(1)}%`
   }
 
+  if (loading) {
+    return (
+      <div className="page space-y-6">
+        {/* PageHeader skeleton */}
+        <div className="space-y-1">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        {/* Card skeletons */}
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <Card key={i}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-48" />
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="space-y-1 text-right">
+                    <Skeleton className="ml-auto h-3 w-8" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <Skeleton className="ml-auto h-3 w-8" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="h-5 w-5 rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="page space-y-6">
       <PageHeader
@@ -118,11 +158,7 @@ export function ConsultingDashboard() {
       />
 
       {/* Project list */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
-        </div>
-      ) : projects.length === 0 ? (
+      {projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12">
             <Calculator className="mb-4 h-12 w-12 text-muted-foreground" />

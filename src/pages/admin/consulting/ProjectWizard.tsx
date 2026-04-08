@@ -118,7 +118,7 @@ export function ProjectWizard() {
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
-  const [hasSavedParams, setHasSavedParams] = useState(false)
+
 
   const orgId = organization?.id
 
@@ -130,7 +130,6 @@ export function ProjectWizard() {
       p_project_id: projectId,
     }).then(({ data: proj }) => {
       if (proj?.versions?.length > 0) {
-        setHasSavedParams(true)
         setMode('view')  // Show view mode when params exist
         const saved = proj.versions[0].input_params
         if (saved) {
@@ -194,7 +193,6 @@ export function ProjectWizard() {
       })
       // Cache results for instant tab access
       cacheResults(projectId, result.results, params)
-      setHasSavedParams(true)
       setMode('view')
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
       navigate(`/admin/consulting/${projectId}/summary`)
