@@ -115,6 +115,7 @@ export function ProjectWizard() {
   const { projectId } = useParams()
   const { organization } = useAuth()
   const [mode, setMode] = useState<'view' | 'edit'>('edit')
+  const [editingSection, setEditingSection] = useState<string | null>(null)
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
@@ -208,98 +209,158 @@ export function ProjectWizard() {
   const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
 
   // ================================================================
-  // VIEW MODE — all params on one screen, read-only
+  // VIEW MODE — clean rows with inline editing per section
   // ================================================================
   if (mode === 'view') {
-    const sections = [
+    type SectionItem = {
+      label: string
+      value: string
+      key?: keyof WizardParams
+      suffix?: string
+      type?: string
+      options?: string[]
+      computed?: boolean
+    }
+    type Section = { title: string; items: SectionItem[] }
+
+    const sections: Section[] = [
       {
         title: 'Тип фермы',
         items: [
-          { label: 'Маточное поголовье', value: `${params.initial_cows} голов` },
-          { label: 'Мощность репродуктора', value: `${params.reproducer_capacity} голов` },
-          { label: 'Быки-производители', value: `${bulls} голов` },
-          { label: 'Цена коровы', value: `${params.purchase_price_cow.toLocaleString('ru-RU')} тг` },
-          { label: 'Цена быка', value: `${params.purchase_price_bull.toLocaleString('ru-RU')} тг` },
+          { label: 'Маточное поголовье', value: `${params.initial_cows}`, key: 'initial_cows', suffix: 'голов' },
+          { label: 'Мощность репродуктора', value: `${params.reproducer_capacity}`, key: 'reproducer_capacity', suffix: 'голов' },
+          { label: 'Быки-производители', value: `${bulls} голов`, computed: true },
+          { label: 'Цена коровы', value: `${params.purchase_price_cow.toLocaleString('ru-RU')}`, key: 'purchase_price_cow', suffix: 'тг' },
+          { label: 'Цена быка', value: `${params.purchase_price_bull.toLocaleString('ru-RU')}`, key: 'purchase_price_bull', suffix: 'тг' },
         ],
       },
       {
         title: 'Коэффициенты',
         items: [
-          { label: 'Приплод', value: `${params.calf_yield_pct}%` },
-          { label: 'Падёж коров', value: `${params.cow_mortality_pct}%` },
-          { label: 'Падёж быков', value: `${params.bull_mortality_pct}%` },
-          { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}%` },
-          { label: 'Выбраковка коров', value: `${params.cow_culling_pct}%` },
-          { label: 'Выбраковка быков', value: `${params.bull_culling_pct}%` },
+          { label: 'Приплод', value: `${params.calf_yield_pct}`, key: 'calf_yield_pct', suffix: '%' },
+          { label: 'Падёж коров', value: `${params.cow_mortality_pct}`, key: 'cow_mortality_pct', suffix: '%' },
+          { label: 'Падёж быков', value: `${params.bull_mortality_pct}`, key: 'bull_mortality_pct', suffix: '%' },
+          { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}`, key: 'heifer_mortality_pct', suffix: '%' },
+          { label: 'Выбраковка коров', value: `${params.cow_culling_pct}`, key: 'cow_culling_pct', suffix: '%' },
+          { label: 'Выбраковка быков', value: `${params.bull_culling_pct}`, key: 'bull_culling_pct', suffix: '%' },
         ],
       },
       {
         title: 'Технология',
         items: [
-          { label: 'Сценарий отёла', value: params.calving_scenario },
-          { label: 'Дата старта', value: params.project_start_date },
-          { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га` },
-          { label: 'Случная кампания', value: `${params.breeding_duration_months} мес` },
-          { label: 'Стельность', value: `${params.gestation_months} мес` },
-          { label: 'Подсосный период', value: `${params.suckling_months} мес` },
-          { label: 'Доращивание', value: params.fattening_enabled ? `${params.fattening_months} мес` : 'Нет' },
+          { label: 'Сценарий отёла', value: params.calving_scenario, key: 'calving_scenario', options: ['Летний', 'Зимний'] },
+          { label: 'Дата старта', value: params.project_start_date, key: 'project_start_date', type: 'date' },
+          { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га`, computed: true },
+          { label: 'Норма пастбищ', value: `${params.pasture_norm_ha}`, key: 'pasture_norm_ha', suffix: 'га/гол' },
+          { label: 'Случная кампания', value: `${params.breeding_duration_months}`, key: 'breeding_duration_months', suffix: 'мес' },
+          { label: 'Стельность', value: `${params.gestation_months}`, key: 'gestation_months', suffix: 'мес' },
+          { label: 'Подсосный период', value: `${params.suckling_months}`, key: 'suckling_months', suffix: 'мес' },
         ],
       },
       {
         title: 'Финансирование',
         items: [
-          { label: 'Собств. участие', value: `${params.equity_share_pct}%` },
-          { label: 'Срок кредита', value: `${params.capex_loan_term_years} лет` },
-          { label: 'Льготный период', value: `${params.capex_grace_period_years} года` },
-          { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}%` },
-          { label: 'Ставка оборотная', value: `${params.wc_loan_rate_pct}%` },
-          { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет' },
+          { label: 'Собств. участие', value: `${params.equity_share_pct}`, key: 'equity_share_pct', suffix: '%' },
+          { label: 'Срок кредита', value: `${params.capex_loan_term_years}`, key: 'capex_loan_term_years', suffix: 'лет' },
+          { label: 'Льготный период', value: `${params.capex_grace_period_years}`, key: 'capex_grace_period_years', suffix: 'лет' },
+          { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}`, key: 'livestock_loan_rate_pct', suffix: '%' },
+          { label: 'Ставка оборотная', value: `${params.wc_loan_rate_pct}`, key: 'wc_loan_rate_pct', suffix: '%' },
+          { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет', key: 'subsidy_switch', options: ['Да', 'Нет'] },
         ],
       },
     ]
 
     return (
-      <div className="page space-y-6 pt-4">
-        <div className="mx-auto max-w-3xl">
-          {/* Header with edit button */}
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Параметры проекта</h2>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => { setMode('edit'); setStep(0) }}>
-              <Pencil className="h-4 w-4" /> Редактировать
-            </Button>
-          </div>
+      <div className="page pt-4 pb-20">
+        <div className="mx-auto max-w-3xl space-y-8">
+          <h2 className="text-lg font-semibold">Параметры проекта</h2>
 
-          {/* Params grid */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {sections.map(section => (
-              <Card key={section.title}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{section.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
+          {sections.map(section => {
+            const isEditing = editingSection === section.title
+            return (
+              <div key={section.title}>
+                {/* Section header */}
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {section.title}
+                  </h3>
+                  <button
+                    onClick={() => setEditingSection(isEditing ? null : section.title)}
+                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    {isEditing ? <><Check className="h-3.5 w-3.5" /> Готово</> : <><Pencil className="h-3.5 w-3.5" /> Изменить</>}
+                  </button>
+                </div>
+                {/* Rows */}
+                <div className="divide-y divide-border/40">
                   {section.items.map(item => (
-                    <div key={item.label} className="flex items-center justify-between py-1">
+                    <div key={item.label} className="flex items-center justify-between py-2.5">
                       <span className="text-sm text-muted-foreground">{item.label}</span>
-                      <span className="font-mono text-sm font-medium">{item.value}</span>
+                      {isEditing && item.key && !item.computed ? (
+                        item.options ? (
+                          <div className="flex gap-1.5">
+                            {item.options.map(opt => {
+                              const isActive = item.key === 'subsidy_switch'
+                                ? (opt === 'Да' ? params.subsidy_switch === 1 : params.subsidy_switch !== 1)
+                                : params[item.key!] === opt
+                              return (
+                                <button
+                                  key={opt}
+                                  onClick={() => {
+                                    if (item.key === 'subsidy_switch') {
+                                      set('subsidy_switch', opt === 'Да' ? '1' : '2')
+                                    } else {
+                                      set(item.key!, opt)
+                                    }
+                                  }}
+                                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                                    isActive
+                                      ? 'bg-foreground text-background'
+                                      : 'bg-muted text-muted-foreground hover:bg-accent'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type={item.type || 'number'}
+                              value={String(params[item.key!])}
+                              onChange={e => set(item.key!, e.target.value)}
+                              className="h-8 w-28 text-right font-mono text-sm"
+                            />
+                            {item.suffix && (
+                              <span className="w-10 text-xs text-muted-foreground">{item.suffix}</span>
+                            )}
+                          </div>
+                        )
+                      ) : (
+                        <span className="font-mono text-sm font-medium">
+                          {item.computed ? item.value : `${item.value}${item.suffix ? ` ${item.suffix}` : ''}`}
+                        </span>
+                      )}
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Cost summary */}
-          <Card className="mt-6">
-            <CardContent className="flex items-center justify-between py-5">
-              <div>
-                <p className="text-sm text-muted-foreground">Стоимость стада</p>
-                <p className="font-mono text-xl font-semibold">{livestockCost.toLocaleString('ru-RU')} тыс. тг</p>
+                </div>
               </div>
-              <Button className="gap-2" onClick={() => { setMode('edit'); setStep(5) }}>
-                <Calculator className="h-4 w-4" /> Пересчитать
-              </Button>
-            </CardContent>
-          </Card>
+            )
+          })}
+        </div>
+
+        {/* Sticky footer CTA */}
+        <div className="sticky bottom-0 mt-8 border-t bg-background/95 backdrop-blur">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Стоимость стада</p>
+              <p className="font-mono text-lg font-semibold">{livestockCost.toLocaleString('ru-RU')} тыс. тг</p>
+            </div>
+            <Button className="gap-2" onClick={handleCalculate} disabled={calculating}>
+              {calculating ? 'Расчёт...' : <><Calculator className="h-4 w-4" /> Пересчитать</>}
+            </Button>
+          </div>
         </div>
       </div>
     )
