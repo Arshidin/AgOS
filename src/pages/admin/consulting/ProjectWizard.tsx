@@ -395,31 +395,36 @@ export function ProjectWizard() {
         </CardContent>
       </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => setStep(s => Math.max(0, s - 1))}
-          disabled={step === 0}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" /> Назад
-        </Button>
-
-        {step < STEPS.length - 1 ? (
-          <Button onClick={() => setStep(s => s + 1)} className="gap-2">
-            Далее <ArrowRight className="h-4 w-4" />
-          </Button>
-        ) : (
-          <Button onClick={handleCalculate} disabled={calculating} className="gap-2">
-            {calculating ? (
-              <>Расчёт...</>
-            ) : (
-              <><Calculator className="h-4 w-4" /> Рассчитать</>
-            )}
-          </Button>
-        )}
+      {/* Spacer so content doesn't hide behind fixed nav */}
+      <div className="h-20" />
       </div>
+
+      {/* Fixed bottom navigation */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg)] px-4 py-3">
+        <div className="mx-auto flex max-w-2xl justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setStep(s => Math.max(0, s - 1))}
+            disabled={step === 0}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" /> Назад
+          </Button>
+
+          {step < STEPS.length - 1 ? (
+            <Button onClick={() => setStep(s => s + 1)} className="gap-2">
+              Далее <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button onClick={handleCalculate} disabled={calculating} className="gap-2">
+              {calculating ? (
+                <>Расчёт...</>
+              ) : (
+                <><Calculator className="h-4 w-4" /> Рассчитать</>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
