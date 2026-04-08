@@ -3,7 +3,7 @@
  * Route: /admin/consulting/:projectId/edit
  * Calls: consulting engine POST /api/v1/calculate
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
 import { calculateProject } from '@/lib/consulting-api'
+import { cacheResults } from './tabs/usProjectData'
 import { toast } from 'sonner'
 
 interface WizardParams {
@@ -92,6 +94,39 @@ export function ProjectWizard() {
 
   const orgId = organization?.id
 
+  // Load saved params from last version
+  useEffect(() => {
+    if (!orgId || !projectId) return
+    supabase.rpc('rpc_get_consulting_project', {
+      p_organization_id: orgId,
+      p_project_id: projectId,
+    }).then(({ data: proj }) => {
+      if (proj?.versions?.length > 0) {
+        const saved = proj.versions[0].input_params
+        if (saved) {
+          setParams(p => ({
+            ...p,
+            initial_cows: saved.initial_cows ?? p.initial_cows,
+            reproducer_capacity: saved.reproducer_capacity ?? p.reproducer_capacity,
+            purchase_price_cow: saved.purchase_price_cow ?? p.purchase_price_cow,
+            purchase_price_bull: saved.purchase_price_bull ?? p.purchase_price_bull,
+            pasture_norm_ha: saved.pasture_norm_ha ?? p.pasture_norm_ha,
+            calving_scenario: saved.calving_scenario ?? p.calving_scenario,
+            equity_share_pct: saved.equity_share ? saved.equity_share * 100 : p.equity_share_pct,
+            capex_loan_term_years: saved.capex_loan_term_years ?? p.capex_loan_term_years,
+            capex_grace_period_years: saved.capex_grace_period_years ?? p.capex_grace_period_years,
+            livestock_loan_rate_pct: saved.livestock_loan_rate ? saved.livestock_loan_rate * 100 : p.livestock_loan_rate_pct,
+            wc_loan_rate_pct: saved.wc_loan_rate ? saved.wc_loan_rate * 100 : p.wc_loan_rate_pct,
+            subsidy_switch: saved.subsidy_switch ?? p.subsidy_switch,
+            wc_loan_switch: saved.wc_loan_switch ?? p.wc_loan_switch,
+            bioasset_revaluation_switch: saved.bioasset_revaluation_switch ?? p.bioasset_revaluation_switch,
+            project_start_date: saved.project_start_date ?? p.project_start_date,
+          }))
+        }
+      }
+    })
+  }, [orgId, projectId])
+
   const set = useCallback((key: keyof WizardParams, raw: string) => {
     setParams(p => ({
       ...p,
@@ -116,6 +151,8 @@ export function ProjectWizard() {
           bull_ratio: 1 / 15,
         },
       })
+      // Cache results for instant tab access
+      cacheResults(projectId, result.results, params)
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
       navigate(`/admin/consulting/${projectId}/summary`)
     } catch (err: any) {

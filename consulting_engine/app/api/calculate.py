@@ -72,8 +72,10 @@ async def calculate(request: CalculateRequest):
                 .execute()
             )
             version_number = version_detail.data["version_number"]
-        except Exception:
-            pass  # Results still returned even if save fails
+        except Exception as e:
+            import traceback
+            print(f"[WARN] Failed to save version to Supabase: {e}")
+            traceback.print_exc()
 
     return CalculateResponse(
         version_id=version_id,

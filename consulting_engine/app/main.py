@@ -27,4 +27,9 @@ app.include_router(references_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "consulting-engine"}
+    return {
+        "status": "ok",
+        "service": "consulting-engine",
+        "supabase_configured": bool(settings.supabase_url and settings.supabase_service_key),
+        "supabase_url": settings.supabase_url[:30] + "..." if settings.supabase_url else "",
+    }

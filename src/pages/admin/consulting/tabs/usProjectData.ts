@@ -1,11 +1,36 @@
 /**
  * Shared hook to load project + latest version data.
  * Used by all result tab pages.
+ *
+ * Data sources (priority order):
+ * 1. sessionStorage cache (set by Wizard after calculation) — instant
+ * 2. Supabase RPC (rpc_get_consulting_version) — persistent
  */
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+
+const CACHE_KEY = 'consulting_results'
+
+/** Save calculation results to sessionStorage for instant tab access */
+export function cacheResults(projectId: string, results: any, inputParams: any) {
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify({ projectId, results, inputParams, ts: Date.now() }))
+}
+
+/** Read cached results */
+function getCachedResults(projectId: string) {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY)
+    if (!raw) return null
+    const cached = JSON.parse(raw)
+    // Only use if same project and less than 10 min old
+    if (cached.projectId === projectId && Date.now() - cached.ts < 600_000) {
+      return cached
+    }
+  } catch { /* ignore */ }
+  return null
+}
 
 export function useProjectData() {
   const { projectId } = useParams()
@@ -20,18 +45,29 @@ export function useProjectData() {
     if (!orgId || !projectId) return
     const load = async () => {
       setLoading(true)
+
+      // 1. Check sessionStorage cache first
+      const cached = getCachedResults(projectId)
+      if (cached) {
+        setVersion({ results: cached.results, input_params: cached.inputParams, version_number: 1 })
+      }
+
+      // 2. Load project from Supabase
       const { data: proj } = await supabase.rpc('rpc_get_consulting_project', {
         p_organization_id: orgId,
         p_project_id: projectId,
       })
       setProject(proj)
 
+      // 3. Load latest version from Supabase (overwrites cache if available)
       if (proj?.versions?.length > 0) {
         const { data: ver } = await supabase.rpc('rpc_get_consulting_version', {
           p_organization_id: orgId,
           p_version_id: proj.versions[0].id,
         })
-        setVersion(ver)
+        if (ver?.results) {
+          setVersion(ver)
+        }
       }
       setLoading(false)
     }
