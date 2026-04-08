@@ -5,7 +5,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Pencil } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -114,9 +114,11 @@ export function ProjectWizard() {
   const navigate = useNavigate()
   const { projectId } = useParams()
   const { organization } = useAuth()
+  const [mode, setMode] = useState<'view' | 'edit'>('edit')
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
+  const [hasSavedParams, setHasSavedParams] = useState(false)
 
   const orgId = organization?.id
 
@@ -128,6 +130,8 @@ export function ProjectWizard() {
       p_project_id: projectId,
     }).then(({ data: proj }) => {
       if (proj?.versions?.length > 0) {
+        setHasSavedParams(true)
+        setMode('view')  // Show view mode when params exist
         const saved = proj.versions[0].input_params
         if (saved) {
           setParams(p => ({
@@ -190,6 +194,8 @@ export function ProjectWizard() {
       })
       // Cache results for instant tab access
       cacheResults(projectId, result.results, params)
+      setHasSavedParams(true)
+      setMode('view')
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
       navigate(`/admin/consulting/${projectId}/summary`)
     } catch (err: any) {
@@ -203,6 +209,107 @@ export function ProjectWizard() {
   const pasture = params.pasture_norm_ha * params.reproducer_capacity
   const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
 
+  // ================================================================
+  // VIEW MODE — all params on one screen, read-only
+  // ================================================================
+  if (mode === 'view') {
+    const sections = [
+      {
+        title: 'Тип фермы',
+        items: [
+          { label: 'Маточное поголовье', value: `${params.initial_cows} голов` },
+          { label: 'Мощность репродуктора', value: `${params.reproducer_capacity} голов` },
+          { label: 'Быки-производители', value: `${bulls} голов` },
+          { label: 'Цена коровы', value: `${params.purchase_price_cow.toLocaleString('ru-RU')} тг` },
+          { label: 'Цена быка', value: `${params.purchase_price_bull.toLocaleString('ru-RU')} тг` },
+        ],
+      },
+      {
+        title: 'Коэффициенты',
+        items: [
+          { label: 'Приплод', value: `${params.calf_yield_pct}%` },
+          { label: 'Падёж коров', value: `${params.cow_mortality_pct}%` },
+          { label: 'Падёж быков', value: `${params.bull_mortality_pct}%` },
+          { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}%` },
+          { label: 'Выбраковка коров', value: `${params.cow_culling_pct}%` },
+          { label: 'Выбраковка быков', value: `${params.bull_culling_pct}%` },
+        ],
+      },
+      {
+        title: 'Технология',
+        items: [
+          { label: 'Сценарий отёла', value: params.calving_scenario },
+          { label: 'Дата старта', value: params.project_start_date },
+          { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га` },
+          { label: 'Случная кампания', value: `${params.breeding_duration_months} мес` },
+          { label: 'Стельность', value: `${params.gestation_months} мес` },
+          { label: 'Подсосный период', value: `${params.suckling_months} мес` },
+          { label: 'Доращивание', value: params.fattening_enabled ? `${params.fattening_months} мес` : 'Нет' },
+        ],
+      },
+      {
+        title: 'Финансирование',
+        items: [
+          { label: 'Собств. участие', value: `${params.equity_share_pct}%` },
+          { label: 'Срок кредита', value: `${params.capex_loan_term_years} лет` },
+          { label: 'Льготный период', value: `${params.capex_grace_period_years} года` },
+          { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}%` },
+          { label: 'Ставка оборотная', value: `${params.wc_loan_rate_pct}%` },
+          { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет' },
+        ],
+      },
+    ]
+
+    return (
+      <div className="page space-y-6 pt-4">
+        <div className="mx-auto max-w-3xl">
+          {/* Header with edit button */}
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Параметры проекта</h2>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { setMode('edit'); setStep(0) }}>
+              <Pencil className="h-4 w-4" /> Редактировать
+            </Button>
+          </div>
+
+          {/* Params grid */}
+          <div className="grid gap-6 md:grid-cols-2">
+            {sections.map(section => (
+              <Card key={section.title}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{section.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {section.items.map(item => (
+                    <div key={item.label} className="flex items-center justify-between py-1">
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
+                      <span className="font-mono text-sm font-medium">{item.value}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Cost summary */}
+          <Card className="mt-6">
+            <CardContent className="flex items-center justify-between py-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Стоимость стада</p>
+                <p className="font-mono text-xl font-semibold">{livestockCost.toLocaleString('ru-RU')} тыс. тг</p>
+              </div>
+              <Button className="gap-2" onClick={() => { setMode('edit'); setStep(5) }}>
+                <Calculator className="h-4 w-4" /> Пересчитать
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // ================================================================
+  // EDIT MODE — wizard with steps
+  // ================================================================
   return (
     <div className="page space-y-6">
       <div className="mx-auto max-w-2xl space-y-6">
