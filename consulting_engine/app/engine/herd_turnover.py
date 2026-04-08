@@ -35,15 +35,14 @@ def calculate_herd_turnover(
     bull_ratio = enriched_input["bull_ratio"]
     calving_mi = enriched_input["calving_month_index"]  # 18 for winter, 12 for summer
 
-    # Rates
-    COW_CULLING_ANNUAL = 0.15
-    COW_MORTALITY_MONTHLY = 0.03 / 12
-    BULL_CULLING_ANNUAL = 0.25
-    BULL_MORTALITY_MONTHLY = 0.03 / 12
-    CALF_YIELD = 0.85
-    HEIFER_MORTALITY_MONTHLY = 0.03 / 12  # monthly on BOP
-    STEER_MORTALITY_MONTHLY = 0.03 / 12   # monthly on BOP
-    # Heifers transfer to cows at calving anniversary (lump-sum, no delay)
+    # Rates — from configurable input params (with defaults)
+    CALF_YIELD = enriched_input.get("calf_yield", 0.85)
+    COW_CULLING_ANNUAL = enriched_input.get("cow_culling_rate", 0.15)
+    COW_MORTALITY_MONTHLY = enriched_input.get("cow_mortality_rate", 0.03) / 12
+    BULL_CULLING_ANNUAL = enriched_input.get("bull_culling_rate", 0.25)
+    BULL_MORTALITY_MONTHLY = enriched_input.get("bull_mortality_rate", 0.03) / 12
+    HEIFER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
+    STEER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
 
     # Farm setup: one farm, added at month 1
     farms_added = [0] * n

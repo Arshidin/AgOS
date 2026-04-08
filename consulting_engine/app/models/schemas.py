@@ -19,6 +19,14 @@ class ProjectInput(BaseModel):
     calving_scenario: str = Field(default="Летний", description="Летний / Зимний")
     farm_type: str = Field(default="beef_reproducer")
 
+    # Коэффициенты стада (% годовых)
+    calf_yield: float = Field(default=0.85, description="Коэффициент приплода (0.85 = 85%)")
+    cow_mortality_rate: float = Field(default=0.03, description="Падёж коров годовой (0.03 = 3%)")
+    cow_culling_rate: float = Field(default=0.15, description="Выбраковка коров годовая (0.15 = 15%)")
+    bull_mortality_rate: float = Field(default=0.03, description="Падёж быков годовой")
+    bull_culling_rate: float = Field(default=0.25, description="Выбраковка быков годовая")
+    heifer_mortality_rate: float = Field(default=0.03, description="Падёж тёлок/бычков годовой")
+
     # Переключатели
     subsidy_switch: int = Field(default=1, description="1=с субсидиями, 2=без")
     wc_loan_switch: int = Field(default=1, description="1=с займами ПОС, 2=без")

@@ -23,11 +23,19 @@ interface WizardParams {
   purchase_price_bull: number
   pasture_norm_ha: number
   calving_scenario: string
-  equity_share_pct: number      // stored as % (15), converted to 0.15 on submit
+  // Коэффициенты стада (в %)
+  calf_yield_pct: number            // Приплод (85%)
+  cow_mortality_pct: number         // Падёж коров (3%)
+  cow_culling_pct: number           // Выбраковка коров (15%)
+  bull_mortality_pct: number        // Падёж быков (3%)
+  bull_culling_pct: number          // Выбраковка быков (25%)
+  heifer_mortality_pct: number      // Падёж молодняка (3%)
+  // Финансирование
+  equity_share_pct: number
   capex_loan_term_years: number
   capex_grace_period_years: number
-  livestock_loan_rate_pct: number  // stored as % (5)
-  wc_loan_rate_pct: number         // stored as % (6)
+  livestock_loan_rate_pct: number
+  wc_loan_rate_pct: number
   subsidy_switch: number
   wc_loan_switch: number
   bioasset_revaluation_switch: number
@@ -36,6 +44,7 @@ interface WizardParams {
 
 const STEPS = [
   { title: 'Тип фермы', desc: 'Поголовье и мощность', icon: Beef },
+  { title: 'Коэффициенты', desc: 'Приплод, падёж, выбраковка', icon: Beef },
   { title: 'Инфраструктура', desc: 'Земля и сценарий отёла', icon: MapPin },
   { title: 'Финансирование', desc: 'Условия кредитования', icon: Landmark },
   { title: 'Переключатели', desc: 'Субсидии и оборотка', icon: ToggleLeft },
@@ -49,6 +58,12 @@ const DEFAULT_PARAMS: WizardParams = {
   purchase_price_bull: 650_000,
   pasture_norm_ha: 10,
   calving_scenario: 'Зимний',
+  calf_yield_pct: 85,
+  cow_mortality_pct: 3,
+  cow_culling_pct: 15,
+  bull_mortality_pct: 3,
+  bull_culling_pct: 25,
+  heifer_mortality_pct: 3,
   equity_share_pct: 15,
   capex_loan_term_years: 10,
   capex_grace_period_years: 2,
@@ -147,6 +162,12 @@ export function ProjectWizard() {
           equity_share: params.equity_share_pct / 100,
           livestock_loan_rate: params.livestock_loan_rate_pct / 100,
           wc_loan_rate: params.wc_loan_rate_pct / 100,
+          calf_yield: params.calf_yield_pct / 100,
+          cow_mortality_rate: params.cow_mortality_pct / 100,
+          cow_culling_rate: params.cow_culling_pct / 100,
+          bull_mortality_rate: params.bull_mortality_pct / 100,
+          bull_culling_rate: params.bull_culling_pct / 100,
+          heifer_mortality_rate: params.heifer_mortality_pct / 100,
           farm_type: 'beef_reproducer',
           bull_ratio: 1 / 15,
         },
@@ -207,8 +228,24 @@ export function ProjectWizard() {
             </>
           )}
 
-          {/* Step 2: Infrastructure */}
+          {/* Step 2: Коэффициенты стада */}
           {step === 1 && (
+            <>
+              <WizardField label="Коэффициент приплода" value={params.calf_yield_pct} onChange={v => set('calf_yield_pct', v)} suffix="%" />
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Падёж (годовой)</p>
+              <WizardField label="Падёж коров" value={params.cow_mortality_pct} onChange={v => set('cow_mortality_pct', v)} suffix="%" />
+              <WizardField label="Падёж быков" value={params.bull_mortality_pct} onChange={v => set('bull_mortality_pct', v)} suffix="%" />
+              <WizardField label="Падёж молодняка (тёлки/бычки)" value={params.heifer_mortality_pct} onChange={v => set('heifer_mortality_pct', v)} suffix="%" />
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Выбраковка (годовая)</p>
+              <WizardField label="Выбраковка коров" value={params.cow_culling_pct} onChange={v => set('cow_culling_pct', v)} suffix="%" />
+              <WizardField label="Выбраковка быков" value={params.bull_culling_pct} onChange={v => set('bull_culling_pct', v)} suffix="%" />
+            </>
+          )}
+
+          {/* Step 3: Infrastructure */}
+          {step === 2 && (
             <>
               <WizardField label="Норма пастбищ на 1 голову" value={params.pasture_norm_ha} onChange={v => set('pasture_norm_ha', v)} suffix="га" />
               <div className="space-y-1.5">
@@ -233,8 +270,8 @@ export function ProjectWizard() {
             </>
           )}
 
-          {/* Step 3: Financing — now in % */}
-          {step === 2 && (
+          {/* Step 4: Financing */}
+          {step === 3 && (
             <>
               <WizardField label="Доля собственного участия" value={params.equity_share_pct} onChange={v => set('equity_share_pct', v)} suffix="%" />
               <WizardField label="Срок инвест. кредита" value={params.capex_loan_term_years} onChange={v => set('capex_loan_term_years', v)} suffix="лет" />
@@ -244,8 +281,8 @@ export function ProjectWizard() {
             </>
           )}
 
-          {/* Step 4: Toggles */}
-          {step === 3 && (
+          {/* Step 5: Toggles */}
+          {step === 4 && (
             <>
               {[
                 { label: 'С субсидиями', field: 'subsidy_switch' as const, desc: 'Субсидии МСХ РК при закупе и содержании' },
@@ -274,8 +311,8 @@ export function ProjectWizard() {
             </>
           )}
 
-          {/* Step 5: Confirmation */}
-          {step === 4 && (
+          {/* Step 6: Confirmation */}
+          {step === 5 && (
             <div className="space-y-4">
               {/* Summary grid */}
               <div className="grid grid-cols-2 gap-3">
@@ -290,6 +327,11 @@ export function ProjectWizard() {
                   { label: 'Срок кредита', value: `${params.capex_loan_term_years} лет` },
                   { label: 'Льготный период', value: `${params.capex_grace_period_years} года` },
                   { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}%` },
+                  { label: 'Приплод', value: `${params.calf_yield_pct}%` },
+                  { label: 'Падёж коров', value: `${params.cow_mortality_pct}%` },
+                  { label: 'Выбраковка коров', value: `${params.cow_culling_pct}%` },
+                  { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}%` },
+                  { label: 'Выбраковка быков', value: `${params.bull_culling_pct}%` },
                   { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет' },
                   { label: 'Оборотка', value: params.wc_loan_switch === 1 ? 'Да' : 'Нет' },
                 ].map(({ label, value }) => (
