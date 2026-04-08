@@ -76,7 +76,7 @@ def run_calculation(
         timeline, enriched, pnl, loans, capex, herd, wacc_rates
     )
 
-    return {
+    raw = {
         "timeline": timeline,
         "input": enriched,
         "herd": herd,
@@ -90,6 +90,22 @@ def run_calculation(
         "loans": loans,
         "cashflow": cashflow,
     }
+
+    return _sanitize(raw)
+
+
+def _sanitize(obj):
+    """Recursively replace NaN/Inf with None for JSON compliance."""
+    import math
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
 
 
 def _group_references(reference_data: list[dict]) -> dict[str, list[dict]]:
