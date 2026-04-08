@@ -152,7 +152,7 @@ export function SummaryTab() {
   }))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-4">
       {/* ========== TOP ROW: Primary KPI cards ========== */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiCard
@@ -200,12 +200,12 @@ export function SummaryTab() {
                     <linearGradient id="cashGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop
                         offset="5%"
-                        stopColor="hsl(var(--chart-1))"
+                        stopColor="hsl(var(--chart-2))"
                         stopOpacity={0.2}
                       />
                       <stop
                         offset="95%"
-                        stopColor="hsl(var(--chart-1))"
+                        stopColor="hsl(var(--chart-2))"
                         stopOpacity={0}
                       />
                     </linearGradient>
@@ -237,7 +237,7 @@ export function SummaryTab() {
                   <Area
                     type="monotone"
                     dataKey="balance"
-                    stroke="hsl(var(--chart-1))"
+                    stroke="hsl(var(--chart-2))"
                     fill="url(#cashGrad)"
                     strokeWidth={2}
                   />
@@ -285,11 +285,13 @@ export function SummaryTab() {
                   />
                   <Bar
                     dataKey="revenue"
-                    fill="hsl(var(--chart-2))"
+                    name="Выручка"
+                    fill="hsl(var(--chart-1))"
                     radius={[3, 3, 0, 0]}
                   />
                   <Bar
                     dataKey="profit"
+                    name="Чистая прибыль"
                     fill="hsl(var(--chart-3))"
                     radius={[3, 3, 0, 0]}
                   />
