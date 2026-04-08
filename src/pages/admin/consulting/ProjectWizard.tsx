@@ -393,15 +393,9 @@ export function ProjectWizard() {
           )}
 
         </CardContent>
-      </Card>
 
-      {/* Spacer so content doesn't hide behind fixed nav */}
-      <div className="h-20" />
-      </div>
-
-      {/* Fixed bottom navigation */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-[var(--bg)] px-4 py-3">
-        <div className="mx-auto flex max-w-2xl justify-between">
+        {/* Navigation inside card footer */}
+        <div className="flex items-center justify-between border-t px-6 py-4">
           <Button
             variant="outline"
             onClick={() => setStep(s => Math.max(0, s - 1))}
@@ -425,6 +419,8 @@ export function ProjectWizard() {
             </Button>
           )}
         </div>
+      </Card>
+
       </div>
     </div>
   )
