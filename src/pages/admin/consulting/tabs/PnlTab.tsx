@@ -111,13 +111,13 @@ export function PnlTab() {
                 formatter={(value: number) => fmt(value, 0)}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="revenue" name="Выручка" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="costs" name="Расходы" fill="hsl(var(--chart-4))" radius={[0, 0, 4, 4]} />
+              <Bar dataKey="revenue" name="Выручка" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="costs" name="Расходы" fill="var(--chart-4)" radius={[0, 0, 4, 4]} />
               <Line
                 type="monotone"
                 dataKey="netProfit"
                 name="Чистая прибыль"
-                stroke="hsl(var(--chart-1))"
+                stroke="var(--chart-1)"
                 strokeWidth={2}
                 dot={{ r: 4 }}
               />

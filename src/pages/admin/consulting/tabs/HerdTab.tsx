@@ -213,20 +213,20 @@ export function HerdTab() {
             <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
               <defs>
                 <linearGradient id="gradCows" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradBulls" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradHeifers" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradSteers" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--chart-4)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--chart-4)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
@@ -259,7 +259,7 @@ export function HerdTab() {
                 dataKey="cows"
                 name="Маточное"
                 stackId="1"
-                stroke="hsl(var(--chart-1))"
+                stroke="var(--chart-1)"
                 fill="url(#gradCows)"
               />
               <Area
@@ -267,7 +267,7 @@ export function HerdTab() {
                 dataKey="bulls"
                 name="Быки"
                 stackId="1"
-                stroke="hsl(var(--chart-2))"
+                stroke="var(--chart-2)"
                 fill="url(#gradBulls)"
               />
               <Area
@@ -275,7 +275,7 @@ export function HerdTab() {
                 dataKey="heifers"
                 name="Тёлки"
                 stackId="1"
-                stroke="hsl(var(--chart-3))"
+                stroke="var(--chart-3)"
                 fill="url(#gradHeifers)"
               />
               <Area
@@ -283,7 +283,7 @@ export function HerdTab() {
                 dataKey="steers"
                 name="Бычки"
                 stackId="1"
-                stroke="hsl(var(--chart-4))"
+                stroke="var(--chart-4)"
                 fill="url(#gradSteers)"
               />
             </AreaChart>
