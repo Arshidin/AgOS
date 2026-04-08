@@ -54,8 +54,13 @@ import { OrgManagement } from '@/pages/admin/orgs/OrgManagement'
 import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
 import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
 import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
+import { ProjectPage } from '@/pages/admin/consulting/ProjectPage'
 import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
-import { ProjectResults } from '@/pages/admin/consulting/ProjectResults'
+import { SummaryTab } from '@/pages/admin/consulting/tabs/SummaryTab'
+import { HerdTab } from '@/pages/admin/consulting/tabs/HerdTab'
+import { PnlTab } from '@/pages/admin/consulting/tabs/PnlTab'
+import { CashFlowTab } from '@/pages/admin/consulting/tabs/CashFlowTab'
+import { CapexTab } from '@/pages/admin/consulting/tabs/CapexTab'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -137,8 +142,14 @@ function App() {
                 <Route path="regions" element={<RegionDirectory />} />
                 <Route path="settings" element={<SystemSettings />} />
                 <Route path="consulting" element={<ConsultingDashboard />} />
-                <Route path="consulting/new" element={<ProjectWizard />} />
-                <Route path="consulting/:projectId" element={<ProjectResults />} />
+                <Route path="consulting/:projectId" element={<ProjectPage />}>
+                  <Route path="edit" element={<ProjectWizard />} />
+                  <Route path="summary" element={<SummaryTab />} />
+                  <Route path="herd" element={<HerdTab />} />
+                  <Route path="pnl" element={<PnlTab />} />
+                  <Route path="cashflow" element={<CashFlowTab />} />
+                  <Route path="capex" element={<CapexTab />} />
+                </Route>
               </Route>
             </Route>
 

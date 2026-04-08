@@ -90,7 +90,7 @@ export function ConsultingDashboard() {
       toast.success('Проект создан')
       setShowCreate(false)
       setNewName('')
-      navigate(`/admin/consulting/${data}`)
+      navigate(`/admin/consulting/${data}/edit`)
     }
   }
 

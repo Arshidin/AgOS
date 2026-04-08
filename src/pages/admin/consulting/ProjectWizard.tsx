@@ -91,7 +91,7 @@ export function ProjectWizard() {
         },
       })
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
-      navigate(`/admin/consulting/${projectId}`)
+      navigate(`/admin/consulting/${projectId}/summary`)
     } catch (err: any) {
       toast.error(err.message || 'Ошибка расчёта')
     } finally {

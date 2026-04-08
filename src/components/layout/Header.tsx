@@ -18,7 +18,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin/users': 'Users',
   '/admin/knowledge': 'Knowledge',
   '/admin/consulting': 'Консалтинг',
-  '/admin/consulting/new': 'Новый проект',
 }
 
 function getPageTitle(pathname: string): string {
@@ -32,9 +31,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/admin/membership/')) {
     return 'Membership Decision'
   }
-  if (pathname.startsWith('/admin/consulting/') && pathname !== '/admin/consulting/new') {
-    return 'Результаты проекта'
-  }
+  // Consulting project pages use useSetTopbar — no fallback needed
 
   // Fallback: last segment, capitalized
   const segments = pathname.split('/').filter(Boolean)
