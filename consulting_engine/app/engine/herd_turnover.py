@@ -77,6 +77,7 @@ def calculate_herd_turnover(
     new_calves = [0.0] * n
     to_heifers = [0.0] * n
     to_steers = [0.0] * n
+    calves_mort = [0.0] * n
     calves_eop = [0.0] * n
     calves_avg = [0.0] * n
 
@@ -121,10 +122,14 @@ def calculate_herd_turnover(
         else:
             new_calves[t] = 0.0
 
-        calves_before = calves_bop[t] + new_calves[t]
-        to_heifers[t] = -calves_before * 0.5
-        to_steers[t] = -calves_before * 0.5
-        calves_eop[t] = 0.0
+        # Падёж телят (до распределения): 3% от приплода
+        calves_mort[t] = -(HEIFER_MORTALITY_MONTHLY * 12 * new_calves[t]) if new_calves[t] > 0 else 0.0
+        calves_after_mortality = calves_bop[t] + new_calves[t] + calves_mort[t]
+
+        # Распределение: 50/50 на тёлок и бычков (после падежа)
+        to_heifers[t] = -calves_after_mortality * 0.5
+        to_steers[t] = -calves_after_mortality * 0.5
+        calves_eop[t] = 0.0  # телята сразу распределяются
         calves_avg[t] = (calves_bop[t] + calves_eop[t]) / 2
 
         # === HEIFERS ===
@@ -304,6 +309,7 @@ def calculate_herd_turnover(
         "calves": {
             "bop": calves_bop,
             "born": [float(c) for c in new_calves],
+            "mortality": calves_mort,
             "to_heifers": to_heifers,
             "to_steers": to_steers,
             "eop": calves_eop,
