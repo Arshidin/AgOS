@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Calculator, TrendingUp, BarChart3, DollarSign, Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
@@ -45,9 +44,10 @@ function SummaryCard({ label, value, suffix }: { label: string; value: string; s
   )
 }
 
-function MonthlyTable({ title, data, groups }: { title: string; data: any; groups: string[] }) {
+function MonthlyTable({ data, groups }: { data: any; groups: string[] }) {
   if (!data) return null
-  const months = Math.min(24, data[groups[0]]?.length || 0)
+  const firstGroup = groups[0]
+  const months = Math.min(24, firstGroup ? (data[firstGroup]?.length || 0) : 0)
   if (months === 0) return <p className="text-sm text-[var(--color-text-muted)]">Нет данных</p>
 
   return (
@@ -215,7 +215,7 @@ export function ProjectResults() {
               <CardHeader><CardTitle>Оборот стада (помесячно)</CardTitle></CardHeader>
               <CardContent>
                 <MonthlyTable
-                  title="Поголовье к.п."
+
                   data={{
                     'Коровы': results.herd?.cows?.eop,
                     'Быки': results.herd?.bulls?.eop,
@@ -236,7 +236,7 @@ export function ProjectResults() {
               <CardHeader><CardTitle>Отчёт о прибылях и убытках</CardTitle></CardHeader>
               <CardContent>
                 <MonthlyTable
-                  title="P&L"
+
                   data={{
                     'Выручка': results.revenue?.total_revenue,
                     'Себестоимость': results.opex?.total_cogs,
@@ -256,7 +256,7 @@ export function ProjectResults() {
               <CardHeader><CardTitle>Движение денежных средств</CardTitle></CardHeader>
               <CardContent>
                 <MonthlyTable
-                  title="Cash Flow"
+
                   data={{
                     'Операционная': results.cashflow?.cf_operations,
                     'Инвестиционная': results.cashflow?.cf_investing,

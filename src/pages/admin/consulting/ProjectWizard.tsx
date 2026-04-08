@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -126,14 +126,14 @@ export function ProjectWizard() {
             Параметры проекта
           </h1>
           <p className="text-sm text-[var(--color-text-muted)]">
-            Шаг {step + 1} из {STEPS.length}: {STEPS[step].title}
+            Шаг {step + 1} из {STEPS.length}: {STEPS[step]?.title}
           </p>
         </div>
       </div>
 
       {/* Step indicator */}
       <div className="flex gap-1">
-        {STEPS.map((s, i) => (
+        {STEPS.map((_, i) => (
           <div
             key={i}
             className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -146,8 +146,8 @@ export function ProjectWizard() {
       {/* Step content */}
       <Card>
         <CardHeader>
-          <CardTitle>{STEPS[step].title}</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">{STEPS[step].desc}</p>
+          <CardTitle>{STEPS[step]?.title}</CardTitle>
+          <p className="text-sm text-[var(--color-text-secondary)]">{STEPS[step]?.desc}</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 0 && (
