@@ -53,6 +53,9 @@ import { RoleAssignment } from '@/pages/admin/roles/RoleAssignment'
 import { OrgManagement } from '@/pages/admin/orgs/OrgManagement'
 import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
 import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
+import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
+import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
+import { ProjectResults } from '@/pages/admin/consulting/ProjectResults'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -133,6 +136,9 @@ function App() {
                 <Route path="orgs" element={<OrgManagement />} />
                 <Route path="regions" element={<RegionDirectory />} />
                 <Route path="settings" element={<SystemSettings />} />
+                <Route path="consulting" element={<ConsultingDashboard />} />
+                <Route path="consulting/new" element={<ProjectWizard />} />
+                <Route path="consulting/:projectId" element={<ProjectResults />} />
               </Route>
             </Route>
 

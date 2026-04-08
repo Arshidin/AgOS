@@ -2655,3 +2655,181 @@ insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
 values ('rpc_link_vet_case_conversation', null, 'd04_vet.sql (Fix H-1)', 'Link vet case to AI conversation')
 on conflict (sql_name) do update set notes = excluded.notes;
 
+
+-- ============================================================
+-- READ RPCs for Expert Console (M-series UI screens)
+-- Replaces direct .from() table queries — UI MUST use supabase.rpc()
+-- ============================================================
+
+-- READ-M03: rpc_list_vaccination_plans
+-- M03 — Планы вакцинации: список всех планов, видимых эксперту (RLS)
+create or replace function public.rpc_list_vaccination_plans(
+    p_organization_id uuid   -- expert's association org (context/audit; RLS filters visibility)
+)
+returns table (
+    id              uuid,
+    name            text,
+    plan_year       int,
+    status          text,
+    farm_id         uuid,
+    organization_id uuid,
+    created_at      timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not fn_is_expert() and not fn_is_admin() then
+        raise exception 'EXPERT_REQUIRED' using errcode = 'P0001';
+    end if;
+    return query
+    select vp.id, vp.name, vp.plan_year, vp.status,
+           vp.farm_id, vp.organization_id, vp.created_at
+    from   public.vaccination_plans vp
+    order  by vp.created_at desc
+    limit  50;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_list_vaccination_plans', null, 'd04_vet.sql (Read RPCs)', 'M03: list vaccination plans for expert console')
+on conflict (sql_name) do update set notes = excluded.notes;
+
+
+-- READ-M04a: rpc_list_vaccination_plan_items
+-- M04 — items pending action for a given plan
+create or replace function public.rpc_list_vaccination_plan_items(
+    p_organization_id       uuid,
+    p_vaccination_plan_id   uuid
+)
+returns table (
+    id                      uuid,
+    scheduled_date          date,
+    head_count_planned      int,
+    status                  text,
+    dose_number             int,
+    herd_group_id           uuid
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not fn_is_expert() and not fn_is_admin() then
+        raise exception 'EXPERT_REQUIRED' using errcode = 'P0001';
+    end if;
+    return query
+    select vpi.id, vpi.scheduled_date, vpi.head_count_planned,
+           vpi.status, vpi.dose_number, vpi.herd_group_id
+    from   public.vaccination_plan_items vpi
+    where  vpi.vaccination_plan_id = p_vaccination_plan_id
+      and  vpi.status in ('scheduled', 'reminded', 'overdue')
+    order  by vpi.scheduled_date;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_list_vaccination_plan_items', null, 'd04_vet.sql (Read RPCs)', 'M04: list pending items for a vaccination plan')
+on conflict (sql_name) do update set notes = excluded.notes;
+
+
+-- READ-M04b: rpc_list_vaccines
+-- M04 — dropdown: active vaccines from vet_products
+create or replace function public.rpc_list_vaccines(
+    p_organization_id uuid   -- context; vet_products is a reference table (no org filter)
+)
+returns table (
+    id      uuid,
+    name_ru text
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    return query
+    select vp.id, vp.name_ru
+    from   public.vet_products vp
+    where  vp.product_type = 'vaccine'
+      and  vp.is_active = true
+    order  by vp.name_ru;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_list_vaccines', null, 'd04_vet.sql (Read RPCs)', 'M04: list active vaccines for vaccination form')
+on conflict (sql_name) do update set notes = excluded.notes;
+
+
+-- READ-M05: rpc_list_epidemic_signals
+-- M05 — Эпидемиологические сигналы: последние 30 сигналов
+create or replace function public.rpc_list_epidemic_signals(
+    p_organization_id uuid   -- expert's association org (context/audit)
+)
+returns table (
+    id               uuid,
+    severity         text,
+    status           text,
+    case_count       int,
+    time_window_days int,
+    detected_at      timestamptz,
+    notes            text
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not fn_is_expert() and not fn_is_admin() then
+        raise exception 'EXPERT_REQUIRED' using errcode = 'P0001';
+    end if;
+    return query
+    select es.id, es.severity, es.status, es.case_count,
+           es.time_window_days, es.detected_at, es.notes
+    from   public.epidemic_signals es
+    order  by es.detected_at desc
+    limit  30;
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_list_epidemic_signals', null, 'd04_vet.sql (Read RPCs)', 'M05: list recent epidemic signals for expert console')
+on conflict (sql_name) do update set notes = excluded.notes;
+
+
+-- READ-M06: rpc_get_expert_kpi
+-- M06 — KPI эксперта: total_consultations + avg_response_minutes из expert_profiles
+create or replace function public.rpc_get_expert_kpi(
+    p_organization_id uuid   -- context
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_result jsonb;
+begin
+    if not fn_is_expert() and not fn_is_admin() then
+        raise exception 'EXPERT_REQUIRED' using errcode = 'P0001';
+    end if;
+    select jsonb_build_object(
+        'total_consultations',  coalesce(ep.total_consultations, 0),
+        'avg_response_minutes', ep.avg_response_minutes
+    )
+    into v_result
+    from public.expert_profiles ep
+    where ep.user_id = auth.uid()
+    limit 1;
+    return coalesce(v_result, jsonb_build_object(
+        'total_consultations', 0,
+        'avg_response_minutes', null
+    ));
+end;
+$$;
+
+insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
+values ('rpc_get_expert_kpi', null, 'd04_vet.sql (Read RPCs)', 'M06: expert KPI stats — consultations + avg response time')
+on conflict (sql_name) do update set notes = excluded.notes;
+

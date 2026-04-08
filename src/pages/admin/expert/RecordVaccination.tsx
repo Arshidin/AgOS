@@ -1,24 +1,26 @@
 /**
  * M04 — Запись вакцинации
  * Dok 6 Slice 6a: /admin/expert/vaccination/:planId/record
- * RPC: rpc_record_vaccination (RPC-31)
+ * RPCs: rpc_list_vaccination_plan_items, rpc_list_vaccines, rpc_record_vaccination (RPC-31)
  */
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 import { useExpertGuard } from '@/hooks/useExpertGuard'
-import { useRpcMutation } from '@/hooks/useRpc'
-import { supabase } from '@/lib/supabase'
+import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 
 interface PlanItem {
   id: string; scheduled_date: string; head_count_planned: number
   status: string; dose_number: number; herd_group_id: string
+}
+
+interface VetProduct {
+  id: string; name_ru: string
 }
 
 export function RecordVaccination() {
@@ -26,27 +28,23 @@ export function RecordVaccination() {
   const navigate = useNavigate()
   const { planId } = useParams()
   const { organization } = useAuth()
-  const [items, setItems] = useState<PlanItem[]>([])
+
   const [selectedItem, setSelectedItem] = useState<string>('')
   const [vetProductId, setVetProductId] = useState<string>('')
-  const [vetProducts, setVetProducts] = useState<Array<{id: string; name_ru: string}>>([])
   const [heads, setHeads] = useState('')
   const [batchNum, setBatchNum] = useState('')
-  const [, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!planId) return
-    supabase.from('vaccination_plan_items').select('*')
-      .eq('vaccination_plan_id', planId).in('status', ['scheduled', 'reminded', 'overdue'])
-      .order('scheduled_date')
-      .then(({ data }) => { setItems(data || []); setLoading(false) })
-  }, [planId])
+  const { data: items = [], isLoading: itemsLoading } = useRpc<PlanItem[]>(
+    'rpc_list_vaccination_plan_items',
+    { p_organization_id: organization?.id, p_vaccination_plan_id: planId },
+    { enabled: !!organization?.id && !!planId && isExpert }
+  )
 
-  useEffect(() => {
-    supabase.from('vet_products').select('id, name_ru')
-      .eq('product_type', 'vaccine').eq('is_active', true)
-      .then(({ data }) => { setVetProducts(data || []) })
-  }, [])
+  const { data: vetProducts = [] } = useRpc<VetProduct[]>(
+    'rpc_list_vaccines',
+    { p_organization_id: organization?.id },
+    { enabled: !!organization?.id && isExpert }
+  )
 
   const recordMutation = useRpcMutation('rpc_record_vaccination', {
     successMessage: 'Вакцинация записана',
@@ -63,7 +61,7 @@ export function RecordVaccination() {
         <h1 className="text-2xl font-semibold">Запись вакцинации</h1>
       </div>
 
-      {items.length === 0 ? (
+      {!itemsLoading && items.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">Нет пунктов для записи</CardContent></Card>
       ) : (
         <Card>

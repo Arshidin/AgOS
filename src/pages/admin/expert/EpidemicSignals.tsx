@@ -1,14 +1,15 @@
 /**
  * M05 — Эпидемиологические сигналы
  * Dok 6 Slice 6a: /admin/expert/epidemic
- * D-S6-1: .from() with expert RLS.
+ * RPC: rpc_list_epidemic_signals
  */
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useExpertGuard } from '@/hooks/useExpertGuard'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useRpc } from '@/hooks/useRpc'
 
 interface Signal {
   id: string; severity: string; status: string; case_count: number
@@ -24,13 +25,13 @@ const SEV_STYLES: Record<string, React.CSSProperties> = {
 
 export function EpidemicSignals() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
-  const [signals, setSignals] = useState<Signal[]>([])
-  const [loading, setLoading] = useState(true)
+  const { organization } = useAuth()
 
-  useEffect(() => {
-    supabase.from('epidemic_signals').select('*').order('detected_at', { ascending: false }).limit(30)
-      .then(({ data }) => { setSignals(data || []); setLoading(false) })
-  }, [])
+  const { data: signals = [], isLoading: loading } = useRpc<Signal[]>(
+    'rpc_list_epidemic_signals',
+    { p_organization_id: organization?.id },
+    { enabled: !!organization?.id && isExpert }
+  )
 
   if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null

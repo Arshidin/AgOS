@@ -47,6 +47,9 @@
 | D-LEGAL-1 | 2026-04-01 | Legal | Slice 5 Market: build without legal gate (CEO decision). Legal review before public launch. |
 | D-GATE-S5a | 2026-04-01 | Gate | Slice 5a QA pass. 3 RPCs + 9 tools + 4 screens. Disclaimer in all price responses. |
 | D-GATE-S5b | 2026-04-01 | Gate | Slice 5b QA pass + Architect sign-off. 7 RPCs. DEF-021..026 found and resolved. 0 critical at gate. |
+| D-DOC-1 | 2026-04-08 | Documentation | Doc audit: CLAUDE.md outdated state fixed, Dok 6 refs updated to slice files, Docs/CLAUDE.md deleted (P4), SPRINT_STATUS updated with Slice 5. |
+| D-S6a-FIX-1 | 2026-04-08 | SQL/UI | Expert screens: прямые `.from()` на M03/M04/M05/M06 заменяются READ-RPCs (`rpc_list_vaccination_plans`, `rpc_list_vaccination_plan_items`, `rpc_list_vaccines`, read RPCs для epidemic/kpi). Реализуется в d04_vet.sql + экраны. Статус: в работе (unstaged). |
+| ADR-CONSULT-1 | 2026-04-08 | Architecture | Consulting module: Hybrid architecture — Python Engine standalone (Railway), DB + UI inside AGOS (Supabase + React). New d09_consulting.sql, 8 RPCs, 3 tables. |
 
 ---
 
@@ -676,3 +679,38 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 
 **WHAT:** Slice 5b Market Admin deployed. 7 RPCs + 3 screens.
 D-S5-4: A12/13/14 merged into Pool Detail lifecycle screen.
+
+---
+
+### ADR-CONSULT-1 — Consulting Module: Hybrid Architecture
+
+**Date:** 2026-04-08
+**Domain:** Architecture
+
+**WHAT:** New consulting module for investment project packaging (Zengi Farms).
+Architecture: Hybrid — Python calculation engine as standalone FastAPI on Railway,
+database (d09_consulting.sql) and UI within existing AGOS Supabase + React.
+
+**WHY:** Python engine needs numpy/pandas/numpy-financial (can't run in Supabase Edge Functions).
+UI and data should live inside AGOS for unified UX and standard RLS/audit/event patterns.
+AI Gateway on Railway already proves this pattern works.
+
+**Alternatives considered:**
+1. Fully standalone (Next.js + FastAPI + Docker Compose) — rejected: duplicate auth, separate UI, maintenance burden
+2. Fully inside AGOS (Edge Function for calculation) — rejected: Edge Functions can't run numpy/pandas, 2-10s calculation time exceeds limits
+3. Hybrid (chosen): best of both worlds
+
+**CONSEQUENCES:**
+- Easy: standard AGOS patterns (RPC, RLS, events) work for data layer
+- Easy: single auth flow (Supabase JWT) for both AGOS and engine
+- Easy: unified UI in existing React app
+- Hard: two Railway services to maintain (AI Gateway + Consulting Engine)
+- Hard: CORS and JWT verification in engine
+- New: d09_consulting.sql (3 tables, 8 RPCs), consulting_engine/ directory
+
+**Deliverables:**
+- `d09_consulting.sql`: consulting_projects, consulting_project_versions, consulting_reference_data
+- `consulting_engine/`: FastAPI + 11 calculation modules (timeline through NPV/IRR)
+- `src/pages/admin/consulting/`: 3 UI pages (Dashboard, Wizard, Results)
+- 8 RPCs: RPC-C01..C08
+- Events: consulting.project.created, consulting.version.created, consulting.project.calculated

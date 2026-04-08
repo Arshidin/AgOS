@@ -1,9 +1,8 @@
 /**
  * M03 — Планы вакцинации
  * Dok 6 Slice 6a: /admin/expert/vaccination
- * D-S6-1: .from() with expert RLS. RPC-29 for creation.
+ * RPC: rpc_list_vaccination_plans (READ), rpc_create_vaccination_plan (RPC-29)
  */
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,7 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useExpertGuard } from '@/hooks/useExpertGuard'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useRpc } from '@/hooks/useRpc'
 
 interface VacPlan {
   id: string; name: string; plan_year: number; status: string
@@ -25,13 +25,13 @@ const STATUS_LABELS: Record<string, string> = {
 export function VaccinationPlans() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
-  const [plans, setPlans] = useState<VacPlan[]>([])
-  const [loading, setLoading] = useState(true)
+  const { organization } = useAuth()
 
-  useEffect(() => {
-    supabase.from('vaccination_plans').select('*').order('created_at', { ascending: false }).limit(50)
-      .then(({ data }) => { setPlans(data || []); setLoading(false) })
-  }, [])
+  const { data: plans = [], isLoading: loading } = useRpc<VacPlan[]>(
+    'rpc_list_vaccination_plans',
+    { p_organization_id: organization?.id },
+    { enabled: !!organization?.id && isExpert }
+  )
 
   if (expertChecking) return <div className="page">Проверка доступа...</div>
   if (!isExpert) return null

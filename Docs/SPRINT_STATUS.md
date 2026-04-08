@@ -1,6 +1,6 @@
 # AGOS Sprint Status
 
-> Last updated: 2026-04-01 by Architect (post-audit)
+> Last updated: 2026-04-08 by Architect (documentation audit)
 
 ---
 
@@ -14,6 +14,8 @@
 | Slice 3 — Feed Planning | D-GATE-S3 | 2026-03-30 |
 | Slice 4 — Operations | D-GATE-S4 | 2026-03-30 |
 | Slice 6a — Expert Console | D-GATE-S6a | 2026-03-31 |
+| Slice 5a — Market Farmer | D-GATE-S5a | 2026-04-01 |
+| Slice 5b — Market Admin | D-GATE-S5b | 2026-04-01 |
 
 ## Deployed Infrastructure
 
@@ -24,12 +26,12 @@
 | Supabase | mwtbozflyldcadypherr (ap-south-1) |
 | Edge Functions | calculate-ration, get-feed-budget (ACTIVE) |
 
-## Screens (28 total)
+## Screens (40 total)
 
 | Series | Count | Screens |
 |--------|-------|---------|
-| Farmer (F) | 16 | F01-F04, F10-F12, F15-F23 |
-| Admin (A) | 6 | A01-A05, AdminDashboard |
+| Farmer (F) | 20 | F01-F04, F05-F08, F10-F12, F15-F23 |
+| Admin (A) | 14 | A01-A05, AdminDashboard + PoolQueue, PoolDetail, PriceGridManagement, UserManagement, RoleAssignment, OrgManagement, RegionDirectory, SystemSettings |
 | Expert (M) | 6 | M01-M06 |
 
 ## RPCs Deployed (26+)
@@ -38,15 +40,23 @@ Slice 1: RPC-01,02,04,05/05b,25,26,27,40 + AI-01..23
 Slice 2: RPC-03, rpc_get_membership_queue
 Slice 3: RPC-07,08,21-24
 Slice 4: RPC-37
+Slice 5a: RPC-11..13 + 3 price/sku RPCs + AI-16..21 market tools (3 RPCs, 9 AI tools, 4 screens)
+Slice 5b: RPC-14..20 + pool/pricing management (7 RPCs, DEF-021..026 resolved)
 Slice 6a: RPC-28,29,31,32,44,45 + rpc_activate_vaccination_plan
+In progress: rpc_list_vaccination_plans, rpc_list_vaccination_plan_items, rpc_list_vaccines (READ-RPCs, d04)
 
-## Blocked
+## Blocked / Deferred
 
-| Slice | Blocker |
-|-------|---------|
-| Slice 5 (Market) | Legal gate (Article 171) |
-| Slice 6b (Admin A06-A10) | Low priority |
-| Slice 7 (Education) | Ready |
+| Slice | Status | Note |
+|-------|--------|------|
+| Slice 6b (Admin A06-A10) | DEFERRED | Low priority; after farmer feedback (D-S6-3) |
+| Slice 7 (Education) | READY | Next slice to implement |
+
+## In Progress (unstaged changes)
+
+| What | Files | Status |
+|------|-------|--------|
+| READ-RPCs для expert screens (замена прямых .from() запросов) | `d04_vet.sql` (+178 строк), `EpidemicSignals.tsx`, `ExpertKpi.tsx`, `RecordVaccination.tsx`, `VaccinationPlans.tsx`, `Sidebar.tsx`, `AdminDashboard.tsx` | Не закоммичены |
 
 ## Open Tech Debt
 

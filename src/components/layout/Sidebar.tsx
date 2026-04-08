@@ -28,6 +28,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Briefcase,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -64,41 +65,42 @@ interface NavItem {
 }
 
 const FARMER_NAV: NavItem[] = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/cabinet' },
-  { id: 'farm', icon: Leaf, label: 'Farm', route: '/cabinet/farm' },
-  { id: 'herd', icon: Fence, label: 'Herd', route: '/cabinet/herd' },
-  { id: 'vet', icon: Stethoscope, label: 'Vet', route: '/cabinet/vet' },
-  { id: 'feed', icon: Wheat, label: 'Feed', route: '/cabinet/feed' },
-  { id: 'ration', icon: Calculator, label: 'Ration', route: '/cabinet/ration' },
-  { id: 'plan', icon: ClipboardList, label: 'Plan', route: '/cabinet/plan' },
-  { id: 'market', icon: ShoppingCart, label: 'Market', route: '/cabinet/market' },
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Главная', route: '/cabinet' },
+  { id: 'farm', icon: Leaf, label: 'Ферма', route: '/cabinet/farm' },
+  { id: 'herd', icon: Fence, label: 'Стадо', route: '/cabinet/herd' },
+  { id: 'vet', icon: Stethoscope, label: 'Ветеринария', route: '/cabinet/vet' },
+  { id: 'feed', icon: Wheat, label: 'Корма', route: '/cabinet/feed' },
+  { id: 'ration', icon: Calculator, label: 'Рацион', route: '/cabinet/ration' },
+  { id: 'plan', icon: ClipboardList, label: 'Планирование', route: '/cabinet/plan' },
+  { id: 'market', icon: ShoppingCart, label: 'Рынок', route: '/cabinet/market' },
 ]
 
 const EXPERT_NAV: NavItem[] = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/admin' },
-  { id: 'vet-queue', icon: Stethoscope, label: 'Vet Cases', route: '/admin/expert/queue' },
-  { id: 'vaccination', icon: Syringe, label: 'Vaccination', route: '/admin/expert/vaccination' },
-  { id: 'epidemic', icon: Activity, label: 'Epidemic', route: '/admin/expert/epidemic' },
-  { id: 'expert-kpi', icon: BarChart3, label: 'Expert KPI', route: '/admin/expert/kpi' },
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Главная', route: '/admin' },
+  { id: 'vet-queue', icon: Stethoscope, label: 'Вет. кейсы', route: '/admin/expert/queue' },
+  { id: 'vaccination', icon: Syringe, label: 'Вакцинация', route: '/admin/expert/vaccination' },
+  { id: 'epidemic', icon: Activity, label: 'Эпидемиология', route: '/admin/expert/epidemic' },
+  { id: 'expert-kpi', icon: BarChart3, label: 'Мои показатели', route: '/admin/expert/kpi' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', route: '/admin' },
-  { id: 'membership', icon: Users, label: 'Membership', route: '/admin/membership' },
-  { id: 'vet-queue', icon: Stethoscope, label: 'Vet Cases', route: '/admin/expert/queue' },
-  { id: 'vaccination', icon: Syringe, label: 'Vaccination', route: '/admin/expert/vaccination' },
-  { id: 'epidemic', icon: Activity, label: 'Epidemic', route: '/admin/expert/epidemic' },
-  { id: 'expert-kpi', icon: BarChart3, label: 'Expert KPI', route: '/admin/expert/kpi' },
-  { id: 'knowledge', icon: BookOpen, label: 'Knowledge', route: '/admin/knowledge' },
-  { id: 'restrictions', icon: Shield, label: 'Restrictions', route: '/admin/restrictions' },
-  { id: 'audit', icon: FileText, label: 'Audit', route: '/admin/audit' },
-  { id: 'pools', icon: Package, label: 'Pools', route: '/admin/pools' },
-  { id: 'pricing', icon: DollarSign, label: 'Pricing', route: '/admin/pricing' },
-  { id: 'users', icon: UserCog, label: 'Users', route: '/admin/users' },
-  { id: 'roles', icon: Users, label: 'Roles', route: '/admin/roles' },
-  { id: 'orgs', icon: Building2, label: 'Orgs', route: '/admin/orgs' },
-  { id: 'regions', icon: MapPin, label: 'Regions', route: '/admin/regions' },
-  { id: 'settings', icon: Settings, label: 'Settings', route: '/admin/settings' },
+  { id: 'dashboard', icon: LayoutDashboard, label: 'Главная', route: '/admin' },
+  { id: 'membership', icon: Users, label: 'Членство', route: '/admin/membership' },
+  { id: 'vet-queue', icon: Stethoscope, label: 'Вет. кейсы', route: '/admin/expert/queue' },
+  { id: 'vaccination', icon: Syringe, label: 'Вакцинация', route: '/admin/expert/vaccination' },
+  { id: 'epidemic', icon: Activity, label: 'Эпидемиология', route: '/admin/expert/epidemic' },
+  { id: 'expert-kpi', icon: BarChart3, label: 'KPI эксперта', route: '/admin/expert/kpi' },
+  { id: 'knowledge', icon: BookOpen, label: 'База знаний', route: '/admin/knowledge' },
+  { id: 'restrictions', icon: Shield, label: 'Ограничения', route: '/admin/restrictions' },
+  { id: 'audit', icon: FileText, label: 'Аудит', route: '/admin/audit' },
+  { id: 'pools', icon: Package, label: 'Пулы', route: '/admin/pools' },
+  { id: 'pricing', icon: DollarSign, label: 'Цены', route: '/admin/pricing' },
+  { id: 'users', icon: UserCog, label: 'Пользователи', route: '/admin/users' },
+  { id: 'roles', icon: Users, label: 'Роли', route: '/admin/roles' },
+  { id: 'orgs', icon: Building2, label: 'Организации', route: '/admin/orgs' },
+  { id: 'regions', icon: MapPin, label: 'Регионы', route: '/admin/regions' },
+  { id: 'settings', icon: Settings, label: 'Настройки', route: '/admin/settings' },
+  { id: 'consulting', icon: Briefcase, label: 'Консалтинг', route: '/admin/consulting' },
 ]
 
 /* ---- Icon button helper ---- */
