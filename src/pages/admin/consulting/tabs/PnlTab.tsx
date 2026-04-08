@@ -1,6 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 function toAnnual(arr: number[] | undefined, mode: 'sum' | 'last' = 'sum'): number[] {
   if (!arr || arr.length === 0) return []
@@ -39,6 +50,23 @@ export function PnlTab() {
   const years = Math.min(10, Math.ceil((pnl.net_profit?.length || 0) / 12))
   if (years === 0) return <p className="page text-muted-foreground">Нет данных P&L.</p>
 
+  // ============================================================
+  // CHART DATA
+  // ============================================================
+  const annualRevenue = toAnnual(revenue.total_revenue)
+  const annualCosts = toAnnual(opex.total_cogs)
+  const annualNetProfit = toAnnual(pnl.net_profit)
+
+  const chartData = Array.from({ length: years }, (_, i) => ({
+    year: `Год ${i + 1}`,
+    revenue: annualRevenue[i] ?? 0,
+    costs: -(Math.abs(annualCosts[i] ?? 0)),
+    netProfit: annualNetProfit[i] ?? 0,
+  }))
+
+  // ============================================================
+  // TABLE ROWS
+  // ============================================================
   const rows: PnlRow[] = [
     { label: 'Выручка от продажи КРС', values: toAnnual(revenue.livestock_revenue) },
     { label: 'Субсидии', values: toAnnual(revenue.subsidies) },
@@ -61,7 +89,44 @@ export function PnlTab() {
   ]
 
   return (
-    <div className="page">
+    <div className="page space-y-4">
+      {/* Revenue / Costs / Profit chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Выручка, расходы и прибыль</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} tickLine={false} className="text-muted-foreground" />
+              <YAxis tick={{ fontSize: 12 }} tickLine={false} className="text-muted-foreground" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: 12,
+                }}
+                formatter={(value: number) => fmt(value, 0)}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="revenue" name="Выручка" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="costs" name="Расходы" fill="hsl(var(--chart-4))" radius={[0, 0, 4, 4]} />
+              <Line
+                type="monotone"
+                dataKey="netProfit"
+                name="Чистая прибыль"
+                stroke="hsl(var(--chart-1))"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* P&L table */}
       <Card>
         <CardHeader><CardTitle>Отчёт о прибылях и убытках (тыс. тг)</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
@@ -91,7 +156,7 @@ export function PnlTab() {
                     ))}
                     {/* Pad missing years */}
                     {Array.from({ length: Math.max(0, years - (row.values?.length || 0)) }, (_, i) => (
-                      <td key={`pad-${i}`} className="px-3 py-2 text-right text-muted-foreground">—</td>
+                      <td key={`pad-${i}`} className="px-3 py-2 text-right text-muted-foreground">---</td>
                     ))}
                   </tr>
                 )

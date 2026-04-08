@@ -3,6 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 type ViewMode = 'annual' | 'monthly'
 
@@ -43,6 +53,18 @@ export function HerdTab() {
   const totalMonths = herd.cows?.eop?.length || 0
 
   if (totalMonths === 0) return <p className="page text-muted-foreground">Нет данных стада.</p>
+
+  // ============================================================
+  // CHART DATA
+  // ============================================================
+  const chartData = Array.from({ length: Math.min(totalMonths, 120) }, (_, i) => ({
+    month: i + 1,
+    label: (i + 1) % 12 === 0 ? `Г${Math.floor(i / 12) + 1}` : '',
+    cows: herd.cows?.eop?.[i] ?? 0,
+    bulls: herd.bulls?.eop?.[i] ?? 0,
+    heifers: herd.heifers?.eop?.[i] ?? 0,
+    steers: herd.steers?.eop?.[i] ?? 0,
+  }))
 
   // ============================================================
   // ANNUAL VIEW (calendar year)
@@ -181,6 +203,94 @@ export function HerdTab() {
 
   return (
     <div className="page space-y-4">
+      {/* Herd composition chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Динамика поголовья</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <defs>
+                <linearGradient id="gradCows" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradBulls" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradHeifers" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-3))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradSteers" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 12 }}
+                interval={11}
+                tickLine={false}
+                className="text-muted-foreground"
+              />
+              <YAxis tick={{ fontSize: 12 }} tickLine={false} className="text-muted-foreground" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: 12,
+                }}
+                labelFormatter={(_, payload) => {
+                  if (payload?.[0]?.payload) {
+                    const m = payload[0].payload.month
+                    return `Месяц ${m}`
+                  }
+                  return ''
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Area
+                type="monotone"
+                dataKey="cows"
+                name="Маточное"
+                stackId="1"
+                stroke="hsl(var(--chart-1))"
+                fill="url(#gradCows)"
+              />
+              <Area
+                type="monotone"
+                dataKey="bulls"
+                name="Быки"
+                stackId="1"
+                stroke="hsl(var(--chart-2))"
+                fill="url(#gradBulls)"
+              />
+              <Area
+                type="monotone"
+                dataKey="heifers"
+                name="Тёлки"
+                stackId="1"
+                stroke="hsl(var(--chart-3))"
+                fill="url(#gradHeifers)"
+              />
+              <Area
+                type="monotone"
+                dataKey="steers"
+                name="Бычки"
+                stackId="1"
+                stroke="hsl(var(--chart-4))"
+                fill="url(#gradSteers)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* View toggle */}
       <div className="flex gap-2">
         <Button size="sm" variant={view === 'annual' ? 'default' : 'outline'} onClick={() => setView('annual')}>

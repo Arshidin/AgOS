@@ -1,6 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts'
 
 function toAnnual(arr: number[] | undefined): number[] {
   if (!arr || arr.length === 0) return []
@@ -34,6 +44,12 @@ export function CashFlowTab() {
   const years = Math.min(10, Math.ceil((cf.cash_balance?.length || 0) / 12))
   if (years === 0) return <p className="page text-muted-foreground">Нет данных Cash Flow.</p>
 
+  const chartData = (cf.cash_balance || []).map((v: number, i: number) => ({
+    month: i + 1,
+    label: (i + 1) % 12 === 0 ? `Г${Math.floor(i / 12) + 1}` : '',
+    value: v ?? 0,
+  }))
+
   const rows = [
     { label: 'Операционная деятельность', values: toAnnual(cf.cf_operations), bold: true },
     { label: 'Инвестиционная деятельность', values: toAnnual(cf.cf_investing), bold: true },
@@ -44,6 +60,60 @@ export function CashFlowTab() {
 
   return (
     <div className="page space-y-4">
+      {/* Cash balance area chart */}
+      <Card>
+        <CardHeader><CardTitle>Динамика денежных средств</CardTitle></CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                interval={11}
+                className="fill-muted-foreground"
+              />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickLine={false}
+                tickFormatter={(v: number) => `${(v / 1000).toFixed(0)} тыс.`}
+                className="fill-muted-foreground"
+                width={80}
+              />
+              <Tooltip
+                formatter={(value: number) => [`${fmt(value, 0)} тг`, 'Баланс']}
+                labelFormatter={(_, payload) => {
+                  if (payload?.[0]) return `Месяц ${payload[0].payload.month}`
+                  return ''
+                }}
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+              />
+              <ReferenceLine y={0} stroke="#888" strokeDasharray="4 4" />
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(var(--chart-2))"
+                strokeWidth={2}
+                fill="url(#cashGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Existing cash flow table */}
       <Card>
         <CardHeader><CardTitle>Движение денежных средств (тыс. тг)</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">

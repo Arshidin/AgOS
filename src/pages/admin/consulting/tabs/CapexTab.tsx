@@ -1,6 +1,48 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
+
+const COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+]
+
+const RADIAN = Math.PI / 180
+function renderLabel({
+  cx,
+  cy,
+  midAngle,
+  innerRadius,
+  outerRadius,
+  percent,
+}: {
+  cx: number
+  cy: number
+  midAngle: number
+  innerRadius: number
+  outerRadius: number
+  percent: number
+}) {
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
+  if (percent < 0.03) return null
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={600}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
 
 export function CapexTab() {
   const { results, version, loading } = useProjectData()
@@ -14,8 +56,56 @@ export function CapexTab() {
     { key: 'tools', title: 'Инструменты' },
   ]
 
+  const pieData = [
+    { name: 'Ферма', value: results.capex?.farm?.total || 0, fill: COLORS[0] },
+    { name: 'Пастбища', value: results.capex?.pasture?.total || 0, fill: COLORS[1] },
+    { name: 'Техника', value: results.capex?.equipment?.total || 0, fill: COLORS[2] },
+    { name: 'Инструменты', value: results.capex?.tools?.total || 0, fill: COLORS[3] },
+  ].filter((d) => d.value > 0)
+
   return (
     <div className="page space-y-4">
+      {/* Pie chart: cost distribution */}
+      {pieData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Распределение капитальных затрат</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="45%"
+                  outerRadius={110}
+                  dataKey="value"
+                  labelLine={false}
+                  label={renderLabel}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => [`${fmt(value, 0)} тг`, '']}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 13 }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Existing capex tables */}
       {BLOCKS.map(({ key, title }) => {
         const data = results.capex?.[key]
         if (!data?.items?.length) return null
