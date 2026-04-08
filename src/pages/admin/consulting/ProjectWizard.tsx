@@ -1,11 +1,11 @@
 /**
  * ProjectWizard — 5-step parameter input for investment project
- * Route: /admin/consulting/new or /admin/consulting/:projectId (edit mode)
+ * Route: /admin/consulting/:projectId/edit
  * Calls: consulting engine POST /api/v1/calculate
  */
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Cow, Landmark, ToggleLeft, MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,34 +15,29 @@ import { calculateProject } from '@/lib/consulting-api'
 import { toast } from 'sonner'
 
 interface WizardParams {
-  // Step 1: Farm type
   initial_cows: number
   reproducer_capacity: number
   purchase_price_cow: number
   purchase_price_bull: number
-  // Step 2: Land & infrastructure
   pasture_norm_ha: number
   calving_scenario: string
-  // Step 3: Financing
-  equity_share: number
+  equity_share_pct: number      // stored as % (15), converted to 0.15 on submit
   capex_loan_term_years: number
   capex_grace_period_years: number
-  livestock_loan_rate: number
-  wc_loan_rate: number
-  // Step 4: Toggles
+  livestock_loan_rate_pct: number  // stored as % (5)
+  wc_loan_rate_pct: number         // stored as % (6)
   subsidy_switch: number
   wc_loan_switch: number
   bioasset_revaluation_switch: number
-  // Step 5: confirm
   project_start_date: string
 }
 
 const STEPS = [
-  { title: 'Тип фермы', desc: 'Поголовье и мощность' },
-  { title: 'Инфраструктура', desc: 'Земля и сценарий отёла' },
-  { title: 'Финансирование', desc: 'Условия кредитования' },
-  { title: 'Переключатели', desc: 'Субсидии и оборотка' },
-  { title: 'Подтверждение', desc: 'Проверка и запуск' },
+  { title: 'Тип фермы', desc: 'Поголовье и мощность', icon: Cow },
+  { title: 'Инфраструктура', desc: 'Земля и сценарий отёла', icon: MapPin },
+  { title: 'Финансирование', desc: 'Условия кредитования', icon: Landmark },
+  { title: 'Переключатели', desc: 'Субсидии и оборотка', icon: ToggleLeft },
+  { title: 'Подтверждение', desc: 'Проверка и запуск расчёта', icon: Check },
 ]
 
 const DEFAULT_PARAMS: WizardParams = {
@@ -52,15 +47,39 @@ const DEFAULT_PARAMS: WizardParams = {
   purchase_price_bull: 650_000,
   pasture_norm_ha: 10,
   calving_scenario: 'Зимний',
-  equity_share: 0.15,
+  equity_share_pct: 15,
   capex_loan_term_years: 10,
   capex_grace_period_years: 2,
-  livestock_loan_rate: 0.05,
-  wc_loan_rate: 0.06,
+  livestock_loan_rate_pct: 5,
+  wc_loan_rate_pct: 6,
   subsidy_switch: 1,
   wc_loan_switch: 1,
   bioasset_revaluation_switch: 1,
   project_start_date: '2026-08-31',
+}
+
+/** Field component defined OUTSIDE to prevent re-mount on every render */
+function WizardField({ label, value, onChange, type = 'number', suffix }: {
+  label: string
+  value: string | number
+  onChange: (v: string) => void
+  type?: string
+  suffix?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="font-mono"
+        />
+        {suffix && <span className="text-sm text-muted-foreground whitespace-nowrap">{suffix}</span>}
+      </div>
+    </div>
+  )
 }
 
 export function ProjectWizard() {
@@ -73,9 +92,12 @@ export function ProjectWizard() {
 
   const orgId = organization?.id
 
-  const update = (key: keyof WizardParams, value: string | number) => {
-    setParams(p => ({ ...p, [key]: value }))
-  }
+  const set = useCallback((key: keyof WizardParams, raw: string) => {
+    setParams(p => ({
+      ...p,
+      [key]: typeof p[key] === 'number' ? (Number(raw) || 0) : raw,
+    }))
+  }, [])
 
   const handleCalculate = async () => {
     if (!orgId || !projectId) return
@@ -86,6 +108,10 @@ export function ProjectWizard() {
         organization_id: orgId,
         input_params: {
           ...params,
+          // Convert % fields back to decimals
+          equity_share: params.equity_share_pct / 100,
+          livestock_loan_rate: params.livestock_loan_rate_pct / 100,
+          wc_loan_rate: params.wc_loan_rate_pct / 100,
           farm_type: 'beef_reproducer',
           bull_ratio: 1 / 15,
         },
@@ -99,37 +125,22 @@ export function ProjectWizard() {
     }
   }
 
-  const Field = ({ label, field, type = 'number', suffix }: { label: string; field: keyof WizardParams; type?: string; suffix?: string }) => (
-    <div className="space-y-1.5">
-      <Label className="text-sm">{label}</Label>
-      <div className="flex items-center gap-2">
-        <Input
-          type={type}
-          value={params[field]}
-          onChange={e => update(field, type === 'number' ? Number(e.target.value) : e.target.value)}
-          className="font-mono"
-        />
-        {suffix && <span className="text-sm text-[var(--color-text-muted)] whitespace-nowrap">{suffix}</span>}
-      </div>
-    </div>
-  )
+  const bulls = Math.ceil(params.initial_cows * (1 / 15))
+  const pasture = params.pasture_norm_ha * params.reproducer_capacity
+  const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
 
   return (
     <div className="page space-y-6">
       <div className="mx-auto max-w-2xl space-y-6">
 
-      {/* Progress */}
-      <p className="text-sm text-muted-foreground">
-        Шаг {step + 1} из {STEPS.length}: {STEPS[step]?.title}
-      </p>
-
       {/* Step indicator */}
       <div className="flex gap-1">
-        {STEPS.map((_, i) => (
-          <div
+        {STEPS.map((s, i) => (
+          <button
             key={i}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              i <= step ? 'bg-[var(--color-cta)]' : 'bg-[var(--color-border)]'
+            onClick={() => setStep(i)}
+            className={`flex h-1.5 flex-1 rounded-full transition-colors ${
+              i <= step ? 'bg-[var(--color-cta)]' : 'bg-border'
             }`}
           />
         ))}
@@ -138,22 +149,31 @@ export function ProjectWizard() {
       {/* Step content */}
       <Card>
         <CardHeader>
-          <CardTitle>{STEPS[step]?.title}</CardTitle>
-          <p className="text-sm text-[var(--color-text-secondary)]">{STEPS[step]?.desc}</p>
+          <CardTitle className="flex items-center gap-2">
+            {STEPS[step] && <STEPS[step].icon className="h-5 w-5 text-muted-foreground" />}
+            {STEPS[step]?.title}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">{STEPS[step]?.desc}</p>
         </CardHeader>
         <CardContent className="space-y-4">
+
+          {/* Step 1: Farm type */}
           {step === 0 && (
             <>
-              <Field label="Закуп маточного поголовья" field="initial_cows" suffix="голов" />
-              <Field label="Мощность репродуктора" field="reproducer_capacity" suffix="голов" />
-              <Field label="Цена 1 маточной головы" field="purchase_price_cow" suffix="тг" />
-              <Field label="Цена 1 быка-производителя" field="purchase_price_bull" suffix="тг" />
+              <WizardField label="Закуп маточного поголовья" value={params.initial_cows} onChange={v => set('initial_cows', v)} suffix="голов" />
+              <WizardField label="Мощность репродуктора" value={params.reproducer_capacity} onChange={v => set('reproducer_capacity', v)} suffix="голов" />
+              <WizardField label="Цена 1 маточной головы" value={params.purchase_price_cow} onChange={v => set('purchase_price_cow', v)} suffix="тг" />
+              <WizardField label="Цена 1 быка-производителя" value={params.purchase_price_bull} onChange={v => set('purchase_price_bull', v)} suffix="тг" />
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
+                Автоматически: {bulls} быков (1 на 15 коров) · Стоимость стада: {livestockCost.toLocaleString('ru-RU')} тыс. тг
+              </div>
             </>
           )}
 
+          {/* Step 2: Infrastructure */}
           {step === 1 && (
             <>
-              <Field label="Норма пастбищ на 1 голову" field="pasture_norm_ha" suffix="га" />
+              <WizardField label="Норма пастбищ на 1 голову" value={params.pasture_norm_ha} onChange={v => set('pasture_norm_ha', v)} suffix="га" />
               <div className="space-y-1.5">
                 <Label className="text-sm">Сценарий отёла</Label>
                 <div className="flex gap-3">
@@ -161,7 +181,7 @@ export function ProjectWizard() {
                     <Button
                       key={s}
                       variant={params.calving_scenario === s ? 'default' : 'outline'}
-                      onClick={() => update('calving_scenario', s)}
+                      onClick={() => set('calving_scenario', s)}
                       className="flex-1"
                     >
                       {s}
@@ -169,20 +189,25 @@ export function ProjectWizard() {
                   ))}
                 </div>
               </div>
-              <Field label="Дата старта проекта" field="project_start_date" type="date" />
+              <WizardField label="Дата старта проекта" value={params.project_start_date} onChange={v => set('project_start_date', v)} type="date" />
+              <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
+                Пастбища: {pasture.toLocaleString('ru-RU')} га · Первый отёл: месяц {params.calving_scenario === 'Зимний' ? 18 : 12}
+              </div>
             </>
           )}
 
+          {/* Step 3: Financing — now in % */}
           {step === 2 && (
             <>
-              <Field label="Доля собственного участия" field="equity_share" suffix="%" />
-              <Field label="Срок инвест. кредита" field="capex_loan_term_years" suffix="лет" />
-              <Field label="Льготный период" field="capex_grace_period_years" suffix="лет" />
-              <Field label="Ставка по закупу скота" field="livestock_loan_rate" suffix="%" />
-              <Field label="Ставка по оборотному" field="wc_loan_rate" suffix="%" />
+              <WizardField label="Доля собственного участия" value={params.equity_share_pct} onChange={v => set('equity_share_pct', v)} suffix="%" />
+              <WizardField label="Срок инвест. кредита" value={params.capex_loan_term_years} onChange={v => set('capex_loan_term_years', v)} suffix="лет" />
+              <WizardField label="Льготный период" value={params.capex_grace_period_years} onChange={v => set('capex_grace_period_years', v)} suffix="лет" />
+              <WizardField label="Ставка по закупу скота" value={params.livestock_loan_rate_pct} onChange={v => set('livestock_loan_rate_pct', v)} suffix="%" />
+              <WizardField label="Ставка по оборотному" value={params.wc_loan_rate_pct} onChange={v => set('wc_loan_rate_pct', v)} suffix="%" />
             </>
           )}
 
+          {/* Step 4: Toggles */}
           {step === 3 && (
             <>
               {[
@@ -190,10 +215,10 @@ export function ProjectWizard() {
                 { label: 'С займами на ПОС', field: 'wc_loan_switch' as const, desc: 'Привлечение оборотного капитала' },
                 { label: 'Без переоценки биоактивов', field: 'bioasset_revaluation_switch' as const, desc: 'Переоценка стоимости КРС на балансе' },
               ].map(({ label, field, desc }) => (
-                <div key={field} className="flex items-center justify-between rounded-lg border border-[var(--color-border)] p-4">
+                <div key={field} className="flex items-center justify-between rounded-lg border p-4">
                   <div>
-                    <p className="font-medium text-[var(--color-text-primary)]">{label}</p>
-                    <p className="text-sm text-[var(--color-text-muted)]">{desc}</p>
+                    <p className="font-medium">{label}</p>
+                    <p className="text-sm text-muted-foreground">{desc}</p>
                   </div>
                   <div className="flex gap-2">
                     {[{ v: 1, l: 'Да' }, { v: 2, l: 'Нет' }].map(({ v, l }) => (
@@ -201,7 +226,7 @@ export function ProjectWizard() {
                         key={v}
                         size="sm"
                         variant={params[field] === v ? 'default' : 'outline'}
-                        onClick={() => update(field, v)}
+                        onClick={() => set(field, String(v))}
                       >
                         {l}
                       </Button>
@@ -212,37 +237,43 @@ export function ProjectWizard() {
             </>
           )}
 
+          {/* Step 5: Confirmation */}
           {step === 4 && (
-            <div className="space-y-3">
-              <h3 className="font-medium text-[var(--color-text-primary)]">Сводка параметров</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Поголовье</p>
-                  <p className="font-mono font-medium">{params.initial_cows} голов</p>
-                </div>
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Мощность</p>
-                  <p className="font-mono font-medium">{params.reproducer_capacity} голов</p>
-                </div>
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Отёл</p>
-                  <p className="font-mono font-medium">{params.calving_scenario}</p>
-                </div>
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Собств. участие</p>
-                  <p className="font-mono font-medium">{(params.equity_share * 100).toFixed(0)}%</p>
-                </div>
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Субсидии</p>
-                  <p className="font-mono font-medium">{params.subsidy_switch === 1 ? 'Да' : 'Нет'}</p>
-                </div>
-                <div className="rounded-lg bg-[var(--color-surface-base)] p-3">
-                  <p className="text-[var(--color-text-muted)]">Дата старта</p>
-                  <p className="font-mono font-medium">{params.project_start_date}</p>
-                </div>
+            <div className="space-y-4">
+              {/* Summary grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Маточное', value: `${params.initial_cows} голов` },
+                  { label: 'Быки', value: `${bulls} голов` },
+                  { label: 'Мощность', value: `${params.reproducer_capacity} голов` },
+                  { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га` },
+                  { label: 'Отёл', value: params.calving_scenario },
+                  { label: 'Дата старта', value: params.project_start_date },
+                  { label: 'Собств. участие', value: `${params.equity_share_pct}%` },
+                  { label: 'Срок кредита', value: `${params.capex_loan_term_years} лет` },
+                  { label: 'Льготный период', value: `${params.capex_grace_period_years} года` },
+                  { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}%` },
+                  { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет' },
+                  { label: 'Оборотка', value: params.wc_loan_switch === 1 ? 'Да' : 'Нет' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <span className="font-mono text-sm font-medium">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Cost summary */}
+              <div className="rounded-lg border-2 border-dashed border-border p-4 text-center">
+                <p className="text-sm text-muted-foreground">Стоимость стада</p>
+                <p className="mt-1 font-mono text-2xl font-bold">{livestockCost.toLocaleString('ru-RU')} тыс. тг</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {params.initial_cows} коров × {params.purchase_price_cow.toLocaleString('ru-RU')} + {bulls} быков × {params.purchase_price_bull.toLocaleString('ru-RU')}
+                </p>
               </div>
             </div>
           )}
+
         </CardContent>
       </Card>
 
