@@ -5,7 +5,7 @@
  */
 import { useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check, Cow, Landmark, ToggleLeft, MapPin } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +33,7 @@ interface WizardParams {
 }
 
 const STEPS = [
-  { title: 'Тип фермы', desc: 'Поголовье и мощность', icon: Cow },
+  { title: 'Тип фермы', desc: 'Поголовье и мощность', icon: Beef },
   { title: 'Инфраструктура', desc: 'Земля и сценарий отёла', icon: MapPin },
   { title: 'Финансирование', desc: 'Условия кредитования', icon: Landmark },
   { title: 'Переключатели', desc: 'Субсидии и оборотка', icon: ToggleLeft },
@@ -135,7 +135,7 @@ export function ProjectWizard() {
 
       {/* Step indicator */}
       <div className="flex gap-1">
-        {STEPS.map((s, i) => (
+        {STEPS.map((_, i) => (
           <button
             key={i}
             onClick={() => setStep(i)}
