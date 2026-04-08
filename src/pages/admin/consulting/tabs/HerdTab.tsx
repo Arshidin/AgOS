@@ -15,13 +15,13 @@ function toCalendarYear(
   if (!arr || !calYears || arr.length === 0) return []
   const yearMap = new Map<number, number[]>()
   for (let i = 0; i < Math.min(arr.length, calYears.length); i++) {
-    const y = calYears[i]
+    const y = calYears[i] ?? 0
     if (!yearMap.has(y)) yearMap.set(y, [])
     yearMap.get(y)!.push(arr[i] ?? 0)
   }
   return Array.from(yearMap.entries()).map(([year, vals]) => ({
     year,
-    value: mode === 'sum' ? vals.reduce((a, b) => a + b, 0) : vals[vals.length - 1],
+    value: mode === 'sum' ? vals.reduce((a: number, b: number) => a + b, 0) : (vals[vals.length - 1] ?? 0),
   }))
 }
 
@@ -129,8 +129,11 @@ export function HerdTab() {
     const monthLabels: string[] = []
     const MONTHS_RU = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
     for (let i = 0; i < n; i++) {
-      if (dates && dates[i]) {
-        const [y, m] = dates[i].split('-')
+      const d = dates?.[i]
+      if (d) {
+        const parts = d.split('-')
+        const y = parts[0] ?? '00'
+        const m = parts[1] ?? '01'
         monthLabels.push(`${MONTHS_RU[parseInt(m) - 1]} ${y.slice(2)}`)
       } else {
         monthLabels.push(`М${i + 1}`)
