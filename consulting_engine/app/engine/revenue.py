@@ -1,31 +1,31 @@
-"""Модуль выручки + субсидий (Часть 4.8.1–4.8.2).
+"""Модуль выручки + субсидий (Часть 4.8.1-4.8.2).
 
-Revenue sources:
-  Row 189: Тёлки племенные (sold_breeding × weight × price)
-  Row 190: Маточное выбракованное (culled × 600 кг × price)
-  Row 191: Быки выбракованные (culled × 750 кг × price)
-  Row 192: Собственные бычки (sold steers × weight × price)
-  Row 194: Субсидии закуп поголовья (260,000 × purchased heads / 1000)
-  Row 195: Субсидии при выращивании племенного молодняка
-  Row 196: Субсидии содержание быков (100,000 × bulls_eop / 1000)
+Revenue sources (all in тыс. тенге):
+  Row 189: Тёлки племенные — sold_breeding × 267кг × 2200 тг/кг × inflation / 1000
+  Row 190: Маточное выбракованное — abs(culled_cows) × 600кг × 1800 тг/кг × inflation / 1000
+  Row 191: Быки выбракованные — abs(culled_bulls) × 750кг × 2200 тг/кг × inflation / 1000
+
+Subsidies (subsidy_switch != 2):
+  Row 194: Закуп поголовья — 260 тыс.тг × (purchased_cows + purchased_bulls), month 1 only
+  Row 195: Выращивание племенного молодняка — 15 тыс.тг × inflation × sold_breeding_heifers
+  Row 196: Содержание быков — 100 тыс.тг × bulls_eop × inflation, every month
+
+Inflation: 10.5% annual, applied from year 2 onward.
 """
 
-CPI_ANNUAL = 0.105  # Feed/livestock price inflation
+CPI_ANNUAL = 0.105  # Annual livestock price inflation
 
 # Base prices (тг/кг живого веса)
 BASE_PRICES = {
     "heifer_breeding": 2200,
     "cow_culled": 1800,
     "bull_culled": 2200,
-    "steer_own": 2200,
-    "steer_purchased_sell": 2200,
-    "steer_purchased_buy": 1800,
 }
 
 # Weight constants (кг)
 COW_CULLED_WEIGHT = 600
 BULL_CULLED_WEIGHT = 750
-HEIFER_WEIGHT_BASE = 267.2  # Start 170 + 4m × 30d × 810g/d / 1000
+HEIFER_WEIGHT = 267  # ~170 + 4mo × 30d × 810г/d ≈ 267 кг at sale
 
 
 def calculate_revenue(
@@ -33,8 +33,17 @@ def calculate_revenue(
 ) -> dict:
     """Расчёт выручки от продажи КРС + субсидии.
 
+    All output arrays are 120-element monthly series in тыс. тенге.
+    Revenue values are POSITIVE.
+
+    Args:
+        timeline: temporal axis (120 months)
+        enriched_input: validated project parameters
+        herd: herd turnover results with cows/bulls/heifers/steers sub-dicts
+        refs: reference data (unused here, kept for signature compatibility)
+
     Returns:
-        dict с livestock_revenue, subsidies, total_revenue arrays
+        dict with livestock_revenue, subsidies, total_revenue arrays
     """
     n = timeline["horizon_months"]
     year_idx = timeline["year_index"]
@@ -44,54 +53,53 @@ def calculate_revenue(
     subsidies = [0.0] * n
 
     for t in range(n):
-        inf = (1 + CPI_ANNUAL) ** (year_idx[t] - 1) if year_idx[t] > 1 else 1.0
+        # Inflation factor: year 1 = 1.0, year 2 = 1.105, year 3 = 1.105^2, ...
+        yr = year_idx[t]
+        inf = (1 + CPI_ANNUAL) ** (yr - 1) if yr > 1 else 1.0
 
-        # Livestock revenue = sold heads × weight × price / 1000
-        # Sold breeding heifers
+        # ----- Livestock revenue (POSITIVE) -----
+
+        # Sold breeding heifers: heads × 267кг × 2200 тг/кг × inflation / 1000
         sold_breeding = abs(herd["cows"]["sold_breeding"][t])
         if sold_breeding > 0:
             livestock_revenue[t] += (
-                BASE_PRICES["heifer_breeding"] * inf * HEIFER_WEIGHT_BASE * sold_breeding / 1000
+                sold_breeding * HEIFER_WEIGHT * BASE_PRICES["heifer_breeding"] * inf / 1000
             )
 
-        # Culled cows
-        sold_cows = abs(herd["cows"]["culled"][t])
-        if sold_cows > 0:
+        # Culled cows: heads × 600кг × 1800 тг/кг × inflation / 1000
+        culled_cows = abs(herd["cows"]["culled"][t])
+        if culled_cows > 0:
             livestock_revenue[t] += (
-                BASE_PRICES["cow_culled"] * inf * COW_CULLED_WEIGHT * sold_cows / 1000
+                culled_cows * COW_CULLED_WEIGHT * BASE_PRICES["cow_culled"] * inf / 1000
             )
 
-        # Culled bulls
-        sold_bulls = abs(herd["bulls"]["culled"][t])
-        if sold_bulls > 0:
+        # Culled bulls: heads × 750кг × 2200 тг/кг × inflation / 1000
+        culled_bulls = abs(herd["bulls"]["culled"][t])
+        if culled_bulls > 0:
             livestock_revenue[t] += (
-                BASE_PRICES["bull_culled"] * inf * BULL_CULLED_WEIGHT * sold_bulls / 1000
+                culled_bulls * BULL_CULLED_WEIGHT * BASE_PRICES["bull_culled"] * inf / 1000
             )
 
-        # Sold steers
-        sold_steers = abs(herd["steers"]["sold"][t])
-        if sold_steers > 0:
-            livestock_revenue[t] += (
-                BASE_PRICES["steer_own"] * inf * HEIFER_WEIGHT_BASE * sold_steers / 1000
-            )
+        # ----- Subsidies (POSITIVE, only when subsidy_switch != 2) -----
 
-        # Subsidies (if switch = 1)
-        if subsidy_switch == 1:
-            # Purchase subsidy: 260,000 × (purchased cows + purchased bulls) / 1000
-            purchased = (
-                abs(herd["cows"]["purchased"][t])
-                + abs(herd["bulls"]["purchased"][t])
-            )
-            if purchased > 0:
-                subsidies[t] += 260 * purchased  # 260,000 / 1000 = 260 тыс.тг per head
+        if subsidy_switch != 2:
+            # Purchase subsidy: 260 тыс.тг per head — month 1 ONLY (t == 0)
+            if t == 0:
+                purchased = (
+                    abs(herd["cows"].get("purchased", [0] * n)[t])
+                    + abs(herd["bulls"].get("purchased", [0] * n)[t])
+                )
+                if purchased > 0:
+                    subsidies[t] += 260.0 * purchased
 
-            # Bull maintenance subsidy: 100,000 × bulls_eop / 1000
+            # Bull maintenance subsidy: 100 тыс.тг × bulls_eop × inflation — every month
             bulls_eop = herd["bulls"]["eop"][t]
             if bulls_eop > 0:
-                subsidies[t] += 100 * bulls_eop * inf
+                subsidies[t] += 100.0 * bulls_eop * inf
 
-            # Breeding subsidy: for heifers/steers (active after calving)
-            # TODO: implement from Excel row 195
+            # Breeding subsidy: 15 тыс.тг × inflation × sold_breeding_heifers
+            if sold_breeding > 0:
+                subsidies[t] += 15.0 * (1 + CPI_ANNUAL) ** max(0, yr - 1) * sold_breeding
 
     total_revenue = [
         livestock_revenue[t] + subsidies[t]

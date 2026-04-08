@@ -1,13 +1,18 @@
-"""Orchestrator — запуск 11 модулей в порядке зависимостей.
+"""Orchestrator — запуск 12 модулей в порядке зависимостей.
 
 Граф зависимостей (Часть 4.12 спецификации):
-Input → CAPEX → Loans → P&L + Cash Flow
-Input → Оборот стада → Кормовая модель → OPEX → P&L
-                     → Реализация (голов) → P&L (выручка)
-                     → Среднее поголовье → OPEX (вет, RFID)
-Input → Staff → ФОТ → OPEX
-Input → WACC → NPV/IRR
-P&L → Cash Flow → NPV/IRR → Output
+  1. timeline
+  2. input (validate & enrich)
+  3. herd (herd turnover — 120 months)
+  4. capex
+  5. staff
+  6. wacc
+  7. feeding (needs herd)
+  8. revenue (needs herd)
+  9. opex (needs feeding, staff, herd, revenue)
+  10. loans (needs capex, wacc) ← BEFORE P&L
+  11. pnl (needs revenue, opex, capex, staff, loans)
+  12. cashflow (needs pnl, loans, capex, herd, wacc, enriched_input)
 """
 
 from app.models.schemas import ProjectInput
@@ -29,11 +34,11 @@ def run_calculation(
     input_params: ProjectInput,
     reference_data: list[dict],
 ) -> dict:
-    """Полный расчёт финансовой модели — 11 модулей по порядку.
+    """Полный расчёт финансовой модели — 12 модулей по порядку.
 
     Returns:
         dict с ключами: timeline, input, herd, capex, staff, wacc,
-                        feeding, revenue, opex, pnl, loans, cashflow
+                        feeding, revenue, opex, loans, pnl, cashflow
     """
     # Группировка справочников по категориям
     refs = _group_references(reference_data)
@@ -62,14 +67,14 @@ def run_calculation(
     # 8. Выручка + субсидии
     revenue = calculate_revenue(timeline, enriched, herd, refs)
 
-    # 9. OPEX
+    # 9. OPEX (себестоимость + административные расходы)
     opex = calculate_opex(timeline, enriched, herd, feeding, staff, revenue, refs)
 
-    # 10. P&L
-    pnl = calculate_pnl(timeline, revenue, opex, capex, staff)
-
-    # 11. Loans
+    # 10. Loans (needs capex + wacc — MUST come before P&L)
     loans = calculate_loans(timeline, enriched, capex, wacc_rates)
+
+    # 11. P&L (needs revenue, opex, capex, staff, loans)
+    pnl = calculate_pnl(timeline, revenue, opex, capex, staff, loans)
 
     # 12. Cash Flow + NPV/IRR
     cashflow = calculate_cashflow(

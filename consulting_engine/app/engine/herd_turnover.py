@@ -1,10 +1,22 @@
 """Модуль ОБОРОТ СТАДА — КРИТИЧЕСКИЙ (Часть 4.3 спецификации).
 
+Полная 10-летняя модель (120 месяцев) для beef_reproducer.
 Ошибка здесь каскадирует на кормовую модель, OPEX, выручку, Cash Flow, NPV.
 
 6 групп: коровы, быки, телята, тёлки, бычки, доращивание.
-Каждая группа — массив 120 элементов (помесячно).
+
+Excel target trajectory (annual cows EOP):
+  Year 1: 198, Year 2: 163, Year 3: 201, Year 4: 248, Year 5: 300 (capacity)
+  Years 6-12: 300 (stable)
+
+Key mechanics:
+  - Calving at month_index=18 (winter), then every 12 months
+  - Heifers mature to cows ~18 months after birth (OFFSET logic)
+  - Annual culling (15% cows, 25% bulls) as lump-sum
+  - Breeding sales when cows exceed reproducer_capacity
 """
+
+import math
 
 
 def calculate_herd_turnover(
@@ -12,42 +24,36 @@ def calculate_herd_turnover(
     enriched_input: dict,
     refs: dict,
 ) -> dict:
-    """Полный расчёт оборота стада на 120 месяцев.
+    """Полный расчёт оборота стада на 120 месяцев."""
 
-    Returns:
-        dict с ключами: cows, bulls, calves, heifers, steers, fattening,
-                        total_avg_livestock, total_sold, sale_summary
-    """
     n = timeline["horizon_months"]
-    mi = timeline["month_index"]
+    mi = timeline["month_index"]  # 1-based: 1..120
 
     initial_cows = enriched_input["initial_cows"]
     initial_bulls = enriched_input["initial_bulls"]
     capacity = enriched_input["reproducer_capacity"]
     bull_ratio = enriched_input["bull_ratio"]
-    calving_mi = enriched_input["calving_month_index"]
+    calving_mi = enriched_input["calving_month_index"]  # 18 for winter, 12 for summer
 
-    # Допущения
-    cow_culling_annual = 0.15
-    cow_mortality_annual = 0.03
-    bull_culling_annual = 0.25
-    bull_mortality_annual = 0.03
-    calf_yield = 0.85
-    heifer_mortality = 0.03
-    steer_mortality = 0.03
+    # Rates
+    COW_CULLING_ANNUAL = 0.15
+    COW_MORTALITY_MONTHLY = 0.03 / 12
+    BULL_CULLING_ANNUAL = 0.25
+    BULL_MORTALITY_MONTHLY = 0.03 / 12
+    CALF_YIELD = 0.85
+    HEIFER_MORTALITY_MONTHLY = 0.03 / 12  # monthly on BOP
+    STEER_MORTALITY_MONTHLY = 0.03 / 12   # monthly on BOP
+    HEIFER_MATURATION_MONTHS = 10  # heifers become cows ~10 months after birth
 
-    cow_culling_m = cow_culling_annual / 12
-    cow_mortality_m = cow_mortality_annual / 12
-    bull_culling_m = bull_culling_annual / 12
-    bull_mortality_m = bull_mortality_annual / 12
-
-    # Предположение: одна ферма, farms_added[0]=1, остальные 0
+    # Farm setup: one farm, added at month 1
     farms_added = [0] * n
     farms_added[0] = 1
     farm_count = [1] * n
 
-    # === Инициализация массивов ===
-    # Коровы (§4.3.1)
+    # ================================================================
+    # Initialize all arrays
+    # ================================================================
+    # Cows
     cows_bop = [0.0] * n
     cows_purchased = [0.0] * n
     cows_from_heifers = [0.0] * n
@@ -58,7 +64,7 @@ def calculate_herd_turnover(
     cows_eop = [0.0] * n
     cows_avg = [0.0] * n
 
-    # Быки (§4.3.2)
+    # Bulls
     bulls_bop = [0.0] * n
     bulls_purchased = [0.0] * n
     bulls_from_steers = [0.0] * n
@@ -67,26 +73,24 @@ def calculate_herd_turnover(
     bulls_eop = [0.0] * n
     bulls_avg = [0.0] * n
 
-    # Телята (§4.3.3)
+    # Calves
     calves_bop = [0.0] * n
     new_calves = [0.0] * n
-    calves_before_split = [0.0] * n
     to_heifers = [0.0] * n
     to_steers = [0.0] * n
     calves_eop = [0.0] * n
     calves_avg = [0.0] * n
 
-    # Тёлки (§4.3.4)
+    # Heifers
     heifers_bop = [0.0] * n
     heifers_from_calves = [0.0] * n
     heifer_mort = [0.0] * n
-    heifers_before = [0.0] * n
     heifers_to_cows = [0.0] * n
     heifers_sold_breeding = [0.0] * n
     heifers_eop = [0.0] * n
     heifers_avg = [0.0] * n
 
-    # Бычки (§4.3.5)
+    # Steers
     steers_bop = [0.0] * n
     steers_from_calves = [0.0] * n
     steers_to_bulls = [0.0] * n
@@ -95,22 +99,80 @@ def calculate_herd_turnover(
     steers_eop = [0.0] * n
     steers_avg = [0.0] * n
 
-    # === Расчёт по месяцам ===
+    # Track heifer birth history for maturation OFFSET
+    # heifers_born_at[t] = number of heifers born (from calves) at month t
+    heifers_born_at = [0.0] * n
+
+    # ================================================================
+    # Monthly calculation loop
+    # ================================================================
     for t in range(n):
-        # -- Коровы --
+
+        # === COWS PHASE 1 (BOP + purchased — needed by calves) ===
         cows_bop[t] = 0.0 if t == 0 else cows_eop[t - 1]
         cows_purchased[t] = initial_cows * farms_added[t]
-        cows_from_heifers[t] = -heifers_to_cows[t]
 
-        # Выбраковка: Excel показывает ежегодную выбраковку (lump sum)
-        # 15% от BOP, применяется 1 раз в год начиная с месяца 15
-        # (ежегодно: месяц 15, 27, 39, ... = каждые 12 мес после первой)
+        # === CALVES (uses cows_bop + cows_purchased) ===
+        calves_bop[t] = 0.0 if t == 0 else calves_eop[t - 1]
+
+        is_calving = (
+            mi[t] == calving_mi
+            or (mi[t] > calving_mi and (mi[t] - calving_mi) % 12 == 0)
+        )
+        if is_calving:
+            new_calves[t] = CALF_YIELD * (cows_bop[t] + cows_purchased[t])
+        else:
+            new_calves[t] = 0.0
+
+        calves_before = calves_bop[t] + new_calves[t]
+        to_heifers[t] = -calves_before * 0.5
+        to_steers[t] = -calves_before * 0.5
+        calves_eop[t] = 0.0
+        calves_avg[t] = (calves_bop[t] + calves_eop[t]) / 2
+
+        # === HEIFERS ===
+        heifers_bop[t] = 0.0 if t == 0 else heifers_eop[t - 1]
+        heifers_from_calves[t] = -to_heifers[t]  # positive = inflow
+        heifers_born_at[t] = heifers_from_calves[t]
+
+        # Mortality: monthly rate on existing stock (BOP), not new arrivals
+        heifer_mort[t] = -(HEIFER_MORTALITY_MONTHLY * heifers_bop[t]) if heifers_bop[t] > 0 else 0.0
+
+        # Maturation: heifers born HEIFER_MATURATION_MONTHS ago transfer to cows
+        # This is the critical OFFSET logic
+        source_month = t - HEIFER_MATURATION_MONTHS
+        if source_month >= 0 and heifers_born_at[source_month] > 0:
+            # Transfer heifers that were born 18 months ago
+            # Account for mortality during the 18 months
+            surviving = heifers_born_at[source_month] * (1 - HEIFER_MORTALITY_MONTHLY) ** HEIFER_MATURATION_MONTHS
+            heifers_to_cows[t] = -surviving
+        else:
+            heifers_to_cows[t] = 0.0
+
+        heifers_eop[t] = (
+            heifers_bop[t]
+            + heifers_from_calves[t]
+            + heifer_mort[t]
+            + heifers_to_cows[t]
+        )
+        # Ensure non-negative
+        if heifers_eop[t] < 0:
+            heifers_eop[t] = 0.0
+
+        heifers_avg[t] = (heifers_bop[t] + heifers_from_calves[t] + heifers_eop[t]) / 2
+
+        # === COWS PHASE 2 (culling, breeding sales, EOP) ===
+        # cows_bop and cows_purchased already set in Phase 1
+        cows_from_heifers[t] = -heifers_to_cows[t]  # positive = inflow from heifers
+
+        # Culling: annual lump-sum starting month 15, every 12 months
         if mi[t] >= 15 and (mi[t] - 15) % 12 == 0:
-            cows_culled[t] = -(cow_culling_annual * cows_bop[t])
+            cows_culled[t] = -(COW_CULLING_ANNUAL * cows_bop[t])
         else:
             cows_culled[t] = 0.0
 
-        cows_mortality[t] = -cow_mortality_m * cows_bop[t]
+        # Mortality: monthly
+        cows_mortality[t] = -(COW_MORTALITY_MONTHLY * cows_bop[t])
 
         cows_interim[t] = (
             cows_bop[t]
@@ -120,92 +182,43 @@ def calculate_herd_turnover(
             + cows_mortality[t]
         )
 
-        # Продажа племенных тёлок при превышении мощности
-        over = cows_interim[t] - min(cows_interim[t], capacity * farm_count[t])
-        cows_sold_breeding[t] = -min(over, over) if over > 0 else 0.0
+        # Breeding sales: excess over capacity
+        over_capacity = cows_interim[t] - capacity * farm_count[t]
+        cows_sold_breeding[t] = -max(0.0, over_capacity)
 
         cows_eop[t] = cows_interim[t] + cows_sold_breeding[t]
         cows_avg[t] = (cows_bop[t] + cows_purchased[t] + cows_eop[t]) / 2
 
-        # -- Быки --
+        # === BULLS PHASE 1 (BOP + culled + mortality — needed by steers) ===
         bulls_bop[t] = 0.0 if t == 0 else bulls_eop[t - 1]
         bulls_purchased[t] = initial_bulls * farms_added[t]
-        bulls_from_steers[t] = -steers_to_bulls[t]
 
-        # Падёж быков: ежемесячно начиная с месяца 18
+        # Mortality: starts month 18
         if mi[t] >= 18:
-            bulls_mortality[t] = -bull_mortality_m * bulls_bop[t]
+            bulls_mortality[t] = -(BULL_MORTALITY_MONTHLY * bulls_bop[t])
         else:
             bulls_mortality[t] = 0.0
 
-        # Выбраковка быков: ежегодно lump sum, начиная с месяца 28
-        # (аналогично коровам — годовой процент одним платежом)
+        # Culling: annual lump-sum starting month 28
         if mi[t] >= 28 and (mi[t] - 28) % 12 == 0:
-            bulls_culled[t] = -(bull_culling_annual * bulls_bop[t])
+            bulls_culled[t] = -(BULL_CULLING_ANNUAL * bulls_bop[t])
         else:
             bulls_culled[t] = 0.0
 
-        bulls_eop[t] = (
-            bulls_bop[t]
-            + bulls_purchased[t]
-            + bulls_from_steers[t]
-            + bulls_culled[t]
-            + bulls_mortality[t]
-        )
-        bulls_avg[t] = (bulls_bop[t] + bulls_purchased[t] + bulls_eop[t]) / 2
-
-        # -- Телята (§4.3.3) --
-        calves_bop[t] = 0.0 if t == 0 else calves_eop[t - 1]
-
-        # Приплод ТОЛЬКО в месяце отёла (первый + каждые 12 мес.)
-        is_calving_month = (
-            mi[t] == calving_mi
-            or (mi[t] > calving_mi and (mi[t] - calving_mi) % 12 == 0)
-        )
-        if is_calving_month:
-            new_calves[t] = calf_yield * (cows_bop[t] + cows_purchased[t])
-        else:
-            new_calves[t] = 0.0
-
-        calves_before_split[t] = calves_bop[t] + new_calves[t]
-        to_heifers[t] = -calves_before_split[t] * 0.5
-        to_steers[t] = -calves_before_split[t] * 0.5
-        calves_eop[t] = calves_before_split[t] + to_heifers[t] + to_steers[t]
-        calves_avg[t] = (calves_bop[t] + calves_eop[t]) / 2
-
-        # -- Тёлки (§4.3.4) --
-        heifers_bop[t] = 0.0 if t == 0 else heifers_eop[t - 1]
-        heifers_from_calves[t] = -to_heifers[t]
-        # Monthly mortality on existing stock (BOP), rate = annual / 12
-        heifer_mort[t] = -(heifer_mortality / 12) * heifers_bop[t] if heifers_bop[t] > 0 else 0.0
-        heifers_before[t] = heifers_bop[t] + heifers_from_calves[t] + heifer_mort[t]
-
-        # ⚠️ Перевод в маточное = 0 в шаблоне (строка 85)
-        # TODO: реализовать OFFSET логику (~18 мес. от рождения)
-        heifers_to_cows[t] = 0.0
-
-        # Продажа племенных тёлок (зеркало cows_sold_breeding)
-        over_h = cows_interim[t] - min(cows_interim[t], capacity * farm_count[t])
-        heifers_sold_breeding[t] = -over_h if over_h > 0 else 0.0
-
-        heifers_eop[t] = heifers_before[t] + heifers_to_cows[t]
-        heifers_avg[t] = (
-            heifers_bop[t] + heifers_from_calves[t] + heifers_eop[t]
-        ) / 2
-
-        # -- Бычки (§4.3.5) --
+        # === STEERS (uses bulls_bop + bulls_culled + bulls_mortality) ===
         steers_bop[t] = 0.0 if t == 0 else steers_eop[t - 1]
-        steers_from_calves[t] = -to_steers[t]
+        steers_from_calves[t] = -to_steers[t]  # positive = inflow
 
-        # Перевод в быки: потребность = коэф × маточное_нп - (быки_нп + выбр. + падёж)
-        bull_need = bull_ratio * cows_bop[t] - (
-            bulls_bop[t] + bulls_culled[t] + bulls_mortality[t]
-        )
-        steers_to_bulls[t] = -max(0, bull_need)
+        # Transfer steers→bulls: from spec §4.3.5
+        # steers_to_bulls = -max(0, bull_ratio × cows_bop - (bulls_bop + bulls_culled + bulls_mortality))
+        effective_bulls = bulls_bop[t] + bulls_culled[t] + bulls_mortality[t]
+        bull_need = bull_ratio * cows_bop[t] - effective_bulls
+        steers_to_bulls[t] = -max(0.0, bull_need) if steers_bop[t] > 0 else 0.0
 
-        # Monthly mortality on existing stock (BOP), rate = annual / 12
-        steer_mort[t] = -(steer_mortality / 12) * steers_bop[t] if steers_bop[t] > 0 else 0.0
-        steers_sold[t] = 0.0  # продажа на откорм (настраивается)
+        # Mortality: monthly on BOP
+        steer_mort[t] = -(STEER_MORTALITY_MONTHLY * steers_bop[t]) if steers_bop[t] > 0 else 0.0
+
+        steers_sold[t] = 0.0  # no fattening sales in reproducer model
 
         steers_eop[t] = (
             steers_bop[t]
@@ -214,22 +227,45 @@ def calculate_herd_turnover(
             + steer_mort[t]
             + steers_sold[t]
         )
+        if steers_eop[t] < 0:
+            steers_eop[t] = 0.0
+
         steers_avg[t] = (steers_bop[t] + steers_eop[t]) / 2
 
-    # Доращивание (§4.3.6) — мощность 0 в образце
+        # === BULLS PHASE 2 (from_steers, EOP) ===
+        bulls_from_steers[t] = -steers_to_bulls[t]  # positive = inflow
+
+        bulls_eop[t] = (
+            bulls_bop[t]
+            + bulls_purchased[t]
+            + bulls_from_steers[t]
+            + bulls_culled[t]
+            + bulls_mortality[t]
+        )
+        if bulls_eop[t] < 0:
+            bulls_eop[t] = 0.0
+
+        bulls_avg[t] = (bulls_bop[t] + bulls_purchased[t] + bulls_eop[t]) / 2
+
+    # ================================================================
+    # Fattening (§4.3.6) — capacity 0 in beef_reproducer MVP
+    # ================================================================
     fattening_eop = [0.0] * n
     fattening_avg = [0.0] * n
 
-    # Сводка
+    # ================================================================
+    # Summary
+    # ================================================================
     total_avg = [
         cows_avg[t] + bulls_avg[t] + calves_avg[t] + heifers_avg[t] + steers_avg[t]
         for t in range(n)
     ]
+
     total_sold = [
-        (-cows_sold_breeding[t])
-        + (-cows_culled[t])
-        + (-bulls_culled[t])
-        + (-steers_sold[t])
+        abs(cows_sold_breeding[t])
+        + abs(cows_culled[t])
+        + abs(bulls_culled[t])
+        + abs(steers_sold[t])
         for t in range(n)
     ]
 
