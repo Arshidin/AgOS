@@ -220,16 +220,16 @@ export function ProjectWizard() {
         ))}
       </div>
 
-      {/* Step content */}
-      <Card>
-        <CardHeader>
+      {/* Step content — fixed height card with internal scroll */}
+      <Card className="flex flex-col" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <CardHeader className="shrink-0">
           <CardTitle className="flex items-center gap-2">
             {(() => { const Icon = STEPS[step]?.icon; return Icon ? <Icon className="h-5 w-5 text-muted-foreground" /> : null })()}
             {STEPS[step]?.title}
           </CardTitle>
           <p className="text-sm text-muted-foreground">{STEPS[step]?.desc}</p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex-1 space-y-4 overflow-y-auto">
 
           {/* Step 1: Farm type */}
           {step === 0 && (
@@ -394,8 +394,8 @@ export function ProjectWizard() {
 
         </CardContent>
 
-        {/* Navigation inside card footer */}
-        <div className="flex items-center justify-between border-t px-6 py-4">
+        {/* Navigation — pinned to card bottom */}
+        <div className="flex shrink-0 items-center justify-between border-t px-6 py-4">
           <Button
             variant="outline"
             onClick={() => setStep(s => Math.max(0, s - 1))}
