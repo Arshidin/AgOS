@@ -42,6 +42,7 @@ export function ProjectPage() {
   const TABS = [
     { label: 'Параметры', path: `${base}/edit` },
     { label: 'Сводка', path: `${base}/summary` },
+    { label: 'Тех. карта', path: `${base}/techcard` },
     { label: 'Оборот стада', path: `${base}/herd` },
     { label: 'P&L', path: `${base}/pnl` },
     { label: 'Cash Flow', path: `${base}/cashflow` },

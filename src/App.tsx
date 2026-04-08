@@ -61,6 +61,7 @@ import { HerdTab } from '@/pages/admin/consulting/tabs/HerdTab'
 import { PnlTab } from '@/pages/admin/consulting/tabs/PnlTab'
 import { CashFlowTab } from '@/pages/admin/consulting/tabs/CashFlowTab'
 import { CapexTab } from '@/pages/admin/consulting/tabs/CapexTab'
+import { TechCardTab } from '@/pages/admin/consulting/tabs/TechCardTab'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -145,6 +146,7 @@ function App() {
                 <Route path="consulting/:projectId" element={<ProjectPage />}>
                   <Route path="edit" element={<ProjectWizard />} />
                   <Route path="summary" element={<SummaryTab />} />
+                  <Route path="techcard" element={<TechCardTab />} />
                   <Route path="herd" element={<HerdTab />} />
                   <Route path="pnl" element={<PnlTab />} />
                   <Route path="cashflow" element={<CashFlowTab />} />

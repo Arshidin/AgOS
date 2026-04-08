@@ -18,6 +18,7 @@
 from app.models.schemas import ProjectInput
 from app.engine.timeline import calculate_timeline
 from app.engine.input_params import validate_and_enrich_input
+from app.engine.tech_card import calculate_tech_card
 from app.engine.herd_turnover import calculate_herd_turnover
 from app.engine.capex import calculate_capex
 from app.engine.staff import calculate_staff
@@ -48,6 +49,9 @@ def run_calculation(
 
     # 2. Обогащённый Input
     enriched = validate_and_enrich_input(input_params)
+
+    # 2.5. Технологическая карта
+    tech_card = calculate_tech_card(enriched, timeline)
 
     # 3. Оборот стада — КРИТИЧЕСКИЙ модуль
     herd = calculate_herd_turnover(timeline, enriched, refs)
@@ -84,6 +88,7 @@ def run_calculation(
     raw = {
         "timeline": timeline,
         "input": enriched,
+        "tech_card": tech_card,
         "herd": herd,
         "capex": capex,
         "staff": staff,
