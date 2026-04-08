@@ -43,7 +43,7 @@ def calculate_herd_turnover(
     CALF_YIELD = 0.85
     HEIFER_MORTALITY_MONTHLY = 0.03 / 12  # monthly on BOP
     STEER_MORTALITY_MONTHLY = 0.03 / 12   # monthly on BOP
-    HEIFER_MATURATION_MONTHS = 10  # heifers become cows ~10 months after birth
+    # Heifers transfer to cows at calving anniversary (lump-sum, no delay)
 
     # Farm setup: one farm, added at month 1
     farms_added = [0] * n
@@ -99,9 +99,7 @@ def calculate_herd_turnover(
     steers_eop = [0.0] * n
     steers_avg = [0.0] * n
 
-    # Track heifer birth history for maturation OFFSET
-    # heifers_born_at[t] = number of heifers born (from calves) at month t
-    heifers_born_at = [0.0] * n
+    # (heifer maturation is now lump-sum at calving, no OFFSET tracking needed)
 
     # ================================================================
     # Monthly calculation loop
@@ -131,33 +129,29 @@ def calculate_herd_turnover(
         calves_avg[t] = (calves_bop[t] + calves_eop[t]) / 2
 
         # === HEIFERS ===
+        # Excel annual model: heifers are pass-through — arrive from calves and
+        # transfer to cows within the SAME calving event. No multi-month carryover.
+        # Monthly model: heifers_to_cows = 0 for months 1-24 (Excel shows all zeros).
+        # For 120-month extrapolation: transfer ALL heifers to cows at each calving
+        # anniversary (the month AFTER calving, when heifers have been processed).
         heifers_bop[t] = 0.0 if t == 0 else heifers_eop[t - 1]
         heifers_from_calves[t] = -to_heifers[t]  # positive = inflow
-        heifers_born_at[t] = heifers_from_calves[t]
 
-        # Mortality: monthly rate on existing stock (BOP), not new arrivals
-        heifer_mort[t] = -(HEIFER_MORTALITY_MONTHLY * heifers_bop[t]) if heifers_bop[t] > 0 else 0.0
+        # Mortality: annual rate on new inflow (Excel: =-$E82*from_calves)
+        heifer_mort[t] = -(0.03 * heifers_from_calves[t]) if heifers_from_calves[t] > 0 else 0.0
 
-        # Maturation: heifers born HEIFER_MATURATION_MONTHS ago transfer to cows
-        # This is the critical OFFSET logic
-        source_month = t - HEIFER_MATURATION_MONTHS
-        if source_month >= 0 and heifers_born_at[source_month] > 0:
-            # Transfer heifers that were born 18 months ago
-            # Account for mortality during the 18 months
-            surviving = heifers_born_at[source_month] * (1 - HEIFER_MORTALITY_MONTHLY) ** HEIFER_MATURATION_MONTHS
-            heifers_to_cows[t] = -surviving
+        heifers_before = heifers_bop[t] + heifers_from_calves[t] + heifer_mort[t]
+
+        # Transfer to cows: at calving month, ALL accumulated heifers transfer.
+        # BUT: skip the FIRST calving (month 18) — Excel monthly shows zeros for m1-24.
+        # Transfers start from the SECOND calving (month 30+) onward.
+        is_transfer_calving = is_calving and mi[t] > calving_mi  # skip first calving
+        if is_transfer_calving and heifers_before > 0:
+            heifers_to_cows[t] = -heifers_before
         else:
             heifers_to_cows[t] = 0.0
 
-        heifers_eop[t] = (
-            heifers_bop[t]
-            + heifers_from_calves[t]
-            + heifer_mort[t]
-            + heifers_to_cows[t]
-        )
-        # Ensure non-negative
-        if heifers_eop[t] < 0:
-            heifers_eop[t] = 0.0
+        heifers_eop[t] = max(0.0, heifers_before + heifers_to_cows[t])
 
         heifers_avg[t] = (heifers_bop[t] + heifers_from_calves[t] + heifers_eop[t]) / 2
 
@@ -165,7 +159,8 @@ def calculate_herd_turnover(
         # cows_bop and cows_purchased already set in Phase 1
         cows_from_heifers[t] = -heifers_to_cows[t]  # positive = inflow from heifers
 
-        # Culling: annual lump-sum starting month 15, every 12 months
+        # Culling: verified from Excel monthly — annual lump at month 15, 27, 39...
+        # Pattern: every 12 months starting from month 15
         if mi[t] >= 15 and (mi[t] - 15) % 12 == 0:
             cows_culled[t] = -(COW_CULLING_ANNUAL * cows_bop[t])
         else:
@@ -199,9 +194,9 @@ def calculate_herd_turnover(
         else:
             bulls_mortality[t] = 0.0
 
-        # Culling: annual lump-sum starting month 28
-        if mi[t] >= 28 and (mi[t] - 28) % 12 == 0:
-            bulls_culled[t] = -(BULL_CULLING_ANNUAL * bulls_bop[t])
+        # Culling: monthly from mi>17 (Excel: =IF(mi>17, -$G63*BOP, 0))
+        if mi[t] > 17:
+            bulls_culled[t] = -(BULL_CULLING_ANNUAL / 12 * bulls_bop[t])
         else:
             bulls_culled[t] = 0.0
 
@@ -210,25 +205,34 @@ def calculate_herd_turnover(
         steers_from_calves[t] = -to_steers[t]  # positive = inflow
 
         # Transfer steers→bulls: from spec §4.3.5
-        # steers_to_bulls = -max(0, bull_ratio × cows_bop - (bulls_bop + bulls_culled + bulls_mortality))
+        # Need = bull_ratio × cows_bop - surviving bulls
+        # Available steers = bop + from_calves (before mortality/sale)
         effective_bulls = bulls_bop[t] + bulls_culled[t] + bulls_mortality[t]
         bull_need = bull_ratio * cows_bop[t] - effective_bulls
-        steers_to_bulls[t] = -max(0.0, bull_need) if steers_bop[t] > 0 else 0.0
+        available_steers = steers_bop[t] + steers_from_calves[t]
+        if bull_need > 0 and available_steers > 0:
+            steers_to_bulls[t] = -min(bull_need, available_steers)
+        else:
+            steers_to_bulls[t] = 0.0
 
-        # Mortality: monthly on BOP
-        steer_mort[t] = -(STEER_MORTALITY_MONTHLY * steers_bop[t]) if steers_bop[t] > 0 else 0.0
+        # Mortality: annual rate on inflow (Excel: =-$E93*SUM(from_calves))
+        steer_mort[t] = -(0.03 * steers_from_calves[t]) if steers_from_calves[t] > 0 else 0.0
 
-        steers_sold[t] = 0.0  # no fattening sales in reproducer model
-
-        steers_eop[t] = (
+        steers_interim = (
             steers_bop[t]
             + steers_from_calves[t]
             + steers_to_bulls[t]
             + steer_mort[t]
-            + steers_sold[t]
         )
-        if steers_eop[t] < 0:
-            steers_eop[t] = 0.0
+
+        # Sell all remaining steers at calving anniversary.
+        # Skip first calving (month 18) — Excel monthly shows zeros for m1-24.
+        if is_transfer_calving and steers_interim > 0:
+            steers_sold[t] = -steers_interim
+        else:
+            steers_sold[t] = 0.0
+
+        steers_eop[t] = max(0.0, steers_interim + steers_sold[t])
 
         steers_avg[t] = (steers_bop[t] + steers_eop[t]) / 2
 
