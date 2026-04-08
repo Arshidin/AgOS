@@ -1,18 +1,23 @@
-"""Configuration for Consulting Engine — Supabase + JWT settings."""
+"""Configuration for Consulting Engine — Supabase + JWT settings.
+
+All fields have defaults to prevent crash on startup when env vars
+are not yet injected (Railway sets env vars after container start).
+Actual values come from Railway environment variables.
+"""
 
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Supabase
-    supabase_url: str
-    supabase_service_key: str = ""  # service_role — bypasses RLS
-    supabase_jwt_secret: str = "placeholder"
+    # Supabase — defaults prevent crash; actual values from Railway env
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_jwt_secret: str = ""
 
     # Server
     host: str = "0.0.0.0"
-    port: int = 8001
-    environment: str = "development"
+    port: int = 8080
+    environment: str = "production"
 
     # CORS
     allowed_origins: list[str] = [
