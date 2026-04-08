@@ -17,6 +17,8 @@ const ROUTE_TITLES: Record<string, string> = {
   '/admin/membership': 'Membership',
   '/admin/users': 'Users',
   '/admin/knowledge': 'Knowledge',
+  '/admin/consulting': 'Консалтинг',
+  '/admin/consulting/new': 'Новый проект',
 }
 
 function getPageTitle(pathname: string): string {
@@ -29,6 +31,9 @@ function getPageTitle(pathname: string): string {
   }
   if (pathname.startsWith('/admin/membership/')) {
     return 'Membership Decision'
+  }
+  if (pathname.startsWith('/admin/consulting/') && pathname !== '/admin/consulting/new') {
+    return 'Результаты проекта'
   }
 
   // Fallback: last segment, capitalized

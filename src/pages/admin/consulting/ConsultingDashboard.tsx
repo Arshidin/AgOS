@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Briefcase, Plus, Calculator, TrendingUp } from 'lucide-react'
+import { Plus, Calculator, TrendingUp } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PageHeader } from '@/components/ui/page-header'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -104,21 +105,17 @@ export function ConsultingDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Briefcase className="h-6 w-6 text-[var(--color-text-secondary)]" />
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Консалтинг
-          </h1>
-          <Badge variant="outline">{projects.length} проектов</Badge>
-        </div>
-        <Button onClick={() => setShowCreate(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Новый проект
-        </Button>
-      </div>
+    <div className="page space-y-6">
+      <PageHeader
+        title="Инвестиционные проекты"
+        description={`${projects.length} проектов`}
+        actions={
+          <Button onClick={() => setShowCreate(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Новый проект
+          </Button>
+        }
+      />
 
       {/* Project list */}
       {loading ? (
@@ -128,15 +125,13 @@ export function ConsultingDashboard() {
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12">
-            <Calculator className="mb-4 h-12 w-12 text-[var(--color-text-muted)]" />
-            <h2 className="text-lg font-medium text-[var(--color-text-primary)]">
-              Нет проектов
-            </h2>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            <Calculator className="mb-4 h-12 w-12 text-muted-foreground" />
+            <h2 className="text-lg font-medium">Нет проектов</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               Создайте первый инвестиционный проект для расчёта финансовой модели.
             </p>
-            <Button onClick={() => setShowCreate(true)} className="mt-4 gap-2">
-              <Plus className="h-4 w-4" />
+            <Button onClick={() => setShowCreate(true)} className="mt-4" size="sm">
+              <Plus className="mr-2 h-4 w-4" />
               Создать проект
             </Button>
           </CardContent>
@@ -146,19 +141,19 @@ export function ConsultingDashboard() {
           {projects.map(p => (
             <Card
               key={p.id}
-              className="cursor-pointer transition-colors hover:bg-[var(--color-surface-hover)]"
+              className="cursor-pointer transition-colors hover:bg-accent/50"
               onClick={() => navigate(`/admin/consulting/${p.id}`)}
             >
               <CardContent className="flex items-center justify-between py-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-[var(--color-text-primary)]">{p.name}</span>
+                    <span className="font-medium">{p.name}</span>
                     <Badge variant={STATUS_MAP[p.status]?.variant || 'secondary'}>
                       {STATUS_MAP[p.status]?.label || p.status}
                     </Badge>
                     <Badge variant="outline">{FARM_TYPE_MAP[p.farm_type] || p.farm_type}</Badge>
                   </div>
-                  <p className="text-sm text-[var(--color-text-muted)]">
+                  <p className="text-sm text-muted-foreground">
                     Создан {new Date(p.created_at).toLocaleDateString('ru-RU')}
                     {p.latest_version && ` · Версия ${p.latest_version.version_number}`}
                   </p>
@@ -166,18 +161,14 @@ export function ConsultingDashboard() {
                 {p.latest_version && (
                   <div className="flex items-center gap-6 text-right">
                     <div>
-                      <p className="text-xs text-[var(--color-text-muted)]">NPV</p>
-                      <p className="font-mono text-sm font-medium text-[var(--color-text-primary)]">
-                        {formatNumber(p.latest_version.npv)} тыс.
-                      </p>
+                      <p className="text-xs text-muted-foreground">NPV</p>
+                      <p className="font-mono text-sm font-medium">{formatNumber(p.latest_version.npv)} тыс.</p>
                     </div>
                     <div>
-                      <p className="text-xs text-[var(--color-text-muted)]">IRR</p>
-                      <p className="font-mono text-sm font-medium text-[var(--color-text-primary)]">
-                        {formatPercent(p.latest_version.irr)}
-                      </p>
+                      <p className="text-xs text-muted-foreground">IRR</p>
+                      <p className="font-mono text-sm font-medium">{formatPercent(p.latest_version.irr)}</p>
                     </div>
-                    <TrendingUp className="h-5 w-5 text-[var(--color-text-muted)]" />
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}
               </CardContent>

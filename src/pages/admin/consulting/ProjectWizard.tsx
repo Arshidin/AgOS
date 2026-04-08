@@ -115,21 +115,13 @@ export function ProjectWizard() {
   )
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/consulting')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">
-            Параметры проекта
-          </h1>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Шаг {step + 1} из {STEPS.length}: {STEPS[step]?.title}
-          </p>
-        </div>
-      </div>
+    <div className="page space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
+
+      {/* Progress */}
+      <p className="text-sm text-muted-foreground">
+        Шаг {step + 1} из {STEPS.length}: {STEPS[step]?.title}
+      </p>
 
       {/* Step indicator */}
       <div className="flex gap-1">
@@ -278,6 +270,7 @@ export function ProjectWizard() {
             )}
           </Button>
         )}
+      </div>
       </div>
     </div>
   )
