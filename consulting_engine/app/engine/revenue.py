@@ -15,17 +15,19 @@ Inflation: 10.5% annual, applied from year 2 onward.
 
 CPI_ANNUAL = 0.105  # Annual livestock price inflation
 
-# Base prices (тг/кг живого веса)
+# Base prices (тг/кг живого веса) — from Excel row 181-186
 BASE_PRICES = {
     "heifer_breeding": 2200,
     "cow_culled": 1800,
     "bull_culled": 2200,
+    "steer_own": 2200,       # own steers sold after growth
 }
 
-# Weight constants (кг)
-COW_CULLED_WEIGHT = 600
-BULL_CULLED_WEIGHT = 750
-HEIFER_WEIGHT = 267  # ~170 + 4mo × 30d × 810г/d ≈ 267 кг at sale
+# Weight constants (кг) — from Excel CFC rows 103-108
+COW_CULLED_WEIGHT = 600      # mature cow weight at culling
+BULL_CULLED_WEIGHT = 750     # mature bull weight at culling
+HEIFER_WEIGHT = 267          # ~170 + 4mo × 30d × 810г/d ≈ 267 кг
+STEER_WEIGHT = 331           # from Excel E152: avg live weight after growth
 
 
 def calculate_revenue(
@@ -78,6 +80,14 @@ def calculate_revenue(
         if culled_bulls > 0:
             livestock_revenue[t] += (
                 culled_bulls * BULL_CULLED_WEIGHT * BASE_PRICES["bull_culled"] * inf / 1000
+            )
+
+        # Steers sold (own): heads × 331кг × 2200 тг/кг × inflation / 1000
+        # This is the PRIMARY revenue source — steers sold after weaning/growth
+        steers_sold = abs(herd["steers"]["sold"][t])
+        if steers_sold > 0:
+            livestock_revenue[t] += (
+                steers_sold * STEER_WEIGHT * BASE_PRICES["steer_own"] * inf / 1000
             )
 
         # ----- Subsidies (POSITIVE, only when subsidy_switch != 2) -----

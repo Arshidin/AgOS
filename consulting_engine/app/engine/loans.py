@@ -39,8 +39,11 @@ def calculate_loans(
     mi = timeline["month_index"]  # 1-based: 1..120
 
     # --- Investment loan parameters ---
+    # Loan covers BOTH capex AND livestock purchase (total project investment)
     loan_share = enriched_input.get("capex_loan_share", 0.9)
-    loan_amount = capex["grand_total"] / 1000 * loan_share  # тыс. тг
+    livestock_cost = enriched_input.get("livestock_purchase_cost", 0)
+    total_investment = capex["grand_total"] / 1000 + livestock_cost  # тыс. тг
+    loan_amount = total_investment * loan_share  # тыс. тг (90% of total)
 
     rate = wacc_rates["wacc"]  # annual rate, e.g. 0.05997
 
