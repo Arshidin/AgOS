@@ -10,9 +10,9 @@ function toAnnual(arr: number[] | undefined, mode: 'sum' | 'last' = 'sum'): numb
     const end = Math.min((yr + 1) * 12, arr.length)
     if (start >= arr.length) break
     if (mode === 'sum') {
-      years.push(arr.slice(start, end).reduce((a, b) => a + b, 0))
+      years.push(arr.slice(start, end).reduce((a, b) => a + (b ?? 0), 0))
     } else {
-      years.push(arr[end - 1])
+      years.push(arr[end - 1] ?? 0)
     }
   }
   return years

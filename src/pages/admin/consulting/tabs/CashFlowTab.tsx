@@ -20,7 +20,7 @@ function lastOfYear(arr: number[] | undefined): number[] {
   for (let yr = 0; yr < 10; yr++) {
     const end = Math.min((yr + 1) * 12, arr.length)
     if (yr * 12 >= arr.length) break
-    years.push(arr[end - 1])
+    years.push(arr[end - 1] ?? 0)
   }
   return years
 }

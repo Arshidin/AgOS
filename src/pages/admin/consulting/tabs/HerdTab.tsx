@@ -11,9 +11,9 @@ function toAnnual(arr: number[] | undefined, mode: 'last' | 'sum' = 'last'): num
     const end = Math.min((yr + 1) * 12, arr.length)
     if (start >= arr.length) break
     if (mode === 'sum') {
-      years.push(arr.slice(start, end).reduce((a, b) => a + b, 0))
+      years.push(arr.slice(start, end).reduce((a, b) => a + (b ?? 0), 0))
     } else {
-      years.push(arr[end - 1])
+      years.push(arr[end - 1] ?? 0)
     }
   }
   return years
@@ -28,35 +28,21 @@ export function HerdTab() {
   const years = Math.min(10, Math.ceil((herd.cows?.eop?.length || 0) / 12))
   if (years === 0) return <p className="page text-muted-foreground">Нет данных стада.</p>
 
+  const absArr = (arr: number[] | undefined) => arr?.map((v: number) => Math.abs(v ?? 0))
+
   const groups: { name: string; eop: number[]; sold: number[] }[] = [
-    {
-      name: 'Маточное',
-      eop: toAnnual(herd.cows?.eop),
-      sold: toAnnual(herd.cows?.culled?.map((v: number) => Math.abs(v)), 'sum'),
-    },
-    {
-      name: 'Быки',
-      eop: toAnnual(herd.bulls?.eop),
-      sold: toAnnual(herd.bulls?.culled?.map((v: number) => Math.abs(v)), 'sum'),
-    },
-    {
-      name: 'Тёлки',
-      eop: toAnnual(herd.heifers?.eop),
-      sold: toAnnual(herd.cows?.sold_breeding?.map((v: number) => Math.abs(v)), 'sum'),
-    },
-    {
-      name: 'Бычки',
-      eop: toAnnual(herd.steers?.eop),
-      sold: toAnnual(herd.steers?.sold?.map((v: number) => Math.abs(v)), 'sum'),
-    },
+    { name: 'Маточное', eop: toAnnual(herd.cows?.eop), sold: toAnnual(absArr(herd.cows?.culled), 'sum') },
+    { name: 'Быки', eop: toAnnual(herd.bulls?.eop), sold: toAnnual(absArr(herd.bulls?.culled), 'sum') },
+    { name: 'Тёлки', eop: toAnnual(herd.heifers?.eop), sold: toAnnual(absArr(herd.cows?.sold_breeding), 'sum') },
+    { name: 'Бычки', eop: toAnnual(herd.steers?.eop), sold: toAnnual(absArr(herd.steers?.sold), 'sum') },
   ]
 
-  const totalEop = groups[0].eop.map((_, i) =>
-    groups.reduce((sum, g) => sum + (g.eop[i] || 0), 0)
+  const totalEop = (groups[0]?.eop || []).map((_: number, i: number) =>
+    groups.reduce((sum, g) => sum + (g.eop[i] ?? 0), 0)
   )
 
-  const totalSold = groups[0].eop.map((_, i) =>
-    groups.reduce((sum, g) => sum + (g.sold[i] || 0), 0)
+  const totalSold = (groups[0]?.eop || []).map((_: number, i: number) =>
+    groups.reduce((sum, g) => sum + (g.sold[i] ?? 0), 0)
   )
 
   // Calves born per year
@@ -119,19 +105,19 @@ export function HerdTab() {
               </tr>
               <tr className="border-b border-border/50">
                 <td className="sticky left-0 bg-card px-3 py-2 text-muted-foreground">Реализация племенных</td>
-                {groups[2].sold.slice(0, years).map((v, i) => (
+                {(groups[2]?.sold || []).slice(0, years).map((v, i) => (
                   <td key={i} className="px-3 py-2 text-right">{fmt(v, 0)}</td>
                 ))}
               </tr>
               <tr className="border-b border-border/50">
                 <td className="sticky left-0 bg-card px-3 py-2 text-muted-foreground">Выбраковка коров</td>
-                {groups[0].sold.slice(0, years).map((v, i) => (
+                {(groups[0]?.sold || []).slice(0, years).map((v, i) => (
                   <td key={i} className="px-3 py-2 text-right">{fmt(v, 0)}</td>
                 ))}
               </tr>
               <tr className="border-b border-border/50">
                 <td className="sticky left-0 bg-card px-3 py-2 text-muted-foreground">Выбраковка быков</td>
-                {groups[1].sold.slice(0, years).map((v, i) => (
+                {(groups[1]?.sold || []).slice(0, years).map((v, i) => (
                   <td key={i} className="px-3 py-2 text-right">{fmt(v, 0)}</td>
                 ))}
               </tr>
