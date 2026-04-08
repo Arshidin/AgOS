@@ -129,27 +129,37 @@ def calculate_herd_turnover(
         calves_avg[t] = (calves_bop[t] + calves_eop[t]) / 2
 
         # === HEIFERS ===
-        # Excel annual model: heifers are pass-through — arrive from calves and
-        # transfer to cows within the SAME calving event. No multi-month carryover.
-        # Monthly model: heifers_to_cows = 0 for months 1-24 (Excel shows all zeros).
-        # For 120-month extrapolation: transfer ALL heifers to cows at each calving
-        # anniversary (the month AFTER calving, when heifers have been processed).
+        # Excel annual: heifers transfer to cows WITHIN the same year they're born.
+        # Monthly: heifers arrive from calves at calving (month 18, 30, 42...).
+        # They transfer to cows within the SAME calving event.
+        # Excel annual: Row 85 = -Row 84 (all heifers_before → cows, same year).
+        # Monthly: skip first calving (month 18) because Excel monthly shows zeros.
+        # From SECOND calving (month 30) onward: at calving month, previous
+        # year's heifers (accumulated in heifers_bop) transfer to cows.
+
         heifers_bop[t] = 0.0 if t == 0 else heifers_eop[t - 1]
         heifers_from_calves[t] = -to_heifers[t]  # positive = inflow
 
-        # Mortality: annual rate on new inflow (Excel: =-$E82*from_calves)
-        heifer_mort[t] = -(0.03 * heifers_from_calves[t]) if heifers_from_calves[t] > 0 else 0.0
+        # Mortality: monthly on BOP (Excel row 82: =IF(mi>17, -G82*BOP, 0))
+        if heifers_bop[t] > 0 and mi[t] > 17:
+            heifer_mort[t] = -(HEIFER_MORTALITY_MONTHLY * heifers_bop[t])
+        else:
+            heifer_mort[t] = 0.0
 
         heifers_before = heifers_bop[t] + heifers_from_calves[t] + heifer_mort[t]
 
-        # Transfer to cows: at calving month, ALL accumulated heifers transfer.
-        # BUT: skip the FIRST calving (month 18) — Excel monthly shows zeros for m1-24.
-        # Transfers start from the SECOND calving (month 30+) onward.
-        is_transfer_calving = is_calving and mi[t] > calving_mi  # skip first calving
-        if is_transfer_calving and heifers_before > 0:
+        # Transfer to cows: at December of each year (annual year-end settlement).
+        # Excel annual: Row 85 = -Row 84 (all heifers transfer, heifers_eop = 0).
+        # In monthly: transfer at the last month of each calendar year (December).
+        # This ensures heifers born in Jan 2028 transfer by Dec 2028 (same calendar year).
+        is_december = timeline['dates'][t].endswith('-12-31') if isinstance(timeline['dates'][t], str) else False
+        if is_december and heifers_before > 0 and mi[t] > calving_mi:
             heifers_to_cows[t] = -heifers_before
         else:
             heifers_to_cows[t] = 0.0
+
+        # Track for steer sale timing
+        is_transfer_calving = abs(heifers_to_cows[t]) > 0.01
 
         heifers_eop[t] = max(0.0, heifers_before + heifers_to_cows[t])
 
@@ -225,9 +235,8 @@ def calculate_herd_turnover(
             + steer_mort[t]
         )
 
-        # Sell all remaining steers at calving anniversary.
-        # Skip first calving (month 18) — Excel monthly shows zeros for m1-24.
-        if is_transfer_calving and steers_interim > 0:
+        # Sell all remaining steers at year-end (December), same as heifer transfer
+        if is_december and mi[t] > calving_mi and steers_interim > 0:
             steers_sold[t] = -steers_interim
         else:
             steers_sold[t] = 0.0
