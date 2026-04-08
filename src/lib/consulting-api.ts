@@ -6,7 +6,7 @@
 import { supabase } from '@/lib/supabase'
 
 const CONSULTING_ENGINE_URL = import.meta.env.VITE_CONSULTING_ENGINE_URL
-  || 'http://localhost:8001'
+  || 'https://consulting-engine-production.up.railway.app'
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession()

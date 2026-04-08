@@ -6,8 +6,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Supabase
     supabase_url: str
-    supabase_service_key: str  # service_role — bypasses RLS
-    supabase_jwt_secret: str
+    supabase_service_key: str = ""  # service_role — bypasses RLS
+    supabase_jwt_secret: str = "placeholder"
 
     # Server
     host: str = "0.0.0.0"
