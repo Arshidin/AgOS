@@ -33,6 +33,22 @@ class ProjectInput(BaseModel):
     bioasset_revaluation_switch: int = Field(default=1, description="1=без, 2=с")
     equity_share: float = Field(default=0.15, description="Доля собственного участия")
 
+    # Параметры привеса и веса реализации
+    birth_weight_kg: float = Field(default=30.0, ge=15, le=50,
+        description="Вес телёнка при рождении, кг (мясные породы КЗ: 28-40)")
+    daily_gain_steer_pasture: float = Field(default=0.850, ge=0.3, le=1.5,
+        description="Привес бычков на пастбище (лето), кг/день")
+    daily_gain_steer_stall: float = Field(default=0.650, ge=0.3, le=1.2,
+        description="Привес бычков на стойле (зима), кг/день")
+    daily_gain_heifer_pasture: float = Field(default=0.810, ge=0.3, le=1.3,
+        description="Привес тёлок на пастбище (лето), кг/день")
+    daily_gain_heifer_stall: float = Field(default=0.600, ge=0.3, le=1.0,
+        description="Привес тёлок на стойле (зима), кг/день")
+    cow_culled_weight_kg: float = Field(default=600.0, ge=350, le=800,
+        description="Вес выбракованной коровы, кг")
+    bull_culled_weight_kg: float = Field(default=750.0, ge=500, le=1100,
+        description="Вес выбракованного быка, кг")
+
     # Финансирование
     capex_loan_term_years: int = Field(default=10)
     capex_grace_period_years: int = Field(default=2)

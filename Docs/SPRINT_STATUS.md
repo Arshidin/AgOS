@@ -1,6 +1,6 @@
 # AGOS Sprint Status
 
-> Last updated: 2026-04-08 by Architect (documentation audit)
+> Last updated: 2026-04-09 by Architect (WeightCalc module D-WEIGHT-1/2)
 
 ---
 
@@ -57,6 +57,7 @@ In progress: rpc_list_vaccination_plans, rpc_list_vaccination_plan_items, rpc_li
 | What | Files | Status |
 |------|-------|--------|
 | READ-RPCs для expert screens (замена прямых .from() запросов) | `d04_vet.sql` (+178 строк), `EpidemicSignals.tsx`, `ExpertKpi.tsx`, `RecordVaccination.tsx`, `VaccinationPlans.tsx`, `Sidebar.tsx`, `AdminDashboard.tsx` | Не закоммичены |
+| WeightCalc модуль — динамический расчёт веса реализации (D-WEIGHT-1) | `weight_model.py` (NEW), `schemas.py`, `input_params.py`, `orchestrator.py`, `revenue.py` | Не закоммичен |
 
 ## Open Tech Debt
 

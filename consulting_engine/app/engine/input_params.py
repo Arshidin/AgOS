@@ -34,4 +34,21 @@ def validate_and_enrich_input(params: ProjectInput) -> dict:
     else:
         d["calving_month_index"] = 12
 
+    # Параметры привеса и веса реализации
+    d["weight_params"] = {
+        "birth_weight_kg": params.birth_weight_kg,
+        "daily_gains": {
+            "steer": {
+                "pasture": params.daily_gain_steer_pasture,
+                "stall": params.daily_gain_steer_stall,
+            },
+            "heifer": {
+                "pasture": params.daily_gain_heifer_pasture,
+                "stall": params.daily_gain_heifer_stall,
+            },
+        },
+        "cow_culled_weight_kg": params.cow_culled_weight_kg,
+        "bull_culled_weight_kg": params.bull_culled_weight_kg,
+    }
+
     return d

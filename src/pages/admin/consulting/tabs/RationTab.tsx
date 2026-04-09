@@ -11,6 +11,13 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
+import { useProjectData } from './usProjectData'
+import {
+  getRelevantCategories,
+  getHeadCount,
+  getDefaultWeight,
+  getDefaultObjective,
+} from './herdCategoryMapping'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown } from 'lucide-react'
+import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -79,10 +86,21 @@ const OBJECTIVES = [
 export function RationTab() {
   const { projectId } = useParams<{ projectId: string }>()
   const { organization } = useAuth()
-  const [calcDialog, setCalcDialog] = useState<{ categoryId: string; categoryName: string } | null>(null)
+  const [calcDialog, setCalcDialog] = useState<{
+    categoryId: string
+    categoryName: string
+    categoryCode: string
+    defaultWeight: number
+    defaultHeadCount: number
+    defaultObjective: string
+  } | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const orgId = organization?.id
+
+  const { results } = useProjectData()
+  const herd = results?.herd
+  const weight = results?.weight
 
   const { data: categories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
   const { data: rations, isLoading, refetch } = useRpc<ConsultingRation[]>(
@@ -93,11 +111,13 @@ export function RationTab() {
 
   if (!orgId || !projectId) return null
 
+  const relevantCategories = getRelevantCategories(herd, categories || [])
+
   const rationsByCategory = new Map<string, ConsultingRation>(
     (rations || []).map(r => [r.animal_category_id, r])
   )
 
-  const totalCategories = (categories || []).length
+  const totalCategories = relevantCategories.length
   const rationCount = rationsByCategory.size
   const totalCogsMontly = [...rationsByCategory.values()].reduce(
     (sum, r) => sum + r.results.total_cost_per_month, 0
@@ -144,13 +164,25 @@ export function RationTab() {
         </Card>
       )}
 
+      {/* Fallback banner when no herd data */}
+      {!herd && !isLoading && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
+          <CardContent className="py-3 px-4 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Запустите расчёт проекта для фильтрации категорий по стаду и автоподстановки голов/веса.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
         </div>
       ) : (
         <div className="space-y-3">
-          {(categories || []).map(cat => {
+          {relevantCategories.map(cat => {
             const existing = rationsByCategory.get(cat.id)
             const isExpanded = expandedId === cat.id
 
@@ -168,6 +200,11 @@ export function RationTab() {
                         {existing && (
                           <span className="ml-2 text-xs text-muted-foreground">
                             v{existing.version_number} · {new Date(existing.created_at).toLocaleDateString('ru-RU')}
+                          </span>
+                        )}
+                        {herd && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            · {Math.round(getHeadCount(herd, cat.code))} гол. (среднегод.)
                           </span>
                         )}
                       </div>
@@ -198,7 +235,14 @@ export function RationTab() {
                       <Button
                         size="sm"
                         variant={existing ? 'outline' : 'default'}
-                        onClick={() => setCalcDialog({ categoryId: cat.id, categoryName: cat.name_ru })}
+                        onClick={() => setCalcDialog({
+                          categoryId: cat.id,
+                          categoryName: cat.name_ru,
+                          categoryCode: cat.code,
+                          defaultWeight: getDefaultWeight(weight, cat.code),
+                          defaultHeadCount: Math.round(getHeadCount(herd, cat.code)) || 50,
+                          defaultObjective: getDefaultObjective(cat.code),
+                        })}
                       >
                         <Calculator className="w-3 h-3 mr-1" />
                         {existing ? 'Пересчитать' : 'Рассчитать'}
@@ -257,6 +301,10 @@ export function RationTab() {
           orgId={orgId}
           categoryId={calcDialog.categoryId}
           categoryName={calcDialog.categoryName}
+          defaultWeight={calcDialog.defaultWeight}
+          defaultHeadCount={calcDialog.defaultHeadCount}
+          defaultObjective={calcDialog.defaultObjective}
+          hasHerdData={!!herd}
           onClose={() => setCalcDialog(null)}
           onSaved={() => { setCalcDialog(null); refetch() }}
         />
@@ -267,17 +315,21 @@ export function RationTab() {
 
 // ─── Calc Dialog ──────────────────────────────────────────────────────────────
 
-function CalcDialog({ projectId, orgId, categoryId, categoryName, onClose, onSaved }: {
+function CalcDialog({ projectId, orgId, categoryId, categoryName, defaultWeight, defaultHeadCount, defaultObjective, hasHerdData, onClose, onSaved }: {
   projectId: string
   orgId: string
   categoryId: string
   categoryName: string
+  defaultWeight: number
+  defaultHeadCount: number
+  defaultObjective: string
+  hasHerdData: boolean
   onClose: () => void
   onSaved: () => void
 }) {
-  const [avgWeight, setAvgWeight] = useState('350')
-  const [headCount, setHeadCount] = useState('50')
-  const [objective, setObjective] = useState('growth')
+  const [avgWeight, setAvgWeight] = useState(String(defaultWeight))
+  const [headCount, setHeadCount] = useState(String(defaultHeadCount))
+  const [objective, setObjective] = useState(defaultObjective)
   const [selectedFeeds, setSelectedFeeds] = useState<string[]>([])
   const [calculating, setCalculating] = useState(false)
 
@@ -349,6 +401,9 @@ function CalcDialog({ projectId, orgId, categoryId, categoryName, onClose, onSav
                 value={avgWeight} onChange={e => setAvgWeight(e.target.value)}
                 className="h-8 text-sm"
               />
+              {hasHerdData && (
+                <p className="text-[10px] text-muted-foreground">из модели привеса</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Голов</Label>
@@ -357,6 +412,9 @@ function CalcDialog({ projectId, orgId, categoryId, categoryName, onClose, onSav
                 value={headCount} onChange={e => setHeadCount(e.target.value)}
                 className="h-8 text-sm"
               />
+              {hasHerdData && (
+                <p className="text-[10px] text-muted-foreground">из оборота стада</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Цель</Label>

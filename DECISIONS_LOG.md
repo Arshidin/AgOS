@@ -55,6 +55,8 @@
 | D-S8-3 | 2026-04-09 | Architecture | calculate-ration Edge Function: farm_id → optional. Добавить consulting_project_id как альтернативный контекст. Новый rpc_save_consulting_ration для consulting ctx. |
 | D-S8-4 | 2026-04-09 | DB | ration_versions.ration_id → NULLABLE + consulting_project_id FK. CHECK: хотя бы один контекст. Аддитивное изменение — существующие данные не затронуты. |
 | D-GATE-S8 | 2026-04-09 | Gate | Slice 8 QA pass + Architect sign-off. 0 critical, 6 TS fixes (DEF-028..032). |
+| D-WEIGHT-1 | 2026-04-09 | Architecture | WeightCalc модуль: динамический расчёт веса реализации. W = birth_weight + Σ(daily_gain[season] × days). Все параметры — в ProjectInput. Revenue использует расчётные веса вместо хардкод 331/267. |
+| D-WEIGHT-2 | 2026-04-09 | Future/Plan | v2: вывод ожидаемого привеса из энергетического баланса NASEM-рациона (ME → ADG). Advisory layer, не автоматический пересчёт. |
 
 ---
 
@@ -846,3 +848,98 @@ AI Gateway on Railway already proves this pattern works.
 - `src/pages/admin/consulting/`: 3 UI pages (Dashboard, Wizard, Results)
 - 8 RPCs: RPC-C01..C08
 - Events: consulting.project.created, consulting.version.created, consulting.project.calculated
+
+---
+
+### D-WEIGHT-1 — WeightCalc: Динамический расчёт веса реализации
+
+**Date:** 2026-04-09
+**Domain:** Architecture
+
+**WHAT:** Новый модуль `weight_model.py` в consulting engine. Заменяет захардкоженные
+константы веса (STEER_WEIGHT=331, HEIFER_WEIGHT=267, COW_CULLED=600, BULL_CULLED=750)
+на динамический расчёт:
+
+```
+W_sale = birth_weight + Σ(daily_gain[season] × days_in_month)
+```
+
+Привесы зависят от сезона: пастбище (май-октябрь) выше, стойло (ноябрь-апрель) ниже.
+Все параметры вынесены в ProjectInput с defaults из зоотехнических норм:
+- birth_weight_kg = 30 кг
+- daily_gain_steer: pasture=0.850, stall=0.650 кг/день
+- daily_gain_heifer: pasture=0.810, stall=0.600 кг/день
+- cow_culled_weight_kg = 600 кг, bull_culled_weight_kg = 750 кг
+
+**WHY:** Хардкоженные 331/267 были приблизительными оценками из Excel-шаблона.
+Динамический расчёт:
+1. Математически корректен (вес зависит от длительности откорма и сезона)
+2. Показывает разницу между зимним и летним отёлом (11 мес vs 5 мес роста до первого декабря)
+3. Позволяет инвестору подбирать параметры привеса через ProjectInput
+4. Revenue меняется — это ожидаемо и правильно
+
+**Alternatives considered:**
+1. Калибровать defaults под 331/267 (backward compat) — отвергнуто: нецелевое,
+   подгонка под неточные данные вместо корректного расчёта
+2. Привязать привес к рациону (ME → ADG) — отложено на v2 (D-WEIGHT-2):
+   создаёт циклическую зависимость Рацион → ME → Привес → Вес → Потребность → Рацион
+
+**Files:**
+- NEW: `consulting_engine/app/engine/weight_model.py`
+- MOD: `consulting_engine/app/models/schemas.py` (7 новых полей в ProjectInput)
+- MOD: `consulting_engine/app/engine/input_params.py` (weight_params структура)
+- MOD: `consulting_engine/app/engine/orchestrator.py` (weight в pipeline: herd → weight → ... → revenue)
+- MOD: `consulting_engine/app/engine/revenue.py` (динамические веса + fallback к константам)
+
+**Pipeline order:** timeline → input → herd → **weight** → capex → staff → wacc → feeding → revenue → opex → pnl → cashflow
+
+**CONSEQUENCES:**
+- Easy: инвестор подбирает привесы под свою породу/регион через параметры проекта
+- Easy: разница зимнего vs летнего отёла видна в P&L автоматически
+- Easy: вес при выбраковке коров/быков настраивается (не хардкод 600/750)
+- Changed: revenue отличается от предыдущих расчётов — это корректно
+- Next: D-WEIGHT-2 (advisory привес из рациона), UI для параметров привеса
+
+---
+
+### D-WEIGHT-2 — Future: Вывод привеса из энергетического баланса рациона
+
+**Date:** 2026-04-09
+**Domain:** Future/Plan
+**Status:** PLANNED (не реализовано)
+
+**WHAT:** В будущей версии (v2) — вывод ожидаемого суточного привеса из
+энергетического баланса NASEM-рациона и показ рекомендации пользователю.
+
+**Формула:**
+```
+ME_available = ME_рациона - ME_поддержания
+ME_поддержания ≈ 0.322 × W^0.75 МДж/день (NASEM Beef 8th ed.)
+ADG_expected = ME_available / 34 МДж/кг (конверсия для молодняка)
+```
+
+**Пример рекомендации в UI:**
+```
+"Ваш рацион для бычков (стойло) обеспечивает ~48 МДж ОЭ/день.
+ При весе 200кг поддержание = 32 МДж → на рост 16 МДж → ≈0.47 кг/день.
+ Текущая настройка привеса: 0.650 кг/день — рацион может быть недостаточным."
+```
+
+**WHY:** Привес зависит от рациона, но прямая привязка создаёт циклическую
+зависимость. Advisory layer решает проблему без цикла:
+- WeightCalc использует статичные привесы из ProjectInput
+- Отдельный advisory блок сравнивает настроенный привес с расчётным из рациона
+- Показывает предупреждение если рацион не обеспечивает заданный привес
+- Пользователь решает сам: изменить рацион или скорректировать привес
+
+**Integration points:**
+- Данные: `ration_versions.results.nutrient_values.me_mj` (ОЭ из NASEM solver)
+- Данные: `enriched_input.weight_params.daily_gains` (настроенные привесы)
+- UI: advisory badge/alert в RationTab CalcDialog или в отдельной секции ProjectWizard
+- Trigger: пересчитывается при изменении рациона или параметров привеса
+
+**CONSEQUENCES:**
+- Easy: зоотехник видит соответствие между рационом и целевым привесом
+- Easy: не ломает существующий flow (advisory, не imperative)
+- Hard: нужны точные коэффициенты конверсии ME→привес по категориям и возрастам
+- Dependency: требует прикреплённые NASEM-рационы по категориям в consulting project

@@ -31,7 +31,8 @@ STEER_WEIGHT = 331           # from Excel E152: avg live weight after growth
 
 
 def calculate_revenue(
-    timeline: dict, enriched_input: dict, herd: dict, refs: dict
+    timeline: dict, enriched_input: dict, herd: dict, refs: dict,
+    weight: dict | None = None,
 ) -> dict:
     """Расчёт выручки от продажи КРС + субсидии.
 
@@ -43,6 +44,8 @@ def calculate_revenue(
         enriched_input: validated project parameters
         herd: herd turnover results with cows/bulls/heifers/steers sub-dicts
         refs: reference data (unused here, kept for signature compatibility)
+        weight: dynamic weight model results (steer_sale_weight, heifer_transfer_weight, etc.)
+                If None, falls back to hardcoded weight constants.
 
     Returns:
         dict with livestock_revenue, subsidies, total_revenue arrays
@@ -60,34 +63,47 @@ def calculate_revenue(
         inf = (1 + CPI_ANNUAL) ** (yr - 1) if yr > 1 else 1.0
 
         # ----- Livestock revenue (POSITIVE) -----
+        # Dynamic weights from weight_model or fallback to hardcoded constants
+        cow_wt = weight["cow_culled_weight"] if weight else COW_CULLED_WEIGHT
+        bull_wt = weight["bull_culled_weight"] if weight else BULL_CULLED_WEIGHT
+        heifer_wt = (
+            weight["heifer_transfer_weight"][t]
+            if weight and weight["heifer_transfer_weight"][t] > 0
+            else HEIFER_WEIGHT
+        )
+        steer_wt = (
+            weight["steer_sale_weight"][t]
+            if weight and weight["steer_sale_weight"][t] > 0
+            else STEER_WEIGHT
+        )
 
-        # Sold breeding heifers: heads × 267кг × 2200 тг/кг × inflation / 1000
+        # Sold breeding heifers: heads × weight × price × inflation / 1000
         sold_breeding = abs(herd["cows"]["sold_breeding"][t])
         if sold_breeding > 0:
             livestock_revenue[t] += (
-                sold_breeding * HEIFER_WEIGHT * BASE_PRICES["heifer_breeding"] * inf / 1000
+                sold_breeding * heifer_wt * BASE_PRICES["heifer_breeding"] * inf / 1000
             )
 
-        # Culled cows: heads × 600кг × 1800 тг/кг × inflation / 1000
+        # Culled cows: heads × weight × price × inflation / 1000
         culled_cows = abs(herd["cows"]["culled"][t])
         if culled_cows > 0:
             livestock_revenue[t] += (
-                culled_cows * COW_CULLED_WEIGHT * BASE_PRICES["cow_culled"] * inf / 1000
+                culled_cows * cow_wt * BASE_PRICES["cow_culled"] * inf / 1000
             )
 
-        # Culled bulls: heads × 750кг × 2200 тг/кг × inflation / 1000
+        # Culled bulls: heads × weight × price × inflation / 1000
         culled_bulls = abs(herd["bulls"]["culled"][t])
         if culled_bulls > 0:
             livestock_revenue[t] += (
-                culled_bulls * BULL_CULLED_WEIGHT * BASE_PRICES["bull_culled"] * inf / 1000
+                culled_bulls * bull_wt * BASE_PRICES["bull_culled"] * inf / 1000
             )
 
-        # Steers sold (own): heads × 331кг × 2200 тг/кг × inflation / 1000
-        # This is the PRIMARY revenue source — steers sold after weaning/growth
+        # Steers sold (own): heads × weight × price × inflation / 1000
+        # PRIMARY revenue source — steers sold after growth period
         steers_sold = abs(herd["steers"]["sold"][t])
         if steers_sold > 0:
             livestock_revenue[t] += (
-                steers_sold * STEER_WEIGHT * BASE_PRICES["steer_own"] * inf / 1000
+                steers_sold * steer_wt * BASE_PRICES["steer_own"] * inf / 1000
             )
 
         # ----- Subsidies (POSITIVE, only when subsidy_switch != 2) -----

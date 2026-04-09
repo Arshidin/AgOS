@@ -34,6 +34,7 @@ from datetime import date
 # ─── Animal category code → herd group key mapping ────────────────────────────
 # Maps animal_categories.code (d01_kernel.sql seed) to herd turnover keys.
 # Used by Priority 1 (consulting_rations) and Priority 2 (feed_consumption_norms).
+# TS mirror: src/pages/admin/consulting/tabs/herdCategoryMapping.ts — keep in sync.
 CATEGORY_CODE_TO_HERD: dict[str, tuple[str, str]] = {
     "COW":           ("cows",    "eop"),
     "COW_CULL":      ("cows",    "eop"),

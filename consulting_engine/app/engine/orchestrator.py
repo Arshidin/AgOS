@@ -4,11 +4,12 @@
   1. timeline
   2. input (validate & enrich)
   3. herd (herd turnover — 120 months)
+  3.5. weight (needs herd — birth/sale events → sale weights)
   4. capex
   5. staff
   6. wacc
   7. feeding (needs herd)
-  8. revenue (needs herd)
+  8. revenue (needs herd, weight)
   9. opex (needs feeding, staff, herd, revenue)
   10. loans (needs capex, wacc) ← BEFORE P&L
   11. pnl (needs revenue, opex, capex, staff, loans)
@@ -23,6 +24,7 @@ from app.engine.herd_turnover import calculate_herd_turnover
 from app.engine.capex import calculate_capex
 from app.engine.staff import calculate_staff
 from app.engine.wacc import calculate_wacc_rates
+from app.engine.weight_model import calculate_weight_model
 from app.engine.feeding_model import calculate_feeding
 from app.engine.revenue import calculate_revenue
 from app.engine.opex import calculate_opex
@@ -60,6 +62,9 @@ def run_calculation(
     # 3. Оборот стада — КРИТИЧЕСКИЙ модуль
     herd = calculate_herd_turnover(timeline, enriched, refs)
 
+    # 3.5. Расчёт веса реализации (needs herd — birth/sale events)
+    weight = calculate_weight_model(timeline, enriched, herd)
+
     # 4. CAPEX
     capex = calculate_capex(enriched, refs)
 
@@ -72,8 +77,8 @@ def run_calculation(
     # 7. Кормовая модель
     feeding = calculate_feeding(timeline, enriched, herd, refs)
 
-    # 8. Выручка + субсидии
-    revenue = calculate_revenue(timeline, enriched, herd, refs)
+    # 8. Выручка + субсидии (uses dynamic weights from weight_model)
+    revenue = calculate_revenue(timeline, enriched, herd, refs, weight)
 
     # 9. OPEX (себестоимость + административные расходы)
     opex = calculate_opex(timeline, enriched, herd, feeding, staff, revenue, refs)
@@ -97,6 +102,7 @@ def run_calculation(
         "capex": capex,
         "staff": staff,
         "wacc": {**wacc_rates, **cashflow.get("valuation", {})},
+        "weight": weight,
         "feeding": feeding,
         "revenue": revenue,
         "opex": opex,
