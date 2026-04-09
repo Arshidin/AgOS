@@ -305,7 +305,14 @@ function CalcDialog({ projectId, orgId, categoryId, categoryName, onClose, onSav
       })
 
       if (error || data?.error) {
-        toast.error(data?.error || error?.message || 'Ошибка расчёта')
+        // FunctionsHttpError.context is a Response — read body to get actual message
+        let errMsg = data?.error || data?.message
+        if (!errMsg && (error as any)?.context?.json) {
+          try { const body = await (error as any).context.json(); errMsg = body?.error || body?.message } catch (_) {}
+        }
+        errMsg = errMsg || error?.message || 'Ошибка расчёта'
+        console.error('[calculate-ration]', errMsg, error, data)
+        toast.error(errMsg)
         return
       }
 

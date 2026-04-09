@@ -1789,6 +1789,7 @@ set search_path = public
 as $$
 declare
     v_price_id  uuid;
+    v_user_id   uuid;
 begin
     if not public.fn_is_admin() then
         raise exception 'UNAUTHORIZED' using hint = 'Admin role required';
@@ -1800,12 +1801,15 @@ begin
         raise exception 'FEED_ITEM_NOT_FOUND';
     end if;
 
+    -- Resolve public.users.id from auth_id (auth.uid() is auth_id, not public.users.id)
+    select id into v_user_id from public.users where auth_id = auth.uid();
+
     insert into public.feed_prices (
         feed_item_id, price_per_kg, region_id, valid_from, valid_to,
         currency, is_active, updated_by
     ) values (
         p_feed_item_id, p_price_per_kg, p_region_id, p_valid_from, p_valid_to,
-        p_currency, true, auth.uid()
+        p_currency, true, v_user_id
     )
     on conflict (feed_item_id, region_id, valid_from)
         do update set
@@ -1827,6 +1831,42 @@ comment on function public.rpc_upsert_feed_price(uuid, numeric, uuid, date, date
      ON CONFLICT (feed_item_id, region_id, valid_from) → UPDATE.
      p_region_id=NULL → общегосударственная цена (NULL region_id).';
 
+
+-- -------------------------------------------------------
+-- RPC-F04b: rpc_list_feed_prices — список текущих цен по кормам
+-- -------------------------------------------------------
+
+create or replace function public.rpc_list_feed_prices()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'feed_price_id',  fp.id,
+                'feed_item_id',   fi.id,
+                'feed_item_code', fi.code,
+                'feed_item_name', fi.name_ru,
+                'price_per_kg',   fp.price_per_kg,
+                'currency',       fp.currency,
+                'valid_from',     fp.valid_from,
+                'valid_to',       fp.valid_to,
+                'region_id',      fp.region_id,
+                'is_active',      fp.is_active,
+                'updated_at',     fp.updated_at
+            ) order by fi.name_ru, fp.valid_from desc
+        )
+        from public.feed_prices fp
+        join public.feed_items fi on fi.id = fp.feed_item_id
+        where fp.is_active = true
+    );
+end;
+$$;
+
+comment on function public.rpc_list_feed_prices() is
+    'RPC-F04b | Slice 8 | List active feed prices for Admin Prices tab.';
 
 -- -------------------------------------------------------
 -- RPC-F05: rpc_upsert_feed_consumption_norm — Admin: норма кормления

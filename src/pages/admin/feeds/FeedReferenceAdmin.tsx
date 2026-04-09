@@ -307,6 +307,20 @@ function FeedItemDialog({ open, item, onClose, onSaved }: {
   )
 }
 
+interface FeedPrice {
+  feed_price_id: string
+  feed_item_id: string
+  feed_item_code: string
+  feed_item_name: string
+  price_per_kg: number
+  currency: string
+  valid_from: string
+  valid_to?: string
+  region_id?: string
+  is_active: boolean
+  updated_at: string
+}
+
 // ─── Tab 2: Prices ────────────────────────────────────────────────────────────
 
 function PricesTab() {
@@ -316,13 +330,16 @@ function PricesTab() {
   const [validFrom, setValidFrom] = useState(new Date().toISOString().split('T')[0])
 
   const { data: items } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
+  const { data: prices, refetch: refetchPrices } = useRpc<FeedPrice[]>('rpc_list_feed_prices', {})
+
+  // Map: feed_item_id → current price
+  const priceMap = new Map((prices || []).map(p => [p.feed_item_id, p]))
 
   const upsertPrice = useRpcMutation<Record<string, unknown>, { feed_price_id: string }>(
     'rpc_upsert_feed_price',
     {
       successMessage: 'Цена сохранена',
-      invalidateKeys: [['rpc_list_feed_items']],
-      onSuccess: () => { setShowForm(false); setPrice(''); setSelectedItem('') },
+      onSuccess: () => { setShowForm(false); setPrice(''); setSelectedItem(''); refetchPrices() },
     }
   )
 
@@ -337,11 +354,19 @@ function PricesTab() {
     })
   }
 
+  const openEdit = (itemId: string) => {
+    const existing = priceMap.get(itemId)
+    setSelectedItem(itemId)
+    setPrice(existing ? String(existing.price_per_kg) : '')
+    setValidFrom(existing?.valid_from || new Date().toISOString().split('T')[0])
+    setShowForm(true)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Цены кормов (тенге/кг). Регион = null → общегосударственная цена.</p>
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button size="sm" onClick={() => { setSelectedItem(''); setPrice(''); setShowForm(true) }}>
           <Plus className="w-4 h-4 mr-1" /> Установить цену
         </Button>
       </div>
@@ -356,28 +381,30 @@ function PricesTab() {
                   <th className="p-3">Код</th>
                   <th className="p-3 text-right">Цена (тенге/кг)</th>
                   <th className="p-3">Действует с</th>
+                  <th className="p-3" />
                 </tr>
               </thead>
               <tbody>
                 {(items || []).length === 0 ? (
-                  <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">Нет кормов в каталоге</td></tr>
-                ) : (items || []).map(item => (
-                  <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="p-3 font-medium">{item.name_ru}</td>
-                    <td className="p-3 font-mono text-xs text-muted-foreground">{item.code}</td>
-                    <td className="p-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto p-1 text-xs"
-                        onClick={() => { setSelectedItem(item.id); setShowForm(true) }}
-                      >
-                        Добавить цену
-                      </Button>
-                    </td>
-                    <td className="p-3 text-xs text-muted-foreground">—</td>
-                  </tr>
-                ))}
+                  <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Нет кормов в каталоге</td></tr>
+                ) : (items || []).map(item => {
+                  const p = priceMap.get(item.id)
+                  return (
+                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="p-3 font-medium">{item.name_ru}</td>
+                      <td className="p-3 font-mono text-xs text-muted-foreground">{item.code}</td>
+                      <td className="p-3 text-right font-medium">
+                        {p ? `${p.price_per_kg.toLocaleString('ru-RU')} ₸` : <span className="text-muted-foreground text-xs">не задана</span>}
+                      </td>
+                      <td className="p-3 text-xs text-muted-foreground">{p?.valid_from ?? '—'}</td>
+                      <td className="p-3">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item.id)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
