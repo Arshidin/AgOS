@@ -84,10 +84,23 @@ def calculate_tech_card(
         dict с phases, calving_months, weaning_months, sale_months, params
     """
     if params is None:
+        # Derive fattening from steer_sale_age_months (single source of truth).
+        # fattening_enabled/fattening_months in enriched_input are kept for
+        # backward-compat but ignored — steer_sale_age_months takes precedence.
+        steer_sale_age = enriched_input.get("steer_sale_age_months", 0)
+        suckling = enriched_input.get("suckling_months", 7)
+        if steer_sale_age > suckling:
+            _fattening_enabled = True
+            _fattening_months = steer_sale_age - suckling
+        else:
+            _fattening_enabled = False
+            _fattening_months = 0
+
         params = TechCardParams(
             calving_scenario=enriched_input.get("calving_scenario", "Зимний"),
-            fattening_enabled=enriched_input.get("fattening_enabled", False),
-            fattening_months=enriched_input.get("fattening_months", 6),
+            suckling_months=suckling,
+            fattening_enabled=_fattening_enabled,
+            fattening_months=_fattening_months,
         )
 
     n = timeline["horizon_months"]  # 120

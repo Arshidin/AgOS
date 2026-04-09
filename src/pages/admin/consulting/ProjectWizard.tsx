@@ -31,8 +31,6 @@ interface WizardParams {
   bull_culling_pct: number          // Выбраковка быков (25%)
   heifer_mortality_pct: number      // Падёж молодняка (3%)
   // Технология
-  fattening_enabled: boolean        // С доращиванием
-  fattening_months: number          // Срок доращивания (мес)
   breeding_duration_months: number  // Период случной кампании (мес)
   gestation_months: number          // Стельность (мес)
   suckling_months: number           // Подсосный период (мес)
@@ -90,8 +88,6 @@ const DEFAULT_PARAMS: WizardParams = {
   bull_mortality_pct: 3,
   bull_culling_pct: 25,
   heifer_mortality_pct: 3,
-  fattening_enabled: false,
-  fattening_months: 6,
   breeding_duration_months: 2,
   gestation_months: 9,
   suckling_months: 7,
@@ -230,8 +226,6 @@ export function ProjectWizard() {
           bull_mortality_rate: params.bull_mortality_pct / 100,
           bull_culling_rate: params.bull_culling_pct / 100,
           heifer_mortality_rate: params.heifer_mortality_pct / 100,
-          fattening_enabled: params.fattening_enabled,
-          fattening_months: params.fattening_months,
           breeding_duration_months: params.breeding_duration_months,
           gestation_months: params.gestation_months,
           suckling_months: params.suckling_months,
@@ -554,24 +548,8 @@ export function ProjectWizard() {
                 <p className="text-[10px] text-muted-foreground/70">Предварительная оценка. Точный расчёт — по кнопке Рассчитать.</p>
               </div>
 
-              <div className="h-px bg-border/50 my-2" />
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Доращивание</p>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="font-medium">С доращиванием</p>
-                  <p className="text-sm text-muted-foreground">Дополнительный период откорма бычков после отъёма</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant={params.fattening_enabled ? 'default' : 'outline'} onClick={() => setParams(p => ({ ...p, fattening_enabled: true }))}>Да</Button>
-                  <Button size="sm" variant={!params.fattening_enabled ? 'default' : 'outline'} onClick={() => setParams(p => ({ ...p, fattening_enabled: false }))}>Нет</Button>
-                </div>
-              </div>
-              {params.fattening_enabled && (
-                <WizardField label="Срок доращивания" value={params.fattening_months} onChange={v => set('fattening_months', v)} suffix="мес" />
-              )}
-
               <div className="rounded-lg border border-border/50 bg-muted/30 p-3 text-sm text-muted-foreground">
-                Пастбища: {pasture.toLocaleString('ru-RU')} га · Первый отёл: месяц {params.calving_scenario === 'Зимний' ? 17 : 12} · Цикл: {params.breeding_duration_months + params.gestation_months + params.suckling_months + (params.fattening_enabled ? params.fattening_months : 0)} мес
+                Пастбища: {pasture.toLocaleString('ru-RU')} га · Первый отёл: месяц {params.calving_scenario === 'Зимний' ? 17 : 12} · Цикл: {params.breeding_duration_months + params.gestation_months + params.suckling_months + (params.steer_sale_age_months > params.suckling_months ? params.steer_sale_age_months - params.suckling_months : 0)} мес
               </div>
             </>
           )}
