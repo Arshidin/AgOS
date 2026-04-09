@@ -339,7 +339,8 @@ function PricesTab() {
     'rpc_upsert_feed_price',
     {
       successMessage: 'Цена сохранена',
-      onSuccess: () => { setShowForm(false); setPrice(''); setSelectedItem(''); refetchPrices() },
+      invalidateKeys: [['rpc_list_feed_prices']],
+      onSuccess: () => { setShowForm(false); setPrice(''); setSelectedItem('') },
     }
   )
 

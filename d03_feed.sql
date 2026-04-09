@@ -1856,11 +1856,17 @@ begin
                 'region_id',      fp.region_id,
                 'is_active',      fp.is_active,
                 'updated_at',     fp.updated_at
-            ) order by fi.name_ru, fp.valid_from desc
+            ) order by fi.name_ru
         )
-        from public.feed_prices fp
+        from (
+            select distinct on (fp.feed_item_id, fp.region_id)
+                fp.id, fp.feed_item_id, fp.price_per_kg, fp.currency,
+                fp.valid_from, fp.valid_to, fp.region_id, fp.is_active, fp.updated_at
+            from public.feed_prices fp
+            where fp.is_active = true
+            order by fp.feed_item_id, fp.region_id, fp.valid_from desc
+        ) fp
         join public.feed_items fi on fi.id = fp.feed_item_id
-        where fp.is_active = true
     );
 end;
 $$;
