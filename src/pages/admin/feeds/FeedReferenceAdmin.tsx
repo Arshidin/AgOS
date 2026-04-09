@@ -330,7 +330,7 @@ function PricesTab() {
   const [validFrom, setValidFrom] = useState(new Date().toISOString().split('T')[0])
 
   const { data: items } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
-  const { data: prices, refetch: refetchPrices } = useRpc<FeedPrice[]>('rpc_list_feed_prices', {})
+  const { data: prices } = useRpc<FeedPrice[]>('rpc_list_feed_prices', {})
 
   // Map: feed_item_id → current price
   const priceMap = new Map((prices || []).map(p => [p.feed_item_id, p]))
