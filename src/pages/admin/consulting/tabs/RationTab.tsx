@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,6 +97,12 @@ export function RationTab() {
     (rations || []).map(r => [r.animal_category_id, r])
   )
 
+  const totalCategories = (categories || []).length
+  const rationCount = rationsByCategory.size
+  const totalCogsMontly = [...rationsByCategory.values()].reduce(
+    (sum, r) => sum + r.results.total_cost_per_month, 0
+  )
+
   return (
     <div className="page space-y-4">
       <div className="flex items-center justify-between">
@@ -107,6 +113,36 @@ export function RationTab() {
           </p>
         </div>
       </div>
+
+      {/* COGS Summary */}
+      {!isLoading && rationCount > 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Расчётный COGS по кормам</span>
+                <span className="text-xs text-muted-foreground">
+                  ({rationCount} из {totalCategories} {rationCount === totalCategories ? '— все категории' : 'категорий'})
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-base font-semibold">
+                  {totalCogsMontly.toLocaleString('ru-RU')} ₸/мес
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Применяется в P&L при следующем пересчёте
+                </div>
+              </div>
+            </div>
+            {rationCount < totalCategories && (
+              <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                {totalCategories - rationCount} {totalCategories - rationCount === 1 ? 'категория без рациона' : 'категорий без рациона'} — P&L использует нормативные значения
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">

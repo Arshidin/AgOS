@@ -399,6 +399,8 @@ erDiagram
     FeedItem }o--|| FeedCategory : "type"
     FeedItem ||--o{ FeedPrice : "priced"
     NutrientRequirement }o--|| AnimalCategory : "for"
+    FeedConsumptionNorm }o--|| AnimalCategory : "for category"
+    ConsultingProject ||--o{ RationVersion : "consulting rations"
 
     Ration {
         uuid id PK
@@ -414,11 +416,22 @@ erDiagram
     }
     RationVersion {
         uuid id PK
-        uuid ration_id FK
+        uuid ration_id FK "nullable — farm ctx"
+        uuid consulting_project_id FK "nullable — consulting ctx"
+        uuid animal_category_id FK "consulting ctx only"
         int version_number
         jsonb items
         jsonb results
         boolean is_current
+    }
+    FeedConsumptionNorm {
+        uuid id PK
+        text farm_type
+        uuid animal_category_id FK
+        text season
+        jsonb items
+        date valid_from
+        date valid_to
     }
     FarmFeedInventory {
         uuid id PK
@@ -820,11 +833,12 @@ erDiagram
 | FeedCategory | — | C/U/A | U | — | R | — |
 | FeedItem | — | C/U/A | U | — | R | — |
 | FeedPrice | — | C/U/A | U | — | R | — |
+| FeedConsumptionNorm | — | C/U/A | U | — | R | — |
 | NutrientRequirement | — | C/U/A | U | — | R | — |
 | PeriodType | — | C/U/A | — | — | R | — |
 | FarmFeedInventory | C/U (L3) | R | R | — | C/U (L2) | U/A (L4) |
 | Ration | C/U | R | R | C/A (calculate) | C (quick mode) | — |
-| RationVersion | — | — | — | C/A (calculate) | — | — |
+| RationVersion | — | — | — | C/A (calculate, farm OR consulting) | — | — |
 | FeedingPlan | C/U | R | U | C (generate) | R | — |
 | FeedingPeriod | C/U | R | U | C (generate) | R | — |
 

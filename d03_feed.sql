@@ -801,22 +801,114 @@ from (values
 join public.feed_categories fc on fc.code = f.cat_code
 on conflict (code) do nothing;
 
--- Feed prices: seed for pasture (Q41: 0 cost) and common feeds as placeholder
--- Actual prices updated by admin/expert before use
+-- Feed prices: seed for all 18 items (Q41: pasture = 0 cost, rest = KZT placeholder 2024)
+-- Actual prices updated by admin via FeedReferenceAdmin UI
 insert into public.feed_prices (feed_item_id, price_per_kg, currency, valid_from, is_active, source)
 select fi.id, fp.price, 'KZT', current_date, true, 'admin_seed'
 from (values
-    ('PASTURE_SPRING',  0.00),
-    ('PASTURE_SUMMER',  0.00),
-    ('STRAW_WHEAT',     15.00),   -- placeholder KZT/kg
-    ('HAY_MIXED_GRASS', 35.00),   -- placeholder
-    ('GRAIN_BARLEY',    90.00),   -- placeholder
-    ('GRAIN_WHEAT',     85.00),   -- placeholder
-    ('SALT_NaCl',       25.00),   -- placeholder
-    ('CHALK_CaCO3',     18.00)    -- placeholder
+    -- Roughage (KZT/kg AS-FED)
+    ('PASTURE_SPRING',   0.00),   -- Q41: free pasture
+    ('PASTURE_SUMMER',   0.00),   -- Q41: free pasture
+    ('STRAW_WHEAT',     15.00),   -- низкое качество
+    ('HAY_MIXED_GRASS', 35.00),   -- луговое сено, КЗ рынок
+    ('HAY_TIMOTHY',     38.00),   -- тимофеевка, чуть дороже
+    ('HAYLAGE_GRASS',   28.00),   -- AS-FED (DM 45%)
+    -- Silage
+    ('SILAGE_CORN',     18.00),   -- AS-FED (DM 30%)
+    ('SILAGE_SUNFLOWER',15.00),   -- AS-FED (DM 25%)
+    -- Concentrates
+    ('GRAIN_BARLEY',    90.00),   -- основной концентрат КЗ
+    ('GRAIN_WHEAT',     85.00),   -- пшеница фуражная
+    ('GRAIN_CORN',      95.00),   -- кукуруза зерно
+    ('GRAIN_OATS',      75.00),   -- овёс
+    -- Protein supplements
+    ('MEAL_SUNFLOWER', 120.00),   -- жмых подсолнечниковый
+    ('MEAL_SOYBEAN',   200.00),   -- шрот соевый, импорт
+    ('UREA',           180.00),   -- карбамид
+    -- Minerals
+    ('SALT_NaCl',       25.00),   -- соль
+    ('CHALK_CaCO3',     18.00),   -- мел кормовой
+    ('PREMIX_BEEF',    350.00)    -- премикс КРС
 ) as fp(code, price)
 join public.feed_items fi on fi.code = fp.code
 on conflict (feed_item_id, region_id, valid_from) do nothing;
+
+-- Feed consumption norms: typical KZ beef cattle (Priority 2 fallback for feeding_model.py)
+-- All quantities in kg AS-FED per head per day. Season: winter | summer | transition
+-- farm_type: beef_reproducer (cow-calf), feedlot (steer finishing)
+insert into public.feed_consumption_norms (farm_type, animal_category_id, season, items, notes)
+select
+    v.farm_type,
+    ac.id,
+    v.season,
+    (
+        select coalesce(jsonb_agg(
+            jsonb_build_object(
+                'feed_item_id', fi.id::text,
+                'kg_per_day',   item_row.kg_per_day
+            )
+        ), '[]'::jsonb)
+        from jsonb_to_recordset(v.items_seed::jsonb) as item_row(code text, kg_per_day numeric)
+        join public.feed_items fi on fi.code = item_row.code
+    ),
+    v.notes
+from (values
+    -- ── beef_reproducer ───────────────────────────────────────────────────────
+    -- COW зима: сено+силос+концентрат. Суммарно ~40 кг AS-FED
+    ('beef_reproducer','COW','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":8},{"code":"SILAGE_CORN","kg_per_day":18},{"code":"GRAIN_BARLEY","kg_per_day":2.5},{"code":"MEAL_SUNFLOWER","kg_per_day":0.5},{"code":"SALT_NaCl","kg_per_day":0.06},{"code":"PREMIX_BEEF","kg_per_day":0.1}]',
+     'Корова, стельность/лактация, зима. НАСЭМ-приближение beef_reproducer КЗ.'),
+    -- COW лето: пастбище + подкормка
+    ('beef_reproducer','COW','summer',
+     '[{"code":"PASTURE_SUMMER","kg_per_day":35},{"code":"HAY_MIXED_GRASS","kg_per_day":2},{"code":"GRAIN_BARLEY","kg_per_day":1},{"code":"SALT_NaCl","kg_per_day":0.05}]',
+     'Корова, лето. Основа — пастбище. Концентрат поддерживающий.'),
+    -- COW переходный период
+    ('beef_reproducer','COW','transition',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":6},{"code":"SILAGE_CORN","kg_per_day":10},{"code":"GRAIN_BARLEY","kg_per_day":1.5},{"code":"SALT_NaCl","kg_per_day":0.05}]',
+     'Корова, переходный период (апрель/октябрь).'),
+
+    -- HEIFER_YOUNG зима: доращивание
+    ('beef_reproducer','HEIFER_YOUNG','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":5},{"code":"SILAGE_CORN","kg_per_day":8},{"code":"GRAIN_BARLEY","kg_per_day":1.5},{"code":"MEAL_SUNFLOWER","kg_per_day":0.3},{"code":"SALT_NaCl","kg_per_day":0.04}]',
+     'Тёлка на доращивании, зима.'),
+    ('beef_reproducer','HEIFER_YOUNG','summer',
+     '[{"code":"PASTURE_SUMMER","kg_per_day":28},{"code":"HAY_MIXED_GRASS","kg_per_day":1.5},{"code":"GRAIN_BARLEY","kg_per_day":0.8},{"code":"SALT_NaCl","kg_per_day":0.04}]',
+     'Тёлка на доращивании, лето.'),
+
+    -- BULL_BREEDING зима: производитель
+    ('beef_reproducer','BULL_BREEDING','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":8},{"code":"GRAIN_BARLEY","kg_per_day":3},{"code":"MEAL_SUNFLOWER","kg_per_day":0.5},{"code":"SALT_NaCl","kg_per_day":0.07},{"code":"PREMIX_BEEF","kg_per_day":0.15}]',
+     'Бык-производитель, зима. Повышенный CP в случной период.'),
+
+    -- BULL_CALF зима: молодняк на доращивании
+    ('beef_reproducer','BULL_CALF','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":3},{"code":"GRAIN_BARLEY","kg_per_day":2},{"code":"MEAL_SUNFLOWER","kg_per_day":0.25},{"code":"SALT_NaCl","kg_per_day":0.03}]',
+     'Бычок 8-18 мес, зима.'),
+    ('beef_reproducer','BULL_CALF','summer',
+     '[{"code":"PASTURE_SUMMER","kg_per_day":20},{"code":"GRAIN_BARLEY","kg_per_day":1.5},{"code":"SALT_NaCl","kg_per_day":0.03}]',
+     'Бычок 8-18 мес, лето.'),
+
+    -- ── feedlot ───────────────────────────────────────────────────────────────
+    -- STEER зима: интенсивный откорм
+    ('feedlot','STEER','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":3},{"code":"SILAGE_CORN","kg_per_day":12},{"code":"GRAIN_BARLEY","kg_per_day":4.5},{"code":"GRAIN_CORN","kg_per_day":1},{"code":"MEAL_SUNFLOWER","kg_per_day":0.4},{"code":"SALT_NaCl","kg_per_day":0.05},{"code":"PREMIX_BEEF","kg_per_day":0.1}]',
+     'Бычок на откорме (STEER), зима. Интенсивный рацион ~21.5 кг AS-FED.'),
+    -- STEER лето: откорм с пастбищем
+    ('feedlot','STEER','summer',
+     '[{"code":"PASTURE_SUMMER","kg_per_day":20},{"code":"GRAIN_BARLEY","kg_per_day":3},{"code":"GRAIN_CORN","kg_per_day":0.5},{"code":"SALT_NaCl","kg_per_day":0.04}]',
+     'Бычок на откорме, лето. Пастбище + концентрат.'),
+    -- STEER переходный
+    ('feedlot','STEER','transition',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":4},{"code":"SILAGE_CORN","kg_per_day":8},{"code":"GRAIN_BARLEY","kg_per_day":3.5},{"code":"SALT_NaCl","kg_per_day":0.04}]',
+     'Бычок на откорме, переходный период.'),
+
+    -- BULL_CALF feedlot зима
+    ('feedlot','BULL_CALF','winter',
+     '[{"code":"HAY_MIXED_GRASS","kg_per_day":2.5},{"code":"SILAGE_CORN","kg_per_day":6},{"code":"GRAIN_BARLEY","kg_per_day":2.5},{"code":"MEAL_SUNFLOWER","kg_per_day":0.3},{"code":"SALT_NaCl","kg_per_day":0.03}]',
+     'Молодняк бычок feedlot, зима.')
+) as v(farm_type, cat_code, season, items_seed, notes)
+join public.animal_categories ac on ac.code = v.cat_code
+on conflict (farm_type, animal_category_id, season, valid_from) do nothing;
 
 -- Nutrient requirements seed (is_validated=false — Q36/Q37 pending)
 -- Base values per 300kg animal, NASEM 8th ed. 2016 (approximate for KZ breeds)
