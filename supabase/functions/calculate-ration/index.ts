@@ -48,7 +48,14 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // Service role client — for data reads (bypasses RLS on feed catalog, inventory)
     const supabase = createClient(supabaseUrl, serviceKey);
+    // User client — for RPC saves that check auth.uid() via fn_my_org_ids()
+    const authHeader = req.headers.get("Authorization") || "";
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const body: RationRequest = await req.json();
 
     // Validate context — exactly one must be provided
@@ -252,7 +259,7 @@ Deno.serve(async (req: Request) => {
     // 5. Save via appropriate RPC based on context
     if (isFarmCtx) {
       // Farm context → rpc_save_ration (existing, unchanged)
-      const { data: saveResult, error: saveError } = await supabase.rpc("rpc_save_ration", {
+      const { data: saveResult, error: saveError } = await userClient.rpc("rpc_save_ration", {
         p_organization_id: body.organization_id,
         p_farm_id: body.farm_id,
         p_herd_group_id: body.herd_group_id || null,
@@ -274,7 +281,7 @@ Deno.serve(async (req: Request) => {
 
     } else {
       // Consulting context → rpc_save_consulting_ration (Slice 8 C-RPC-09)
-      const { data: saveResult, error: saveError } = await supabase.rpc("rpc_save_consulting_ration", {
+      const { data: saveResult, error: saveError } = await userClient.rpc("rpc_save_consulting_ration", {
         p_organization_id: body.organization_id,
         p_consulting_project_id: body.consulting_project_id,
         p_animal_category_id: body.animal_category_id,
