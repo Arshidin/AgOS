@@ -64,8 +64,9 @@ create table if not exists public.consulting_reference_data (
     id                  serial      primary key,
     category            text        not null
                                         check (category in (
-                                            'feed_norms',
-                                            'feed_prices',
+                                            -- Slice 8 ADR-FEED-01: feed_norms + feed_prices
+                                            -- мигрированы в d03_feed.feed_consumption_norms
+                                            -- и d03_feed.feed_prices. Категории удалены из CHECK.
                                             'infrastructure_norms',
                                             'equipment_norms',
                                             'tax_rates',
@@ -575,3 +576,165 @@ insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, creat
     ('rpc_upsert_consulting_reference', 'rpc_upsert_consulting_reference', null, 'd09_consulting.sql (Phase 0)', 'RPC-C08: Admin reference data upsert')
 on conflict (sql_name) do update
     set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+
+-- ============================================================
+-- SLICE 8 PART C: Consulting Ration RPCs
+-- C-RPC-09: rpc_save_consulting_ration
+-- C-RPC-10: rpc_get_consulting_rations
+-- Зависит от: Часть C-DB (ration_versions migration в d03_feed.sql)
+-- ============================================================
+
+create or replace function public.rpc_save_consulting_ration(
+    p_organization_id           uuid,
+    p_consulting_project_id     uuid,
+    p_animal_category_id        uuid,
+    p_items                     jsonb   default '[]',
+    p_results                   jsonb   default '{}'
+)
+returns jsonb
+language plpgsql volatile security definer
+set search_path = public
+as $$
+declare
+    v_version_num   int;
+    v_version_id    uuid;
+begin
+    -- Access check: org member or admin
+    if not (
+        p_organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    ) then
+        raise exception 'UNAUTHORIZED';
+    end if;
+
+    -- Verify project belongs to org
+    if not exists (
+        select 1 from public.consulting_projects
+        where id = p_consulting_project_id
+          and organization_id = p_organization_id
+          and is_active = true
+    ) then
+        raise exception 'PROJECT_NOT_FOUND';
+    end if;
+
+    -- Get next version number for this project + animal_category
+    select coalesce(max(rv.version_number), 0) + 1
+    into v_version_num
+    from public.ration_versions rv
+    where rv.consulting_project_id = p_consulting_project_id
+      and rv.context_animal_category_id = p_animal_category_id;
+
+    -- Deactivate previous versions for this project + category
+    update public.ration_versions
+    set is_current = false
+    where consulting_project_id = p_consulting_project_id
+      and context_animal_category_id = p_animal_category_id
+      and is_current = true;
+
+    -- Insert new version
+    insert into public.ration_versions (
+        ration_id,
+        consulting_project_id,
+        context_animal_category_id,
+        version_number,
+        items,
+        results,
+        is_current,
+        calc_avg_weight_kg,
+        calc_head_count,
+        calc_objective,
+        calculated_by
+    ) values (
+        null,                           -- no farm ration context
+        p_consulting_project_id,
+        p_animal_category_id,
+        v_version_num,
+        p_items,
+        p_results,
+        true,
+        coalesce((p_results->>'calc_avg_weight_kg')::numeric, 0),
+        coalesce((p_results->>'calc_head_count')::int, 1),
+        coalesce(p_results->>'objective', 'growth'),
+        'consulting_edge_function'
+    )
+    returning id into v_version_id;
+
+    return jsonb_build_object(
+        'ration_version_id', v_version_id,
+        'version_number',    v_version_num
+    );
+end;
+$$;
+
+comment on function public.rpc_save_consulting_ration(uuid, uuid, uuid, jsonb, jsonb) is
+    'C-RPC-09 | Dok 3 §13b | Slice 8 Part C
+     Сохраняет результат NASEM-расчёта рациона для консалтингового проекта.
+     Вызывается из Edge Function calculate-ration (consulting context).
+     Создаёт новую версию ration_versions (consulting_project_id context).
+     ADR-FEED-02: ration_versions контекст-независимое хранилище.';
+
+
+create or replace function public.rpc_get_consulting_rations(
+    p_organization_id           uuid,
+    p_consulting_project_id     uuid
+)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    if not (
+        p_organization_id = any(public.fn_my_org_ids())
+        or public.fn_is_admin()
+    ) then
+        raise exception 'UNAUTHORIZED';
+    end if;
+
+    if not exists (
+        select 1 from public.consulting_projects
+        where id = p_consulting_project_id
+          and organization_id = p_organization_id
+    ) then
+        raise exception 'PROJECT_NOT_FOUND';
+    end if;
+
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'ration_version_id',    rv.id,
+                'animal_category_id',   rv.context_animal_category_id,
+                'animal_category_name', ac.name_ru,
+                'animal_category_code', ac.code,
+                'version_number',       rv.version_number,
+                'items',                rv.items,
+                'results',              rv.results,
+                'created_at',           rv.created_at
+            ) order by ac.sort_order, rv.version_number desc
+        )
+        from public.ration_versions rv
+        join public.animal_categories ac on ac.id = rv.context_animal_category_id
+        where rv.consulting_project_id = p_consulting_project_id
+          and rv.is_current = true
+    );
+end;
+$$;
+
+comment on function public.rpc_get_consulting_rations(uuid, uuid) is
+    'C-RPC-10 | Dok 3 §13b | Slice 8 Part C
+     Список текущих рационов для консалтингового проекта.
+     Группировка по animal_category, только is_current=true версии.
+     Используется: RationTab.tsx, feeding_model.py (Priority 1).
+     STABLE — no side effects.';
+
+
+-- Register Slice 8 Part C RPCs
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_save_consulting_ration', 'rpc_save_consulting_ration', null, 'd09_consulting.sql (Slice 8)', 'C-RPC-09: Save NASEM ration for consulting project (consulting ctx)'),
+    ('rpc_get_consulting_rations', 'rpc_get_consulting_rations', null, 'd09_consulting.sql (Slice 8)', 'C-RPC-10: Get current rations per animal_category for project')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+-- ============================================================
+-- END Slice 8 d09_consulting.sql
+-- ============================================================

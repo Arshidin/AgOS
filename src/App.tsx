@@ -53,6 +53,7 @@ import { RoleAssignment } from '@/pages/admin/roles/RoleAssignment'
 import { OrgManagement } from '@/pages/admin/orgs/OrgManagement'
 import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
 import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
+import { FeedReferenceAdmin } from '@/pages/admin/feeds/FeedReferenceAdmin'
 import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
 import { ProjectPage } from '@/pages/admin/consulting/ProjectPage'
 import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
@@ -62,6 +63,7 @@ import { PnlTab } from '@/pages/admin/consulting/tabs/PnlTab'
 import { CashFlowTab } from '@/pages/admin/consulting/tabs/CashFlowTab'
 import { CapexTab } from '@/pages/admin/consulting/tabs/CapexTab'
 import { TechCardTab } from '@/pages/admin/consulting/tabs/TechCardTab'
+import { RationTab } from '@/pages/admin/consulting/tabs/RationTab'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -142,6 +144,7 @@ function App() {
                 <Route path="orgs" element={<OrgManagement />} />
                 <Route path="regions" element={<RegionDirectory />} />
                 <Route path="settings" element={<SystemSettings />} />
+                <Route path="feeds" element={<FeedReferenceAdmin />} />
                 <Route path="consulting" element={<ConsultingDashboard />} />
                 <Route path="consulting/:projectId" element={<ProjectPage />}>
                   <Route path="edit" element={<ProjectWizard />} />
@@ -151,6 +154,7 @@ function App() {
                   <Route path="pnl" element={<PnlTab />} />
                   <Route path="cashflow" element={<CashFlowTab />} />
                   <Route path="capex" element={<CapexTab />} />
+                  <Route path="ration" element={<RationTab />} />
                 </Route>
               </Route>
             </Route>

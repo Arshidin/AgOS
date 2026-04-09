@@ -34,6 +34,7 @@ from app.engine.cashflow import calculate_cashflow
 def run_calculation(
     input_params: ProjectInput,
     reference_data: list[dict],
+    extra_refs: dict | None = None,
 ) -> dict:
     """Полный расчёт финансовой модели — 12 модулей по порядку.
 
@@ -43,6 +44,9 @@ def run_calculation(
     """
     # Группировка справочников по категориям
     refs = _group_references(reference_data)
+    # Merge extra refs (feed_prices_d03, feed_consumption_norms, consulting_rations)
+    if extra_refs:
+        refs.update(extra_refs)
 
     # 1. Временна́я ось (120 месяцев)
     timeline = calculate_timeline(input_params.project_start_date)

@@ -29,6 +29,7 @@ import {
   Moon,
   LogOut,
   Briefcase,
+  FlaskConical,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -101,6 +102,7 @@ const ADMIN_NAV: NavItem[] = [
   { id: 'regions', icon: MapPin, label: 'Регионы', route: '/admin/regions' },
   { id: 'settings', icon: Settings, label: 'Настройки', route: '/admin/settings' },
   { id: 'consulting', icon: Briefcase, label: 'Консалтинг', route: '/admin/consulting' },
+  { id: 'feeds', icon: FlaskConical, label: 'Кормовая база', route: '/admin/feeds' },
 ]
 
 /* ---- Icon button helper ---- */

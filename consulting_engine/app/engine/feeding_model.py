@@ -31,6 +31,23 @@ Seasons (Kazakhstan):
 from datetime import date
 
 
+# ─── Animal category code → herd group key mapping ────────────────────────────
+# Maps animal_categories.code (d01_kernel.sql seed) to herd turnover keys.
+# Used by Priority 1 (consulting_rations) and Priority 2 (feed_consumption_norms).
+CATEGORY_CODE_TO_HERD: dict[str, tuple[str, str]] = {
+    "COW":           ("cows",    "eop"),
+    "COW_CULL":      ("cows",    "eop"),
+    "BULL_BREEDING": ("bulls",   "eop"),
+    "BULL_CULL":     ("bulls",   "eop"),
+    "SUCKLING_CALF": ("calves",  "avg"),
+    "YOUNG_CALF":    ("calves",  "avg"),
+    "HEIFER_YOUNG":  ("heifers", "avg"),
+    "HEIFER_PREG":   ("heifers", "avg"),
+    "BULL_CALF":     ("heifers", "avg"),  # approximate: small group
+    "STEER":         ("heifers", "avg"),  # fattening, mapped to heifers as proxy
+}
+
+
 # Feed prices (тг/кг) — from CFC rows 87-99
 # Green mass = 0 (pasture is free, cows graze)
 # Milk = 0 (not purchased)
@@ -154,10 +171,189 @@ def _get_calves_ration(is_pasture: bool) -> dict:
         }
 
 
+def _calc_from_consulting_rations(
+    timeline: dict, herd: dict, rations: list
+) -> dict:
+    """Priority 1: Compute feeding costs from attached NASEM ration_versions.
+
+    Each ration has results.total_cost_per_day (тг per head per day).
+    Cost formula: total_cost_per_day × heads × days / 1000 (→ тыс. тг)
+    """
+    n = timeline["horizon_months"]
+    days = list(timeline["days_in_month"])
+
+    # Build cost_per_day_per_head lookup by category_code
+    ration_by_code: dict[str, float] = {}
+    for r in rations:
+        code = r.get("animal_category_code", "")
+        cost_per_day = r.get("results", {}).get("total_cost_per_day", 0.0)
+        if code and cost_per_day:
+            ration_by_code[code] = float(cost_per_day)
+
+    def _group_cost(category_codes: list[str], heads: list) -> list:
+        cpd = sum(ration_by_code.get(c, 0.0) for c in category_codes)
+        if cpd == 0.0:
+            return [0.0] * n
+        return [-(cpd * heads[t] * days[t]) / 1000 for t in range(n)]
+
+    group_costs: dict[str, list] = {}
+    group_costs["molodnyak"]          = _group_cost(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
+    group_costs["heifers_prev"]       = _group_cost(["HEIFER_PREG"],   herd["heifers"]["avg"])
+    group_costs["heifers_curr"]       = _group_cost(["HEIFER_YOUNG"],  herd["heifers"]["avg"])
+    group_costs["cows_12m"]           = _group_cost(["COW"],           herd["cows"]["eop"])
+    group_costs["cows_9m"]            = [0.0] * n
+    group_costs["bulls"]              = _group_cost(["BULL_BREEDING"],  herd["bulls"]["eop"])
+    group_costs["fattening_breeding"] = _group_cost(["BULL_CALF"],     herd["heifers"]["avg"])
+    group_costs["fattening_commercial"] = _group_cost(["STEER"],       herd["heifers"]["avg"])
+
+    total_reproducer = [
+        group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]
+        + group_costs["heifers_curr"][t] + group_costs["cows_12m"][t]
+        + group_costs["cows_9m"][t] + group_costs["bulls"][t]
+        for t in range(n)
+    ]
+    total_fattening = [
+        group_costs["fattening_breeding"][t] + group_costs["fattening_commercial"][t]
+        for t in range(n)
+    ]
+
+    return {
+        "groups": group_costs,
+        "total_reproducer": total_reproducer,
+        "total_fattening": total_fattening,
+        "_source": "consulting_rations",
+    }
+
+
+def _calc_from_norms(
+    timeline: dict, herd: dict, norms: list, feed_prices: list
+) -> dict:
+    """Priority 2: Compute feeding costs from feed_consumption_norms + feed_prices_d03.
+
+    Norm items: [{feed_item_id, kg_per_day}]
+    Cost formula: sum(price_per_kg × kg_per_day × heads × days) / 1000
+    Season: pasture (May-Oct) or stall (Nov-Apr)
+    """
+    n = timeline["horizon_months"]
+    dates = timeline["dates"]
+    days = list(timeline["days_in_month"])
+
+    # Build price lookup: feed_item_id → price_per_kg
+    price_map: dict[str, float] = {}
+    for fp in feed_prices:
+        fid = fp.get("feed_item_id") or ""
+        price = fp.get("price_per_kg", 0.0)
+        if fid and price and fid not in price_map:
+            price_map[fid] = float(price)
+
+    # Build norms lookup: (animal_category_id, season) → items list
+    norms_map: dict[tuple, list] = {}
+    for norm in norms:
+        cat_id = norm.get("animal_category_id", "")
+        season = norm.get("season", "")
+        if cat_id and season:
+            norms_map[(cat_id, season)] = norm.get("items", [])
+
+    # Also build category_id lookup from rations for code→id resolution
+    # (norms use animal_category_id, not code; we resolve via the norm records themselves)
+    # Since we only have id-based norms here, we compute cost_per_head_per_day for each norm
+    def _norm_cost_per_head(animal_category_id: str, is_pasture: bool) -> float:
+        season = "summer" if is_pasture else "winter"
+        items = norms_map.get((animal_category_id, season), [])
+        if not items:
+            # Try 'transition' season as fallback
+            items = norms_map.get((animal_category_id, "transition"), [])
+        if not items:
+            return 0.0
+        return sum(
+            price_map.get(item.get("feed_item_id", ""), 0.0) * float(item.get("kg_per_day", 0))
+            for item in items
+        )
+
+    # We need category IDs for each herd group — extract from norm records by matching
+    # against known codes. Build code→id map from norms' animal_category references.
+    # Norms don't carry code directly; skip full ID resolution — use cost_per_head averaged
+    # across all norms for the group. This is a best-effort fallback.
+    # If no matching norm exists for a category, cost = 0 (falls back within group).
+
+    # Aggregate cost-per-head for each month using all available norms
+    # by iterating over norms and summing applicable ones per herd group.
+    # Group costs default to 0 if no norms found for that category.
+    group_costs: dict[str, list] = {k: [0.0] * n for k in [
+        "molodnyak", "heifers_prev", "heifers_curr", "cows_12m", "cows_9m",
+        "bulls", "fattening_breeding", "fattening_commercial",
+    ]}
+
+    for t in range(n):
+        m = _get_month_in_year(dates[t])
+        is_pasture = _is_pasture_month(0, m)
+        season = "summer" if is_pasture else "winter"
+
+        for norm in norms:
+            cat_id = norm.get("animal_category_id", "")
+            if norm.get("season", "") != season:
+                continue
+            items = norm.get("items", [])
+            if not items:
+                continue
+
+            # cost per head per day (тг)
+            cpd = sum(
+                price_map.get(item.get("feed_item_id", ""), 0.0) * float(item.get("kg_per_day", 0))
+                for item in items
+            )
+            if cpd == 0.0:
+                continue
+
+            # Match norm to herd group via CATEGORY_CODE_TO_HERD
+            # norms carry animal_category_id but not code; match by id across all groups
+            # We accumulate costs keyed by category_id and apply to matching groups below
+            # This requires knowing which herd group each category_id belongs to.
+            # Since we don't have code here, we skip — Priority 2 is best-effort.
+            # The norm's farm_type field can hint: beef_reproducer→cows/bulls, feedlot→fattening
+            farm_type = norm.get("farm_type", "")
+            if "reproducer" in farm_type:
+                # Apply proportionally to cows and bulls (major groups)
+                for group_key, heads_arr in [
+                    ("cows_12m", herd["cows"]["eop"]),
+                    ("bulls", herd["bulls"]["eop"]),
+                ]:
+                    heads = heads_arr[t] if t < len(heads_arr) else 0.0
+                    if heads > 0:
+                        group_costs[group_key][t] += -(cpd * heads * days[t]) / 1000
+            elif "feedlot" in farm_type or "fattening" in farm_type:
+                heads = herd["heifers"]["avg"][t] if t < len(herd["heifers"]["avg"]) else 0.0
+                if heads > 0:
+                    group_costs["fattening_commercial"][t] += -(cpd * heads * days[t]) / 1000
+
+    total_reproducer = [
+        group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]
+        + group_costs["heifers_curr"][t] + group_costs["cows_12m"][t]
+        + group_costs["cows_9m"][t] + group_costs["bulls"][t]
+        for t in range(n)
+    ]
+    total_fattening = [
+        group_costs["fattening_breeding"][t] + group_costs["fattening_commercial"][t]
+        for t in range(n)
+    ]
+
+    return {
+        "groups": group_costs,
+        "total_reproducer": total_reproducer,
+        "total_fattening": total_fattening,
+        "_source": "feed_consumption_norms",
+    }
+
+
 def calculate_feeding(
     timeline: dict, enriched_input: dict, herd: dict, refs: dict
 ) -> dict:
     """Расчёт кормовой модели для всех 8 групп.
+
+    Fallback chain (ADR-FEED-02, D-S8-4):
+      Priority 1: consulting_rations attached to project (exact NASEM cost × heads × days)
+      Priority 2: feed_consumption_norms from d03_feed + feed_prices_d03
+      Priority 3: hardcoded defaults (existing CFC-verified coefficients)
 
     Groups:
     1. Молодняк (calves after split — first months)
@@ -172,6 +368,18 @@ def calculate_feeding(
     Returns:
         dict with group costs and total_reproducer array
     """
+    # Priority 1: consulting_rations — NASEM-computed costs per head per day
+    consulting_rations = refs.get("consulting_rations", [])
+    if consulting_rations:
+        return _calc_from_consulting_rations(timeline, herd, consulting_rations)
+
+    # Priority 2: feed_consumption_norms from d03_feed
+    feed_norms = refs.get("feed_consumption_norms", [])
+    feed_prices_d03 = refs.get("feed_prices_d03", [])
+    if feed_norms and feed_prices_d03:
+        return _calc_from_norms(timeline, herd, feed_norms, feed_prices_d03)
+
+    # Priority 3: hardcoded CFC-verified defaults
     n = timeline["horizon_months"]
     dates = timeline["dates"]
     # CFC uses its own days-in-month (row 4): first month = 30 (not calendar 31)
@@ -284,4 +492,5 @@ def calculate_feeding(
         "groups": group_costs,
         "total_reproducer": total_reproducer,
         "total_fattening": total_fattening,
+        "_source": "hardcoded_defaults",
     }

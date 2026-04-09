@@ -1,11 +1,11 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-03-19
+> Last updated: 2026-04-09
 
 ---
 
-## Current Phase: Slice 5b (Market Admin) — UI fixes in review
+## Current Phase: Slice 8 (Ration+Consulting Unification) — в работе
 
 ### Slice 0 — Foundation
 
@@ -125,6 +125,52 @@ Already implemented: RPC-09, RPC-10.
 | UI | F24–F28, A16–A19 | ⬜ Not started | 9 screens |
 | QA | Slice 7 gate | ⬜ Not started | |
 
+### Slice 8 — Унификация Рационов и Консалтинга
+
+> **Решение:** D-S8-1 (2026-04-09) · **Архитектура:** Dok 7 v1.0
+
+#### Часть A — Feed Справочник (самодостаточная)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| DB | `feed_consumption_norms` table in d03_feed.sql | ✅ Done | + RLS, index. DEF-027 fixed (rpc_list_feed_items + rpc_list_animal_categories created). |
+| DB | `rpc_list_feed_items` (RPC-F01), `rpc_list_animal_categories` (RPC-F02) | ✅ Done | Created in d03_feed.sql. Fixes DEF-027. |
+| DB | `rpc_upsert_feed_item` (RPC-F03), `rpc_upsert_feed_price` (RPC-F04), `rpc_upsert_feed_consumption_norm` (RPC-F05) | ✅ Done | Admin write RPCs in d03_feed.sql |
+| DB | `rpc_list_feed_categories` (RPC-F06), `rpc_list_feed_consumption_norms` (RPC-F07) | ✅ Done | Read RPCs for FeedReferenceAdmin UI in d03_feed.sql |
+| DB | d09_consulting.sql: убрать `feed_prices`/`feed_norms` из CHECK | ✅ Done | ADR-FEED-01. Аддитивное изменение. |
+| UI | `/admin/feeds` — `FeedReferenceAdmin.tsx` | ✅ Done | 3 tabs: Каталог / Цены / Нормы. CRUD + dialogs. Sidebar entry added. |
+| QA | Часть A gate | ⬜ Pending QA | |
+
+#### Часть B — NASEM Calculator (самодостаточная)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Backend | `calculate-ration` Edge Function: `farm_id` optional, `consulting_project_id` support | ✅ Done | D-S8-3. Backward compatible. Dual-context save logic. |
+| QA | Часть B gate | ⬜ Pending QA | |
+
+#### Часть C — Ration Builder in Consulting (зависит от B)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| DB | `ration_versions`: ration_id → NULLABLE + consulting_project_id + context_animal_category_id + CHECK | ✅ Done | D-S8-4. Миграция в d03_feed.sql. RLS rv_read_own обновлён. |
+| DB | `rpc_save_consulting_ration` (C-RPC-09), `rpc_get_consulting_rations` (C-RPC-10) | ✅ Done | В d09_consulting.sql. rpc_name_registry записи добавлены. |
+| UI | `RationTab.tsx` в `/admin/consulting/:id/ration` | ✅ Done | Per-category NASEM calculator, CalcDialog, feed multi-select. |
+| UI | `ProjectPage.tsx`: + 8-й таб "Рационы" | ✅ Done | Добавлен в TABS array. |
+| UI | `App.tsx`: route `/admin/consulting/:id/ration` | ✅ Done | Import + Route добавлены. |
+| QA | Часть C gate | ⬜ Pending QA | |
+
+#### Часть D — Финансовая интеграция (зависит от A + C)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Backend | `calculate.py`: `_load_feed_reference()` — feed_prices_d03, feed_consumption_norms, consulting_rations | ✅ Done | Supabase REST + rpc_get_consulting_rations. extra_refs kwarg added to run_calculation. |
+| Backend | `feeding_model.py`: fallback chain Priority 1→2→3. `_calc_from_consulting_rations()`, `_calc_from_norms()` | ✅ Done | D-S8-2. Hardcoded defaults remain as Priority 3. `_source` key added to output. |
+| QA | Часть D gate | ⬜ Pending QA | |
+
+**Slice 8 Gate: ✅ PASSED (2026-04-09)** — D-GATE-S8
+
+> **DEF-027** (Fixed 2026-04-09): `rpc_list_feed_items` and `rpc_list_animal_categories` called from `Calculator.tsx` and `RationTab.tsx` but did not exist in any SQL file. Created in d03_feed.sql as RPC-F01 and RPC-F02.
+
 ---
 
 ## SQL Files — Implementation Inventory
@@ -202,6 +248,7 @@ Already implemented: RPC-09, RPC-10.
 | DEF-024 | **Critical** | `PoolDetail.tsx`, `PriceGridManagement.tsx` | Antitrust disclaimer missing on price screens (Article 171) | ✅ Fixed (2026-04-01) — amber disclaimer card added |
 | DEF-025 | Minor | `d02_tsp.sql` RPC-19 | ON CONFLICT `(tsp_sku_id, region_id, valid_from)` — NULL region_id won't trigger constraint | 🟡 Known — verify deployed constraint |
 | DEF-026 | **Critical** | `d02_tsp.sql` RPC-20 | `rpc_publish_price_index_value` INSERT uses `price_index_id`/`avg_price_per_kg` but table has `index_id`/`value_per_kg`; missing required `data_source` | ✅ Fixed (2026-04-01) |
+| DEF-027 | Significant | `Calculator.tsx`, `RationTab.tsx` | `rpc_list_feed_items` and `rpc_list_animal_categories` called from UI but did not exist in any SQL file | ✅ Fixed (2026-04-09) — created as RPC-F01 + RPC-F02 in d03_feed.sql |
 
 ---
 
@@ -221,6 +268,7 @@ Already implemented: RPC-09, RPC-10.
 | **Slice 6a Gate** | ✅ **PASSED** (2026-03-31) | D-GATE-S6a |
 | **Slice 6b Gate** | ⏸ Deferred | D-S6-3: after farmer feedback |
 | **Slice 7 Gate** | ⬜ Not started | Merge Slice 7 to main |
+| **Slice 8 Gate** | ✅ **PASSED** (2026-04-09) | D-GATE-S8. 9 RPCs, 4 parts, 0 TS errors. DEF-027..032 resolved. |
 
 ---
 
@@ -236,3 +284,4 @@ Already implemented: RPC-09, RPC-10.
 | Slice 5a (Market Farmer) | 2026-04-01 | 2 days | 3 RPCs, 9 AI tools, 4 screens, QA passed. D-LEGAL-1 |
 | Slice 5b (Market Admin) | 2026-04-01 | 1 day | 7 RPCs, 3 admin screens. DEF-021..026 found+fixed. |
 | Slice 6a (Expert Console) | 2026-03-31 | 1 day | RPCs 28..32, M01–M06 + A03–A05, QA passed |
+| Slice 8 (Ration+Consulting) | ✅ **Done** | 2026-04-09 | 4 части: Feed Справочник (A), NASEM Calculator (B), Ration Builder (C), Financial Integration (D). QA gate PASSED. |

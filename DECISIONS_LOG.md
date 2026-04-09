@@ -50,10 +50,38 @@
 | D-DOC-1 | 2026-04-08 | Documentation | Doc audit: CLAUDE.md outdated state fixed, Dok 6 refs updated to slice files, Docs/CLAUDE.md deleted (P4), SPRINT_STATUS updated with Slice 5. |
 | D-S6a-FIX-1 | 2026-04-08 | SQL/UI | Expert screens: прямые `.from()` на M03/M04/M05/M06 заменяются READ-RPCs (`rpc_list_vaccination_plans`, `rpc_list_vaccination_plan_items`, `rpc_list_vaccines`, read RPCs для epidemic/kpi). Реализуется в d04_vet.sql + экраны. Статус: в работе (unstaged). |
 | ADR-CONSULT-1 | 2026-04-08 | Architecture | Consulting module: Hybrid architecture — Python Engine standalone (Railway), DB + UI inside AGOS (Supabase + React). New d09_consulting.sql, 8 RPCs, 3 tables. |
+| D-S8-1 | 2026-04-09 | Architecture | Slice 8: Унификация рационов и консалтинга — 4 самодостаточных части (Feed Справочник, NASEM Calculator, Ration Builder, Financial Integration). |
+| D-S8-2 | 2026-04-09 | Architecture | feeding_model.py использует hardcoded dict (не consulting_reference_data). Исправление: fallback chain ration_versions → feed_consumption_norms → defaults. |
+| D-S8-3 | 2026-04-09 | Architecture | calculate-ration Edge Function: farm_id → optional. Добавить consulting_project_id как альтернативный контекст. Новый rpc_save_consulting_ration для consulting ctx. |
+| D-S8-4 | 2026-04-09 | DB | ration_versions.ration_id → NULLABLE + consulting_project_id FK. CHECK: хотя бы один контекст. Аддитивное изменение — существующие данные не затронуты. |
+| D-GATE-S8 | 2026-04-09 | Gate | Slice 8 QA pass + Architect sign-off. 0 critical, 6 TS fixes (DEF-028..032). |
 
 ---
 
 ## Decisions
+
+### D-S8-1 — Slice 8: Архитектура унификации рационов и консалтинга
+
+**Date:** 2026-04-09  
+**Domain:** Architecture / Feed + Consulting
+
+**WHAT:** Slice 8 реализует унификацию модуля рационов и консалтинга через 4 самодостаточных части:
+1. **Часть A — Feed Справочник:** `feed_consumption_norms` (новая таблица в d03_feed), admin CRUD screen `/admin/feeds`, 3 новых admin RPC. Единственный источник правды по кормам для всей системы.
+2. **Часть B — NASEM Calculator:** `calculate-ration` Edge Function — `farm_id` становится optional, добавляется `consulting_project_id` как альтернативный контекст. Backward compatible.
+3. **Часть C — Ration Builder:** `ration_versions.ration_id` → NULLABLE + `consulting_project_id` FK + `context_animal_category_id`. Новый RPC `rpc_save_consulting_ration`. RationTab в консалтинговом проекте.
+4. **Часть D — Financial Integration:** `feeding_model.py` получает fallback chain (attached ration_versions → feed_consumption_norms → hardcoded defaults).
+
+**WHY:** 
+- `feeding_model.py` использует hardcoded Python-словари с ценами 2024 года — нет возможности обновлять без деплоя.
+- Farm модуль имеет полноценный NASEM-калькулятор, Consulting — нет. Это разрыв в ценностном предложении.
+- Два хранилища данных о кормах (d03 и d09) нарушают P8 (единственный источник правды).
+
+**CONSEQUENCES:**
+- Easy: Admin обновляет цены кормов в одном месте; Consulting проект может включать точный NASEM-рацион; P&L автоматически использует актуальные цены.
+- Hard: Нужна миграция `ration_versions` (nullable FK) — аддитивная, не ломает данные. feeding_model.py требует рефакторинга с fallback chain.
+- Deferred: LP-solver, Consulting→Farm activation (Phase 4 Dok 7).
+
+---
 
 ### D-AGENT-1 — Agent Consolidation (12 → 6)
 
@@ -679,6 +707,110 @@ F17 page shows all groups' rations on one screen. Dataset is small (farmer has 3
 
 **WHAT:** Slice 5b Market Admin deployed. 7 RPCs + 3 screens.
 D-S5-4: A12/13/14 merged into Pool Detail lifecycle screen.
+
+---
+
+### D-S8-2 — feeding_model.py Fallback Chain
+
+**Date:** 2026-04-09
+**Domain:** Architecture / Consulting Engine
+
+**WHAT:** `feeding_model.py` was using hardcoded Python dictionaries (FEED_PRICES_BASE, 2024 prices). Replaced with a 3-level fallback chain:
+1. **Priority 1** — `consulting_rations`: if `rpc_get_consulting_rations` returns NASEM-computed ration_versions attached to the project, use `total_cost_per_day × heads × days / 1000` directly.
+2. **Priority 2** — `feed_consumption_norms` + `feed_prices_d03`: use d03_feed normative tables with live prices via Supabase REST.
+3. **Priority 3** — Hardcoded defaults (existing CFC-verified Python dicts) — fallback of last resort.
+
+Helper functions added: `_calc_from_consulting_rations()`, `_calc_from_norms()`.
+
+**WHY:** Hardcoded 2024 prices cannot be updated without code deploy. Priority 1 gives exact NASEM accuracy when a consultant has computed rations. Priority 2 uses admin-managed norms. Priority 3 preserved for backward compat and zero-configuration operation.
+
+**CONSEQUENCES:**
+- Easy: once consultant runs NASEM ration builder, P&L uses exact feed costs.
+- Easy: feed price updates via admin UI immediately flow into all future calculations.
+- Hard: Priority 2 `_calc_from_norms` uses `farm_type` hint for group matching (since norms carry `animal_category_id`, not code). This is best-effort until a category_id→herd_group resolver is added.
+
+---
+
+### D-S8-3 — calculate-ration Edge Function: Dual Context
+
+**Date:** 2026-04-09
+**Domain:** Architecture / Edge Function
+
+**WHAT:** `calculate-ration` Edge Function updated:
+- `farm_id` becomes optional (was required).
+- `consulting_project_id` added as alternative context.
+- Validation: must provide exactly one of `farm_id` or `consulting_project_id`.
+- Farm context: loads feed from `farm_feed_inventory` → saves via `rpc_save_ration` (unchanged).
+- Consulting context: loads feed from `feed_items` by `feed_item_ids[]` array → saves via `rpc_save_consulting_ration` (new C-RPC-09).
+
+**WHY:** Farm and consulting NASEM calculations are identical mathematically. Sharing one Edge Function avoids duplicating the greedy LP-solver and nutrient calculation logic.
+
+**CONSEQUENCES:**
+- Easy: backward compat — all existing farm `Calculator.tsx` calls continue working (farm_id path unchanged).
+- Easy: consulting projects get full NASEM capability without new solver code.
+- Hard: `feed_item_ids` must be explicitly provided for consulting context (no inventory lookup). This is by design — consultant selects feeds manually.
+
+---
+
+### D-S8-4 — ration_versions: Context-Independent Schema
+
+**Date:** 2026-04-09
+**Domain:** DB / Schema Design
+
+**WHAT:** `ration_versions.ration_id` column changed from NOT NULL to NULLABLE. Two new columns added:
+- `consulting_project_id UUID REFERENCES consulting_projects(id)`
+- `context_animal_category_id UUID REFERENCES animal_categories(id)`
+
+New CHECK constraint: `ration_id IS NOT NULL OR consulting_project_id IS NOT NULL` — at least one context required.
+
+RLS policy `rv_read_own` updated to include consulting context: reader's org must own the consulting_project OR the parent ration.
+
+**WHY:** `ration_versions` stores NASEM calculation results. The results are identical whether from farm or consulting context — no reason to duplicate the storage structure. Nullable FK is the minimal additive change.
+
+**ALTERNATIVES CONSIDERED:**
+1. Separate `consulting_ration_versions` table — rejected: duplicates entire schema + solver output structure.
+2. Single `context` JSONB — rejected: loses FK integrity.
+3. Nullable FK + CHECK (chosen) — minimal change, FK integrity preserved, additive.
+
+**CONSEQUENCES:**
+- Easy: NASEM output stored uniformly regardless of context.
+- Easy: `rpc_get_current_ration` (farm RPC) unchanged — it filters by `ration_id IS NOT NULL`.
+- Safe: existing farm ration data not affected (ration_id still populated, consulting_project_id NULL).
+
+---
+
+### D-GATE-S8 — Slice 8 Gate: QA Pass + Architect Sign-Off
+
+**Date:** 2026-04-09
+**Domain:** Gate / Quality
+
+**WHAT:** Slice 8 "Унификация рационов и консалтинга" passed QA gate and received Architect sign-off.
+
+**QA Results:**
+- Duplicate function check: PASS (0 new duplicates)
+- rpc_name_registry: PASS (all 9 Slice 8 RPCs registered)
+- Dok 3 ↔ SQL: PASS (all signatures match)
+- ration_versions migration: PASS (nullable FK + CHECK + RLS)
+- Edge Function dual-context: PASS (validates farm_id OR consulting_project_id)
+- SECURITY DEFINER + search_path: PASS (all 9 RPCs confirmed)
+- TypeScript build: PASS (0 errors after 6 fixes)
+- Python fallback chain: PASS (herd keys correct, 3-level chain wired)
+
+**Defects resolved:** DEF-027 (rpc_list_feed_items/rpc_list_animal_categories missing in SQL), DEF-028..032 (TypeScript build errors), +1 `noUncheckedIndexedAccess` fix.
+
+**Deliverables:**
+- DB: 9 new RPCs (RPC-F01..F07 in d03_feed.sql, C-RPC-09/10 in d09_consulting.sql)
+- DB: `feed_consumption_norms` table, `ration_versions` migration (nullable FK + CHECK + RLS)
+- Backend: `calculate-ration` Edge Function — dual context (farm + consulting)
+- Backend: `_load_feed_reference()` in `calculate.py`, 3-level fallback chain in `feeding_model.py`
+- UI: `FeedReferenceAdmin.tsx` (/admin/feeds — 3 tabs), `RationTab.tsx` (/admin/consulting/:id/ration)
+- Docs: SPRINT_STATUS.md, DECISIONS_LOG.md (D-S8-1..4), Dok 3 (section 13b)
+
+**CONSEQUENCES:**
+- Easy: Admin updates feed prices once → flows to both Farm ration calculator and Consulting P&L
+- Easy: Consultant builds NASEM ration per animal category → P&L uses exact feed COGS
+- Easy: New projects fall back to feed_consumption_norms → hardcoded defaults (zero-config)
+- Next: D-S6a-FIX-1 (Expert screens .from() → READ-RPCs, status: unstaged), then Slice 7 (Education)
 
 ---
 

@@ -760,6 +760,101 @@ fn_auth_custom_claims(event jsonb)              — Supabase Auth hook: JWT + or
 **Sprint 6: Education + Platform**
 - RPC-38..RPC-45 (Education + Platform helpers)
 
+**Slice 8: Feed Reference + Consulting Ration**
+- RPC-F01 `rpc_list_feed_items` (verify/create)
+- RPC-F02 `rpc_list_animal_categories` (verify/create)
+- RPC-F03 `rpc_upsert_feed_item`
+- RPC-F04 `rpc_upsert_feed_price`
+- RPC-F05 `rpc_upsert_feed_consumption_norm`
+- C-RPC-09 `rpc_save_consulting_ration`
+- C-RPC-10 `rpc_get_consulting_rations`
+
+---
+
+## 13b. Slice 8 RPCs — Feed Reference + Consulting Ration
+
+> Добавлено: 2026-04-09 · Решение: D-S8-1, D-S8-3, D-S8-4
+
+### Feed Reference Admin RPCs (d03_feed.sql)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-F01 | `rpc_list_feed_items` | d03_feed.sql | UI Calculator, Admin | ✅ Implemented (2026-04-09) — DEF-027 fix |
+| RPC-F02 | `rpc_list_animal_categories` | d03_feed.sql | UI Calculator, Admin | ✅ Implemented (2026-04-09) — DEF-027 fix |
+| RPC-F03 | `rpc_upsert_feed_item` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
+| RPC-F04 | `rpc_upsert_feed_price` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
+| RPC-F05 | `rpc_upsert_feed_consumption_norm` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
+| RPC-F06 | `rpc_list_feed_categories` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
+| RPC-F07 | `rpc_list_feed_consumption_norms` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
+
+**`rpc_upsert_feed_item` signature:**
+```sql
+rpc_upsert_feed_item(
+    p_feed_item_id          uuid DEFAULT NULL,
+    p_feed_category_code    text,
+    p_code                  text,
+    p_name_ru               text,
+    p_nutrient_composition  jsonb DEFAULT '{}',
+    p_is_validated          boolean DEFAULT false,
+    p_notes                 text DEFAULT NULL
+) RETURNS uuid
+```
+
+**`rpc_upsert_feed_price` signature:**
+```sql
+rpc_upsert_feed_price(
+    p_feed_item_id  uuid,
+    p_price_per_kg  numeric,
+    p_region_id     uuid DEFAULT NULL,
+    p_valid_from    date DEFAULT CURRENT_DATE,
+    p_valid_to      date DEFAULT NULL,
+    p_currency      text DEFAULT 'KZT'
+) RETURNS uuid
+```
+
+**`rpc_upsert_feed_consumption_norm` signature:**
+```sql
+rpc_upsert_feed_consumption_norm(
+    p_norm_id               uuid DEFAULT NULL,
+    p_farm_type             text,
+    p_animal_category_id    uuid,
+    p_season                text,
+    p_items                 jsonb,
+    p_valid_from            date DEFAULT CURRENT_DATE,
+    p_valid_to              date DEFAULT NULL,
+    p_notes                 text DEFAULT NULL
+) RETURNS uuid
+```
+
+### Consulting Ration RPCs (d09_consulting.sql)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| C-RPC-09 | `rpc_save_consulting_ration` | d09_consulting.sql | Edge Function `calculate-ration` (consulting ctx) | ✅ Implemented (2026-04-09) |
+| C-RPC-10 | `rpc_get_consulting_rations` | d09_consulting.sql | UI RationTab, feeding_model.py | ✅ Implemented (2026-04-09) |
+
+**`rpc_save_consulting_ration` signature:**
+```sql
+rpc_save_consulting_ration(
+    p_organization_id           uuid,
+    p_consulting_project_id     uuid,
+    p_animal_category_id        uuid,
+    p_items                     jsonb,
+    p_results                   jsonb
+) RETURNS uuid  -- ration_version_id
+-- INSERT INTO ration_versions (consulting_project_id, context_animal_category_id, ...)
+```
+
+**`rpc_get_consulting_rations` signature:**
+```sql
+rpc_get_consulting_rations(
+    p_organization_id           uuid,
+    p_consulting_project_id     uuid
+) RETURNS jsonb
+-- [{animal_category_id, animal_category_name, ration_version_id, version_number, items, results, created_at}]
+-- Последняя версия per animal_category
+```
+
 ---
 
 ## 14. Decisions Log (Dok 3)

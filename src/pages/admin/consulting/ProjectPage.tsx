@@ -47,6 +47,7 @@ export function ProjectPage() {
     { label: 'P&L', path: `${base}/pnl` },
     { label: 'Cash Flow', path: `${base}/cashflow` },
     { label: 'CAPEX', path: `${base}/capex` },
+    { label: 'Рационы', path: `${base}/ration` },
   ]
 
   useSetTopbar({ title: projectName, tabs: TABS })

@@ -1467,3 +1467,502 @@ create unique index if not exists idx_rations_one_active_per_group
     on public.rations (farm_id, herd_group_id)
     where status = 'active' and herd_group_id is not null;
 
+
+
+-- ============================================================
+-- SLICE 8 PART A: Feed Reference — Справочник кормов
+-- Единственный источник правды для всей системы (P8).
+-- Заменяет hardcoded dict в feeding_model.py и дубли в d09.
+-- ADR-FEED-01, D-S8-1 (2026-04-09)
+-- ============================================================
+
+
+-- -------------------------------------------------------
+-- TABLE: feed_consumption_norms
+-- Типовые нормы кормления по farm_type + animal_category + season.
+-- Заменяет consulting_reference_data category='feed_norms'.
+-- Используется: feeding_model.py (Priority 2 fallback),
+--              Admin UI /admin/feeds, RationTab в consulting.
+-- -------------------------------------------------------
+create table if not exists public.feed_consumption_norms (
+    id                  uuid        primary key default gen_random_uuid(),
+    farm_type           text        not null
+                                    check (farm_type in ('beef_reproducer', 'feedlot', 'sheep_goat')),
+    animal_category_id  uuid        not null references public.animal_categories(id),
+    season              text        not null
+                                    check (season in ('winter', 'summer', 'transition')),
+    items               jsonb       not null default '[]',
+    -- items format: [{feed_item_id: uuid, kg_per_day: number}]
+    valid_from          date        not null default current_date,
+    valid_to            date,
+    notes               text,
+    created_by          uuid        references public.users(id),
+    created_at          timestamptz not null default now(),
+    updated_at          timestamptz not null default now(),
+    constraint fcn_valid_period check (valid_to is null or valid_to > valid_from),
+    constraint fcn_unique_norm unique (farm_type, animal_category_id, season, valid_from)
+);
+
+comment on table public.feed_consumption_norms is
+    'Slice 8 ADR-FEED-01: Типовые нормы кормления (кг/день) по farm_type + category + season.
+     Единственный источник правды — заменяет consulting_reference_data.feed_norms.
+     feeding_model.py использует как Priority 2 fallback (после attached ration_versions).
+     Admin-managed: только admin может писать, authenticated — читать.';
+
+create index if not exists idx_fcn_farm_cat_season
+    on public.feed_consumption_norms (farm_type, animal_category_id, season);
+create index if not exists idx_fcn_valid
+    on public.feed_consumption_norms (valid_from, valid_to)
+    where valid_to is null or valid_to > current_date;
+
+-- RLS
+alter table public.feed_consumption_norms enable row level security;
+create policy fcn_read_auth on public.feed_consumption_norms
+    for select using (auth.role() = 'authenticated');
+create policy fcn_admin_write on public.feed_consumption_norms
+    for all using (public.fn_is_admin());
+
+-- updated_at trigger
+create trigger trg_fcn_updated_at
+    before update on public.feed_consumption_norms
+    for each row execute function public.fn_set_updated_at();
+
+
+-- -------------------------------------------------------
+-- DEF-027: rpc_list_animal_categories — отсутствует в SQL,
+-- но вызывается из Calculator.tsx (rpc_list_animal_categories).
+-- Создаём здесь (d03_feed.sql) т.к. используется контекстом кормов.
+-- -------------------------------------------------------
+create or replace function public.rpc_list_animal_categories()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'id',      ac.id,
+                'code',    ac.code,
+                'name_ru', ac.name_ru,
+                'name_kk', ac.name_kk,
+                'sex',     ac.sex,
+                'sort_order', ac.sort_order
+            ) order by ac.sort_order, ac.name_ru
+        )
+        from public.animal_categories ac
+        where ac.is_active = true
+    );
+end;
+$$;
+
+comment on function public.rpc_list_animal_categories() is
+    'RPC-F02 | Dok 3 §13b | Slice 8 (DEF-027 fix)
+     Список активных категорий животных для UI-селекторов.
+     Используется: Calculator.tsx, RationTab.tsx, Admin feeds.
+     STABLE — no side effects.';
+
+
+-- -------------------------------------------------------
+-- DEF-027: rpc_list_feed_items — отсутствует в SQL,
+-- но вызывается из Calculator.tsx.
+-- -------------------------------------------------------
+create or replace function public.rpc_list_feed_items(
+    p_active_only boolean default true
+)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'id',                   fi.id,
+                'code',                 fi.code,
+                'name_ru',              fi.name_ru,
+                'name_en',              fi.name_en,
+                'category',             fc.code,
+                'category_name_ru',     fc.name_ru,
+                'nutrient_composition', fi.nutrient_composition,
+                'is_validated',         fi.is_validated
+            ) order by fc.sort_order, fi.name_ru
+        )
+        from public.feed_items fi
+        join public.feed_categories fc on fc.id = fi.feed_category_id
+        where (not p_active_only or fi.is_active = true)
+    );
+end;
+$$;
+
+comment on function public.rpc_list_feed_items(boolean) is
+    'RPC-F01 | Dok 3 §13b | Slice 8 (DEF-027 fix)
+     Список кормов для UI-селекторов (калькулятор рационов, Admin).
+     p_active_only=true (default) — только активные корма.
+     STABLE — no side effects.';
+
+
+-- -------------------------------------------------------
+-- RPC-F03: rpc_upsert_feed_item — Admin: создать/обновить корм
+-- -------------------------------------------------------
+create or replace function public.rpc_upsert_feed_item(
+    p_feed_item_id          uuid    default null,
+    p_feed_category_code    text    default null,
+    p_code                  text    default null,
+    p_name_ru               text    default null,
+    p_name_en               text    default null,
+    p_nutrient_composition  jsonb   default '{}',
+    p_is_validated          boolean default false,
+    p_notes                 text    default null
+)
+returns jsonb
+language plpgsql volatile security definer
+set search_path = public
+as $$
+declare
+    v_category_id   uuid;
+    v_item_id       uuid;
+begin
+    -- Admin only
+    if not public.fn_is_admin() then
+        raise exception 'UNAUTHORIZED' using hint = 'Admin role required';
+    end if;
+
+    -- Resolve category
+    if p_feed_category_code is not null then
+        select id into v_category_id
+        from public.feed_categories
+        where code = p_feed_category_code and is_active = true;
+        if v_category_id is null then
+            raise exception 'FEED_CATEGORY_NOT_FOUND' using hint = p_feed_category_code;
+        end if;
+    end if;
+
+    if p_feed_item_id is not null then
+        -- UPDATE existing
+        update public.feed_items set
+            feed_category_id     = coalesce(v_category_id, feed_category_id),
+            code                 = coalesce(p_code, code),
+            name_ru              = coalesce(p_name_ru, name_ru),
+            name_en              = coalesce(p_name_en, name_en),
+            nutrient_composition = coalesce(p_nutrient_composition, nutrient_composition),
+            is_validated         = coalesce(p_is_validated, is_validated),
+            notes                = coalesce(p_notes, notes)
+        where id = p_feed_item_id
+        returning id into v_item_id;
+        if v_item_id is null then
+            raise exception 'FEED_ITEM_NOT_FOUND';
+        end if;
+    else
+        -- INSERT new
+        if p_feed_category_code is null or p_code is null or p_name_ru is null then
+            raise exception 'MISSING_REQUIRED_FIELDS'
+                using hint = 'p_feed_category_code, p_code, p_name_ru required for create';
+        end if;
+        insert into public.feed_items (
+            feed_category_id, code, name_ru, name_en,
+            nutrient_composition, is_validated, notes
+        ) values (
+            v_category_id, p_code, p_name_ru, p_name_en,
+            p_nutrient_composition, p_is_validated, p_notes
+        )
+        returning id into v_item_id;
+    end if;
+
+    return jsonb_build_object('feed_item_id', v_item_id);
+end;
+$$;
+
+comment on function public.rpc_upsert_feed_item(uuid, text, text, text, text, jsonb, boolean, text) is
+    'RPC-F03 | Dok 3 §13b | Slice 8
+     Admin CRUD для справочника кормов.
+     p_feed_item_id=NULL → CREATE, иначе UPDATE (partial update, null поля игнорируются).
+     Возвращает {feed_item_id}.';
+
+
+-- -------------------------------------------------------
+-- RPC-F04: rpc_upsert_feed_price — Admin: установить/обновить цену
+-- -------------------------------------------------------
+create or replace function public.rpc_upsert_feed_price(
+    p_feed_item_id  uuid,
+    p_price_per_kg  numeric,
+    p_region_id     uuid    default null,
+    p_valid_from    date    default current_date,
+    p_valid_to      date    default null,
+    p_currency      text    default 'KZT'
+)
+returns jsonb
+language plpgsql volatile security definer
+set search_path = public
+as $$
+declare
+    v_price_id  uuid;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'UNAUTHORIZED' using hint = 'Admin role required';
+    end if;
+    if p_price_per_kg < 0 then
+        raise exception 'INVALID_PRICE' using hint = 'price_per_kg must be >= 0';
+    end if;
+    if not exists (select 1 from public.feed_items where id = p_feed_item_id) then
+        raise exception 'FEED_ITEM_NOT_FOUND';
+    end if;
+
+    insert into public.feed_prices (
+        feed_item_id, price_per_kg, region_id, valid_from, valid_to,
+        currency, is_active, updated_by
+    ) values (
+        p_feed_item_id, p_price_per_kg, p_region_id, p_valid_from, p_valid_to,
+        p_currency, true, auth.uid()
+    )
+    on conflict (feed_item_id, region_id, valid_from)
+        do update set
+            price_per_kg = excluded.price_per_kg,
+            valid_to     = excluded.valid_to,
+            currency     = excluded.currency,
+            is_active    = true,
+            updated_by   = excluded.updated_by,
+            updated_at   = now()
+    returning id into v_price_id;
+
+    return jsonb_build_object('feed_price_id', v_price_id);
+end;
+$$;
+
+comment on function public.rpc_upsert_feed_price(uuid, numeric, uuid, date, date, text) is
+    'RPC-F04 | Dok 3 §13b | Slice 8
+     Admin: установить или обновить цену корма.
+     ON CONFLICT (feed_item_id, region_id, valid_from) → UPDATE.
+     p_region_id=NULL → общегосударственная цена (NULL region_id).';
+
+
+-- -------------------------------------------------------
+-- RPC-F05: rpc_upsert_feed_consumption_norm — Admin: норма кормления
+-- -------------------------------------------------------
+create or replace function public.rpc_upsert_feed_consumption_norm(
+    p_norm_id               uuid    default null,
+    p_farm_type             text    default null,
+    p_animal_category_id    uuid    default null,
+    p_season                text    default null,
+    p_items                 jsonb   default '[]',
+    p_valid_from            date    default current_date,
+    p_valid_to              date    default null,
+    p_notes                 text    default null
+)
+returns jsonb
+language plpgsql volatile security definer
+set search_path = public
+as $$
+declare
+    v_norm_id   uuid;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'UNAUTHORIZED' using hint = 'Admin role required';
+    end if;
+
+    if p_norm_id is not null then
+        -- UPDATE
+        update public.feed_consumption_norms set
+            farm_type           = coalesce(p_farm_type, farm_type),
+            animal_category_id  = coalesce(p_animal_category_id, animal_category_id),
+            season              = coalesce(p_season, season),
+            items               = coalesce(p_items, items),
+            valid_from          = coalesce(p_valid_from, valid_from),
+            valid_to            = p_valid_to,
+            notes               = coalesce(p_notes, notes),
+            updated_at          = now()
+        where id = p_norm_id
+        returning id into v_norm_id;
+        if v_norm_id is null then
+            raise exception 'NORM_NOT_FOUND';
+        end if;
+    else
+        -- INSERT
+        if p_farm_type is null or p_animal_category_id is null or p_season is null then
+            raise exception 'MISSING_REQUIRED_FIELDS'
+                using hint = 'p_farm_type, p_animal_category_id, p_season required for create';
+        end if;
+        insert into public.feed_consumption_norms (
+            farm_type, animal_category_id, season, items,
+            valid_from, valid_to, notes, created_by
+        ) values (
+            p_farm_type, p_animal_category_id, p_season, p_items,
+            p_valid_from, p_valid_to, p_notes, auth.uid()
+        )
+        on conflict (farm_type, animal_category_id, season, valid_from)
+            do update set
+                items      = excluded.items,
+                valid_to   = excluded.valid_to,
+                notes      = excluded.notes,
+                updated_at = now()
+        returning id into v_norm_id;
+    end if;
+
+    return jsonb_build_object('norm_id', v_norm_id);
+end;
+$$;
+
+comment on function public.rpc_upsert_feed_consumption_norm(uuid, text, uuid, text, jsonb, date, date, text) is
+    'RPC-F05 | Dok 3 §13b | Slice 8
+     Admin: создать/обновить норму кормления (кг/день по категориям животных).
+     Заменяет consulting_reference_data.feed_norms (ADR-FEED-01).
+     p_norm_id=NULL → CREATE, иначе UPDATE.
+     ON CONFLICT (farm_type, animal_category_id, season, valid_from) → UPDATE.';
+
+
+-- -------------------------------------------------------
+-- rpc_list_feed_categories — для UI-селекторов (FeedItemDialog)
+-- -------------------------------------------------------
+create or replace function public.rpc_list_feed_categories()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'id',       fc.id,
+                'code',     fc.code,
+                'name_ru',  fc.name_ru,
+                'sort_order', fc.sort_order
+            ) order by fc.sort_order, fc.name_ru
+        )
+        from public.feed_categories fc
+        where fc.is_active = true
+    );
+end;
+$$;
+
+comment on function public.rpc_list_feed_categories() is
+    'RPC-F06 | Dok 3 §13b | Slice 8
+     Список активных категорий кормов для UI-селекторов.
+     STABLE — no side effects.';
+
+
+-- -------------------------------------------------------
+-- rpc_list_feed_consumption_norms — список норм кормления для Admin UI
+-- -------------------------------------------------------
+create or replace function public.rpc_list_feed_consumption_norms(
+    p_farm_type text default null
+)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+begin
+    return (
+        select jsonb_agg(
+            jsonb_build_object(
+                'id',                   fcn.id,
+                'farm_type',            fcn.farm_type,
+                'animal_category_id',   fcn.animal_category_id,
+                'season',               fcn.season,
+                'items',                fcn.items,
+                'valid_from',           fcn.valid_from,
+                'valid_to',             fcn.valid_to,
+                'notes',                fcn.notes
+            ) order by fcn.farm_type, fcn.season
+        )
+        from public.feed_consumption_norms fcn
+        where (p_farm_type is null or fcn.farm_type = p_farm_type)
+          and (fcn.valid_to is null or fcn.valid_to > current_date)
+    );
+end;
+$$;
+
+comment on function public.rpc_list_feed_consumption_norms(text) is
+    'RPC-F07 | Dok 3 §13b | Slice 8
+     Список норм кормления (feed_consumption_norms) для Admin UI и feeding_model.py.
+     p_farm_type=NULL → все нормы. Возвращает только активные (valid_to не истёк).
+     STABLE — no side effects.';
+
+
+-- ============================================================
+-- SLICE 8 PART A: Register new RPCs in rpc_name_registry
+-- ============================================================
+insert into public.rpc_name_registry (
+    sql_name, dok3_name, dok5_tool_name, created_in, notes
+) values
+    ('rpc_list_animal_categories',      'rpc_list_animal_categories',      null, 'd03_feed.sql (Slice 8 DEF-027)', 'RPC-F02: List active animal categories for UI selectors'),
+    ('rpc_list_feed_items',             'rpc_list_feed_items',             null, 'd03_feed.sql (Slice 8 DEF-027)', 'RPC-F01: List feed items catalog for UI selectors'),
+    ('rpc_upsert_feed_item',            'rpc_upsert_feed_item',            null, 'd03_feed.sql (Slice 8)',         'RPC-F03: Admin CRUD for feed items catalog'),
+    ('rpc_upsert_feed_price',           'rpc_upsert_feed_price',           null, 'd03_feed.sql (Slice 8)',         'RPC-F04: Admin upsert feed price (region + valid_from)'),
+    ('rpc_upsert_feed_consumption_norm',    'rpc_upsert_feed_consumption_norm',    null, 'd03_feed.sql (Slice 8)', 'RPC-F05: Admin upsert feed consumption norm (ADR-FEED-01)'),
+    ('rpc_list_feed_categories',            'rpc_list_feed_categories',            null, 'd03_feed.sql (Slice 8)', 'RPC-F06: List active feed categories for UI selectors'),
+    ('rpc_list_feed_consumption_norms',     'rpc_list_feed_consumption_norms',     null, 'd03_feed.sql (Slice 8)', 'RPC-F07: List feed consumption norms for Admin UI and feeding_model.py')
+on conflict (sql_name) do update
+    set dok3_name  = excluded.dok3_name,
+        notes      = excluded.notes,
+        created_in = excluded.created_in;
+
+-- ============================================================
+-- END Slice 8 Part A d03_feed.sql
+-- ============================================================
+
+
+
+-- ============================================================
+-- SLICE 8 PART C: ration_versions — контекст-независимое хранилище
+-- ADR-FEED-02: ration_id nullable + consulting_project_id FK
+-- Аддитивное изменение — существующие данные не затронуты.
+-- D-S8-4 (2026-04-09)
+-- ============================================================
+
+-- Шаг 1: ration_id → NULLABLE
+alter table public.ration_versions
+    alter column ration_id drop not null;
+
+-- Шаг 2: добавить consulting FK (если не существует)
+alter table public.ration_versions
+    add column if not exists consulting_project_id uuid
+        references public.consulting_projects(id);
+
+-- Шаг 3: добавить animal_category FK для consulting context
+alter table public.ration_versions
+    add column if not exists context_animal_category_id uuid
+        references public.animal_categories(id);
+
+-- Шаг 4: CHECK — хотя бы один контекст должен быть задан
+alter table public.ration_versions
+    add constraint if not exists rv_context_check
+        check (ration_id is not null or consulting_project_id is not null);
+
+-- Шаг 5: INDEX для consulting context lookups
+create index if not exists idx_rv_consulting
+    on public.ration_versions (consulting_project_id)
+    where consulting_project_id is not null;
+
+create index if not exists idx_rv_consulting_category
+    on public.ration_versions (consulting_project_id, context_animal_category_id)
+    where consulting_project_id is not null;
+
+-- Шаг 6: Обновить RLS policy rv_read_own — добавить consulting context ветку
+-- Было: только по parent ration org
+-- Стало: ИЛИ по consulting_project_id org membership
+drop policy if exists rv_read_own on public.ration_versions;
+create policy rv_read_own on public.ration_versions
+    for select using (
+        -- Farm context: доступ через parent ration
+        ration_id in (
+            select id from public.rations
+            where organization_id = any(public.fn_my_org_ids())
+        )
+        or
+        -- Consulting context: доступ через consulting project org
+        consulting_project_id in (
+            select id from public.consulting_projects
+            where organization_id = any(public.fn_my_org_ids())
+        )
+        or
+        -- Admin/Expert full access
+        public.fn_is_admin()
+        or public.fn_is_expert()
+    );
+
+-- rv_insert_system остаётся (INSERT admin only) — не меняем
+
+-- ============================================================
+-- END Slice 8 Part C d03_feed.sql
+-- ============================================================
+

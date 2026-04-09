@@ -18,14 +18,54 @@ def _get_supabase():
     return create_client(settings.supabase_url, settings.supabase_service_key)
 
 
+def _load_feed_reference(sb, organization_id: str, project_id: str) -> dict:
+    """Load feed reference data from d03_feed tables and consulting rations.
+
+    Returns dict with keys:
+      - feed_prices_d03: list of {feed_item_id, code, price_per_kg}
+      - feed_consumption_norms: list of norm records
+      - consulting_rations: list of ration_versions for this project
+    """
+    result = {"feed_prices_d03": [], "feed_consumption_norms": [], "consulting_rations": []}
+    if not sb:
+        return result
+
+    try:
+        fp = sb.table("feed_prices") \
+            .select("feed_item_id, price_per_kg, region_id, valid_from, valid_to, feed_items(code)") \
+            .eq("is_active", True) \
+            .execute()
+        result["feed_prices_d03"] = fp.data or []
+    except Exception:
+        pass
+
+    try:
+        fn = sb.table("feed_consumption_norms").select("*").execute()
+        result["feed_consumption_norms"] = fn.data or []
+    except Exception:
+        pass
+
+    try:
+        rations = sb.rpc(
+            "rpc_get_consulting_rations",
+            {"p_organization_id": organization_id, "p_consulting_project_id": project_id},
+        ).execute()
+        result["consulting_rations"] = rations.data or []
+    except Exception:
+        pass
+
+    return result
+
+
 @router.post("/calculate", response_model=CalculateResponse)
 async def calculate(request: CalculateRequest):
     """Запуск полного расчёта финансовой модели.
 
     1. Загружает справочники из Supabase (если доступен)
-    2. Запускает 11 модулей по порядку зависимостей
-    3. Сохраняет версию через RPC (если Supabase доступен)
-    4. Возвращает результаты
+    2. Загружает кормовые справочники из d03_feed + consulting rations
+    3. Запускает 11 модулей по порядку зависимостей
+    4. Сохраняет версию через RPC (если Supabase доступен)
+    5. Возвращает результаты
     """
     sb = _get_supabase()
 
@@ -38,11 +78,15 @@ async def calculate(request: CalculateRequest):
         except Exception:
             pass  # Continue without reference data
 
+    # Загрузка кормовых справочников (d03_feed + consulting rations)
+    feed_refs = _load_feed_reference(sb, request.organization_id, request.project_id)
+
     # Расчёт
     try:
         results = run_calculation(
             input_params=request.input_params,
             reference_data=reference_data,
+            extra_refs=feed_refs,
         )
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Calculation error: {e}")
