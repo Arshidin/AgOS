@@ -187,6 +187,7 @@ function CatalogTab() {
       )}
 
       <FeedItemDialog
+        key={editItem?.id || 'new'}
         open={showCreate || editItem !== null}
         item={editItem}
         onClose={() => { setShowCreate(false); setEditItem(null) }}
