@@ -57,6 +57,11 @@
 | D-GATE-S8 | 2026-04-09 | Gate | Slice 8 QA pass + Architect sign-off. 0 critical, 6 TS fixes (DEF-028..032). |
 | D-WEIGHT-1 | 2026-04-09 | Architecture | WeightCalc модуль: динамический расчёт веса реализации. W = birth_weight + Σ(daily_gain[season] × days). Все параметры — в ProjectInput. Revenue использует расчётные веса вместо хардкод 331/267. |
 | D-WEIGHT-2 | 2026-04-09 | Future/Plan | v2: вывод ожидаемого привеса из энергетического баланса NASEM-рациона (ME → ADG). Advisory layer, не автоматический пересчёт. |
+| D-S9-1 | 2026-04-09 | Architecture | Стратегия реализации бычков: `steer_sale_age_months` (0/7/12/18). Когортный трекинг в herd_turnover.py. Legacy-совместимость через default=0 (декабрьская продажа). |
+| D-S9-2 | 2026-04-09 | Architecture | SimpleRationEditor: табличный "простой" режим ввода рационов (кг/гол/сут × корм × сезон). NASEM остаётся как "продвинутый" режим. Оба сохраняют через rpc_save_consulting_ration. |
+| D-S9-3 | 2026-04-09 | DB | `economic_parameters` добавлен в CHECK constraint `consulting_reference_data`. Seed row: feed_inflation=0.105. Engine читает через refs, fallback на константу. |
+| D-S9-4 | 2026-04-09 | Architecture | feeding_model.py теперь возвращает физические объёмы кормов (тонны): `quantities.by_group`, `quantities.totals_by_feed`, `annual_feed_summary`. Backward-compatible аддиция к output. |
+| D-GATE-S9 | 2026-04-09 | Gate | Slice 9 gate pass. 0 TS errors, 0 server errors. Migration applied. 7 tasks (A–I) completed. |
 
 ---
 
@@ -943,3 +948,96 @@ ADG_expected = ME_available / 34 МДж/кг (конверсия для моло
 - Easy: не ломает существующий flow (advisory, не imperative)
 - Hard: нужны точные коэффициенты конверсии ME→привес по категориям и возрастам
 - Dependency: требует прикреплённые NASEM-рационы по категориям в consulting project
+
+---
+
+### D-S9-1 — Стратегия реализации бычков (GAP-1 критичный)
+
+**Date:** 2026-04-09  
+**Domain:** Architecture / Consulting Engine
+
+**WHAT:** Добавлен параметр `steer_sale_age_months: int` (0/7/12/18) в `ProjectInput`.
+Когортный трекинг `steer_cohorts: list[list]` в `herd_turnover.py` — продажа бычков
+по достижении целевого возраста вместо хардкодированной продажи в декабре.
+
+**WHY:** До этого бычки всегда продавались в декабре (legacy). Эксперт должен
+моделировать три стратегии: ранняя реализация (7 мес.), лёгкое доращивание
+(12 мес.), глубокое доращивание (18 мес.). Это наиболее влиятельный параметр
+для P&L — разница в весе при реализации и длительности кормления.
+
+**Backward compatibility:** `steer_sale_age_months=0` → декабрьская продажа
+(точный legacy-поведение). Все существующие расчёты дают идентичный результат.
+
+**Edge cases решены:**
+- Смертность бычков: применяется пропорционально ко всем когортам
+- Перевод в быки: вычитается из старейшей когорты первой
+- Когорты с count < 0.01 обрезаются после каждой операции
+
+**Files:** `schemas.py`, `herd_turnover.py`, `ProjectWizard.tsx`  
+**Downstream (автоматически):** `weight_model.py`, `revenue.py`, `feeding_model.py`
+
+**CONSEQUENCES:**
+- Easy: эксперт выбирает стратегию из wizard — P&L пересчитывается автоматически
+- Easy: backward-compatible, не ломает существующие расчёты
+- Hard: когортный трекинг усложняет herd_turnover — нужен тест на regression
+
+---
+
+### D-S9-2 — SimpleRationEditor: табличный режим ввода рационов
+
+**Date:** 2026-04-09  
+**Domain:** UX / Consulting
+
+**WHAT:** Новый компонент `SimpleRationEditor.tsx` — таблица "корм × сезон (кг/гол/сут)"
+для 5 групп (COW, SUCKLING_CALF, HEIFER_YOUNG, STEER, BULL_BREEDING).
+Toggle "Простой / NASEM" в `RationTab.tsx`. Оба режима сохраняют через
+`rpc_save_consulting_ration` — единый формат хранения.
+
+**WHY:** NASEM-калькулятор оптимизирует по нутриентам — это слишком сложно для
+базового сценария. Эксперт хочет просто задать "сено 8 кг, силос 17 кг" без
+решения оптимизационной задачи. SimpleRationEditor покрывает 80% use cases быстрее.
+
+**CONSEQUENCES:**
+- Easy: базовые сценарии решаются за секунды
+- Easy: DEFAULT_RATIONS = CFC Excel defaults — нет необходимости вводить с нуля
+- No change: NASEM остаётся для advanced scenarios. Один источник хранения данных.
+
+---
+
+### D-S9-3 — economic_parameters в consulting_reference_data
+
+**Date:** 2026-04-09  
+**Domain:** DB / Configuration
+
+**WHAT:** Категория `'economic_parameters'` добавлена в CHECK constraint таблицы
+`consulting_reference_data`. Seed row: `feed_inflation → {"rate": 0.105}`.
+`feeding_model.py` читает ставку инфляции из БД, fallback на `FEED_INFLATION_DEFAULT = 0.105`.
+
+**WHY:** Инфляция кормов была хардкодирована в Python — обновление требовало деплоя.
+P8 требует: все нормативы из БД. Теперь ставку можно обновить через admin UI.
+
+**CONSEQUENCES:**
+- Easy: обновление инфляции без деплоя engine
+- Easy: разные значения для разных периодов (valid_from/valid_to)
+- No change: fallback обеспечивает backward compat если seed не загружен
+
+---
+
+### D-S9-4 — Физические объёмы кормов в output feeding_model
+
+**Date:** 2026-04-09  
+**Domain:** Architecture / Engine Output
+
+**WHAT:** `feeding_model.py` теперь возвращает помимо денежных значений физические
+объёмы в тоннах: `quantities.by_group` (по группам животных), `quantities.totals_by_feed`
+(суммарно по видам корма, 120 мес.), `annual_feed_summary` (10 лет × вид корма).
+`SummaryTab.tsx` отображает `annual_feed_summary` в виде таблицы.
+
+**WHY:** Бизнес-план требует раздел "Кормовая база" в тоннах — для проверки
+мощности хранилищ и планирования закупок. Денежная модель этого не даёт.
+`annual_feed_summary` = ключевая таблица экспертного сценария Zengi.
+
+**CONSEQUENCES:**
+- Easy: SummaryTab показывает тонны/год — готово к экспорту в бизнес-план
+- Easy: аддитивный output — существующие потребители output не ломаются
+- Future: основа для автоматической генерации раздела "Кормовая база" в Word/PDF

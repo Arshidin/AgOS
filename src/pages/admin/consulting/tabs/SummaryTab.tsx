@@ -367,6 +367,61 @@ export function SummaryTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ========== Annual Feed Requirements table (Task I) ========== */}
+      {results.feeding?.annual_feed_summary && (() => {
+        const summary = results.feeding.annual_feed_summary as Record<string, number[]>
+        const feedNames: Record<string, string> = {
+          green_mass: 'Зелёная масса',
+          hay: 'Сено',
+          straw: 'Солома',
+          haylage: 'Сенаж',
+          silage: 'Силос',
+          concentrates: 'Концентраты',
+          salt: 'Соль',
+          bran_meal: 'Отруби/шрот',
+          milk: 'Молоко',
+          barley_meal: 'Дерть ячменная',
+          feed_phosphate: 'Кормофос',
+        }
+        const feeds = Object.keys(summary)
+        if (feeds.length === 0) return null
+        const firstFeed = feeds[0]!
+        const years = summary[firstFeed]?.length ?? 0
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Кормовая потребность по годам, тн</CardTitle>
+            </CardHeader>
+            <CardContent className="px-0 pb-2 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="px-4 py-2 text-left font-medium min-w-[140px]">Корм</th>
+                    {Array.from({ length: years }, (_, i) => (
+                      <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">
+                        Год {i + 1}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {feeds.map(feed => (
+                    <tr key={feed} className="border-b border-border/30 hover:bg-muted/20">
+                      <td className="px-4 py-1.5 text-sm">{feedNames[feed] ?? feed}</td>
+                      {(summary[feed] ?? []).map((tonnes, yi) => (
+                        <td key={yi} className="px-2 py-1.5 text-right font-mono">
+                          {tonnes > 0 ? tonnes.toFixed(1) : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )
+      })()}
     </div>
   )
 }

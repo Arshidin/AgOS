@@ -173,6 +173,33 @@ Already implemented: RPC-09, RPC-10.
 
 ---
 
+### Slice 9 — Expert Scenario Enhancement (Consulting Engine v2)
+
+> **Reference:** Архитектурный анализ ZENGI_EXPERT_SCENARIO_v1.1 · **Plan:** swirling-waddling-catmull.md · **Completed:** 2026-04-09
+
+Scope: стратегия реализации бычков (GAP-1 КРИТИЧНО), простой редактор рационов, физические объёмы кормов, годовая сводка кормовой потребности. Все изменения backward-compatible.
+
+| Task | Layer | Component | Status | Notes |
+|------|-------|-----------|--------|-------|
+| A | UI | `ProjectWizard.tsx`: подсказки min/max для привесов | ✅ Done | hint prop в WizardField. Диапазоны: 0.70–1.10 кг/день бычки, 0.60–1.00 тёлки. |
+| B | UI | `ProjectWizard.tsx`: клиентский калькулятор веса реализации | ✅ Done | `estimateSaleWeight()`. Live preview "~XXX кг" прямо в wizard step 3. |
+| C | DB+BE | `d09_consulting.sql`: `'economic_parameters'` в CHECK + seed row | ✅ Done | Migration applied (2026-04-09). feed_inflation = 0.105. |
+| C | BE | `feeding_model.py`: читать `FEED_INFLATION` из `refs["economic_parameters"]` | ✅ Done | `FEED_INFLATION_DEFAULT = 0.105`. Fallback на константу. |
+| D | BE | `schemas.py`: `steer_sale_age_months: int` (0/7/12/18) | ✅ Done | `Field(default=0, ge=0, le=24)`. Backward-compatible default=0. |
+| D | BE | `herd_turnover.py`: когортный трекинг бычков → продажа по возрасту | ✅ Done | `steer_cohorts: list[list]`. Legacy December sale при default=0. Mortaliy + bull transfer по когортам. |
+| D | UI | `ProjectWizard.tsx`: select стратегии бычков (В декабре / 7 / 12 / 18 мес.) | ✅ Done | `STEER_SALE_OPTIONS`. Step 3 + Step 6 confirmation. |
+| E | UI | `SimpleRationEditor.tsx`: табличный ввод рционов (5 групп × корма × сезон) | ✅ Done | Новый компонент. DEFAULT_RATIONS = CFC Excel defaults. Save → `rpc_save_consulting_ration`. |
+| E | UI | `RationTab.tsx`: toggle "Простой" / "NASEM" | ✅ Done | `mode` state. SimpleRationEditor рендерится при mode='simple'. |
+| F | BE | `feeding_model.py`: физические объёмы кормов (тонны) в output | ✅ Done | `_calc_group()` → `tuple[costs, quantities]`. `quantities.by_group`, `quantities.totals_by_feed`. |
+| I | UI | `SummaryTab.tsx`: таблица "Кормовая потребность по годам, тн" | ✅ Done | Читает `results.feeding.annual_feed_summary`. Рендерит условно (прогрессивный). |
+
+**Downstream impact (Task D):** `weight_model.py`, `revenue.py`, `feeding_model.py` адаптируются автоматически — читают обновлённые `steers_sold[]` / `steers_avg[]` массивы из herd_turnover.
+
+**Slice 9 Gate: ✅ PASSED (2026-04-09)** — D-GATE-S9  
+0 TS errors (`npx tsc --noEmit`). Dev server: 0 errors. Migration applied. Backward compat verified (steer_sale_age_months=0 → идентичный legacy output).
+
+---
+
 ## SQL Files — Implementation Inventory
 
 ### Already Implemented (confirmed in SQL)

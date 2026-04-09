@@ -18,6 +18,7 @@ import {
   getDefaultWeight,
   getDefaultObjective,
 } from './herdCategoryMapping'
+import { SimpleRationEditor } from './SimpleRationEditor'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown, AlertTriangle } from 'lucide-react'
+import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown, AlertTriangle, Table2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,6 +87,7 @@ const OBJECTIVES = [
 export function RationTab() {
   const { projectId } = useParams<{ projectId: string }>()
   const { organization } = useAuth()
+  const [mode, setMode] = useState<'nasem' | 'simple'>('nasem')
   const [calcDialog, setCalcDialog] = useState<{
     categoryId: string
     categoryName: string
@@ -129,13 +131,41 @@ export function RationTab() {
         <div>
           <h2 className="text-lg font-semibold">Рационы кормления</h2>
           <p className="text-sm text-muted-foreground">
-            NASEM-расчёт по категориям животных. Используется в P&L как точный COGS по кормам.
+            {mode === 'nasem'
+              ? 'NASEM-расчёт по категориям животных. Используется в P&L как точный COGS по кормам.'
+              : 'Табличный ввод рационов кг/гол/сут. Корректируйте под регион и условия.'}
           </p>
+        </div>
+        <div className="flex gap-1 rounded-lg border p-0.5">
+          <Button
+            variant={mode === 'simple' ? 'default' : 'ghost'}
+            size="sm"
+            className="text-xs h-7 gap-1"
+            onClick={() => setMode('simple')}
+          >
+            <Table2 className="w-3 h-3" /> Простой
+          </Button>
+          <Button
+            variant={mode === 'nasem' ? 'default' : 'ghost'}
+            size="sm"
+            className="text-xs h-7 gap-1"
+            onClick={() => setMode('nasem')}
+          >
+            <Calculator className="w-3 h-3" /> NASEM
+          </Button>
         </div>
       </div>
 
-      {/* COGS Summary */}
-      {!isLoading && rationCount > 0 && (
+      {mode === 'simple' && (
+        <SimpleRationEditor
+          projectId={projectId}
+          orgId={orgId}
+          onSaved={() => refetch()}
+        />
+      )}
+
+      {/* COGS Summary — visible in both modes */}
+      {mode === 'nasem' && !isLoading && rationCount > 0 && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">
@@ -165,7 +195,7 @@ export function RationTab() {
       )}
 
       {/* Fallback banner when no herd data */}
-      {!herd && !isLoading && (
+      {mode === 'nasem' && !herd && !isLoading && (
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
           <CardContent className="py-3 px-4 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -176,11 +206,13 @@ export function RationTab() {
         </Card>
       )}
 
-      {isLoading ? (
+      {mode === 'nasem' && isLoading && (
         <div className="space-y-2">
           {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
         </div>
-      ) : (
+      )}
+
+      {mode === 'nasem' && !isLoading && (
         <div className="space-y-3">
           {relevantCategories.map(cat => {
             const existing = rationsByCategory.get(cat.id)

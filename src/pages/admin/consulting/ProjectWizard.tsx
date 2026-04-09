@@ -36,6 +36,15 @@ interface WizardParams {
   breeding_duration_months: number  // Период случной кампании (мес)
   gestation_months: number          // Стельность (мес)
   suckling_months: number           // Подсосный период (мес)
+  steer_sale_age_months: number     // Возраст реализации бычков (0=декабрь, 7/12/18)
+  // Привесы и вес (Task A)
+  birth_weight_kg: number
+  daily_gain_steer_pasture: number
+  daily_gain_steer_stall: number
+  daily_gain_heifer_pasture: number
+  daily_gain_heifer_stall: number
+  cow_culled_weight_kg: number
+  bull_culled_weight_kg: number
   // Финансирование
   equity_share_pct: number
   capex_loan_term_years: number
@@ -46,6 +55,17 @@ interface WizardParams {
   wc_loan_switch: number
   bioasset_revaluation_switch: number
   project_start_date: string
+}
+
+/** Task B: Client-side sale weight estimator */
+function estimateSaleWeight(
+  birthWeight: number,
+  gainPasture: number,
+  gainStall: number,
+  months: number,
+): number {
+  const avgDailyGain = (gainPasture * 183 + gainStall * 182) / 365
+  return Math.round(birthWeight + avgDailyGain * months * 30.44)
 }
 
 const STEPS = [
@@ -75,6 +95,14 @@ const DEFAULT_PARAMS: WizardParams = {
   breeding_duration_months: 2,
   gestation_months: 9,
   suckling_months: 7,
+  steer_sale_age_months: 0,
+  birth_weight_kg: 30,
+  daily_gain_steer_pasture: 0.850,
+  daily_gain_steer_stall: 0.650,
+  daily_gain_heifer_pasture: 0.810,
+  daily_gain_heifer_stall: 0.600,
+  cow_culled_weight_kg: 600,
+  bull_culled_weight_kg: 750,
   equity_share_pct: 15,
   capex_loan_term_years: 10,
   capex_grace_period_years: 2,
@@ -86,13 +114,22 @@ const DEFAULT_PARAMS: WizardParams = {
   project_start_date: '2026-08-31',
 }
 
+const STEER_SALE_OPTIONS = [
+  { value: 0, label: 'В декабре (текущее)' },
+  { value: 7, label: 'Ранняя (7 мес.)' },
+  { value: 12, label: 'Лёгкое доращивание (12 мес.)' },
+  { value: 18, label: 'Глубокое доращивание (18 мес.)' },
+]
+
 /** Field component defined OUTSIDE to prevent re-mount on every render */
-function WizardField({ label, value, onChange, type = 'number', suffix }: {
+function WizardField({ label, value, onChange, type = 'number', suffix, hint, step }: {
   label: string
   value: string | number
   onChange: (v: string) => void
   type?: string
   suffix?: string
+  hint?: string
+  step?: string
 }) {
   return (
     <div className="space-y-1.5">
@@ -103,9 +140,11 @@ function WizardField({ label, value, onChange, type = 'number', suffix }: {
           value={value}
           onChange={e => onChange(e.target.value)}
           className="font-mono"
+          step={step}
         />
         {suffix && <span className="text-sm text-muted-foreground whitespace-nowrap">{suffix}</span>}
       </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -151,6 +190,14 @@ export function ProjectWizard() {
             wc_loan_switch: saved.wc_loan_switch ?? p.wc_loan_switch,
             bioasset_revaluation_switch: saved.bioasset_revaluation_switch ?? p.bioasset_revaluation_switch,
             project_start_date: saved.project_start_date ?? p.project_start_date,
+            steer_sale_age_months: saved.steer_sale_age_months ?? p.steer_sale_age_months,
+            birth_weight_kg: saved.birth_weight_kg ?? p.birth_weight_kg,
+            daily_gain_steer_pasture: saved.daily_gain_steer_pasture ?? p.daily_gain_steer_pasture,
+            daily_gain_steer_stall: saved.daily_gain_steer_stall ?? p.daily_gain_steer_stall,
+            daily_gain_heifer_pasture: saved.daily_gain_heifer_pasture ?? p.daily_gain_heifer_pasture,
+            daily_gain_heifer_stall: saved.daily_gain_heifer_stall ?? p.daily_gain_heifer_stall,
+            cow_culled_weight_kg: saved.cow_culled_weight_kg ?? p.cow_culled_weight_kg,
+            bull_culled_weight_kg: saved.bull_culled_weight_kg ?? p.bull_culled_weight_kg,
           }))
         }
       }
@@ -188,6 +235,14 @@ export function ProjectWizard() {
           breeding_duration_months: params.breeding_duration_months,
           gestation_months: params.gestation_months,
           suckling_months: params.suckling_months,
+          steer_sale_age_months: params.steer_sale_age_months,
+          birth_weight_kg: params.birth_weight_kg,
+          daily_gain_steer_pasture: params.daily_gain_steer_pasture,
+          daily_gain_steer_stall: params.daily_gain_steer_stall,
+          daily_gain_heifer_pasture: params.daily_gain_heifer_pasture,
+          daily_gain_heifer_stall: params.daily_gain_heifer_stall,
+          cow_culled_weight_kg: params.cow_culled_weight_kg,
+          bull_culled_weight_kg: params.bull_culled_weight_kg,
           farm_type: 'beef_reproducer',
           bull_ratio: 1 / 15,
         },
@@ -251,10 +306,11 @@ export function ProjectWizard() {
           { label: 'Сценарий отёла', value: params.calving_scenario, key: 'calving_scenario', options: ['Летний', 'Зимний'] },
           { label: 'Дата старта', value: params.project_start_date, key: 'project_start_date', type: 'date' },
           { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га`, computed: true },
-          { label: 'Норма пастбищ', value: `${params.pasture_norm_ha}`, key: 'pasture_norm_ha', suffix: 'га/гол' },
-          { label: 'Случная кампания', value: `${params.breeding_duration_months}`, key: 'breeding_duration_months', suffix: 'мес' },
-          { label: 'Стельность', value: `${params.gestation_months}`, key: 'gestation_months', suffix: 'мес' },
-          { label: 'Подсосный период', value: `${params.suckling_months}`, key: 'suckling_months', suffix: 'мес' },
+          { label: 'Реализация бычков', value: STEER_SALE_OPTIONS.find(o => o.value === params.steer_sale_age_months)?.label || 'В декабре', computed: true },
+          { label: 'Вес бычка при реализации', value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг`, computed: true },
+          { label: 'Привес бычков (лето/зима)', value: `${params.daily_gain_steer_pasture}/${params.daily_gain_steer_stall} кг/день`, computed: true },
+          { label: 'Привес тёлок (лето/зима)', value: `${params.daily_gain_heifer_pasture}/${params.daily_gain_heifer_stall} кг/день`, computed: true },
+          { label: 'Вес при рождении', value: `${params.birth_weight_kg}`, key: 'birth_weight_kg', suffix: 'кг' },
         ],
       },
       {
@@ -454,6 +510,51 @@ export function ProjectWizard() {
               <WizardField label="Подсосный период" value={params.suckling_months} onChange={v => set('suckling_months', v)} suffix="мес" />
 
               <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Реализация бычков</p>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Стратегия реализации бычков</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STEER_SALE_OPTIONS.map(opt => (
+                    <Button
+                      key={opt.value}
+                      variant={params.steer_sale_age_months === opt.value ? 'default' : 'outline'}
+                      onClick={() => set('steer_sale_age_months', String(opt.value))}
+                      size="sm"
+                      className="text-xs"
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Привесы и вес</p>
+              <WizardField label="Вес телёнка при рождении" value={params.birth_weight_kg} onChange={v => set('birth_weight_kg', v)} suffix="кг" hint="Мясные породы КЗ: 28-40 кг" />
+              <WizardField label="Привес бычков (пастбище, лето)" value={params.daily_gain_steer_pasture} onChange={v => set('daily_gain_steer_pasture', v)} suffix="кг/день" hint="Рекомендуемо: 0.70-1.10" step="0.01" />
+              <WizardField label="Привес бычков (стойло, зима)" value={params.daily_gain_steer_stall} onChange={v => set('daily_gain_steer_stall', v)} suffix="кг/день" hint="Рекомендуемо: 0.50-0.85" step="0.01" />
+              <WizardField label="Привес тёлок (пастбище, лето)" value={params.daily_gain_heifer_pasture} onChange={v => set('daily_gain_heifer_pasture', v)} suffix="кг/день" hint="Рекомендуемо: 0.60-1.00" step="0.01" />
+              <WizardField label="Привес тёлок (стойло, зима)" value={params.daily_gain_heifer_stall} onChange={v => set('daily_gain_heifer_stall', v)} suffix="кг/день" hint="Рекомендуемо: 0.45-0.75" step="0.01" />
+
+              {/* Task B: client-side sale weight estimator */}
+              <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-3 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Расчётный вес при реализации</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Бычки ({params.steer_sale_age_months || 12} мес.)</span>
+                  <span className="font-mono font-semibold">
+                    ~{estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Тёлки (18 мес.)</span>
+                  <span className="font-mono font-semibold">
+                    ~{estimateSaleWeight(params.birth_weight_kg, params.daily_gain_heifer_pasture, params.daily_gain_heifer_stall, 18)} кг
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/70">Предварительная оценка. Точный расчёт — по кнопке Рассчитать.</p>
+              </div>
+
+              <div className="h-px bg-border/50 my-2" />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Доращивание</p>
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
@@ -537,6 +638,8 @@ export function ProjectWizard() {
                   { label: 'Выбраковка коров', value: `${params.cow_culling_pct}%` },
                   { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}%` },
                   { label: 'Выбраковка быков', value: `${params.bull_culling_pct}%` },
+                  { label: 'Реализация бычков', value: STEER_SALE_OPTIONS.find(o => o.value === params.steer_sale_age_months)?.label || 'В декабре' },
+                  { label: 'Вес бычка', value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг` },
                   { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет' },
                   { label: 'Оборотка', value: params.wc_loan_switch === 1 ? 'Да' : 'Нет' },
                 ].map(({ label, value }) => (

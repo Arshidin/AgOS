@@ -44,6 +44,13 @@ def calculate_herd_turnover(
     HEIFER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
     STEER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
 
+    # Стратегия реализации бычков (0=декабрь legacy, 7/12/18=возраст в мес.)
+    steer_sale_age = enriched_input.get("steer_sale_age_months", 0)
+
+    # Когортный трекинг бычков: [[birth_mi, count], ...]
+    # Нужен для продажи по возрасту (steer_sale_age > 0)
+    steer_cohorts: list[list] = []
+
     # Farm setup: one farm, added at month 1
     farms_added = [0] * n
     farms_added[0] = 1
@@ -218,6 +225,10 @@ def calculate_herd_turnover(
         steers_bop[t] = 0.0 if t == 0 else steers_eop[t - 1]
         steers_from_calves[t] = -to_steers[t]  # positive = inflow
 
+        # Track cohort for age-based sale
+        if steers_from_calves[t] > 0.01:
+            steer_cohorts.append([mi[t], steers_from_calves[t]])
+
         # Transfer steers→bulls: from spec §4.3.5
         # Need = bull_ratio × cows_bop - surviving bulls
         # Available steers = bop + from_calves (before mortality/sale)
@@ -225,12 +236,30 @@ def calculate_herd_turnover(
         bull_need = bull_ratio * cows_bop[t] - effective_bulls
         available_steers = steers_bop[t] + steers_from_calves[t]
         if bull_need > 0 and available_steers > 0:
-            steers_to_bulls[t] = -min(bull_need, available_steers)
+            transfer = min(bull_need, available_steers)
+            steers_to_bulls[t] = -transfer
+            # Deduct from oldest cohort first
+            remaining_transfer = transfer
+            for cohort in steer_cohorts:
+                if remaining_transfer <= 0:
+                    break
+                deduct = min(cohort[1], remaining_transfer)
+                cohort[1] -= deduct
+                remaining_transfer -= deduct
+            steer_cohorts = [c for c in steer_cohorts if c[1] > 0.01]
         else:
             steers_to_bulls[t] = 0.0
 
         # Mortality: annual rate on inflow (Excel: =-$E93*SUM(from_calves))
         steer_mort[t] = -(0.03 * steers_from_calves[t]) if steers_from_calves[t] > 0 else 0.0
+        # Apply mortality proportionally to all cohorts
+        if steer_mort[t] < -0.01:
+            mort_abs = abs(steer_mort[t])
+            total_in_cohorts = sum(c[1] for c in steer_cohorts)
+            if total_in_cohorts > 0.01:
+                for cohort in steer_cohorts:
+                    cohort[1] -= mort_abs * (cohort[1] / total_in_cohorts)
+                steer_cohorts = [c for c in steer_cohorts if c[1] > 0.01]
 
         steers_interim = (
             steers_bop[t]
@@ -239,11 +268,26 @@ def calculate_herd_turnover(
             + steer_mort[t]
         )
 
-        # Sell all remaining steers at year-end (December), same as heifer transfer
-        if is_december and mi[t] > calving_mi and steers_interim > 0:
-            steers_sold[t] = -steers_interim
+        # Sale logic: age-based (steer_sale_age > 0) or December legacy (0)
+        if steer_sale_age > 0:
+            # Sell cohorts that have reached target age
+            sold_count = 0.0
+            remaining_cohorts = []
+            for cohort in steer_cohorts:
+                age_months = mi[t] - cohort[0]
+                if age_months >= steer_sale_age and cohort[1] > 0.01:
+                    sold_count += cohort[1]
+                else:
+                    remaining_cohorts.append(cohort)
+            steer_cohorts = remaining_cohorts
+            steers_sold[t] = -sold_count if sold_count > 0.01 else 0.0
         else:
-            steers_sold[t] = 0.0
+            # Legacy: sell all steers in December
+            if is_december and mi[t] > calving_mi and steers_interim > 0:
+                steers_sold[t] = -steers_interim
+                steer_cohorts.clear()
+            else:
+                steers_sold[t] = 0.0
 
         steers_eop[t] = max(0.0, steers_interim + steers_sold[t])
 

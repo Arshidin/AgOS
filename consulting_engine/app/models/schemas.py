@@ -49,6 +49,10 @@ class ProjectInput(BaseModel):
     bull_culled_weight_kg: float = Field(default=750.0, ge=500, le=1100,
         description="Вес выбракованного быка, кг")
 
+    # Стратегия реализации бычков
+    steer_sale_age_months: int = Field(default=0, ge=0, le=24,
+        description="Возраст реализации бычков (мес). 0=продажа в декабре (legacy)")
+
     # Финансирование
     capex_loan_term_years: int = Field(default=10)
     capex_grace_period_years: int = Field(default=2)

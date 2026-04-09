@@ -69,10 +69,10 @@ FEED_PRICES_BASE = {
     "grain_waste": 63,   # Row 99 (зерноотходы)
 }
 
-# Annual inflation rate for feed prices
+# Annual inflation rate for feed prices (fallback if not in reference data)
 # Excel shows: 80→88.4 (10.5%), 28→30.94 (10.5%), 145→160.225 (10.5%)
 # This is 10.5% annual CPI applied to feed prices (different from staff 11%)
-FEED_INFLATION = 0.105
+FEED_INFLATION_DEFAULT = 0.105
 
 
 def _is_pasture_month(calendar_year: int, month_in_year: int) -> bool:
@@ -391,6 +391,17 @@ def calculate_feeding(
     cfc_days[1] = 30  # September: CFC uses 30
     days = cfc_days
 
+    # Read feed inflation from reference data (Task C), fallback to constant
+    feed_inflation_rate = FEED_INFLATION_DEFAULT
+    economic_params = refs.get("economic_parameters", [])
+    if isinstance(economic_params, list):
+        for ref in economic_params:
+            if ref.get("code") == "feed_inflation":
+                feed_inflation_rate = ref.get("data", {}).get("rate", FEED_INFLATION_DEFAULT)
+                break
+    elif isinstance(economic_params, dict):
+        feed_inflation_rate = economic_params.get("rate", FEED_INFLATION_DEFAULT)
+
     # CFC head count mapping (verified against Excel CFC rows 194, 216):
     # CFC has its own cow lifecycle tracking:
     #   Months 1-8: Cows fed as "тёлки предыд." (lighter ration)
@@ -428,13 +439,18 @@ def calculate_feeding(
     year_indices = timeline["year_index"]
 
     def _inflation(t: int) -> float:
-        """Price inflation factor for month t. Year 1 = 1.0, Year 2 = 1.11, etc."""
+        """Price inflation factor for month t. Year 1 = 1.0, Year 2 = 1+rate, etc."""
         yi = year_indices[t]
-        return (1 + FEED_INFLATION) ** (yi - 1) if yi > 1 else 1.0
+        return (1 + feed_inflation_rate) ** (yi - 1) if yi > 1 else 1.0
 
-    def _calc_group(heads: list, get_ration_fn) -> list:
-        """Calculate feeding cost for a group across all months."""
+    def _calc_group(heads: list, get_ration_fn) -> tuple[list, dict[str, list]]:
+        """Calculate feeding cost and physical quantities for a group.
+
+        Returns:
+            (costs, quantities) where quantities = {feed_name: [tonnes]*n}
+        """
         costs = [0.0] * n
+        quantities: dict[str, list] = {}
         for t in range(n):
             if heads[t] > 0:
                 m = _get_month_in_year(dates[t])
@@ -446,38 +462,48 @@ def calculate_feeding(
                     for p, r in ration.values()
                 )
                 costs[t] = cost
-        return costs
+                # Track physical quantities (tonnes)
+                for feed_name, (_, daily_kg) in ration.items():
+                    if feed_name not in quantities:
+                        quantities[feed_name] = [0.0] * n
+                    quantities[feed_name][t] = daily_kg * heads[t] * days[t] / 1000
+        return costs, quantities
 
-    # === Calculate costs per group ===
+    # === Calculate costs and quantities per group ===
     group_costs = {}
+    group_quantities: dict[str, dict[str, list]] = {}
 
     # Group 1: Молодняк
-    group_costs["molodnyak"] = _calc_group(calves_heads, _get_calves_ration)
+    group_costs["molodnyak"], group_quantities["molodnyak"] = _calc_group(calves_heads, _get_calves_ration)
     molodnyak = group_costs["molodnyak"]
 
     # Group 2: Тёлки предыдущего периода
-    group_costs["heifers_prev"] = _calc_group(heifers_prev_heads, _get_heifers_prev_ration)
+    group_costs["heifers_prev"], group_quantities["heifers_prev"] = _calc_group(heifers_prev_heads, _get_heifers_prev_ration)
     heifers_prev_cost = group_costs["heifers_prev"]
 
     # Group 3: Тёлки текущего периода (inactive in 24-month horizon for winter)
     group_costs["heifers_curr"] = [0.0] * n
+    group_quantities["heifers_curr"] = {}
     heifers_curr_cost = group_costs["heifers_curr"]
 
     # Group 4: Маточное 12 мес.
-    group_costs["cows_12m"] = _calc_group(cows_12m_heads, _get_cows_12m_ration)
+    group_costs["cows_12m"], group_quantities["cows_12m"] = _calc_group(cows_12m_heads, _get_cows_12m_ration)
     cows_12m_cost = group_costs["cows_12m"]
 
     # Group 5: Маточное 9 мес.
     group_costs["cows_9m"] = [0.0] * n
+    group_quantities["cows_9m"] = {}
     cows_9m_cost = group_costs["cows_9m"]
 
     # Group 6: Быки-производители
-    group_costs["bulls"] = _calc_group(bulls_heads, _get_bulls_ration)
+    group_costs["bulls"], group_quantities["bulls"] = _calc_group(bulls_heads, _get_bulls_ration)
     bulls_cost = group_costs["bulls"]
 
     # Group 7-8: Доращивание (0 in sample)
     group_costs["fattening_breeding"] = [0.0] * n
     group_costs["fattening_commercial"] = [0.0] * n
+    group_quantities["fattening_breeding"] = {}
+    group_quantities["fattening_commercial"] = {}
 
     # Total reproducer (groups 1-6)
     total_reproducer = [
@@ -489,9 +515,33 @@ def calculate_feeding(
     # Total fattening (groups 7-8)
     total_fattening = [0.0] * n
 
+    # === Task F: Aggregate physical quantities by feed type (tonnes/month) ===
+    totals_by_feed: dict[str, list] = {}
+    for gq in group_quantities.values():
+        for feed_name, monthly in gq.items():
+            if feed_name not in totals_by_feed:
+                totals_by_feed[feed_name] = [0.0] * n
+            for t in range(n):
+                totals_by_feed[feed_name][t] += monthly[t]
+
+    # === Task I: Annual feed summary (tonnes/year, 10 years) ===
+    annual_feed_summary: dict[str, list] = {}
+    for feed_name, monthly in totals_by_feed.items():
+        yearly = []
+        for yr in range(10):
+            start = yr * 12
+            end = min(start + 12, n)
+            yearly.append(round(sum(monthly[start:end]), 1))
+        annual_feed_summary[feed_name] = yearly
+
     return {
         "groups": group_costs,
         "total_reproducer": total_reproducer,
         "total_fattening": total_fattening,
         "_source": "hardcoded_defaults",
+        "quantities": {
+            "by_group": {g: dict(q) for g, q in group_quantities.items()},
+            "totals_by_feed": dict(totals_by_feed),
+        },
+        "annual_feed_summary": annual_feed_summary,
     }

@@ -73,7 +73,8 @@ create table if not exists public.consulting_reference_data (
                                             'wacc_parameters',
                                             'subsidy_programs',
                                             'livestock_norms',
-                                            'regional_prices'
+                                            'regional_prices',
+                                            'economic_parameters'
                                         )),
     code                text        not null,
     data                jsonb       not null,
@@ -728,6 +729,19 @@ insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, creat
     ('rpc_get_consulting_rations', 'rpc_get_consulting_rations', null, 'd09_consulting.sql (Slice 8)', 'C-RPC-10: Get current rations per animal_category for project')
 on conflict (sql_name) do update
     set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+-- ============================================================
+-- SEED: economic_parameters — Task C (feed inflation rate)
+-- ============================================================
+insert into public.consulting_reference_data (category, code, data, valid_from)
+values (
+    'economic_parameters',
+    'feed_inflation',
+    '{"rate": 0.105, "description": "Годовая инфляция цен на корма (РК, 2024–2025)", "source": "NBK/CPI"}'::jsonb,
+    '2024-01-01'
+)
+on conflict (category, code, valid_from) do update
+    set data = excluded.data;
 
 -- ============================================================
 -- END Slice 8 d09_consulting.sql
