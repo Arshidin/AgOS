@@ -68,11 +68,6 @@ function getAvgHeadCount(herd: any, herdKey: string, metric: string): number {
   return slice.reduce((a: number, b: number) => a + (b ?? 0), 0) / slice.length
 }
 
-function sumArr(arr: number[] | undefined): number {
-  if (!arr) return 0
-  return arr.reduce((a, b) => a + Math.abs(b ?? 0), 0)
-}
-
 function sumYear(arr: number[] | undefined, year: number): number {
   if (!arr) return 0
   const start = year * 12
@@ -92,7 +87,6 @@ export function RationTab() {
   const feeding = results.feeding || {}
   const feedSource = feeding._source || 'hardcoded_defaults'
   const groups = feeding.groups || {}
-  const quantities = feeding.quantities || {}
   const annualFeedSummary = feeding.annual_feed_summary || {}
   const annualCostSummary = feeding.annual_feed_cost_summary || []
 
