@@ -368,26 +368,19 @@ export function SummaryTab() {
         </CardContent>
       </Card>
 
-      {/* ========== Annual Feed Requirements table (Task I) ========== */}
-      {results.feeding?.annual_feed_summary && (() => {
-        const summary = results.feeding.annual_feed_summary as Record<string, number[]>
-        const feedNames: Record<string, string> = {
-          green_mass: 'Зелёная масса',
-          hay: 'Сено',
-          straw: 'Солома',
-          haylage: 'Сенаж',
-          silage: 'Силос',
-          concentrates: 'Концентраты',
-          salt: 'Соль',
-          bran_meal: 'Отруби/шрот',
-          milk: 'Молоко',
-          barley_meal: 'Дерть ячменная',
-          feed_phosphate: 'Кормофос',
-        }
-        const feeds = Object.keys(summary)
+      {/* ========== Annual Feed Requirements — tonnes by feed type (Priority 3 only) ========== */}
+      {(() => {
+        const summary = results.feeding?.annual_feed_summary as Record<string, number[]> | undefined
+        const feeds = summary ? Object.keys(summary).filter(f => (summary[f] ?? []).some(v => v > 0)) : []
         if (feeds.length === 0) return null
         const firstFeed = feeds[0]!
-        const years = summary[firstFeed]?.length ?? 0
+        const years = summary![firstFeed]?.length ?? 0
+        const feedNames: Record<string, string> = {
+          green_mass: 'Зелёная масса', hay: 'Сено', straw: 'Солома',
+          haylage: 'Сенаж', silage: 'Силос', concentrates: 'Концентраты',
+          salt: 'Соль', bran_meal: 'Отруби/шрот', milk: 'Молоко',
+          barley_meal: 'Дерть ячменная', feed_phosphate: 'Кормофос',
+        }
         return (
           <Card>
             <CardHeader>
@@ -399,9 +392,7 @@ export function SummaryTab() {
                   <tr className="border-b text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium min-w-[140px]">Корм</th>
                     {Array.from({ length: years }, (_, i) => (
-                      <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">
-                        Год {i + 1}
-                      </th>
+                      <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">Год {i + 1}</th>
                     ))}
                   </tr>
                 </thead>
@@ -409,13 +400,49 @@ export function SummaryTab() {
                   {feeds.map(feed => (
                     <tr key={feed} className="border-b border-border/30 hover:bg-muted/20">
                       <td className="px-4 py-1.5 text-sm">{feedNames[feed] ?? feed}</td>
-                      {(summary[feed] ?? []).map((tonnes, yi) => (
+                      {(summary![feed] ?? []).map((tonnes, yi) => (
                         <td key={yi} className="px-2 py-1.5 text-right font-mono">
                           {tonnes > 0 ? tonnes.toFixed(1) : '—'}
                         </td>
                       ))}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
+      {/* ========== Annual Feed Cost Summary (all paths) ========== */}
+      {(() => {
+        const costSummary = results.feeding?.annual_feed_cost_summary as number[] | undefined
+        if (!costSummary || costSummary.length === 0) return null
+        const years = costSummary.length
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Расходы на корма по годам, тыс. тг</CardTitle>
+            </CardHeader>
+            <CardContent className="px-0 pb-2 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="px-4 py-2 text-left font-medium min-w-[140px]">Показатель</th>
+                    {Array.from({ length: years }, (_, i) => (
+                      <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">Год {i + 1}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border/30 font-semibold bg-muted/30">
+                    <td className="px-4 py-1.5 text-sm">Корма итого</td>
+                    {costSummary.map((v, i) => (
+                      <td key={i} className="px-2 py-1.5 text-right font-mono">
+                        {v > 0 ? fmt(v, 0) : '—'}
+                      </td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </CardContent>

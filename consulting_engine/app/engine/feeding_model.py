@@ -172,6 +172,20 @@ def _get_calves_ration(is_pasture: bool) -> dict:
         }
 
 
+def _build_annual_cost_summary(total_reproducer: list, total_fattening: list, n: int) -> list:
+    """Aggregate monthly feed costs (тыс. тг) into 10 annual totals (absolute values)."""
+    result = []
+    for yr in range(10):
+        start = yr * 12
+        end = min(start + 12, n)
+        yr_total = sum(
+            abs(total_reproducer[t]) + abs(total_fattening[t])
+            for t in range(start, end)
+        )
+        result.append(round(yr_total, 1))
+    return result
+
+
 def _calc_from_consulting_rations(
     timeline: dict, herd: dict, rations: list
 ) -> dict:
@@ -223,6 +237,9 @@ def _calc_from_consulting_rations(
         "total_reproducer": total_reproducer,
         "total_fattening": total_fattening,
         "_source": "consulting_rations",
+        "quantities": {"by_group": {}, "totals_by_feed": {}},
+        "annual_feed_summary": {},
+        "annual_feed_cost_summary": _build_annual_cost_summary(total_reproducer, total_fattening, n),
     }
 
 
@@ -343,6 +360,9 @@ def _calc_from_norms(
         "total_reproducer": total_reproducer,
         "total_fattening": total_fattening,
         "_source": "feed_consumption_norms",
+        "quantities": {"by_group": {}, "totals_by_feed": {}},
+        "annual_feed_summary": {},
+        "annual_feed_cost_summary": _build_annual_cost_summary(total_reproducer, total_fattening, n),
     }
 
 
@@ -544,4 +564,5 @@ def calculate_feeding(
             "totals_by_feed": dict(totals_by_feed),
         },
         "annual_feed_summary": annual_feed_summary,
+        "annual_feed_cost_summary": _build_annual_cost_summary(total_reproducer, total_fattening, n),
     }

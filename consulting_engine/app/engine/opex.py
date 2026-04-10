@@ -53,6 +53,7 @@ def calculate_opex(
     cogs_reproducer = [0.0] * n
     cogs_fattening = [0.0] * n
     admin_expenses = [0.0] * n
+    feed_cost_monthly = [0.0] * n  # Separate feed cost line for P&L breakdown
 
     # Derive cow price per kg from purchase price (тг)
     purchase_price_cow = enriched_input.get("purchase_price_cow", 550_000)
@@ -76,6 +77,7 @@ def calculate_opex(
 
         # 205: Корма (already negative from feeding module)
         feed_cost = feeding["total_reproducer"][t]
+        feed_cost_monthly[t] = feed_cost
 
         # 206: Вет препараты (6500 тг/гол/год)
         vet_cost = -(6500 * avg_livestock * inf) / 1000 / 12
@@ -125,4 +127,5 @@ def calculate_opex(
         "cogs_fattening": cogs_fattening,
         "total_cogs": total_cogs,
         "admin_expenses": admin_expenses,
+        "feed_cost": feed_cost_monthly,
     }

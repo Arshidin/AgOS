@@ -72,6 +72,7 @@ export function PnlTab() {
     { label: 'Субсидии', values: toAnnual(revenue.subsidies) },
     { label: 'Итого выручка', values: toAnnual(revenue.total_revenue), bold: true },
     { label: '', values: [], separator: true },
+    { label: 'Расходы на корма', values: toAnnual(opex.feed_cost), indent: true },
     { label: 'Себестоимость (репродуктор)', values: toAnnual(opex.cogs_reproducer), indent: true },
     { label: 'Себестоимость (доращивание)', values: toAnnual(opex.cogs_fattening), indent: true },
     { label: 'Итого себестоимость', values: toAnnual(opex.total_cogs), bold: true },
