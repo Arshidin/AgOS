@@ -54,6 +54,8 @@ def calculate_opex(
     cogs_fattening = [0.0] * n
     admin_expenses = [0.0] * n
     feed_cost_monthly = [0.0] * n  # Separate feed cost line for P&L breakdown
+    admin_payroll_monthly = [0.0] * n  # Admin staff payroll for P&L detail
+    land_tax_monthly = [0.0] * n  # Land tax for P&L detail
 
     # Per-line COGS detail arrays (all negative)
     cost_vet = [0.0] * n
@@ -65,6 +67,9 @@ def calculate_opex(
     cost_budget = [0.0] * n
     cost_current = [0.0] * n
     cost_other = [0.0] * n
+
+    # Pre-resolve admin payroll array (avoid re-allocation in loop)
+    _staff_admin_payroll = staff.get("monthly_payroll_admin", [0.0] * n)
 
     # Derive cow price per kg from purchase price (тг)
     purchase_price_cow = enriched_input.get("purchase_price_cow", 550_000)
@@ -107,8 +112,8 @@ def calculate_opex(
         insurance = -(cow_price_per_kg * inf * 600 * cows_eop) / 1000 * 0.015 * 0.2 / 12
         cost_insurance[t] = insurance
 
-        # 210: ФОТ штат (from staff module, ensure negative)
-        payroll = -abs(staff["monthly_payroll"][t])
+        # 210: ФОТ штат — production only (from staff module, ensure negative)
+        payroll = -abs(staff.get("monthly_payroll_production", staff["monthly_payroll"])[t])
         cost_payroll[t] = payroll
 
         # 211: ФОТ пастухи (500 тыс.тг base × inflation)
@@ -135,7 +140,13 @@ def calculate_opex(
         # --- Admin expenses (NEGATIVE) ---
         # Land tax: 12.05 тг/га × pasture_area / 1000 (тыс.тг/год) / 12 (monthly)
         land_tax = -(12.05 * pasture_area) / 1000 / 12
-        admin_expenses[t] = land_tax
+        land_tax_monthly[t] = land_tax
+
+        # Admin staff payroll (from staff module, ensure negative)
+        admin_pay = -abs(_staff_admin_payroll[t])
+        admin_payroll_monthly[t] = admin_pay
+
+        admin_expenses[t] = land_tax + admin_pay
 
     total_cogs = [
         cogs_reproducer[t] + cogs_fattening[t]
@@ -148,6 +159,8 @@ def calculate_opex(
         "total_cogs": total_cogs,
         "admin_expenses": admin_expenses,
         "feed_cost": feed_cost_monthly,
+        "admin_payroll": admin_payroll_monthly,
+        "land_tax": land_tax_monthly,
         "detail": {
             "cost_vet": cost_vet,
             "cost_rfid": cost_rfid,
@@ -158,5 +171,6 @@ def calculate_opex(
             "cost_budget": cost_budget,
             "cost_current": cost_current,
             "cost_other": cost_other,
+            "admin_payroll": admin_payroll_monthly,
         },
     }

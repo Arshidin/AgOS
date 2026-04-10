@@ -1,18 +1,7 @@
 """Модуль STAFF — ФОТ + налоги РК (Часть 4.6 спецификации).
 
-Staff sheet layout:
-  Row 36: Total monthly payroll (тыс. тенге)
-  Row 37: Personnel (gross salaries)
-  Row 38: SO (социальные отчисления, 3.5%)
-  Row 39: SN (социальный налог, 9.5%)
-  Row 40: OSMS (обязательное мед. страхование, 3%)
-
-Positions (5 штук, net salary in тыс. тг/мес):
-  1. Директор фермы   — FTE 1.0,  net 600
-  2. Ветеринар         — FTE 0.5,  net 400
-  3. Повар             — FTE 0.5,  net 300
-  4. Тракторист        — FTE 1.0,  net 400
-  5. Бухгалтер         — FTE 0.3,  net 300
+Positions are now configurable via enriched_input["staff_positions"].
+Default 5 positions are provided by ProjectInput schema for backward compat.
 
 Tax rates (Kazakhstan):
   SO  = 3.5%  (social contributions, capped at 7×min_wage)
@@ -21,14 +10,19 @@ Tax rates (Kazakhstan):
   OSMS_employee = 2%
   OPV = 10%   (pension)
   Net-to-gross multiplier = 1.21
+
+Output split:
+  monthly_payroll_production → goes into COGS (opex.cogs_reproducer)
+  monthly_payroll_admin → goes into admin_expenses (opex.admin_expenses)
+  monthly_payroll → total (backward compat)
 """
 
 
 def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
-    """Расчёт фонда оплаты труда для 5 позиций.
+    """Расчёт фонда оплаты труда для N позиций.
 
     Returns:
-        dict с positions, monthly breakdown, and total arrays.
+        dict с positions, monthly breakdown, production/admin split, and detail.
     """
     n = timeline["horizon_months"]
 
@@ -39,44 +33,64 @@ def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
     osms_employee_rate = 0.02
     opv_rate = 0.10
     net_to_gross = 1.21
-    mrp_base = 3.932  # тыс. тенге (3932 тг)
     min_wage = 93.0   # тыс. тенге (93000 тг)
     max_so_base = 7 * min_wage
     max_osms_base = 10 * min_wage
 
-    # Inflation from timeline (annual CPI)
-    # For now using 11% from Excel (Staff!F6)
+    # Inflation (11% from Excel Staff!F6)
     annual_cpi = 0.11
 
-    # 5 positions
-    positions = [
-        {"name": "Директор фермы", "fte": 1.0, "net_salary": 600.0},
-        {"name": "Ветеринар", "fte": 0.5, "net_salary": 400.0},
-        {"name": "Повар", "fte": 0.5, "net_salary": 300.0},
-        {"name": "Тракторист", "fte": 1.0, "net_salary": 400.0},
-        {"name": "Бухгалтер", "fte": 0.3, "net_salary": 300.0},
-    ]
+    # Positions from project input (configurable)
+    positions_raw = enriched_input.get("staff_positions", [])
+    if not positions_raw:
+        # Fallback to hardcoded defaults (should not happen with schema defaults)
+        positions_raw = [
+            {"code": "director", "name": "Директор фермы", "category": "production", "fte": 1.0, "net_salary": 600.0},
+            {"code": "vet", "name": "Ветеринар", "category": "production", "fte": 0.5, "net_salary": 400.0},
+            {"code": "cook", "name": "Повар", "category": "production", "fte": 0.5, "net_salary": 300.0},
+            {"code": "tractor", "name": "Тракторист", "category": "production", "fte": 1.0, "net_salary": 400.0},
+            {"code": "accountant", "name": "Бухгалтер", "category": "admin", "fte": 0.3, "net_salary": 300.0},
+        ]
 
-    # Calculate per-position monthly cost
+    # Normalize: ensure dicts (may be Pydantic models or dicts)
+    positions = []
+    for p in positions_raw:
+        if isinstance(p, dict):
+            positions.append(p)
+        else:
+            positions.append(p.model_dump() if hasattr(p, "model_dump") else dict(p))
+
+    # Output arrays
     monthly_payroll = [0.0] * n
+    monthly_payroll_production = [0.0] * n
+    monthly_payroll_admin = [0.0] * n
     monthly_personnel = [0.0] * n
     monthly_so = [0.0] * n
     monthly_sn = [0.0] * n
     monthly_osms = [0.0] * n
 
+    # Per-position detail: {position_code: [monthly_total_cost]}
+    detail_by_position = {p.get("code", f"pos_{i}"): [0.0] * n for i, p in enumerate(positions)}
+
     for t in range(n):
         year_idx = timeline["year_index"][t]
-        # Inflation factor (applied from year 2)
         inflation_factor = (1 + annual_cpi) ** (year_idx - 1) if year_idx > 1 else 1.0
 
         total_personnel = 0.0
         total_so = 0.0
         total_sn = 0.0
         total_osms = 0.0
+        total_production = 0.0
+        total_admin = 0.0
 
-        for pos in positions:
+        for i, pos in enumerate(positions):
+            fte = pos.get("fte", 1.0)
+            net_sal = pos.get("net_salary", 0.0)
+            category = pos.get("category", "production")
+            code = pos.get("code", f"pos_{i}")
+
             # Net salary × FTE × inflation
-            net = pos["net_salary"] * pos["fte"] * inflation_factor
+            net = net_sal * fte * inflation_factor
 
             # Gross salary (нетто → брутто)
             gross = net * net_to_gross
@@ -86,7 +100,6 @@ def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
             so = so_rate * so_base
 
             # SN: 9.5% of (gross - OPV - OSMS_employee) - SO
-            # Per Kazakhstan Tax Code
             opv = opv_rate * gross
             osms_emp = osms_employee_rate * min(gross, max_osms_base * inflation_factor)
             sn = max(0, sn_rate * (gross - opv - osms_emp) - so)
@@ -95,36 +108,55 @@ def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
             osms_base = min(gross, max_osms_base * inflation_factor)
             osms = osms_employer_rate * osms_base
 
+            position_total = gross + so + sn + osms
+
             total_personnel += gross
             total_so += so
             total_sn += sn
             total_osms += osms
+
+            if category == "admin":
+                total_admin += position_total
+            else:
+                total_production += position_total
+
+            if code in detail_by_position:
+                detail_by_position[code][t] = position_total
 
         monthly_personnel[t] = total_personnel
         monthly_so[t] = total_so
         monthly_sn[t] = total_sn
         monthly_osms[t] = total_osms
         monthly_payroll[t] = total_personnel + total_so + total_sn + total_osms
+        monthly_payroll_production[t] = total_production
+        monthly_payroll_admin[t] = total_admin
 
     # Position summary (for UI display)
     pos_summary = []
     for pos in positions:
-        effective_net = pos["net_salary"] * pos["fte"]
+        fte = pos.get("fte", 1.0)
+        net_sal = pos.get("net_salary", 0.0)
+        effective_net = net_sal * fte
         effective_gross = effective_net * net_to_gross
         pos_summary.append({
-            "name": pos["name"],
-            "fte": pos["fte"],
-            "net_salary": pos["net_salary"],
+            "code": pos.get("code", ""),
+            "name": pos.get("name", ""),
+            "category": pos.get("category", "production"),
+            "fte": fte,
+            "net_salary": net_sal,
             "effective_net": effective_net,
             "effective_gross": effective_gross,
         })
 
     return {
         "positions": pos_summary,
-        "total_fte": sum(p["fte"] for p in positions),
+        "total_fte": sum(p.get("fte", 0) for p in positions),
         "monthly_payroll": monthly_payroll,
+        "monthly_payroll_production": monthly_payroll_production,
+        "monthly_payroll_admin": monthly_payroll_admin,
         "monthly_personnel": monthly_personnel,
         "monthly_so": monthly_so,
         "monthly_sn": monthly_sn,
         "monthly_osms": monthly_osms,
+        "detail": detail_by_position,
     }

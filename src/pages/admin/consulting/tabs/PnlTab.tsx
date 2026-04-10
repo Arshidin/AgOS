@@ -108,7 +108,9 @@ interface PnlData {
   total_cogs: number[]
   // P&L
   gross_profit: number[]
-  admin_expenses: number[]
+  admin_expenses: number[]  // total (land_tax + admin_payroll) — used for EBITDA
+  admin_payroll: number[]   // admin staff payroll detail
+  land_tax: number[]        // land tax detail
   ebitda: number[]
   depr_equipment: number[]
   depr_buildings: number[]
@@ -152,7 +154,7 @@ function buildRows(d: PnlData): TableRow[] {
     row('RFID-чипы', d.cost_rfid, true),
     row('Ушные бирки', d.cost_tags, true),
     row('Страхование маточного поголовья', d.cost_insurance, true),
-    row('ФОТ (штат)', d.cost_payroll, true),
+    row('ФОТ (производственный)', d.cost_payroll, true),
     row('ФОТ (пастухи)', d.cost_herders, true),
     row('Платежи в бюджет', d.cost_budget, true),
     row('Текущие расходы', d.cost_current, true),
@@ -165,7 +167,8 @@ function buildRows(d: PnlData): TableRow[] {
     sep,
     sec('ОТЧЁТ О ПРИБЫЛЯХ И УБЫТКАХ'),
     tot('Валовая прибыль', d.gross_profit),
-    row('Земельный налог', d.admin_expenses, true),
+    row('ФОТ (административный)', d.admin_payroll, true),
+    row('Земельный налог', d.land_tax, true),
     tot('EBITDA', d.ebitda),
     row('Амортизация техники', d.depr_equipment, true),
     row('Амортизация зданий и сооружений', d.depr_buildings, true),
@@ -217,6 +220,8 @@ function resolveMonthly(
 
     gross_profit: safeArr(pnl.gross_profit),
     admin_expenses: safeArr(pnl.admin_expenses),
+    admin_payroll: safeArr(opex.admin_payroll),
+    land_tax: safeArr(opex.land_tax),
     ebitda: safeArr(pnl.ebitda),
     depr_equipment: makeConstArr(-deprEquip, n),
     depr_buildings: makeConstArr(-deprBuild, n),
@@ -267,6 +272,8 @@ function resolveAnnual(
 
     gross_profit: a(pnl.gross_profit),
     admin_expenses: a(pnl.admin_expenses),
+    admin_payroll: a(opex.admin_payroll),
+    land_tax: a(opex.land_tax),
     ebitda: a(pnl.ebitda),
     depr_equipment: a(makeConstArr(-deprEquip, n)),
     depr_buildings: a(makeConstArr(-deprBuild, n)),

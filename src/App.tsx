@@ -64,6 +64,7 @@ import { CashFlowTab } from '@/pages/admin/consulting/tabs/CashFlowTab'
 import { CapexTab } from '@/pages/admin/consulting/tabs/CapexTab'
 import { TechCardTab } from '@/pages/admin/consulting/tabs/TechCardTab'
 import { RationTab } from '@/pages/admin/consulting/tabs/RationTab'
+import { StaffTab } from '@/pages/admin/consulting/tabs/StaffTab'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
@@ -154,6 +155,7 @@ function App() {
                   <Route path="pnl" element={<PnlTab />} />
                   <Route path="cashflow" element={<CashFlowTab />} />
                   <Route path="capex" element={<CapexTab />} />
+                  <Route path="staff" element={<StaffTab />} />
                   <Route path="ration" element={<RationTab />} />
                 </Route>
               </Route>

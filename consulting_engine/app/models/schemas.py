@@ -5,6 +5,26 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class StaffPosition(BaseModel):
+    """Одна позиция штатного расписания."""
+
+    code: str = Field(description="Код позиции (director, vet, cook...)")
+    name: str = Field(description="Название позиции")
+    category: str = Field(default="production", description="production | admin")
+    fte: float = Field(default=1.0, ge=0, le=10, description="Единиц (0.3, 0.5, 1, 2...)")
+    net_salary: float = Field(default=0, ge=0, description="ЗП нетто, тыс. тг/мес")
+
+
+# Default 5 positions (backward-compatible with hardcoded staff.py)
+DEFAULT_STAFF_POSITIONS = [
+    StaffPosition(code="director", name="Директор фермы", category="production", fte=1.0, net_salary=600),
+    StaffPosition(code="vet", name="Ветеринар", category="production", fte=0.5, net_salary=400),
+    StaffPosition(code="cook", name="Повар", category="production", fte=0.5, net_salary=300),
+    StaffPosition(code="tractor", name="Тракторист", category="production", fte=1.0, net_salary=400),
+    StaffPosition(code="accountant", name="Бухгалтер", category="admin", fte=0.3, net_salary=300),
+]
+
+
 class ProjectInput(BaseModel):
     """Мастер-параметры проекта (Часть 4.2 спецификации)."""
 
@@ -52,6 +72,12 @@ class ProjectInput(BaseModel):
     # Стратегия реализации бычков
     steer_sale_age_months: int = Field(default=0, ge=0, le=24,
         description="Возраст реализации бычков (мес). 0=продажа в декабре (legacy)")
+
+    # Штатное расписание
+    staff_positions: list[StaffPosition] = Field(
+        default_factory=lambda: list(DEFAULT_STAFF_POSITIONS),
+        description="Штатное расписание проекта",
+    )
 
     # Финансирование
     capex_loan_term_years: int = Field(default=10)
