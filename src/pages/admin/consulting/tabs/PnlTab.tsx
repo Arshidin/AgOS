@@ -100,8 +100,6 @@ interface PnlData {
   cost_tags: number[]
   cost_insurance: number[]
   cost_payroll: number[]
-  cost_herders: number[]
-  cost_budget: number[]
   cost_current: number[]
   cost_other: number[]
   cogs_fattening: number[]
@@ -155,8 +153,6 @@ function buildRows(d: PnlData): TableRow[] {
     row('Ушные бирки', d.cost_tags, true),
     row('Страхование маточного поголовья', d.cost_insurance, true),
     row('ФОТ (производственный)', d.cost_payroll, true),
-    row('ФОТ (пастухи)', d.cost_herders, true),
-    row('Платежи в бюджет', d.cost_budget, true),
     row('Текущие расходы', d.cost_current, true),
     row('Прочие расходы', d.cost_other, true),
     sep,
@@ -211,8 +207,6 @@ function resolveMonthly(
     cost_tags: safeArr(opexDetail.cost_tags),
     cost_insurance: safeArr(opexDetail.cost_insurance),
     cost_payroll: safeArr(opexDetail.cost_payroll),
-    cost_herders: safeArr(opexDetail.cost_herders),
-    cost_budget: safeArr(opexDetail.cost_budget),
     cost_current: safeArr(opexDetail.cost_current),
     cost_other: safeArr(opexDetail.cost_other),
     cogs_fattening: safeArr(opex.cogs_fattening),
@@ -263,8 +257,6 @@ function resolveAnnual(
     cost_tags: a(opexDetail.cost_tags),
     cost_insurance: a(opexDetail.cost_insurance),
     cost_payroll: a(opexDetail.cost_payroll),
-    cost_herders: a(opexDetail.cost_herders),
-    cost_budget: a(opexDetail.cost_budget),
     cost_current: a(opexDetail.cost_current),
     cost_other: a(opexDetail.cost_other),
     cogs_fattening: a(opex.cogs_fattening),

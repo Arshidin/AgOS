@@ -21,6 +21,8 @@ DEFAULT_STAFF_POSITIONS = [
     StaffPosition(code="vet", name="Ветеринар", category="production", fte=0.5, net_salary=400),
     StaffPosition(code="cook", name="Повар", category="production", fte=0.5, net_salary=300),
     StaffPosition(code="tractor", name="Тракторист", category="production", fte=1.0, net_salary=400),
+    StaffPosition(code="herder", name="Пастух", category="production", fte=1.0, net_salary=250),
+    StaffPosition(code="herder", name="Пастух", category="production", fte=1.0, net_salary=250),
     StaffPosition(code="accountant", name="Бухгалтер", category="admin", fte=0.3, net_salary=300),
 ]
 

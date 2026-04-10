@@ -49,6 +49,8 @@ def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
             {"code": "vet", "name": "Ветеринар", "category": "production", "fte": 0.5, "net_salary": 400.0},
             {"code": "cook", "name": "Повар", "category": "production", "fte": 0.5, "net_salary": 300.0},
             {"code": "tractor", "name": "Тракторист", "category": "production", "fte": 1.0, "net_salary": 400.0},
+            {"code": "herder", "name": "Пастух", "category": "production", "fte": 1.0, "net_salary": 250.0},
+            {"code": "herder", "name": "Пастух", "category": "production", "fte": 1.0, "net_salary": 250.0},
             {"code": "accountant", "name": "Бухгалтер", "category": "admin", "fte": 0.3, "net_salary": 300.0},
         ]
 

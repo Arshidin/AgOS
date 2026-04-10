@@ -63,8 +63,6 @@ def calculate_opex(
     cost_tags = [0.0] * n
     cost_insurance = [0.0] * n
     cost_payroll = [0.0] * n
-    cost_herders = [0.0] * n
-    cost_budget = [0.0] * n
     cost_current = [0.0] * n
     cost_other = [0.0] * n
 
@@ -113,16 +111,9 @@ def calculate_opex(
         cost_insurance[t] = insurance
 
         # 210: ФОТ штат — production only (from staff module, ensure negative)
+        # Includes all production positions (herders managed via StaffTab)
         payroll = -abs(staff.get("monthly_payroll_production", staff["monthly_payroll"])[t])
         cost_payroll[t] = payroll
-
-        # 211: ФОТ пастухи (500 тыс.тг base × inflation)
-        herders = -(500 * inf)
-        cost_herders[t] = herders
-
-        # 212: Платежи в бюджет (35% от пастухов — social tax on herder wages)
-        budget_payments = herders * 0.35
-        cost_budget[t] = budget_payments
 
         # 213: Текущие расходы (200 тыс.тг base × inflation)
         current_expenses = -(200 * inf)
@@ -134,7 +125,7 @@ def calculate_opex(
 
         cogs_reproducer[t] = (
             feed_cost + vet_cost + rfid_cost + tags_cost + insurance
-            + payroll + herders + budget_payments + current_expenses + other
+            + payroll + current_expenses + other
         )
 
         # --- Admin expenses (NEGATIVE) ---
@@ -167,8 +158,6 @@ def calculate_opex(
             "cost_tags": cost_tags,
             "cost_insurance": cost_insurance,
             "cost_payroll": cost_payroll,
-            "cost_herders": cost_herders,
-            "cost_budget": cost_budget,
             "cost_current": cost_current,
             "cost_other": cost_other,
             "admin_payroll": admin_payroll_monthly,
