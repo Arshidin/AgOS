@@ -13,7 +13,7 @@ set -uo pipefail
 CRITICAL=0
 SIGNIFICANT=0
 MINOR=0
-SQL_FILES=(d01_kernel.sql d02_tsp.sql d03_feed.sql d04_vet.sql d05_ops_edu.sql d07_ai_gateway.sql d08_epidemic.sql)
+SQL_FILES=(d01_kernel.sql d02_tsp.sql d03_feed.sql d04_vet.sql d05_ops_edu.sql d07_ai_gateway.sql d08_epidemic.sql d09_consulting.sql)
 
 echo "========================================"
 echo "AgOS Cross-Check — $(date '+%Y-%m-%d %H:%M')"
@@ -133,13 +133,21 @@ echo ""
 # ----------------------------------------------------------
 echo "--- CHECK 5: organization_id in rpc_* signatures (P-AI-2) ---"
 
-exceptions="get_active_prompt|rpc_name_registry"
+# Intentional exceptions: global catalog functions (no org_id by design) and
+# admin-guarded functions (fn_is_admin() enforces access, no org scoping needed).
+# rpc_start_production_plan uses p_farm_id for isolation (recognized pattern).
+exceptions="get_active_prompt|rpc_name_registry|\
+rpc_list_animal_categories|rpc_list_feed_items|rpc_list_feed_categories|\
+rpc_list_feed_prices|rpc_list_feed_consumption_norms|\
+rpc_upsert_feed_item|rpc_upsert_feed_price|rpc_upsert_feed_consumption_norm|\
+rpc_upsert_consulting_reference|rpc_start_production_plan"
 sig_count_before=$SIGNIFICANT
 
 for f in "${SQL_FILES[@]}"; do
   while IFS= read -r match; do
     line_num=$(echo "$match" | cut -d: -f1)
-    func_name=$(echo "$match" | sed -E 's/^[0-9]+:create or replace function\s+(public\.)?//i' | sed -E 's/\s*\(.*$//')
+    # BSD sed compatible: use [[:space:]]+ instead of \s+ (macOS sed treats \s as literal 's')
+    func_name=$(echo "$match" | sed -E 's/^[0-9]+:create or replace function (public\.)?//' | sed -E 's/[[:space:]]*\(.*$//')
 
     # Skip known exceptions
     if echo "$func_name" | grep -qiE "$exceptions"; then
@@ -193,6 +201,38 @@ else
   echo "  FOUND: $UI_ERRORS UI value mismatches"
   CRITICAL=$((CRITICAL + UI_ERRORS))
 fi
+
+echo ""
+
+# ----------------------------------------------------------
+# CHECK 7: All rpc_* functions appear in rpc_name_registry
+# Severity: SIGNIFICANT
+# ----------------------------------------------------------
+echo "--- CHECK 7: rpc_name_registry coverage ---"
+sig_count_before_7=$SIGNIFICANT
+
+# Collect all rpc_ function names from SQL files (BSD sed compatible: no \s, no /i flag)
+all_rpc_funcs=$(grep -h -i '^create or replace function.*rpc_' "${SQL_FILES[@]}" 2>/dev/null \
+  | sed -E 's/^create or replace function (public\.)?//' \
+  | sed -E 's/[[:space:]]*\(.*$//' \
+  | sort -u)
+
+# Collect all sql_names inserted into rpc_name_registry across all SQL files
+registered_rpcs=$(grep -h -oE "'rpc_[a-z0-9_]+'" "${SQL_FILES[@]}" 2>/dev/null \
+  | sort -u | tr -d "'")
+
+while IFS= read -r func; do
+  if ! echo "$registered_rpcs" | grep -qx "$func"; then
+    echo "  SIGNIFICANT: ${func} — defined in SQL but NOT in rpc_name_registry"
+    ((SIGNIFICANT++))
+  fi
+done <<< "$all_rpc_funcs"
+
+if [ "$SIGNIFICANT" -eq "$sig_count_before_7" ]; then
+  echo "  OK: All rpc_* functions are registered in rpc_name_registry"
+fi
+
+echo ""
 
 # ----------------------------------------------------------
 # SUMMARY
