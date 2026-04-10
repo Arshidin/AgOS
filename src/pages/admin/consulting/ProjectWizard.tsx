@@ -288,17 +288,18 @@ export function ProjectWizard() {
   if (mode === 'view') {
     const isDirty = savedParamsStr !== '' && JSON.stringify(params) !== savedParamsStr
 
-    // Results KPIs
     const wacc = results.wacc || {}
-    const irrStr  = wacc.irr  != null ? `${(wacc.irr  * 100).toFixed(1)}%` : '—'
-    const npvStr  = wacc.npv  != null ? `${Math.round(wacc.npv).toLocaleString('ru-RU')} тыс.` : '—'
-    const pbkStr  = wacc.payback_years ? `${wacc.payback_years} лет` : '—'
+    const hasResults = wacc.irr != null || wacc.npv != null
+    const needsCalc = !hasResults || isDirty
+
+    const irrStr   = wacc.irr  != null ? `${(wacc.irr  * 100).toFixed(1)}%` : '—'
+    const npvStr   = wacc.npv  != null ? `${Math.round(wacc.npv).toLocaleString('ru-RU')} тыс.` : '—'
+    const pbkStr   = wacc.payback_years ? `${wacc.payback_years} лет` : '—'
     const revArr: number[] | undefined = results.revenue?.total_revenue
     const revY5Str = revArr
       ? `${Math.round(revArr.slice(48, 60).reduce((a: number, b: number) => a + (b ?? 0), 0) / 1000).toLocaleString('ru-RU')} млн`
       : '—'
 
-    // Row definition type
     type PR = {
       id: keyof WizardParams
       label: string
@@ -310,46 +311,60 @@ export function ProjectWizard() {
       options?: { label: string; value: string | number }[]
     }
 
-    // Reusable row renderer (no hooks — plain function)
+    // Section label — sits above each card
+    const SL = ({ children }: { children: string }) => (
+      <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginTop: 20, marginBottom: 6 }}>
+        {children}
+      </p>
+    )
+
+    // Standard param row inside a card
     const Row = (row: PR) => {
       const { Icon } = row
       const val = params[row.id]
       return (
-        <div key={row.id} style={{ display: 'flex', alignItems: 'center', minHeight: 34, gap: 8, borderBottom: '1px solid var(--bd)', padding: '0 2px' }}>
-          <Icon size={12} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
+        <div key={row.id} className="param-row" style={{ display: 'flex', alignItems: 'center', minHeight: 40, gap: 10, padding: '0 16px', borderBottom: '1px solid var(--bd)' }}>
+          <Icon size={13} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
           <span style={{ fontSize: 12, color: 'var(--fg2)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {row.label}
           </span>
-          {row.bar && (
-            <div style={{ width: 60, height: 3, borderRadius: 9999, background: 'var(--bg-m)', overflow: 'hidden', flexShrink: 0 }}>
-              <div style={{ height: '100%', width: `${Math.min((Number(val) / row.bar.max) * 100, 100)}%`, background: row.bar.color, borderRadius: 9999, transition: 'width 400ms ease' }} />
-            </div>
-          )}
-          {row.options ? (
-            <select className="param-select" value={String(val)} onChange={e => set(row.id, e.target.value)}>
-              {row.options.map(o => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
-            </select>
-          ) : (
-            <input
-              className="param-input"
-              type={row.type || 'number'}
-              step={row.step}
-              value={String(val)}
-              onChange={e => set(row.id, e.target.value)}
-            />
-          )}
-          {row.suffix && !row.options && (
-            <span style={{ fontSize: 10, color: 'var(--fg3)', width: 30, flexShrink: 0 }}>{row.suffix}</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            {row.options ? (
+              <select className="param-select" value={String(val)} onChange={e => set(row.id, e.target.value)}>
+                {row.options.map(o => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+              </select>
+            ) : (
+              <input className="param-input" type={row.type || 'number'} step={row.step} value={String(val)} onChange={e => set(row.id, e.target.value)} />
+            )}
+            {row.suffix && !row.options && (
+              <span style={{ fontSize: 10, color: 'var(--fg3)', minWidth: 36 }}>{row.suffix}</span>
+            )}
+          </div>
         </div>
       )
     }
 
-    const SL = ({ children }: { children: string }) => (
-      <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginTop: 20, marginBottom: 2, paddingBottom: 4, borderBottom: '1px solid var(--bd)' }}>
-        {children}
-      </p>
-    )
+    // Coefficient row — label + full-width bar + compact input
+    const CoeffRow = (row: PR) => {
+      const { Icon } = row
+      const val = params[row.id]
+      const pct = row.bar ? Math.min((Number(val) / row.bar.max) * 100, 100) : 0
+      return (
+        <div key={row.id} className="param-row" style={{ display: 'flex', alignItems: 'center', minHeight: 42, gap: 10, padding: '0 16px', borderBottom: '1px solid var(--bd)' }}>
+          <Icon size={13} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: 'var(--fg2)', minWidth: 128, flexShrink: 0 }}>{row.label}</span>
+          {row.bar && (
+            <div style={{ flex: 1, height: 5, borderRadius: 9999, background: 'var(--bg-m)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: row.bar.color, borderRadius: 9999, transition: 'width 400ms ease' }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <input className="param-input" type="number" step={row.step} value={String(val)} onChange={e => set(row.id, e.target.value)} style={{ width: 52 }} />
+            <span style={{ fontSize: 10, color: 'var(--fg3)', minWidth: 14 }}>%</span>
+          </div>
+        </div>
+      )
+    }
 
     const farmRows: PR[] = [
       { id: 'initial_cows',        label: 'Маточное поголовье',    Icon: Users,       suffix: 'голов' },
@@ -362,16 +377,16 @@ export function ProjectWizard() {
     ]
 
     const coeffRows: PR[] = [
-      { id: 'calf_yield_pct',      label: 'Приплод',          Icon: Percent,     suffix: '%', bar: { max: 100, color: 'var(--green)' } },
-      { id: 'cow_mortality_pct',   label: 'Падёж коров',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
-      { id: 'bull_mortality_pct',  label: 'Падёж быков',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
-      { id: 'heifer_mortality_pct',label: 'Падёж молодняка',  Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
-      { id: 'cow_culling_pct',     label: 'Выбраковка коров', Icon: RefreshCcw,  suffix: '%', bar: { max: 40,  color: 'var(--blue)' } },
-      { id: 'bull_culling_pct',    label: 'Выбраковка быков', Icon: RefreshCcw,  suffix: '%', bar: { max: 40,  color: 'var(--blue)' } },
+      { id: 'calf_yield_pct',       label: 'Приплод',          Icon: Percent,      suffix: '%', bar: { max: 100, color: 'var(--green)' } },
+      { id: 'cow_mortality_pct',    label: 'Падёж коров',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)'   } },
+      { id: 'bull_mortality_pct',   label: 'Падёж быков',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)'   } },
+      { id: 'heifer_mortality_pct', label: 'Падёж молодняка',  Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)'   } },
+      { id: 'cow_culling_pct',      label: 'Выбраковка коров', Icon: RefreshCcw,   suffix: '%', bar: { max: 40,  color: 'var(--blue)'  } },
+      { id: 'bull_culling_pct',     label: 'Выбраковка быков', Icon: RefreshCcw,   suffix: '%', bar: { max: 40,  color: 'var(--blue)'  } },
     ]
 
     const techRows: PR[] = [
-      { id: 'steer_sale_age_months',    label: 'Реализация бычков',   Icon: Clock,      options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
+      { id: 'steer_sale_age_months',    label: 'Реализация бычков',   Icon: Clock,       options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
       { id: 'birth_weight_kg',          label: 'Вес при рождении',    Icon: Hash,        suffix: 'кг' },
       { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
       { id: 'daily_gain_steer_stall',   label: 'Привес бычки (зима)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
@@ -382,107 +397,136 @@ export function ProjectWizard() {
     ]
 
     const finRows: PR[] = [
-      { id: 'equity_share_pct',        label: 'Собств. участие',  Icon: Percent,    suffix: '%' },
-      { id: 'capex_loan_term_years',   label: 'Срок кредита',     Icon: Clock,      suffix: 'лет' },
-      { id: 'capex_grace_period_years',label: 'Льготный период',  Icon: Clock,      suffix: 'лет' },
-      { id: 'livestock_loan_rate_pct', label: 'Ставка скот',      Icon: Percent,    suffix: '%' },
-      { id: 'wc_loan_rate_pct',        label: 'Ставка оборотная', Icon: Percent,    suffix: '%' },
-      { id: 'subsidy_switch',          label: 'Субсидии',         Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
-      { id: 'wc_loan_switch',          label: 'Займы на ПОС',     Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+      { id: 'equity_share_pct',         label: 'Собств. участие',   Icon: Percent,    suffix: '%' },
+      { id: 'capex_loan_term_years',    label: 'Срок кредита',      Icon: Clock,      suffix: 'лет' },
+      { id: 'capex_grace_period_years', label: 'Льготный период',   Icon: Clock,      suffix: 'лет' },
+      { id: 'livestock_loan_rate_pct',  label: 'Ставка скот',       Icon: Percent,    suffix: '%' },
+      { id: 'wc_loan_rate_pct',         label: 'Ставка оборотная',  Icon: Percent,    suffix: '%' },
+      { id: 'subsidy_switch',           label: 'Субсидии',          Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+      { id: 'wc_loan_switch',           label: 'Займы на ПОС',      Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
     ]
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-        {/* ── Top summary strip: live computed values ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, height: 38, borderBottom: '1px solid var(--bd)', background: 'var(--bg-m)', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {/* ── Top strip: live computed values ── */}
+        <div style={{ display: 'flex', alignItems: 'center', height: 38, borderBottom: '1px solid var(--bd)', background: 'var(--bg-m)', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
           {[
             { label: 'Стоимость стада', value: `${Math.round(livestockCost).toLocaleString('ru-RU')} тыс. тг` },
-            { label: 'Быков', value: `${bulls}` },
-            { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га` },
-            { label: 'Вес бычка', value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг` },
-          ].map((chip) => (
+            { label: 'Быков',           value: `${bulls}` },
+            { label: 'Пастбища',        value: `${pasture.toLocaleString('ru-RU')} га` },
+            { label: 'Вес бычка',       value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг` },
+          ].map(chip => (
             <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 18px', borderRight: '1px solid var(--bd)', height: '100%', whiteSpace: 'nowrap', flexShrink: 0 }}>
               <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{chip.label}</span>
               <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{chip.value}</span>
             </div>
           ))}
-          <button
-            onClick={() => setMode('edit')}
-            style={{ marginLeft: 'auto', padding: '0 18px', height: '100%', background: 'none', border: 'none', fontSize: 11, color: 'var(--fg3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}
-          >
+          <button onClick={() => setMode('edit')} style={{ marginLeft: 'auto', padding: '0 18px', height: '100%', background: 'none', border: 'none', fontSize: 11, color: 'var(--fg3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}>
             Полный мастер →
           </button>
         </div>
 
-        {/* ── Main: form + results sidebar ── */}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 260px', overflow: 'hidden' }}>
+        {/* ── Main: form (left) + results panel (right) ── */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 280px', overflow: 'hidden' }}>
 
-          {/* LEFT: parameter form */}
-          <div style={{ overflowY: 'auto', padding: '0 24px 24px' }}>
+          {/* ── LEFT: all editable parameters ── */}
+          <div style={{ overflowY: 'auto', padding: '4px 24px 32px' }}>
 
             <SL>Тип фермы</SL>
-            {farmRows.map(Row)}
+            <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+              {farmRows.map(Row)}
+            </div>
 
             <SL>Коэффициенты</SL>
-            {coeffRows.map(Row)}
+            <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+              {coeffRows.map(CoeffRow)}
+            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px', marginTop: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
                 <SL>Технология</SL>
-                {techRows.map(Row)}
+                <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+                  {techRows.map(Row)}
+                </div>
               </div>
               <div>
                 <SL>Финансирование</SL>
-                {finRows.map(Row)}
+                <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+                  {finRows.map(Row)}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: results + recalculate */}
+          {/* ── RIGHT: results panel ── */}
           <div style={{ borderLeft: '1px solid var(--bd)', background: 'var(--bg-s)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
-              <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 12 }}>
-                Результаты
-              </p>
 
-              {isDirty && (
-                <div style={{ fontSize: 11, color: 'var(--fg3)', marginBottom: 12, padding: '6px 10px', background: 'var(--bg-m)', borderRadius: 6, lineHeight: 1.4 }}>
-                  Параметры изменены — запустите пересчёт
+            {!hasResults ? (
+              // Empty state — first-time CTA
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', gap: 16, textAlign: 'center' }}>
+                <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--bg-m)', border: '1px solid var(--bd)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Calculator size={22} style={{ color: 'var(--fg3)' }} />
                 </div>
-              )}
-
-              {[
-                { label: 'IRR',        value: irrStr,  positive: (wacc.irr ?? 0) > 0.05 },
-                { label: 'NPV',        value: npvStr,  positive: (wacc.npv ?? 0) >= 0 },
-                { label: 'Payback',    value: pbkStr,  positive: true },
-                { label: 'Выручка Y5', value: revY5Str, positive: true },
-              ].map(kpi => (
-                <div key={kpi.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '9px 0', borderBottom: '1px solid var(--bd)', opacity: isDirty ? 0.35 : 1, transition: 'opacity 200ms' }}>
-                  <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{kpi.label}</span>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{kpi.value}</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg2)', marginBottom: 6 }}>Результаты не рассчитаны</p>
+                  <p style={{ fontSize: 11, color: 'var(--fg3)', lineHeight: 1.6 }}>Задайте параметры и нажмите «Рассчитать»</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              // Results — with hero IRR
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 18px' }}>
+                <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 16 }}>
+                  Результаты
+                </p>
 
+                {isDirty && (
+                  <div style={{ fontSize: 11, color: 'var(--fg3)', marginBottom: 16, padding: '8px 12px', background: 'var(--bg-m)', borderRadius: 6, lineHeight: 1.5, border: '1px solid var(--bd)' }}>
+                    Параметры изменены — нужен пересчёт
+                  </div>
+                )}
+
+                {/* Hero metric: IRR */}
+                <div style={{ padding: '14px 0 12px', borderBottom: '1px solid var(--bd)', marginBottom: 2, opacity: isDirty ? 0.35 : 1, transition: 'opacity 200ms' }}>
+                  <p style={{ fontSize: 10, color: 'var(--fg3)', marginBottom: 6, letterSpacing: '0.04em' }}>IRR</p>
+                  <p style={{ fontFamily: 'var(--mono)', fontSize: 28, fontWeight: 700, color: (wacc.irr ?? 0) > 0.05 ? 'var(--green)' : 'var(--fg)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                    {irrStr}
+                  </p>
+                </div>
+
+                {/* Secondary metrics */}
+                {[
+                  { label: 'NPV',        value: npvStr   },
+                  { label: 'Payback',    value: pbkStr   },
+                  { label: 'Выручка Y5', value: revY5Str },
+                ].map(kpi => (
+                  <div key={kpi.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '10px 0', borderBottom: '1px solid var(--bd)', opacity: isDirty ? 0.35 : 1, transition: 'opacity 200ms' }}>
+                    <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{kpi.label}</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{kpi.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sticky recalculate button */}
             <div style={{ padding: '12px 16px', borderTop: '1px solid var(--bd)', background: 'var(--bg-s)', flexShrink: 0 }}>
               <button
                 onClick={handleCalculate}
-                disabled={calculating}
+                disabled={calculating || !needsCalc}
                 style={{
-                  width: '100%', padding: '8px 0', borderRadius: 6,
-                  border: isDirty ? 'none' : '1px solid var(--bd)',
-                  background: isDirty ? 'var(--brand)' : 'var(--bg-m)',
-                  color: isDirty ? '#fff' : 'var(--fg3)',
+                  width: '100%', padding: '9px 0', borderRadius: 7,
+                  border: needsCalc ? 'none' : '1px solid var(--bd)',
+                  background: needsCalc ? 'var(--brand)' : 'var(--bg-m)',
+                  color: needsCalc ? '#fff' : 'var(--fg3)',
                   fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
-                  cursor: calculating || !isDirty ? 'default' : 'pointer',
-                  transition: 'background 120ms, color 120ms',
+                  cursor: (calculating || !needsCalc) ? 'default' : 'pointer',
+                  transition: 'background 150ms, color 150ms',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  opacity: calculating ? 0.6 : 1,
+                  opacity: calculating ? 0.65 : 1,
                 }}
               >
                 <Calculator size={14} />
-                {calculating ? 'Расчёт...' : 'Пересчитать'}
+                {calculating ? 'Расчёт...' : 'Рассчитать'}
               </button>
             </div>
           </div>
