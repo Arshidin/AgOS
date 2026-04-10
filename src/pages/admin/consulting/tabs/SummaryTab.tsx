@@ -368,45 +368,69 @@ export function SummaryTab() {
         </CardContent>
       </Card>
 
-      {/* ========== Annual Feed Requirements — tonnes by feed type (Priority 3 only) ========== */}
+      {/* ========== Feed costs by group (all engine paths) ========== */}
       {(() => {
-        const summary = results.feeding?.annual_feed_summary as Record<string, number[]> | undefined
-        const feeds = summary ? Object.keys(summary).filter(f => (summary[f] ?? []).some(v => v > 0)) : []
-        if (feeds.length === 0) return null
-        const firstFeed = feeds[0]!
-        const years = summary![firstFeed]?.length ?? 0
-        const feedNames: Record<string, string> = {
-          green_mass: 'Зелёная масса', hay: 'Сено', straw: 'Солома',
-          haylage: 'Сенаж', silage: 'Силос', concentrates: 'Концентраты',
-          salt: 'Соль', bran_meal: 'Отруби/шрот', milk: 'Молоко',
-          barley_meal: 'Дерть ячменная', feed_phosphate: 'Кормофос',
+        const groups = results.feeding?.groups as Record<string, number[]> | undefined
+        if (!groups) return null
+
+        const GROUP_LABELS: Record<string, string> = {
+          molodnyak:    'Молодняк (телята)',
+          heifers_prev: 'Тёлки',
+          cows_12m:     'Маточное стадо',
+          bulls:        'Быки-производители',
+          fattening_breeding:   'Доращивание',
+          fattening_commercial: 'Откорм (товарный)',
         }
+        // Skip always-zero groups and unlabelled internals
+        const SKIP = new Set(['cows_9m', 'heifers_curr'])
+
+        const activeGroups = Object.entries(groups)
+          .filter(([k]) => !SKIP.has(k))
+          .map(([k, arr]) => ({
+            key: k,
+            label: GROUP_LABELS[k] ?? k,
+            annual: toProjectYearAnnual(arr.map(Math.abs), 'sum'),
+          }))
+          .filter(g => g.annual.some(v => v > 0))
+
+        if (activeGroups.length === 0) return null
+        const years = activeGroups[0]!.annual.length
+        const totals = Array.from({ length: years }, (_, i) =>
+          activeGroups.reduce((s, g) => s + (g.annual[i] ?? 0), 0),
+        )
+
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Кормовая потребность по годам, тн</CardTitle>
+              <CardTitle className="text-sm">Расходы на корма по группам, тыс. тг</CardTitle>
             </CardHeader>
             <CardContent className="px-0 pb-2 overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-medium min-w-[140px]">Корм</th>
+                    <th className="px-4 py-2 text-left font-medium min-w-[180px]">Группа животных</th>
                     {Array.from({ length: years }, (_, i) => (
                       <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">Год {i + 1}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {feeds.map(feed => (
-                    <tr key={feed} className="border-b border-border/30 hover:bg-muted/20">
-                      <td className="px-4 py-1.5 text-sm">{feedNames[feed] ?? feed}</td>
-                      {(summary![feed] ?? []).map((tonnes, yi) => (
-                        <td key={yi} className="px-2 py-1.5 text-right font-mono">
-                          {tonnes > 0 ? tonnes.toFixed(1) : '—'}
+                  {activeGroups.map(g => (
+                    <tr key={g.key} className="border-b border-border/30 hover:bg-muted/20">
+                      <td className="px-4 py-1.5">{g.label}</td>
+                      {g.annual.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-mono">
+                          {v > 0 ? fmt(v, 0) : '—'}
                         </td>
                       ))}
                     </tr>
                   ))}
+                  <tr className="border-t-2 bg-muted/40 font-semibold">
+                    <td className="px-4 py-2">Итого корма</td>
+                    {totals.map((v, i) => (
+                      <td key={i} className="px-2 py-2 text-right font-mono">{fmt(v, 0)}</td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </CardContent>
@@ -414,33 +438,75 @@ export function SummaryTab() {
         )
       })()}
 
-      {/* ========== Annual Feed Cost Summary (all paths) ========== */}
+      {/* ========== Feed volumes by group, tonnes (Priority 3 / hardcoded path only) ========== */}
       {(() => {
-        const costSummary = results.feeding?.annual_feed_cost_summary as number[] | undefined
-        if (!costSummary || costSummary.length === 0) return null
-        const years = costSummary.length
+        const byGroup = results.feeding?.quantities?.by_group as
+          Record<string, Record<string, number[]>> | undefined
+        if (!byGroup || Object.keys(byGroup).length === 0) return null
+
+        const GROUP_LABELS: Record<string, string> = {
+          molodnyak:    'Молодняк (телята)',
+          heifers_prev: 'Тёлки',
+          cows_12m:     'Маточное стадо',
+          bulls:        'Быки-производители',
+          fattening_breeding:   'Доращивание',
+          fattening_commercial: 'Откорм (товарный)',
+        }
+        const SKIP = new Set(['cows_9m', 'heifers_curr'])
+        const N = 120
+
+        const activeGroups = Object.entries(byGroup)
+          .filter(([k]) => !SKIP.has(k))
+          .map(([k, feeds]) => {
+            // Sum all feeds → monthly total tonnes for this group
+            const monthly = Array<number>(N).fill(0)
+            Object.values(feeds).forEach(feedArr => {
+              feedArr?.forEach((v, t) => { monthly[t] = (monthly[t] ?? 0) + (v ?? 0) })
+            })
+            return {
+              key: k,
+              label: GROUP_LABELS[k] ?? k,
+              annual: toProjectYearAnnual(monthly, 'sum'),
+            }
+          })
+          .filter(g => g.annual.some(v => v > 0))
+
+        if (activeGroups.length === 0) return null
+        const years = activeGroups[0]!.annual.length
+        const totals = Array.from({ length: years }, (_, i) =>
+          activeGroups.reduce((s, g) => s + (g.annual[i] ?? 0), 0),
+        )
+
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Расходы на корма по годам, тыс. тг</CardTitle>
+              <CardTitle className="text-sm">Объём кормов по группам, тн</CardTitle>
             </CardHeader>
             <CardContent className="px-0 pb-2 overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-medium min-w-[140px]">Показатель</th>
+                    <th className="px-4 py-2 text-left font-medium min-w-[180px]">Группа животных</th>
                     {Array.from({ length: years }, (_, i) => (
                       <th key={i} className="px-2 py-2 text-right font-medium whitespace-nowrap">Год {i + 1}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-border/30 font-semibold bg-muted/30">
-                    <td className="px-4 py-1.5 text-sm">Корма итого</td>
-                    {costSummary.map((v, i) => (
-                      <td key={i} className="px-2 py-1.5 text-right font-mono">
-                        {v > 0 ? fmt(v, 0) : '—'}
-                      </td>
+                  {activeGroups.map(g => (
+                    <tr key={g.key} className="border-b border-border/30 hover:bg-muted/20">
+                      <td className="px-4 py-1.5">{g.label}</td>
+                      {g.annual.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right font-mono">
+                          {v > 0.05 ? v.toFixed(1) : '—'}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 bg-muted/40 font-semibold">
+                    <td className="px-4 py-2">Итого</td>
+                    {totals.map((v, i) => (
+                      <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>
                     ))}
                   </tr>
                 </tbody>
