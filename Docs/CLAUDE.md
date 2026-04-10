@@ -69,9 +69,11 @@ These rules exist because they were violated and caused real damage. Each has a 
 1. Read CLAUDE.md (this file)
 2. Read `.claude/plans/` if plans exist
 3. Read `Docs/DECISIONS_LOG.md`
-4. State EXACTLY what you will change and why (not "redesign", but "add filter for _CULL categories in line 116")
-5. Confirm you are NOT removing existing functionality
-6. Only then — code
+4. Run `git log --oneline -10` — understand what changed recently
+5. Run `git diff --stat` — check what's uncommitted right now
+6. State EXACTLY what you will change and why (not "redesign", but "add filter for _CULL categories in line 116")
+7. Confirm you are NOT removing existing functionality
+8. Only then — code
 
 ### HS-4: NEVER write unused code
 
@@ -82,6 +84,25 @@ These rules exist because they were violated and caused real damage. Each has a 
 ### HS-5: Additive changes ONLY
 
 **Rule:** New capabilities are ADDED, never requiring existing ones to be REMOVED or MODIFIED beyond what's strictly necessary. If you want to replace a component — that's a new architectural decision requiring Arshidin's approval.
+
+### HS-6: One feedback = one Edit, not a rewrite
+
+**Incident:** Arshidin sent a screenshot with 5 specific problems. Instead of fixing each one with a targeted Edit, a full component rewrite was attempted, breaking everything.
+
+**Rule:** When Arshidin reports a problem (screenshot, text, or verbal):
+1. List each specific problem you see
+2. For each problem, state: file, line, what exactly to change
+3. Confirm: "Ничего не удаляю, только точечные правки"
+4. Wait for "ок" from Arshidin
+5. Apply each fix as a separate `Edit` — not a `Write`
+
+Format for proposing fixes:
+```
+Проблема: COW_CULL показывается как отдельная группа
+Файл: herdCategoryMapping.ts:54
+Правка: добавить COW_CULL в EXCLUDE_FROM_RATION_LIST
+Не удаляю ничего.
+```
 
 ---
 
@@ -253,8 +274,14 @@ When Arshidin says "UX is confusing" — the correct response is to ask WHICH sp
 ### L-4: Read the plan before acting
 Plans exist in `.claude/plans/`. They contain prioritized bugs and UX issues with specific file paths and line numbers. Following the plan prevents wasted iterations. Ignoring it causes circular work: build → break → revert → rebuild.
 
-### L-5: Each session starts fresh — CLAUDE.md is your memory
-Between sessions, context is lost. This file is the ONLY persistent memory. If a decision was made but not recorded here — it will be forgotten and potentially contradicted.
+### L-5: Each session starts fresh — CLAUDE.md + DECISIONS_LOG are your memory
+Between sessions, context is lost. CLAUDE.md has principles, DECISIONS_LOG.md has recent decisions. If a decision was made but not recorded — it will be forgotten and potentially contradicted. At the end of every session that changes code, append to DECISIONS_LOG.md:
+```
+### YYYY-MM-DD: [short title]
+What: [what was changed]
+Why: [why]
+Files: [which files]
+```
 
 ### L-6: SQL file column names ≠ deployed schema column names
 Always verify actual column names against the deployed database — not against Dok 1 entity field names or assumptions.

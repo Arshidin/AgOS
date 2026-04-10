@@ -65,6 +65,10 @@
 | D-S9-5 | 2026-04-10 | Architecture | fattening_enabled/fattening_months удалены из wizard — tech_card.py дериватирует из steer_sale_age_months. Единый источник правды. |
 | D-S9-6 | 2026-04-10 | Architecture | opex.py: feed_cost отдельный массив. PnlTab: строка "Расходы на корма". feeding_model: annual_feed_cost_summary во всех 3 путях. |
 | D-S9-7 | 2026-04-10 | UX | SummaryTab: детальные таблицы кормов — расходы по группам (тыс. тг) + объём по группам (тн). Работает для всех путей движка. |
+| D-FEED-1 | 2026-04-11 | Backend | feeding_model.py: инфляция 10.5%/год добавлена в Priority 1 (consulting_rations) и Priority 2 (norms). STEER/BULL_CALF → steers.avg. HEIFER_PREG+HEIFER_YOUNG объединены в одну группу. |
+| D-FEED-2 | 2026-04-11 | Frontend | calculate-ration Edge Function: 30→30.44 дней/мес. StaffTab: 7 позиций по умолчанию, убран window.location.reload(). |
+| D-FEED-3 | 2026-04-11 | Process | CLAUDE.md восстановлен (битый symlink). Добавлены HARD STOP правила HS-1..HS-6 после инцидента с rewrite RationTab. |
+| L-REWRITE-1 | 2026-04-11 | Process | ИНЦИДЕНТ: RationTab переписан с нуля (Write вместо Edit). Удалены CalcDialog, SimpleRationEditor, NASEM-режим. Потребовался полный revert. Урок: никогда не переписывать, только точечные Edit. |
 
 ---
 
