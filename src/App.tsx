@@ -9,7 +9,7 @@ import { RequireExpert } from '@/components/guards/RequireExpert'
 import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
-import { AppShell } from '@/components/layout/AppShell'
+import { AppLayout } from '@/components/layout/AppLayout'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
 import { VetCaseList } from '@/pages/cabinet/vet/VetCaseList'
@@ -92,71 +92,73 @@ function App() {
             <Route path="/membership-policy" element={<Suspense fallback={null}><MembershipPolicy /></Suspense>} />
 
             <Route element={<RequireAuth />}>
-              <Route path="/cabinet" element={<AppShell />}>
-                <Route index element={<CabinetDashboard />} />
-                <Route path="farm" element={<FarmProfile />} />
-                <Route path="vet" element={<VetCaseList />} />
-                <Route path="vet/new" element={<ReportSick />} />
-                <Route path="vet/:caseId" element={<VetCaseDetail />} />
-                <Route path="herd" element={<HerdOverview />} />
-                <Route path="herd/add" element={<HerdGroupForm />} />
-                <Route path="herd/:groupId" element={<HerdGroupForm />} />
-                <Route path="feed" element={<FeedInventory />} />
-                <Route path="feed/add" element={<FeedItemForm />} />
-                <Route path="feed/:inventoryId" element={<FeedItemForm />} />
-                <Route path="ration" element={<RationPage />}>
-                  <Route path="calculator" element={<RationCalculator />} />
-                  <Route path="groups" element={<GroupRations />} />
-                  <Route path="summary" element={<RationSummary />} />
-                  <Route path="budget" element={<RationBudget />} />
+              <Route element={<AppLayout />}>
+                <Route path="/cabinet">
+                  <Route index element={<CabinetDashboard />} />
+                  <Route path="farm" element={<FarmProfile />} />
+                  <Route path="vet" element={<VetCaseList />} />
+                  <Route path="vet/new" element={<ReportSick />} />
+                  <Route path="vet/:caseId" element={<VetCaseDetail />} />
+                  <Route path="herd" element={<HerdOverview />} />
+                  <Route path="herd/add" element={<HerdGroupForm />} />
+                  <Route path="herd/:groupId" element={<HerdGroupForm />} />
+                  <Route path="feed" element={<FeedInventory />} />
+                  <Route path="feed/add" element={<FeedItemForm />} />
+                  <Route path="feed/:inventoryId" element={<FeedItemForm />} />
+                  <Route path="ration" element={<RationPage />}>
+                    <Route path="calculator" element={<RationCalculator />} />
+                    <Route path="groups" element={<GroupRations />} />
+                    <Route path="summary" element={<RationSummary />} />
+                    <Route path="budget" element={<RationBudget />} />
+                  </Route>
+                  <Route path="plan" element={<ProductionPlan />} />
+                  <Route path="plan/tasks" element={<TaskList />} />
+                  <Route path="plan/timeline" element={<Timeline />} />
+                  <Route path="plan/cascade/:phaseId" element={<CascadePreview />} />
+                  <Route path="plan/kpi" element={<KpiDashboard />} />
+                  <Route path="market" element={<MarketDashboard />} />
+                  <Route path="market/new" element={<CreateBatch />} />
+                  <Route path="market/batch/:batchId" element={<BatchDetail />} />
+                  <Route path="market/prices" element={<PriceInfo />} />
                 </Route>
-                <Route path="plan" element={<ProductionPlan />} />
-                <Route path="plan/tasks" element={<TaskList />} />
-                <Route path="plan/timeline" element={<Timeline />} />
-                <Route path="plan/cascade/:phaseId" element={<CascadePreview />} />
-                <Route path="plan/kpi" element={<KpiDashboard />} />
-                <Route path="market" element={<MarketDashboard />} />
-                <Route path="market/new" element={<CreateBatch />} />
-                <Route path="market/batch/:batchId" element={<BatchDetail />} />
-                <Route path="market/prices" element={<PriceInfo />} />
-              </Route>
-            </Route>
 
-            {/* All admin/expert routes: fn_is_expert() OR fn_is_admin() */}
-            <Route element={<RequireExpert />}>
-              <Route path="/admin" element={<AppShell />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="expert/queue" element={<VetCaseQueue />} />
-                <Route path="expert/case/:caseId" element={<CaseConsultation />} />
-                <Route path="expert/vaccination" element={<VaccinationPlans />} />
-                <Route path="expert/vaccination/:planId/record" element={<RecordVaccination />} />
-                <Route path="expert/epidemic" element={<EpidemicSignals />} />
-                <Route path="expert/kpi" element={<ExpertKpi />} />
-                <Route path="membership" element={<MembershipQueue />} />
-                <Route path="membership/:applicationId" element={<MembershipDecision />} />
-                <Route path="knowledge" element={<KnowledgeBase />} />
-                <Route path="restrictions" element={<Restrictions />} />
-                <Route path="audit" element={<AuditLog />} />
-                <Route path="pools" element={<PoolQueue />} />
-                <Route path="pools/:poolId" element={<PoolDetail />} />
-                <Route path="pricing" element={<PriceGridManagement />} />
-                <Route path="users" element={<UserManagement />} />
-                <Route path="roles" element={<RoleAssignment />} />
-                <Route path="orgs" element={<OrgManagement />} />
-                <Route path="regions" element={<RegionDirectory />} />
-                <Route path="settings" element={<SystemSettings />} />
-                <Route path="feeds" element={<FeedReferenceAdmin />} />
-                <Route path="consulting" element={<ConsultingDashboard />} />
-                <Route path="consulting/:projectId" element={<ProjectPage />}>
-                  <Route path="edit" element={<ProjectWizard />} />
-                  <Route path="summary" element={<SummaryTab />} />
-                  <Route path="techcard" element={<TechCardTab />} />
-                  <Route path="herd" element={<HerdTab />} />
-                  <Route path="pnl" element={<PnlTab />} />
-                  <Route path="cashflow" element={<CashFlowTab />} />
-                  <Route path="capex" element={<CapexTab />} />
-                  <Route path="staff" element={<StaffTab />} />
-                  <Route path="ration" element={<RationTab />} />
+                {/* All admin/expert routes: fn_is_expert() OR fn_is_admin() */}
+                <Route element={<RequireExpert />}>
+                  <Route path="/admin">
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="expert/queue" element={<VetCaseQueue />} />
+                    <Route path="expert/case/:caseId" element={<CaseConsultation />} />
+                    <Route path="expert/vaccination" element={<VaccinationPlans />} />
+                    <Route path="expert/vaccination/:planId/record" element={<RecordVaccination />} />
+                    <Route path="expert/epidemic" element={<EpidemicSignals />} />
+                    <Route path="expert/kpi" element={<ExpertKpi />} />
+                    <Route path="membership" element={<MembershipQueue />} />
+                    <Route path="membership/:applicationId" element={<MembershipDecision />} />
+                    <Route path="knowledge" element={<KnowledgeBase />} />
+                    <Route path="restrictions" element={<Restrictions />} />
+                    <Route path="audit" element={<AuditLog />} />
+                    <Route path="pools" element={<PoolQueue />} />
+                    <Route path="pools/:poolId" element={<PoolDetail />} />
+                    <Route path="pricing" element={<PriceGridManagement />} />
+                    <Route path="users" element={<UserManagement />} />
+                    <Route path="roles" element={<RoleAssignment />} />
+                    <Route path="orgs" element={<OrgManagement />} />
+                    <Route path="regions" element={<RegionDirectory />} />
+                    <Route path="settings" element={<SystemSettings />} />
+                    <Route path="feeds" element={<FeedReferenceAdmin />} />
+                    <Route path="consulting" element={<ConsultingDashboard />} />
+                    <Route path="consulting/:projectId" element={<ProjectPage />}>
+                      <Route path="edit" element={<ProjectWizard />} />
+                      <Route path="summary" element={<SummaryTab />} />
+                      <Route path="techcard" element={<TechCardTab />} />
+                      <Route path="herd" element={<HerdTab />} />
+                      <Route path="pnl" element={<PnlTab />} />
+                      <Route path="cashflow" element={<CashFlowTab />} />
+                      <Route path="capex" element={<CapexTab />} />
+                      <Route path="staff" element={<StaffTab />} />
+                      <Route path="ration" element={<RationTab />} />
+                    </Route>
+                  </Route>
                 </Route>
               </Route>
             </Route>
