@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
 import {
@@ -463,14 +463,14 @@ export function PnlTab() {
       </Card>
 
       {/* View toggle */}
-      <div className="flex gap-2">
-        <Button size="sm" variant={view === 'annual' ? 'default' : 'outline'} onClick={() => setView('annual')}>
-          По годам
-        </Button>
-        <Button size="sm" variant={view === 'monthly' ? 'default' : 'outline'} onClick={() => setView('monthly')}>
-          По месяцам
-        </Button>
-      </div>
+      <SegmentedControl
+        segments={[
+          { value: 'annual', label: 'По годам' },
+          { value: 'monthly', label: 'По месяцам' },
+        ]}
+        value={view}
+        onChange={setView}
+      />
 
       <Card>
         <CardHeader>

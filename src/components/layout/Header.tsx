@@ -1,7 +1,8 @@
-import { useLocation, NavLink } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, NavLink, useMatch } from 'react-router-dom'
 import { PanelLeft } from 'lucide-react'
 import { useShell } from './ShellContext'
-import { useTopbarConfig } from './TopbarContext'
+import { useTopbarConfig, type TopbarTab } from './TopbarContext'
 
 /**
  * Route-to-title mapping.
@@ -21,22 +22,52 @@ const ROUTE_TITLES: Record<string, string> = {
 }
 
 function getPageTitle(pathname: string): string {
-  // Exact match first
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname]
 
-  // Check for dynamic segments (e.g. /cabinet/vet/:caseId, /admin/membership/:id)
   if (pathname.startsWith('/cabinet/vet/') && pathname !== '/cabinet/vet/new') {
     return 'Vet Case'
   }
   if (pathname.startsWith('/admin/membership/')) {
     return 'Membership Decision'
   }
-  // Consulting project pages use useSetTopbar — no fallback needed
 
-  // Fallback: last segment, capitalized
   const segments = pathname.split('/').filter(Boolean)
   const last = segments[segments.length - 1] || 'Dashboard'
   return last.charAt(0).toUpperCase() + last.slice(1)
+}
+
+/* ---- Single tab item with hover state and aria attributes ---- */
+function HeaderTab({ tab }: { tab: TopbarTab }) {
+  const match = useMatch({ path: tab.path, end: true })
+  const isActive = !!match
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <NavLink
+      to={tab.path}
+      end
+      role="tab"
+      aria-selected={isActive}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 10px',
+        fontSize: 13,
+        fontWeight: 500,
+        textDecoration: 'none',
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
+        color: hovered || isActive ? 'var(--fg)' : 'var(--fg2)',
+        borderBottom: `2px solid ${isActive ? 'var(--brand)' : 'transparent'}`,
+        background: hovered ? 'var(--bg-m)' : 'none',
+        transition: 'color 80ms, background 80ms, border-color 80ms',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {tab.label}
+    </NavLink>
+  )
 }
 
 export function Header() {
@@ -48,20 +79,45 @@ export function Header() {
   const tabs = config.tabs
   const actions = config.actions
 
+  /* ---- Overflow detection for tab fade mask ---- */
+  const tabsNavRef = useRef<HTMLElement>(null)
+  const [hasOverflow, setHasOverflow] = useState(false)
+
+  useEffect(() => {
+    const el = tabsNavRef.current
+    if (!el) return
+    const check = () => setHasOverflow(el.scrollWidth > el.clientWidth)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    el.addEventListener('scroll', check)
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', check)
+    }
+  }, [tabs])
+
   return (
     <header
       style={{
         gridColumn: panelOpen ? '2 / 3' : '2 / -1',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 28px',
+        alignItems: 'stretch',
         borderBottom: '1px solid var(--bd)',
         background: 'var(--bg)',
         height: 44,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      {/* Left: sidebar toggle (when hidden) + page title */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          paddingLeft: 28,
+          flexShrink: 0,
+        }}
+      >
         {sidebar === 'hidden' && (
           <button
             onClick={cycleSidebar}
@@ -90,34 +146,47 @@ export function Header() {
             <PanelLeft size={15} />
           </button>
         )}
-        <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h1>
-
-        {tabs && tabs.length > 0 && (
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                end
-                style={({ isActive }) => ({
-                  fontSize: 13,
-                  fontWeight: 500,
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  textDecoration: 'none',
-                  color: isActive ? 'var(--fg)' : 'var(--fg3)',
-                  background: isActive ? 'var(--bg-m)' : 'none',
-                  transition: 'all 80ms',
-                })}
-              >
-                {tab.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
+        <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' }}>{title}</h1>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {/* Center: tabs (when configured) */}
+      {tabs && tabs.length > 0 && (
+        <nav
+          ref={tabsNavRef as React.RefObject<HTMLElement>}
+          role="tablist"
+          className="tabs-scroll"
+          style={{
+            display: 'flex',
+            flex: 1,
+            paddingLeft: 12,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            WebkitMaskImage: hasOverflow
+              ? 'linear-gradient(to right, black calc(100% - 40px), transparent 100%)'
+              : undefined,
+            maskImage: hasOverflow
+              ? 'linear-gradient(to right, black calc(100% - 40px), transparent 100%)'
+              : undefined,
+          } as React.CSSProperties}
+        >
+          {tabs.map((tab) => (
+            <HeaderTab key={tab.path} tab={tab} />
+          ))}
+        </nav>
+      )}
+
+      {/* Right: action buttons */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          paddingRight: 28,
+          paddingLeft: tabs && tabs.length > 0 ? 8 : 0,
+          flexShrink: 0,
+          marginLeft: tabs && tabs.length > 0 ? 0 : 'auto',
+        }}
+      >
         {actions}
       </div>
     </header>

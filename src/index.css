@@ -32,6 +32,9 @@
 .shell-scrollbar::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 4px; }
 .shell-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--fg3); }
 
+/* Header tabs — hide scrollbar in webkit browsers */
+.tabs-scroll::-webkit-scrollbar { display: none; }
+
 @keyframes menu-drop {
   0% {
     opacity: 0;
