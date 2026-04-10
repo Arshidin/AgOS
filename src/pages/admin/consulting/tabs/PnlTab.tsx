@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt } from './usProjectData'
 import {
@@ -13,32 +15,351 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-function toAnnual(arr: number[] | undefined, mode: 'sum' | 'last' = 'sum'): number[] {
-  if (!arr || arr.length === 0) return []
-  const years: number[] = []
-  for (let yr = 0; yr < 10; yr++) {
-    const start = yr * 12
-    const end = Math.min((yr + 1) * 12, arr.length)
-    if (start >= arr.length) break
-    if (mode === 'sum') {
-      years.push(arr.slice(start, end).reduce((a, b) => a + (b ?? 0), 0))
-    } else {
-      years.push(arr[end - 1] ?? 0)
-    }
-  }
-  return years
-}
+type ViewMode = 'annual' | 'monthly'
 
-interface PnlRow {
+/* ------------------------------------------------------------------ */
+/*  Row types                                                          */
+/* ------------------------------------------------------------------ */
+type RowKind = 'section' | 'data' | 'total' | 'separator'
+
+interface TableRow {
   label: string
   values: number[]
-  bold?: boolean
+  kind: RowKind
   indent?: boolean
-  separator?: boolean
 }
 
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+function safeArr(arr: number[] | undefined): number[] {
+  return arr ?? []
+}
+
+function toCalendarYear(
+  arr: number[] | undefined,
+  calYears: number[] | undefined,
+  mode: 'first' | 'last' | 'sum' | 'avg',
+): number[] {
+  if (!arr || !calYears || arr.length === 0) return []
+  const yearMap = new Map<number, number[]>()
+  const yearOrder: number[] = []
+  for (let i = 0; i < Math.min(arr.length, calYears.length); i++) {
+    const y = calYears[i] ?? 0
+    if (!yearMap.has(y)) {
+      yearMap.set(y, [])
+      yearOrder.push(y)
+    }
+    yearMap.get(y)!.push(arr[i] ?? 0)
+  }
+  return yearOrder.map(y => {
+    const vals = yearMap.get(y)!
+    switch (mode) {
+      case 'first': return vals[0] ?? 0
+      case 'last':  return vals[vals.length - 1] ?? 0
+      case 'sum':   return vals.reduce((a, b) => a + b, 0)
+      case 'avg':   return vals.reduce((a, b) => a + b, 0) / vals.length
+    }
+  })
+}
+
+function getYearLabels(calYears: number[] | undefined): number[] {
+  if (!calYears) return []
+  const seen = new Set<number>()
+  const result: number[] = []
+  for (const y of calYears) {
+    if (!seen.has(y)) { seen.add(y); result.push(y) }
+  }
+  return result
+}
+
+function makeConstArr(scalar: number, n: number): number[] {
+  return Array.from({ length: n }, () => scalar)
+}
+
+/* ------------------------------------------------------------------ */
+/*  Build P&L rows                                                     */
+/* ------------------------------------------------------------------ */
+interface PnlData {
+  // Revenue
+  livestock_revenue: number[]
+  rev_heifers: number[]
+  rev_cows_culled: number[]
+  rev_bulls_culled: number[]
+  rev_steers: number[]
+  subsidies: number[]
+  sub_purchase: number[]
+  sub_breeding: number[]
+  sub_bulls: number[]
+  total_revenue: number[]
+  // COGS
+  cogs_reproducer: number[]
+  feed_cost: number[]
+  cost_vet: number[]
+  cost_rfid: number[]
+  cost_tags: number[]
+  cost_insurance: number[]
+  cost_payroll: number[]
+  cost_herders: number[]
+  cost_budget: number[]
+  cost_current: number[]
+  cost_other: number[]
+  cogs_fattening: number[]
+  total_cogs: number[]
+  // P&L
+  gross_profit: number[]
+  admin_expenses: number[]
+  ebitda: number[]
+  depr_equipment: number[]
+  depr_buildings: number[]
+  ebit: number[]
+  finance_costs: number[]
+  profit_before_tax: number[]
+  cit: number[]
+  net_profit: number[]
+}
+
+function buildRows(d: PnlData): TableRow[] {
+  const sec = (label: string): TableRow => ({ label, values: [], kind: 'section' })
+  const row = (label: string, values: number[], indent = false): TableRow =>
+    ({ label, values, kind: 'data', indent })
+  const tot = (label: string, values: number[]): TableRow =>
+    ({ label, values, kind: 'total' })
+  const sep: TableRow = { label: '', values: [], kind: 'separator' }
+
+  return [
+    // Revenue section
+    sec('ВЫРУЧКА'),
+    tot('Выручка от продажи КРС', d.livestock_revenue),
+    row('Телочки — племенной скот', d.rev_heifers, true),
+    row('Маточное поголовье — выбраковка', d.rev_cows_culled, true),
+    row('Быки-производители — выбраковка', d.rev_bulls_culled, true),
+    row('Собственные бычки', d.rev_steers, true),
+    sep,
+    tot('Субсидии', d.subsidies),
+    row('Субсидии закуп поголовья', d.sub_purchase, true),
+    row('Субсидии выращивание молодняка', d.sub_breeding, true),
+    row('Субсидии содержание быков', d.sub_bulls, true),
+    sep,
+    tot('Итого выручка', d.total_revenue),
+
+    // COGS section
+    sep,
+    sec('СЕБЕСТОИМОСТЬ'),
+    tot('Себестоимость репродуктора', d.cogs_reproducer),
+    row('Корма', d.feed_cost, true),
+    row('Вет препараты', d.cost_vet, true),
+    row('RFID-чипы', d.cost_rfid, true),
+    row('Ушные бирки', d.cost_tags, true),
+    row('Страхование маточного поголовья', d.cost_insurance, true),
+    row('ФОТ (штат)', d.cost_payroll, true),
+    row('ФОТ (пастухи)', d.cost_herders, true),
+    row('Платежи в бюджет', d.cost_budget, true),
+    row('Текущие расходы', d.cost_current, true),
+    row('Прочие расходы', d.cost_other, true),
+    sep,
+    row('Себестоимость доращивания', d.cogs_fattening),
+    tot('Итого себестоимость', d.total_cogs),
+
+    // P&L calculation
+    sep,
+    sec('ОТЧЁТ О ПРИБЫЛЯХ И УБЫТКАХ'),
+    tot('Валовая прибыль', d.gross_profit),
+    row('Земельный налог', d.admin_expenses, true),
+    tot('EBITDA', d.ebitda),
+    row('Амортизация техники', d.depr_equipment, true),
+    row('Амортизация зданий и сооружений', d.depr_buildings, true),
+    tot('EBIT', d.ebit),
+    row('Расходы по финансированию', d.finance_costs, true),
+    tot('Прибыль до уплаты налога', d.profit_before_tax),
+    row('КПН (20%)', d.cit, true),
+    tot('Чистая прибыль', d.net_profit),
+  ]
+}
+
+/* ------------------------------------------------------------------ */
+/*  Resolve data                                                       */
+/* ------------------------------------------------------------------ */
+function resolveMonthly(
+  revenue: any, opex: any, pnl: any, capex: any, loans: any, n: number,
+): PnlData {
+  const revDetail = revenue.detail || {}
+  const opexDetail = opex.detail || {}
+
+  const deprEquip = capex?.depreciation_equipment_monthly ?? 0
+  const deprBuild = capex?.depreciation_buildings_monthly ?? 0
+
+  return {
+    livestock_revenue: safeArr(revenue.livestock_revenue),
+    rev_heifers: safeArr(revDetail.rev_heifers),
+    rev_cows_culled: safeArr(revDetail.rev_cows_culled),
+    rev_bulls_culled: safeArr(revDetail.rev_bulls_culled),
+    rev_steers: safeArr(revDetail.rev_steers),
+    subsidies: safeArr(revenue.subsidies),
+    sub_purchase: safeArr(revDetail.sub_purchase),
+    sub_breeding: safeArr(revDetail.sub_breeding),
+    sub_bulls: safeArr(revDetail.sub_bulls),
+    total_revenue: safeArr(revenue.total_revenue),
+
+    cogs_reproducer: safeArr(opex.cogs_reproducer),
+    feed_cost: safeArr(opex.feed_cost),
+    cost_vet: safeArr(opexDetail.cost_vet),
+    cost_rfid: safeArr(opexDetail.cost_rfid),
+    cost_tags: safeArr(opexDetail.cost_tags),
+    cost_insurance: safeArr(opexDetail.cost_insurance),
+    cost_payroll: safeArr(opexDetail.cost_payroll),
+    cost_herders: safeArr(opexDetail.cost_herders),
+    cost_budget: safeArr(opexDetail.cost_budget),
+    cost_current: safeArr(opexDetail.cost_current),
+    cost_other: safeArr(opexDetail.cost_other),
+    cogs_fattening: safeArr(opex.cogs_fattening),
+    total_cogs: safeArr(opex.total_cogs),
+
+    gross_profit: safeArr(pnl.gross_profit),
+    admin_expenses: safeArr(pnl.admin_expenses),
+    ebitda: safeArr(pnl.ebitda),
+    depr_equipment: makeConstArr(-deprEquip, n),
+    depr_buildings: makeConstArr(-deprBuild, n),
+    ebit: safeArr(pnl.ebit),
+    finance_costs: safeArr(pnl.finance_costs || loans?.total_interest?.map((v: number) => -v)),
+    profit_before_tax: safeArr(pnl.profit_before_tax),
+    cit: safeArr(pnl.cit),
+    net_profit: safeArr(pnl.net_profit),
+  }
+}
+
+function resolveAnnual(
+  revenue: any, opex: any, pnl: any, capex: any, loans: any,
+  calYears: number[], n: number,
+): PnlData {
+  const a = (arr: number[] | undefined) => toCalendarYear(arr, calYears, 'sum')
+  const revDetail = revenue.detail || {}
+  const opexDetail = opex.detail || {}
+
+  const deprEquip = capex?.depreciation_equipment_monthly ?? 0
+  const deprBuild = capex?.depreciation_buildings_monthly ?? 0
+
+  return {
+    livestock_revenue: a(revenue.livestock_revenue),
+    rev_heifers: a(revDetail.rev_heifers),
+    rev_cows_culled: a(revDetail.rev_cows_culled),
+    rev_bulls_culled: a(revDetail.rev_bulls_culled),
+    rev_steers: a(revDetail.rev_steers),
+    subsidies: a(revenue.subsidies),
+    sub_purchase: a(revDetail.sub_purchase),
+    sub_breeding: a(revDetail.sub_breeding),
+    sub_bulls: a(revDetail.sub_bulls),
+    total_revenue: a(revenue.total_revenue),
+
+    cogs_reproducer: a(opex.cogs_reproducer),
+    feed_cost: a(opex.feed_cost),
+    cost_vet: a(opexDetail.cost_vet),
+    cost_rfid: a(opexDetail.cost_rfid),
+    cost_tags: a(opexDetail.cost_tags),
+    cost_insurance: a(opexDetail.cost_insurance),
+    cost_payroll: a(opexDetail.cost_payroll),
+    cost_herders: a(opexDetail.cost_herders),
+    cost_budget: a(opexDetail.cost_budget),
+    cost_current: a(opexDetail.cost_current),
+    cost_other: a(opexDetail.cost_other),
+    cogs_fattening: a(opex.cogs_fattening),
+    total_cogs: a(opex.total_cogs),
+
+    gross_profit: a(pnl.gross_profit),
+    admin_expenses: a(pnl.admin_expenses),
+    ebitda: a(pnl.ebitda),
+    depr_equipment: a(makeConstArr(-deprEquip, n)),
+    depr_buildings: a(makeConstArr(-deprBuild, n)),
+    ebit: a(pnl.ebit),
+    finance_costs: a(pnl.finance_costs || loans?.total_interest?.map((v: number) => -v)),
+    profit_before_tax: a(pnl.profit_before_tax),
+    cit: a(pnl.cit),
+    net_profit: a(pnl.net_profit),
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Table renderer                                                     */
+/* ------------------------------------------------------------------ */
+function renderTable(rows: TableRow[], headers: string[], fontSize: string) {
+  const colCount = headers.length + 1
+  return (
+    <table className={`w-full ${fontSize} font-mono`}>
+      <thead>
+        <tr className="border-b">
+          <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium text-muted-foreground min-w-[260px]">
+            Показатель
+          </th>
+          {headers.map((h, i) => (
+            <th key={i} className="px-2 py-2 text-right font-medium text-muted-foreground whitespace-nowrap min-w-[80px]">
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, idx) => {
+          if (r.kind === 'separator')
+            return <tr key={idx}><td colSpan={colCount} className="py-1" /></tr>
+
+          if (r.kind === 'section')
+            return (
+              <tr key={idx} className="bg-muted/50">
+                <td
+                  colSpan={colCount}
+                  className="px-3 py-2 font-bold text-[10px] uppercase tracking-wider text-muted-foreground"
+                >
+                  {r.label}
+                </td>
+              </tr>
+            )
+
+          const isBold = r.kind === 'total'
+
+          return (
+            <tr
+              key={idx}
+              className={[
+                'border-b border-border/30',
+                isBold ? 'bg-muted/30' : '',
+              ].join(' ')}
+            >
+              <td
+                className={[
+                  'sticky left-0 z-10 bg-card px-3 py-1.5',
+                  r.indent ? 'pl-6' : '',
+                  isBold ? 'font-semibold' : 'text-muted-foreground',
+                ].join(' ')}
+              >
+                {r.label}
+              </td>
+              {r.values.map((v, i) => (
+                <td
+                  key={i}
+                  className={[
+                    'px-2 py-1.5 text-right',
+                    isBold ? 'font-semibold' : '',
+                    v < -0.1 ? 'text-red-400' : '',
+                  ].join(' ')}
+                >
+                  {Math.abs(v) < 0.1 ? '' : fmt(v, 0)}
+                </td>
+              ))}
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main component                                                     */
+/* ------------------------------------------------------------------ */
 export function PnlTab() {
   const { results, version, loading } = useProjectData()
+  const [view, setView] = useState<ViewMode>('annual')
+
   if (loading) return <Skeleton className="h-48 w-full rounded-xl" />
   if (!version) return <p className="page text-muted-foreground">Нет данных. Запустите расчёт.</p>
 
@@ -46,48 +367,63 @@ export function PnlTab() {
   const revenue = results.revenue || {}
   const opex = results.opex || {}
   const loans = results.loans || {}
+  const capex = results.capex || {}
+  const timeline = results.timeline || {}
+  const calYears: number[] | undefined = timeline.calendar_year
+  const dates: string[] | undefined = timeline.dates
+  const totalMonths = pnl.net_profit?.length || 0
 
-  const years = Math.min(10, Math.ceil((pnl.net_profit?.length || 0) / 12))
-  if (years === 0) return <p className="page text-muted-foreground">Нет данных P&L.</p>
+  if (totalMonths === 0) return <p className="page text-muted-foreground">Нет данных P&L.</p>
+
+  const years = getYearLabels(calYears)
 
   // ============================================================
-  // CHART DATA
+  // CHART DATA (unchanged)
   // ============================================================
-  const annualRevenue = toAnnual(revenue.total_revenue)
-  const annualCosts = toAnnual(opex.total_cogs)
-  const annualNetProfit = toAnnual(pnl.net_profit)
+  const toAnnualSum = (arr: number[] | undefined) => toCalendarYear(arr, calYears, 'sum')
+  const annualRevenue = toAnnualSum(revenue.total_revenue)
+  const annualCosts = toAnnualSum(opex.total_cogs)
+  const annualNetProfit = toAnnualSum(pnl.net_profit)
 
-  const chartData = Array.from({ length: years }, (_, i) => ({
-    year: `Год ${i + 1}`,
+  const chartData = years.map((yr, i) => ({
+    year: `${yr}`,
     revenue: annualRevenue[i] ?? 0,
     costs: -(Math.abs(annualCosts[i] ?? 0)),
     netProfit: annualNetProfit[i] ?? 0,
   }))
 
   // ============================================================
-  // TABLE ROWS
+  // TABLE VIEWS
   // ============================================================
-  const rows: PnlRow[] = [
-    { label: 'Выручка от продажи КРС', values: toAnnual(revenue.livestock_revenue) },
-    { label: 'Субсидии', values: toAnnual(revenue.subsidies) },
-    { label: 'Итого выручка', values: toAnnual(revenue.total_revenue), bold: true },
-    { label: '', values: [], separator: true },
-    { label: 'Расходы на корма', values: toAnnual(opex.feed_cost), indent: true },
-    { label: 'Себестоимость (репродуктор)', values: toAnnual(opex.cogs_reproducer), indent: true },
-    { label: 'Себестоимость (доращивание)', values: toAnnual(opex.cogs_fattening), indent: true },
-    { label: 'Итого себестоимость', values: toAnnual(opex.total_cogs), bold: true },
-    { label: '', values: [], separator: true },
-    { label: 'Валовая прибыль', values: toAnnual(pnl.gross_profit), bold: true },
-    { label: 'Административные расходы', values: toAnnual(pnl.admin_expenses), indent: true },
-    { label: 'EBITDA', values: toAnnual(pnl.ebitda), bold: true },
-    { label: '', values: [], separator: true },
-    { label: 'Амортизация', values: toAnnual(pnl.depreciation_monthly ? Array(120).fill(-pnl.depreciation_monthly) : []) },
-    { label: 'EBIT', values: toAnnual(pnl.ebit), bold: true },
-    { label: 'Процентные расходы', values: toAnnual(pnl.finance_costs || loans.total_interest?.map((v: number) => -v)) },
-    { label: 'Прибыль до налогов', values: toAnnual(pnl.profit_before_tax) },
-    { label: 'КПН (20%)', values: toAnnual(pnl.cit) },
-    { label: 'Чистая прибыль', values: toAnnual(pnl.net_profit), bold: true },
-  ]
+  const renderAnnual = () => {
+    const data = resolveAnnual(revenue, opex, pnl, capex, loans, calYears!, totalMonths)
+    const rows = buildRows(data)
+    return renderTable(rows, years.map(String), 'text-sm')
+  }
+
+  const renderMonthly = () => {
+    const n = Math.min(totalMonths, 120)
+    const MONTHS_RU = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек']
+    const monthLabels: string[] = []
+    for (let i = 0; i < n; i++) {
+      const d = dates?.[i]
+      if (d) {
+        const parts = d.split('-')
+        const y = parts[0] ?? '00'
+        const m = parts[1] ?? '01'
+        monthLabels.push(`${MONTHS_RU[parseInt(m) - 1]} ${y.slice(2)}`)
+      } else {
+        monthLabels.push(`М${i + 1}`)
+      }
+    }
+
+    const data = resolveMonthly(revenue, opex, pnl, capex, loans, n)
+    const rows = buildRows(data)
+    for (const r of rows) {
+      if (r.values.length > n) r.values = r.values.slice(0, n)
+    }
+    return renderTable(rows, monthLabels, 'text-xs')
+  }
 
   return (
     <div className="page space-y-4">
@@ -127,43 +463,26 @@ export function PnlTab() {
         </CardContent>
       </Card>
 
-      {/* P&L table */}
+      {/* View toggle */}
+      <div className="flex gap-2">
+        <Button size="sm" variant={view === 'annual' ? 'default' : 'outline'} onClick={() => setView('annual')}>
+          По годам
+        </Button>
+        <Button size="sm" variant={view === 'monthly' ? 'default' : 'outline'} onClick={() => setView('monthly')}>
+          По месяцам
+        </Button>
+      </div>
+
       <Card>
-        <CardHeader><CardTitle>Отчёт о прибылях и убытках (тыс. тг)</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>
+            {view === 'annual'
+              ? 'Отчёт о прибылях и убытках (тыс. тг, по годам)'
+              : 'Отчёт о прибылях и убытках (тыс. тг, помесячно)'}
+          </CardTitle>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
-          <table className="w-full text-sm font-mono">
-            <thead>
-              <tr className="border-b">
-                <th className="sticky left-0 bg-card px-3 py-2 text-left font-medium text-muted-foreground min-w-[200px]">Показатель</th>
-                {Array.from({ length: years }, (_, i) => (
-                  <th key={i} className="px-3 py-2 text-right font-medium text-muted-foreground min-w-[100px]">Год {i + 1}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, idx) => {
-                if (row.separator) {
-                  return <tr key={idx}><td colSpan={years + 1} className="py-1"></td></tr>
-                }
-                return (
-                  <tr key={idx} className={`border-b border-border/30 ${row.bold ? 'bg-muted/30' : ''}`}>
-                    <td className={`sticky left-0 bg-card px-3 py-2 ${row.bold ? 'font-semibold' : 'text-muted-foreground'} ${row.indent ? 'pl-6' : ''}`}>
-                      {row.label}
-                    </td>
-                    {(row.values || []).slice(0, years).map((v, i) => (
-                      <td key={i} className={`px-3 py-2 text-right ${v < 0 ? 'text-red-400' : ''} ${row.bold ? 'font-semibold' : ''}`}>
-                        {fmt(v, 0)}
-                      </td>
-                    ))}
-                    {/* Pad missing years */}
-                    {Array.from({ length: Math.max(0, years - (row.values?.length || 0)) }, (_, i) => (
-                      <td key={`pad-${i}`} className="px-3 py-2 text-right text-muted-foreground">---</td>
-                    ))}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {view === 'annual' ? renderAnnual() : renderMonthly()}
         </CardContent>
       </Card>
     </div>

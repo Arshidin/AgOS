@@ -55,6 +55,17 @@ def calculate_opex(
     admin_expenses = [0.0] * n
     feed_cost_monthly = [0.0] * n  # Separate feed cost line for P&L breakdown
 
+    # Per-line COGS detail arrays (all negative)
+    cost_vet = [0.0] * n
+    cost_rfid = [0.0] * n
+    cost_tags = [0.0] * n
+    cost_insurance = [0.0] * n
+    cost_payroll = [0.0] * n
+    cost_herders = [0.0] * n
+    cost_budget = [0.0] * n
+    cost_current = [0.0] * n
+    cost_other = [0.0] * n
+
     # Derive cow price per kg from purchase price (тг)
     purchase_price_cow = enriched_input.get("purchase_price_cow", 550_000)
     cow_price_per_kg = purchase_price_cow / 600  # тг/кг
@@ -81,31 +92,40 @@ def calculate_opex(
 
         # 206: Вет препараты (6500 тг/гол/год)
         vet_cost = -(6500 * avg_livestock * inf) / 1000 / 12
+        cost_vet[t] = vet_cost
 
         # 207: RFID-чипы (500 тг/гол/год on avg livestock)
         rfid_cost = -(500 * avg_livestock * inf) / 1000 / 12
+        cost_rfid[t] = rfid_cost
 
         # 208: Ушные бирки (500 тг/гол/год on total EOP)
         tags_cost = -(500 * total_eop * inf) / 1000 / 12
+        cost_tags[t] = tags_cost
 
         # 209: Страхование маточного поголовья
         # Formula: cow_price_per_kg × inf × 600кг × cows_eop / 1000 × 1.5% × 20% / 12
         insurance = -(cow_price_per_kg * inf * 600 * cows_eop) / 1000 * 0.015 * 0.2 / 12
+        cost_insurance[t] = insurance
 
         # 210: ФОТ штат (from staff module, ensure negative)
         payroll = -abs(staff["monthly_payroll"][t])
+        cost_payroll[t] = payroll
 
         # 211: ФОТ пастухи (500 тыс.тг base × inflation)
         herders = -(500 * inf)
+        cost_herders[t] = herders
 
         # 212: Платежи в бюджет (35% от пастухов — social tax on herder wages)
         budget_payments = herders * 0.35
+        cost_budget[t] = budget_payments
 
         # 213: Текущие расходы (200 тыс.тг base × inflation)
         current_expenses = -(200 * inf)
+        cost_current[t] = current_expenses
 
         # 214: Прочие расходы (0.1% от выручки скота — positive revenue × -0.001)
         other = -0.001 * max(0, revenue["livestock_revenue"][t])
+        cost_other[t] = other
 
         cogs_reproducer[t] = (
             feed_cost + vet_cost + rfid_cost + tags_cost + insurance
@@ -128,4 +148,15 @@ def calculate_opex(
         "total_cogs": total_cogs,
         "admin_expenses": admin_expenses,
         "feed_cost": feed_cost_monthly,
+        "detail": {
+            "cost_vet": cost_vet,
+            "cost_rfid": cost_rfid,
+            "cost_tags": cost_tags,
+            "cost_insurance": cost_insurance,
+            "cost_payroll": cost_payroll,
+            "cost_herders": cost_herders,
+            "cost_budget": cost_budget,
+            "cost_current": cost_current,
+            "cost_other": cost_other,
+        },
     }

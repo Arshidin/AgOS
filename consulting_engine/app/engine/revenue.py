@@ -57,6 +57,15 @@ def calculate_revenue(
     livestock_revenue = [0.0] * n
     subsidies = [0.0] * n
 
+    # Per-category detail arrays
+    rev_heifers = [0.0] * n
+    rev_cows_culled = [0.0] * n
+    rev_bulls_culled = [0.0] * n
+    rev_steers = [0.0] * n
+    sub_purchase = [0.0] * n
+    sub_breeding = [0.0] * n
+    sub_bulls = [0.0] * n
+
     for t in range(n):
         # Inflation factor: year 1 = 1.0, year 2 = 1.105, year 3 = 1.105^2, ...
         yr = year_idx[t]
@@ -80,31 +89,31 @@ def calculate_revenue(
         # Sold breeding heifers: heads × weight × price × inflation / 1000
         sold_breeding = abs(herd["cows"]["sold_breeding"][t])
         if sold_breeding > 0:
-            livestock_revenue[t] += (
-                sold_breeding * heifer_wt * BASE_PRICES["heifer_breeding"] * inf / 1000
-            )
+            val = sold_breeding * heifer_wt * BASE_PRICES["heifer_breeding"] * inf / 1000
+            livestock_revenue[t] += val
+            rev_heifers[t] = val
 
         # Culled cows: heads × weight × price × inflation / 1000
         culled_cows = abs(herd["cows"]["culled"][t])
         if culled_cows > 0:
-            livestock_revenue[t] += (
-                culled_cows * cow_wt * BASE_PRICES["cow_culled"] * inf / 1000
-            )
+            val = culled_cows * cow_wt * BASE_PRICES["cow_culled"] * inf / 1000
+            livestock_revenue[t] += val
+            rev_cows_culled[t] = val
 
         # Culled bulls: heads × weight × price × inflation / 1000
         culled_bulls = abs(herd["bulls"]["culled"][t])
         if culled_bulls > 0:
-            livestock_revenue[t] += (
-                culled_bulls * bull_wt * BASE_PRICES["bull_culled"] * inf / 1000
-            )
+            val = culled_bulls * bull_wt * BASE_PRICES["bull_culled"] * inf / 1000
+            livestock_revenue[t] += val
+            rev_bulls_culled[t] = val
 
         # Steers sold (own): heads × weight × price × inflation / 1000
         # PRIMARY revenue source — steers sold after growth period
         steers_sold = abs(herd["steers"]["sold"][t])
         if steers_sold > 0:
-            livestock_revenue[t] += (
-                steers_sold * steer_wt * BASE_PRICES["steer_own"] * inf / 1000
-            )
+            val = steers_sold * steer_wt * BASE_PRICES["steer_own"] * inf / 1000
+            livestock_revenue[t] += val
+            rev_steers[t] = val
 
         # ----- Subsidies (POSITIVE, only when subsidy_switch != 2) -----
 
@@ -116,16 +125,22 @@ def calculate_revenue(
                     + abs(herd["bulls"].get("purchased", [0] * n)[t])
                 )
                 if purchased > 0:
-                    subsidies[t] += 260.0 * purchased
+                    val = 260.0 * purchased
+                    subsidies[t] += val
+                    sub_purchase[t] = val
 
             # Bull maintenance subsidy: 100 тыс.тг × bulls_eop × inflation — every month
             bulls_eop = herd["bulls"]["eop"][t]
             if bulls_eop > 0:
-                subsidies[t] += 100.0 * bulls_eop * inf
+                val = 100.0 * bulls_eop * inf
+                subsidies[t] += val
+                sub_bulls[t] = val
 
             # Breeding subsidy: 15 тыс.тг × inflation × sold_breeding_heifers
             if sold_breeding > 0:
-                subsidies[t] += 15.0 * (1 + CPI_ANNUAL) ** max(0, yr - 1) * sold_breeding
+                val = 15.0 * (1 + CPI_ANNUAL) ** max(0, yr - 1) * sold_breeding
+                subsidies[t] += val
+                sub_breeding[t] = val
 
     total_revenue = [
         livestock_revenue[t] + subsidies[t]
@@ -136,4 +151,13 @@ def calculate_revenue(
         "livestock_revenue": livestock_revenue,
         "subsidies": subsidies,
         "total_revenue": total_revenue,
+        "detail": {
+            "rev_heifers": rev_heifers,
+            "rev_cows_culled": rev_cows_culled,
+            "rev_bulls_culled": rev_bulls_culled,
+            "rev_steers": rev_steers,
+            "sub_purchase": sub_purchase,
+            "sub_breeding": sub_breeding,
+            "sub_bulls": sub_bulls,
+        },
     }
