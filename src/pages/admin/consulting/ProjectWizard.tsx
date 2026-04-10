@@ -5,7 +5,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Pencil } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Hash, Percent, DollarSign, Users, TrendingUp, TrendingDown, RefreshCcw, BarChart2, Clock, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -150,51 +150,77 @@ export function ProjectWizard() {
   const { projectId } = useParams()
   const { organization } = useAuth()
   const [mode, setMode] = useState<'view' | 'edit'>('edit')
-  const [editingSection, setEditingSection] = useState<string | null>(null)
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [flashField, setFlashField] = useState<string | null>(null)
+  const [savedParamsStr, setSavedParamsStr] = useState('')
+  const [results, setResults] = useState<any>({})
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
+  const [narrowDetailsOpen, setNarrowDetailsOpen] = useState(false)
 
 
   const orgId = organization?.id
 
-  // Load saved params from last version
+  // Resize listener for responsive fallback
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth < 1024)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Load saved params + results from last version
   useEffect(() => {
     if (!orgId || !projectId) return
+
+    // Load results from sessionStorage cache for Highlights
+    try {
+      const raw = sessionStorage.getItem('consulting_results')
+      if (raw) {
+        const cached = JSON.parse(raw)
+        if (cached.projectId === projectId && Date.now() - cached.ts < 600_000) {
+          setResults(cached.results || {})
+        }
+      }
+    } catch { /* ignore */ }
+
     supabase.rpc('rpc_get_consulting_project', {
       p_organization_id: orgId,
       p_project_id: projectId,
     }).then(({ data: proj }) => {
       if (proj?.versions?.length > 0) {
-        setMode('view')  // Show view mode when params exist
+        setMode('view')
         const saved = proj.versions[0].input_params
         if (saved) {
-          setParams(p => ({
-            ...p,
-            initial_cows: saved.initial_cows ?? p.initial_cows,
-            reproducer_capacity: saved.reproducer_capacity ?? p.reproducer_capacity,
-            purchase_price_cow: saved.purchase_price_cow ?? p.purchase_price_cow,
-            purchase_price_bull: saved.purchase_price_bull ?? p.purchase_price_bull,
-            pasture_norm_ha: saved.pasture_norm_ha ?? p.pasture_norm_ha,
-            calving_scenario: saved.calving_scenario ?? p.calving_scenario,
-            equity_share_pct: saved.equity_share ? saved.equity_share * 100 : p.equity_share_pct,
-            capex_loan_term_years: saved.capex_loan_term_years ?? p.capex_loan_term_years,
-            capex_grace_period_years: saved.capex_grace_period_years ?? p.capex_grace_period_years,
-            livestock_loan_rate_pct: saved.livestock_loan_rate ? saved.livestock_loan_rate * 100 : p.livestock_loan_rate_pct,
-            wc_loan_rate_pct: saved.wc_loan_rate ? saved.wc_loan_rate * 100 : p.wc_loan_rate_pct,
-            subsidy_switch: saved.subsidy_switch ?? p.subsidy_switch,
-            wc_loan_switch: saved.wc_loan_switch ?? p.wc_loan_switch,
-            bioasset_revaluation_switch: saved.bioasset_revaluation_switch ?? p.bioasset_revaluation_switch,
-            project_start_date: saved.project_start_date ?? p.project_start_date,
-            steer_sale_age_months: saved.steer_sale_age_months ?? p.steer_sale_age_months,
-            birth_weight_kg: saved.birth_weight_kg ?? p.birth_weight_kg,
-            daily_gain_steer_pasture: saved.daily_gain_steer_pasture ?? p.daily_gain_steer_pasture,
-            daily_gain_steer_stall: saved.daily_gain_steer_stall ?? p.daily_gain_steer_stall,
-            daily_gain_heifer_pasture: saved.daily_gain_heifer_pasture ?? p.daily_gain_heifer_pasture,
-            daily_gain_heifer_stall: saved.daily_gain_heifer_stall ?? p.daily_gain_heifer_stall,
-            cow_culled_weight_kg: saved.cow_culled_weight_kg ?? p.cow_culled_weight_kg,
-            bull_culled_weight_kg: saved.bull_culled_weight_kg ?? p.bull_culled_weight_kg,
-          }))
+          const merged: WizardParams = {
+            ...DEFAULT_PARAMS,
+            initial_cows: saved.initial_cows ?? DEFAULT_PARAMS.initial_cows,
+            reproducer_capacity: saved.reproducer_capacity ?? DEFAULT_PARAMS.reproducer_capacity,
+            purchase_price_cow: saved.purchase_price_cow ?? DEFAULT_PARAMS.purchase_price_cow,
+            purchase_price_bull: saved.purchase_price_bull ?? DEFAULT_PARAMS.purchase_price_bull,
+            pasture_norm_ha: saved.pasture_norm_ha ?? DEFAULT_PARAMS.pasture_norm_ha,
+            calving_scenario: saved.calving_scenario ?? DEFAULT_PARAMS.calving_scenario,
+            equity_share_pct: saved.equity_share ? saved.equity_share * 100 : DEFAULT_PARAMS.equity_share_pct,
+            capex_loan_term_years: saved.capex_loan_term_years ?? DEFAULT_PARAMS.capex_loan_term_years,
+            capex_grace_period_years: saved.capex_grace_period_years ?? DEFAULT_PARAMS.capex_grace_period_years,
+            livestock_loan_rate_pct: saved.livestock_loan_rate ? saved.livestock_loan_rate * 100 : DEFAULT_PARAMS.livestock_loan_rate_pct,
+            wc_loan_rate_pct: saved.wc_loan_rate ? saved.wc_loan_rate * 100 : DEFAULT_PARAMS.wc_loan_rate_pct,
+            subsidy_switch: saved.subsidy_switch ?? DEFAULT_PARAMS.subsidy_switch,
+            wc_loan_switch: saved.wc_loan_switch ?? DEFAULT_PARAMS.wc_loan_switch,
+            bioasset_revaluation_switch: saved.bioasset_revaluation_switch ?? DEFAULT_PARAMS.bioasset_revaluation_switch,
+            project_start_date: saved.project_start_date ?? DEFAULT_PARAMS.project_start_date,
+            steer_sale_age_months: saved.steer_sale_age_months ?? DEFAULT_PARAMS.steer_sale_age_months,
+            birth_weight_kg: saved.birth_weight_kg ?? DEFAULT_PARAMS.birth_weight_kg,
+            daily_gain_steer_pasture: saved.daily_gain_steer_pasture ?? DEFAULT_PARAMS.daily_gain_steer_pasture,
+            daily_gain_steer_stall: saved.daily_gain_steer_stall ?? DEFAULT_PARAMS.daily_gain_steer_stall,
+            daily_gain_heifer_pasture: saved.daily_gain_heifer_pasture ?? DEFAULT_PARAMS.daily_gain_heifer_pasture,
+            daily_gain_heifer_stall: saved.daily_gain_heifer_stall ?? DEFAULT_PARAMS.daily_gain_heifer_stall,
+            cow_culled_weight_kg: saved.cow_culled_weight_kg ?? DEFAULT_PARAMS.cow_culled_weight_kg,
+            bull_culled_weight_kg: saved.bull_culled_weight_kg ?? DEFAULT_PARAMS.bull_culled_weight_kg,
+          }
+          setParams(merged)
+          setSavedParamsStr(JSON.stringify(merged))
         }
       }
     })
@@ -243,6 +269,8 @@ export function ProjectWizard() {
       })
       // Cache results for instant tab access
       cacheResults(projectId, result.results, params)
+      setResults(result.results || {})
+      setSavedParamsStr(JSON.stringify(params))
       setMode('view')
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
       navigate(`/admin/consulting/${projectId}/summary`)
@@ -258,160 +286,350 @@ export function ProjectWizard() {
   const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
 
   // ================================================================
-  // VIEW MODE — clean rows with inline editing per section
+  // VIEW MODE — Attio layout: Highlights + Coefficients | Details Panel
   // ================================================================
   if (mode === 'view') {
-    type SectionItem = {
+    const isDirty = savedParamsStr !== '' && JSON.stringify(params) !== savedParamsStr
+
+    // Results-derived KPIs
+    const wacc = results.wacc || {}
+    const irr = wacc.irr != null ? `${(wacc.irr * 100).toFixed(1)}` : null
+    const npv = wacc.npv != null ? Math.round(wacc.npv) : null
+    const revenueArr: number[] | undefined = results.revenue?.total_revenue
+    const revenueY5 = revenueArr
+      ? Math.round(revenueArr.slice(48, 60).reduce((a: number, b: number) => a + (b ?? 0), 0) / 1000)
+      : null
+
+    const HIGHLIGHTS: { label: string; value: string; unit: string; Icon: React.ComponentType<any>; fromResults: boolean }[] = [
+      { label: 'Стоимость стада', value: Math.round(livestockCost).toLocaleString('ru-RU'), unit: 'тыс. тг', Icon: DollarSign, fromResults: false },
+      { label: 'Маточное поголовье', value: params.initial_cows.toLocaleString('ru-RU'), unit: 'голов', Icon: Users, fromResults: false },
+      { label: 'Приплод', value: `${params.calf_yield_pct}`, unit: '%', Icon: Percent, fromResults: false },
+      { label: 'IRR', value: irr ?? '—', unit: irr ? '%' : '', Icon: TrendingUp, fromResults: true },
+      { label: 'NPV', value: npv != null ? npv.toLocaleString('ru-RU') : '—', unit: npv != null ? 'тыс. тг' : '', Icon: BarChart2, fromResults: true },
+      { label: 'Выручка Y5', value: revenueY5 != null ? revenueY5.toLocaleString('ru-RU') : '—', unit: revenueY5 != null ? 'млн тг' : '', Icon: TrendingUp, fromResults: true },
+    ]
+
+    const COEFF_BARS = [
+      { label: 'Приплод', value: params.calf_yield_pct, max: 100, color: 'var(--green)' },
+      { label: 'Падёж коров', value: params.cow_mortality_pct, max: 20, color: 'var(--red)' },
+      { label: 'Падёж молодняка', value: params.heifer_mortality_pct, max: 20, color: 'var(--red)' },
+      { label: 'Выбраковка коров', value: params.cow_culling_pct, max: 40, color: 'var(--blue)' },
+      { label: 'Выбраковка быков', value: params.bull_culling_pct, max: 40, color: 'var(--blue)' },
+    ]
+
+    type DetailItem = {
+      id: string
       label: string
-      value: string
-      key?: keyof WizardParams
+      Icon: React.ComponentType<any>
+      rawValue: string | number
       suffix?: string
       type?: string
-      options?: string[]
-      computed?: boolean
+      step?: string
+      options?: { label: string; value: string | number }[]
     }
-    type Section = { title: string; items: SectionItem[] }
 
-    const sections: Section[] = [
+    const DETAIL_SECTIONS: { title: string; items: DetailItem[] }[] = [
       {
         title: 'Тип фермы',
         items: [
-          { label: 'Маточное поголовье', value: `${params.initial_cows}`, key: 'initial_cows', suffix: 'голов' },
-          { label: 'Мощность репродуктора', value: `${params.reproducer_capacity}`, key: 'reproducer_capacity', suffix: 'голов' },
-          { label: 'Быки-производители', value: `${bulls} голов`, computed: true },
-          { label: 'Цена коровы', value: `${params.purchase_price_cow.toLocaleString('ru-RU')}`, key: 'purchase_price_cow', suffix: 'тг' },
-          { label: 'Цена быка', value: `${params.purchase_price_bull.toLocaleString('ru-RU')}`, key: 'purchase_price_bull', suffix: 'тг' },
+          { id: 'initial_cows', label: 'Маточное поголовье', Icon: Users, rawValue: params.initial_cows, suffix: 'голов', type: 'number' },
+          { id: 'reproducer_capacity', label: 'Мощность репродуктора', Icon: Hash, rawValue: params.reproducer_capacity, suffix: 'голов', type: 'number' },
+          { id: 'purchase_price_cow', label: 'Цена коровы', Icon: DollarSign, rawValue: params.purchase_price_cow, suffix: 'тг', type: 'number' },
+          { id: 'purchase_price_bull', label: 'Цена быка', Icon: DollarSign, rawValue: params.purchase_price_bull, suffix: 'тг', type: 'number' },
+          { id: 'pasture_norm_ha', label: 'Норма пастбищ', Icon: MapPin, rawValue: params.pasture_norm_ha, suffix: 'га/гол', type: 'number' },
+          { id: 'calving_scenario', label: 'Сценарий отёла', Icon: Clock, rawValue: params.calving_scenario, options: [{ label: 'Летний', value: 'Летний' }, { label: 'Зимний', value: 'Зимний' }] },
+          { id: 'project_start_date', label: 'Дата старта', Icon: Clock, rawValue: params.project_start_date, type: 'date' },
         ],
       },
       {
         title: 'Коэффициенты',
         items: [
-          { label: 'Приплод', value: `${params.calf_yield_pct}`, key: 'calf_yield_pct', suffix: '%' },
-          { label: 'Падёж коров', value: `${params.cow_mortality_pct}`, key: 'cow_mortality_pct', suffix: '%' },
-          { label: 'Падёж быков', value: `${params.bull_mortality_pct}`, key: 'bull_mortality_pct', suffix: '%' },
-          { label: 'Падёж молодняка', value: `${params.heifer_mortality_pct}`, key: 'heifer_mortality_pct', suffix: '%' },
-          { label: 'Выбраковка коров', value: `${params.cow_culling_pct}`, key: 'cow_culling_pct', suffix: '%' },
-          { label: 'Выбраковка быков', value: `${params.bull_culling_pct}`, key: 'bull_culling_pct', suffix: '%' },
+          { id: 'calf_yield_pct', label: 'Приплод', Icon: Percent, rawValue: params.calf_yield_pct, suffix: '%', type: 'number' },
+          { id: 'cow_mortality_pct', label: 'Падёж коров', Icon: TrendingDown, rawValue: params.cow_mortality_pct, suffix: '%', type: 'number' },
+          { id: 'bull_mortality_pct', label: 'Падёж быков', Icon: TrendingDown, rawValue: params.bull_mortality_pct, suffix: '%', type: 'number' },
+          { id: 'heifer_mortality_pct', label: 'Падёж молодняка', Icon: TrendingDown, rawValue: params.heifer_mortality_pct, suffix: '%', type: 'number' },
+          { id: 'cow_culling_pct', label: 'Выбраковка коров', Icon: RefreshCcw, rawValue: params.cow_culling_pct, suffix: '%', type: 'number' },
+          { id: 'bull_culling_pct', label: 'Выбраковка быков', Icon: RefreshCcw, rawValue: params.bull_culling_pct, suffix: '%', type: 'number' },
         ],
       },
       {
         title: 'Технология',
         items: [
-          { label: 'Сценарий отёла', value: params.calving_scenario, key: 'calving_scenario', options: ['Летний', 'Зимний'] },
-          { label: 'Дата старта', value: params.project_start_date, key: 'project_start_date', type: 'date' },
-          { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га`, computed: true },
-          { label: 'Реализация бычков', value: STEER_SALE_OPTIONS.find(o => o.value === params.steer_sale_age_months)?.label || 'В декабре', computed: true },
-          { label: 'Вес бычка при реализации', value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг`, computed: true },
-          { label: 'Привес бычков (лето/зима)', value: `${params.daily_gain_steer_pasture}/${params.daily_gain_steer_stall} кг/день`, computed: true },
-          { label: 'Привес тёлок (лето/зима)', value: `${params.daily_gain_heifer_pasture}/${params.daily_gain_heifer_stall} кг/день`, computed: true },
-          { label: 'Вес при рождении', value: `${params.birth_weight_kg}`, key: 'birth_weight_kg', suffix: 'кг' },
+          { id: 'steer_sale_age_months', label: 'Реализация бычков', Icon: Clock, rawValue: params.steer_sale_age_months, options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
+          { id: 'birth_weight_kg', label: 'Вес при рождении', Icon: Hash, rawValue: params.birth_weight_kg, suffix: 'кг', type: 'number' },
+          { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp, rawValue: params.daily_gain_steer_pasture, suffix: 'кг/д', type: 'number', step: '0.01' },
+          { id: 'daily_gain_steer_stall', label: 'Привес бычки (зима)', Icon: TrendingUp, rawValue: params.daily_gain_steer_stall, suffix: 'кг/д', type: 'number', step: '0.01' },
+          { id: 'daily_gain_heifer_pasture', label: 'Привес тёлки (лето)', Icon: TrendingUp, rawValue: params.daily_gain_heifer_pasture, suffix: 'кг/д', type: 'number', step: '0.01' },
+          { id: 'daily_gain_heifer_stall', label: 'Привес тёлки (зима)', Icon: TrendingUp, rawValue: params.daily_gain_heifer_stall, suffix: 'кг/д', type: 'number', step: '0.01' },
+          { id: 'cow_culled_weight_kg', label: 'Вес коровы (убой)', Icon: Hash, rawValue: params.cow_culled_weight_kg, suffix: 'кг', type: 'number' },
+          { id: 'bull_culled_weight_kg', label: 'Вес быка (убой)', Icon: Hash, rawValue: params.bull_culled_weight_kg, suffix: 'кг', type: 'number' },
         ],
       },
       {
         title: 'Финансирование',
         items: [
-          { label: 'Собств. участие', value: `${params.equity_share_pct}`, key: 'equity_share_pct', suffix: '%' },
-          { label: 'Срок кредита', value: `${params.capex_loan_term_years}`, key: 'capex_loan_term_years', suffix: 'лет' },
-          { label: 'Льготный период', value: `${params.capex_grace_period_years}`, key: 'capex_grace_period_years', suffix: 'лет' },
-          { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}`, key: 'livestock_loan_rate_pct', suffix: '%' },
-          { label: 'Ставка оборотная', value: `${params.wc_loan_rate_pct}`, key: 'wc_loan_rate_pct', suffix: '%' },
-          { label: 'Субсидии', value: params.subsidy_switch === 1 ? 'Да' : 'Нет', key: 'subsidy_switch', options: ['Да', 'Нет'] },
+          { id: 'equity_share_pct', label: 'Собств. участие', Icon: Percent, rawValue: params.equity_share_pct, suffix: '%', type: 'number' },
+          { id: 'capex_loan_term_years', label: 'Срок кредита', Icon: Clock, rawValue: params.capex_loan_term_years, suffix: 'лет', type: 'number' },
+          { id: 'capex_grace_period_years', label: 'Льготный период', Icon: Clock, rawValue: params.capex_grace_period_years, suffix: 'лет', type: 'number' },
+          { id: 'livestock_loan_rate_pct', label: 'Ставка скот', Icon: Percent, rawValue: params.livestock_loan_rate_pct, suffix: '%', type: 'number' },
+          { id: 'wc_loan_rate_pct', label: 'Ставка оборотная', Icon: Percent, rawValue: params.wc_loan_rate_pct, suffix: '%', type: 'number' },
+          { id: 'subsidy_switch', label: 'Субсидии', Icon: ToggleLeft, rawValue: params.subsidy_switch, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+          { id: 'wc_loan_switch', label: 'Займы на ПОС', Icon: ToggleLeft, rawValue: params.wc_loan_switch, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
         ],
       },
     ]
 
-    return (
-      <div className="page pt-4 pb-20">
-        <div className="mx-auto max-w-3xl space-y-8">
-          <h2 className="text-lg font-semibold">Параметры проекта</h2>
+    const commitField = (id: string, raw: string) => {
+      set(id as keyof WizardParams, raw)
+      setEditingField(null)
+      setFlashField(id)
+      setTimeout(() => setFlashField(null), 700)
+    }
 
-          {sections.map(section => {
-            const isEditing = editingSection === section.title
-            return (
-              <div key={section.title}>
-                {/* Section header */}
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {section.title}
-                  </h3>
-                  <button
-                    onClick={() => setEditingSection(isEditing ? null : section.title)}
-                    className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    // ---- Details panel content (shared between wide and narrow) ----
+    const detailsContent = (
+      <>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px 0' }}>
+          {DETAIL_SECTIONS.map((section, si) => (
+            <div key={section.title} style={{ marginBottom: si < DETAIL_SECTIONS.length - 1 ? 18 : 10 }}>
+              <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 2 }}>
+                {section.title}
+              </p>
+              {section.items.map(item => {
+                const { Icon } = item
+                const isEditing = editingField === item.id
+                const isFlashing = flashField === item.id
+                const displayValue = item.options
+                  ? (item.options.find(o => String(o.value) === String(item.rawValue))?.label ?? String(item.rawValue))
+                  : String(item.rawValue)
+
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: 30,
+                      gap: 6,
+                      padding: '1px 4px',
+                      borderRadius: 5,
+                      background: isFlashing ? 'var(--blue-m)' : 'transparent',
+                      transition: 'background 80ms',
+                    }}
+                    onMouseEnter={e => { if (!isEditing) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-m)' }}
+                    onMouseLeave={e => { if (!isEditing) (e.currentTarget as HTMLDivElement).style.background = isFlashing ? 'var(--blue-m)' : 'transparent' }}
                   >
-                    {isEditing ? <><Check className="h-3.5 w-3.5" /> Готово</> : <><Pencil className="h-3.5 w-3.5" /> Изменить</>}
-                  </button>
-                </div>
-                {/* Rows */}
-                <div className="divide-y divide-border/40">
-                  {section.items.map(item => (
-                    <div key={item.label} className="flex items-center justify-between py-2.5">
-                      <span className="text-sm text-muted-foreground">{item.label}</span>
-                      {isEditing && item.key && !item.computed ? (
+                    <Icon size={12} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: 'var(--fg2)', whiteSpace: 'nowrap', minWidth: 72, flexShrink: 0 }}>
+                      {item.label}
+                    </span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      {isEditing ? (
                         item.options ? (
-                          <div className="flex gap-1.5">
-                            {item.options.map(opt => {
-                              const isActive = item.key === 'subsidy_switch'
-                                ? (opt === 'Да' ? params.subsidy_switch === 1 : params.subsidy_switch !== 1)
-                                : params[item.key!] === opt
-                              return (
-                                <button
-                                  key={opt}
-                                  onClick={() => {
-                                    if (item.key === 'subsidy_switch') {
-                                      set('subsidy_switch', opt === 'Да' ? '1' : '2')
-                                    } else {
-                                      set(item.key!, opt)
-                                    }
-                                  }}
-                                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                                    isActive
-                                      ? 'bg-foreground text-background'
-                                      : 'bg-muted text-muted-foreground hover:bg-accent'
-                                  }`}
-                                >
-                                  {opt}
-                                </button>
-                              )
-                            })}
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {item.options.map(opt => (
+                              <button
+                                key={String(opt.value)}
+                                onClick={() => commitField(item.id, String(opt.value))}
+                                onKeyDown={e => e.key === 'Escape' && setEditingField(null)}
+                                style={{
+                                  padding: '2px 7px',
+                                  borderRadius: 4,
+                                  border: '1px solid var(--bd)',
+                                  background: String(item.rawValue) === String(opt.value) ? 'var(--blue)' : 'var(--bg-c)',
+                                  color: String(item.rawValue) === String(opt.value) ? '#fff' : 'var(--fg)',
+                                  fontSize: 11,
+                                  cursor: 'pointer',
+                                  fontFamily: 'inherit',
+                                }}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              type={item.type || 'number'}
-                              value={String(params[item.key!])}
-                              onChange={e => set(item.key!, e.target.value)}
-                              className="h-8 w-28 text-right font-mono text-sm"
-                            />
-                            {item.suffix && (
-                              <span className="w-10 text-xs text-muted-foreground">{item.suffix}</span>
-                            )}
-                          </div>
+                          <input
+                            autoFocus
+                            type={item.type || 'text'}
+                            step={item.step}
+                            defaultValue={String(item.rawValue)}
+                            style={{
+                              width: 72,
+                              textAlign: 'right',
+                              fontFamily: item.type === 'number' ? 'var(--mono)' : 'inherit',
+                              fontSize: 11,
+                              background: 'var(--bg-c)',
+                              border: '1px solid var(--blue)',
+                              borderRadius: 4,
+                              padding: '2px 5px',
+                              color: 'var(--fg)',
+                              outline: 'none',
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') commitField(item.id, (e.target as HTMLInputElement).value)
+                              if (e.key === 'Escape') setEditingField(null)
+                            }}
+                            onBlur={e => commitField(item.id, e.target.value)}
+                          />
                         )
                       ) : (
-                        <span className="font-mono text-sm font-medium">
-                          {item.computed ? item.value : `${item.value}${item.suffix ? ` ${item.suffix}` : ''}`}
+                        <span
+                          onClick={() => setEditingField(item.id)}
+                          style={{
+                            fontFamily: typeof item.rawValue === 'number' ? 'var(--mono)' : 'inherit',
+                            fontSize: 11,
+                            color: 'var(--fg)',
+                            cursor: 'text',
+                            borderBottom: '1px dashed transparent',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLSpanElement).style.borderBottomColor = 'var(--bd)' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLSpanElement).style.borderBottomColor = 'transparent' }}
+                        >
+                          {displayValue}
                         </span>
                       )}
+                      {!isEditing && item.suffix && (
+                        <span style={{ fontSize: 10, color: 'var(--fg3)' }}>{item.suffix}</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
-        {/* Sticky footer CTA */}
-        <div className="sticky bottom-0 mt-8 border-t bg-background/95 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Стоимость стада</p>
-              <p className="font-mono text-lg font-semibold">{livestockCost.toLocaleString('ru-RU')} тыс. тг</p>
-            </div>
-            <Button className="gap-2" onClick={handleCalculate} disabled={calculating}>
-              {calculating ? 'Расчёт...' : <><Calculator className="h-4 w-4" /> Пересчитать</>}
-            </Button>
-          </div>
+        {/* Sticky recalculate */}
+        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--bd)', background: 'var(--bg-s)', flexShrink: 0 }}>
+          <button
+            onClick={handleCalculate}
+            disabled={calculating}
+            style={{
+              width: '100%',
+              padding: '7px 0',
+              borderRadius: 6,
+              border: isDirty ? 'none' : '1px solid var(--bd)',
+              background: isDirty ? 'var(--brand)' : 'transparent',
+              color: isDirty ? '#fff' : 'var(--fg3)',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: calculating ? 'default' : isDirty ? 'pointer' : 'default',
+              transition: 'background 120ms, color 120ms',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              opacity: calculating ? 0.6 : 1,
+            }}
+          >
+            <Calculator size={14} />
+            {calculating ? 'Расчёт...' : 'Пересчитать'}
+          </button>
         </div>
+      </>
+    )
+
+    return (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? '1fr' : '1fr 280px',
+        height: '100%',
+        overflow: 'hidden',
+      }}>
+        {/* ── LEFT: Main zone ── */}
+        <div style={{ overflowY: 'auto', padding: '24px 28px' }}>
+
+          {/* Highlights 2×3 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
+            {HIGHLIGHTS.map(h => {
+              const dimmed = isDirty && h.fromResults
+              return (
+                <div key={h.label} style={{
+                  background: 'var(--bg-c)',
+                  border: '1px solid var(--bd)',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  opacity: dimmed ? 0.5 : 1,
+                  transition: 'opacity 300ms',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500 }}>
+                      {h.label}
+                    </span>
+                    <h.Icon size={12} style={{ color: 'var(--fg3)' }} />
+                  </div>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 600, color: dimmed ? 'var(--fg2)' : 'var(--fg)', transition: 'color 300ms' }}>
+                    {h.value}
+                  </span>
+                  {h.unit && <span style={{ fontSize: 10, color: 'var(--fg2)', marginLeft: 4 }}>{h.unit}</span>}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Coefficients bars */}
+          <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 12 }}>
+            Коэффициенты
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {COEFF_BARS.map(bar => (
+              <div key={bar.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: 'var(--fg2)', width: 150, flexShrink: 0 }}>{bar.label}</span>
+                <div style={{ flex: 1, height: 4, borderRadius: 9999, background: 'var(--bg-m)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min((bar.value / bar.max) * 100, 100)}%`,
+                    background: bar.color,
+                    borderRadius: 9999,
+                    transition: 'width 400ms ease',
+                  }} />
+                </div>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg)', width: 36, textAlign: 'right', flexShrink: 0 }}>
+                  {bar.value}%
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Narrow fallback: details panel as accordion */}
+          {isNarrow && (
+            <div style={{ marginTop: 28, border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+              <button
+                onClick={() => setNarrowDetailsOpen(o => !o)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: 'var(--bg-s)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: 'var(--fg)',
+                }}
+              >
+                Параметры проекта
+                <ChevronDown size={14} style={{ color: 'var(--fg3)', transform: narrowDetailsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
+              </button>
+              {narrowDetailsOpen && (
+                <div style={{ background: 'var(--bg-s)', display: 'flex', flexDirection: 'column' }}>
+                  {detailsContent}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: Details panel (wide only) ── */}
+        {!isNarrow && (
+          <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--bd)', background: 'var(--bg-s)', overflow: 'hidden' }}>
+            {detailsContent}
+          </div>
+        )}
       </div>
     )
   }
