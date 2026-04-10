@@ -5,7 +5,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Hash, Percent, DollarSign, Users, TrendingUp, TrendingDown, RefreshCcw, BarChart2, Clock, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Hash, Percent, DollarSign, Users, TrendingUp, TrendingDown, RefreshCcw, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -153,12 +153,9 @@ export function ProjectWizard() {
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
-  const [editingField, setEditingField] = useState<string | null>(null)
-  const [flashField, setFlashField] = useState<string | null>(null)
   const [savedParamsStr, setSavedParamsStr] = useState('')
   const [results, setResults] = useState<any>({})
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
-  const [narrowDetailsOpen, setNarrowDetailsOpen] = useState(false)
 
 
   const orgId = organization?.id
@@ -286,350 +283,210 @@ export function ProjectWizard() {
   const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
 
   // ================================================================
-  // VIEW MODE — Attio layout: Highlights + Coefficients | Details Panel
+  // VIEW MODE — full parameter form + results sidebar
   // ================================================================
   if (mode === 'view') {
     const isDirty = savedParamsStr !== '' && JSON.stringify(params) !== savedParamsStr
 
-    // Results-derived KPIs
+    // Results KPIs
     const wacc = results.wacc || {}
-    const irr = wacc.irr != null ? `${(wacc.irr * 100).toFixed(1)}` : null
-    const npv = wacc.npv != null ? Math.round(wacc.npv) : null
-    const revenueArr: number[] | undefined = results.revenue?.total_revenue
-    const revenueY5 = revenueArr
-      ? Math.round(revenueArr.slice(48, 60).reduce((a: number, b: number) => a + (b ?? 0), 0) / 1000)
-      : null
+    const irrStr  = wacc.irr  != null ? `${(wacc.irr  * 100).toFixed(1)}%` : '—'
+    const npvStr  = wacc.npv  != null ? `${Math.round(wacc.npv).toLocaleString('ru-RU')} тыс.` : '—'
+    const pbkStr  = wacc.payback_years ? `${wacc.payback_years} лет` : '—'
+    const revArr: number[] | undefined = results.revenue?.total_revenue
+    const revY5Str = revArr
+      ? `${Math.round(revArr.slice(48, 60).reduce((a: number, b: number) => a + (b ?? 0), 0) / 1000).toLocaleString('ru-RU')} млн`
+      : '—'
 
-    const HIGHLIGHTS: { label: string; value: string; unit: string; Icon: React.ComponentType<any>; fromResults: boolean }[] = [
-      { label: 'Стоимость стада', value: Math.round(livestockCost).toLocaleString('ru-RU'), unit: 'тыс. тг', Icon: DollarSign, fromResults: false },
-      { label: 'Маточное поголовье', value: params.initial_cows.toLocaleString('ru-RU'), unit: 'голов', Icon: Users, fromResults: false },
-      { label: 'Приплод', value: `${params.calf_yield_pct}`, unit: '%', Icon: Percent, fromResults: false },
-      { label: 'IRR', value: irr ?? '—', unit: irr ? '%' : '', Icon: TrendingUp, fromResults: true },
-      { label: 'NPV', value: npv != null ? npv.toLocaleString('ru-RU') : '—', unit: npv != null ? 'тыс. тг' : '', Icon: BarChart2, fromResults: true },
-      { label: 'Выручка Y5', value: revenueY5 != null ? revenueY5.toLocaleString('ru-RU') : '—', unit: revenueY5 != null ? 'млн тг' : '', Icon: TrendingUp, fromResults: true },
-    ]
-
-    const COEFF_BARS = [
-      { label: 'Приплод', value: params.calf_yield_pct, max: 100, color: 'var(--green)' },
-      { label: 'Падёж коров', value: params.cow_mortality_pct, max: 20, color: 'var(--red)' },
-      { label: 'Падёж молодняка', value: params.heifer_mortality_pct, max: 20, color: 'var(--red)' },
-      { label: 'Выбраковка коров', value: params.cow_culling_pct, max: 40, color: 'var(--blue)' },
-      { label: 'Выбраковка быков', value: params.bull_culling_pct, max: 40, color: 'var(--blue)' },
-    ]
-
-    type DetailItem = {
-      id: string
+    // Row definition type
+    type PR = {
+      id: keyof WizardParams
       label: string
       Icon: React.ComponentType<any>
-      rawValue: string | number
       suffix?: string
       type?: string
       step?: string
+      bar?: { max: number; color: string }
       options?: { label: string; value: string | number }[]
     }
 
-    const DETAIL_SECTIONS: { title: string; items: DetailItem[] }[] = [
-      {
-        title: 'Тип фермы',
-        items: [
-          { id: 'initial_cows', label: 'Маточное поголовье', Icon: Users, rawValue: params.initial_cows, suffix: 'голов', type: 'number' },
-          { id: 'reproducer_capacity', label: 'Мощность репродуктора', Icon: Hash, rawValue: params.reproducer_capacity, suffix: 'голов', type: 'number' },
-          { id: 'purchase_price_cow', label: 'Цена коровы', Icon: DollarSign, rawValue: params.purchase_price_cow, suffix: 'тг', type: 'number' },
-          { id: 'purchase_price_bull', label: 'Цена быка', Icon: DollarSign, rawValue: params.purchase_price_bull, suffix: 'тг', type: 'number' },
-          { id: 'pasture_norm_ha', label: 'Норма пастбищ', Icon: MapPin, rawValue: params.pasture_norm_ha, suffix: 'га/гол', type: 'number' },
-          { id: 'calving_scenario', label: 'Сценарий отёла', Icon: Clock, rawValue: params.calving_scenario, options: [{ label: 'Летний', value: 'Летний' }, { label: 'Зимний', value: 'Зимний' }] },
-          { id: 'project_start_date', label: 'Дата старта', Icon: Clock, rawValue: params.project_start_date, type: 'date' },
-        ],
-      },
-      {
-        title: 'Коэффициенты',
-        items: [
-          { id: 'calf_yield_pct', label: 'Приплод', Icon: Percent, rawValue: params.calf_yield_pct, suffix: '%', type: 'number' },
-          { id: 'cow_mortality_pct', label: 'Падёж коров', Icon: TrendingDown, rawValue: params.cow_mortality_pct, suffix: '%', type: 'number' },
-          { id: 'bull_mortality_pct', label: 'Падёж быков', Icon: TrendingDown, rawValue: params.bull_mortality_pct, suffix: '%', type: 'number' },
-          { id: 'heifer_mortality_pct', label: 'Падёж молодняка', Icon: TrendingDown, rawValue: params.heifer_mortality_pct, suffix: '%', type: 'number' },
-          { id: 'cow_culling_pct', label: 'Выбраковка коров', Icon: RefreshCcw, rawValue: params.cow_culling_pct, suffix: '%', type: 'number' },
-          { id: 'bull_culling_pct', label: 'Выбраковка быков', Icon: RefreshCcw, rawValue: params.bull_culling_pct, suffix: '%', type: 'number' },
-        ],
-      },
-      {
-        title: 'Технология',
-        items: [
-          { id: 'steer_sale_age_months', label: 'Реализация бычков', Icon: Clock, rawValue: params.steer_sale_age_months, options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
-          { id: 'birth_weight_kg', label: 'Вес при рождении', Icon: Hash, rawValue: params.birth_weight_kg, suffix: 'кг', type: 'number' },
-          { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp, rawValue: params.daily_gain_steer_pasture, suffix: 'кг/д', type: 'number', step: '0.01' },
-          { id: 'daily_gain_steer_stall', label: 'Привес бычки (зима)', Icon: TrendingUp, rawValue: params.daily_gain_steer_stall, suffix: 'кг/д', type: 'number', step: '0.01' },
-          { id: 'daily_gain_heifer_pasture', label: 'Привес тёлки (лето)', Icon: TrendingUp, rawValue: params.daily_gain_heifer_pasture, suffix: 'кг/д', type: 'number', step: '0.01' },
-          { id: 'daily_gain_heifer_stall', label: 'Привес тёлки (зима)', Icon: TrendingUp, rawValue: params.daily_gain_heifer_stall, suffix: 'кг/д', type: 'number', step: '0.01' },
-          { id: 'cow_culled_weight_kg', label: 'Вес коровы (убой)', Icon: Hash, rawValue: params.cow_culled_weight_kg, suffix: 'кг', type: 'number' },
-          { id: 'bull_culled_weight_kg', label: 'Вес быка (убой)', Icon: Hash, rawValue: params.bull_culled_weight_kg, suffix: 'кг', type: 'number' },
-        ],
-      },
-      {
-        title: 'Финансирование',
-        items: [
-          { id: 'equity_share_pct', label: 'Собств. участие', Icon: Percent, rawValue: params.equity_share_pct, suffix: '%', type: 'number' },
-          { id: 'capex_loan_term_years', label: 'Срок кредита', Icon: Clock, rawValue: params.capex_loan_term_years, suffix: 'лет', type: 'number' },
-          { id: 'capex_grace_period_years', label: 'Льготный период', Icon: Clock, rawValue: params.capex_grace_period_years, suffix: 'лет', type: 'number' },
-          { id: 'livestock_loan_rate_pct', label: 'Ставка скот', Icon: Percent, rawValue: params.livestock_loan_rate_pct, suffix: '%', type: 'number' },
-          { id: 'wc_loan_rate_pct', label: 'Ставка оборотная', Icon: Percent, rawValue: params.wc_loan_rate_pct, suffix: '%', type: 'number' },
-          { id: 'subsidy_switch', label: 'Субсидии', Icon: ToggleLeft, rawValue: params.subsidy_switch, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
-          { id: 'wc_loan_switch', label: 'Займы на ПОС', Icon: ToggleLeft, rawValue: params.wc_loan_switch, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
-        ],
-      },
-    ]
-
-    const commitField = (id: string, raw: string) => {
-      set(id as keyof WizardParams, raw)
-      setEditingField(null)
-      setFlashField(id)
-      setTimeout(() => setFlashField(null), 700)
-    }
-
-    // ---- Details panel content (shared between wide and narrow) ----
-    const detailsContent = (
-      <>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px 0' }}>
-          {DETAIL_SECTIONS.map((section, si) => (
-            <div key={section.title} style={{ marginBottom: si < DETAIL_SECTIONS.length - 1 ? 18 : 10 }}>
-              <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 2 }}>
-                {section.title}
-              </p>
-              {section.items.map(item => {
-                const { Icon } = item
-                const isEditing = editingField === item.id
-                const isFlashing = flashField === item.id
-                const displayValue = item.options
-                  ? (item.options.find(o => String(o.value) === String(item.rawValue))?.label ?? String(item.rawValue))
-                  : String(item.rawValue)
-
-                return (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      minHeight: 30,
-                      gap: 6,
-                      padding: '1px 4px',
-                      borderRadius: 5,
-                      background: isFlashing ? 'var(--blue-m)' : 'transparent',
-                      transition: 'background 80ms',
-                    }}
-                    onMouseEnter={e => { if (!isEditing) (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-m)' }}
-                    onMouseLeave={e => { if (!isEditing) (e.currentTarget as HTMLDivElement).style.background = isFlashing ? 'var(--blue-m)' : 'transparent' }}
-                  >
-                    <Icon size={12} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: 'var(--fg2)', whiteSpace: 'nowrap', minWidth: 72, flexShrink: 0 }}>
-                      {item.label}
-                    </span>
-                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      {isEditing ? (
-                        item.options ? (
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {item.options.map(opt => (
-                              <button
-                                key={String(opt.value)}
-                                onClick={() => commitField(item.id, String(opt.value))}
-                                onKeyDown={e => e.key === 'Escape' && setEditingField(null)}
-                                style={{
-                                  padding: '2px 7px',
-                                  borderRadius: 4,
-                                  border: '1px solid var(--bd)',
-                                  background: String(item.rawValue) === String(opt.value) ? 'var(--blue)' : 'var(--bg-c)',
-                                  color: String(item.rawValue) === String(opt.value) ? '#fff' : 'var(--fg)',
-                                  fontSize: 11,
-                                  cursor: 'pointer',
-                                  fontFamily: 'inherit',
-                                }}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <input
-                            autoFocus
-                            type={item.type || 'text'}
-                            step={item.step}
-                            defaultValue={String(item.rawValue)}
-                            style={{
-                              width: 72,
-                              textAlign: 'right',
-                              fontFamily: item.type === 'number' ? 'var(--mono)' : 'inherit',
-                              fontSize: 11,
-                              background: 'var(--bg-c)',
-                              border: '1px solid var(--blue)',
-                              borderRadius: 4,
-                              padding: '2px 5px',
-                              color: 'var(--fg)',
-                              outline: 'none',
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') commitField(item.id, (e.target as HTMLInputElement).value)
-                              if (e.key === 'Escape') setEditingField(null)
-                            }}
-                            onBlur={e => commitField(item.id, e.target.value)}
-                          />
-                        )
-                      ) : (
-                        <span
-                          onClick={() => setEditingField(item.id)}
-                          style={{
-                            fontFamily: typeof item.rawValue === 'number' ? 'var(--mono)' : 'inherit',
-                            fontSize: 11,
-                            color: 'var(--fg)',
-                            cursor: 'text',
-                            borderBottom: '1px dashed transparent',
-                          }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLSpanElement).style.borderBottomColor = 'var(--bd)' }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLSpanElement).style.borderBottomColor = 'transparent' }}
-                        >
-                          {displayValue}
-                        </span>
-                      )}
-                      {!isEditing && item.suffix && (
-                        <span style={{ fontSize: 10, color: 'var(--fg3)' }}>{item.suffix}</span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* Sticky recalculate */}
-        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--bd)', background: 'var(--bg-s)', flexShrink: 0 }}>
-          <button
-            onClick={handleCalculate}
-            disabled={calculating}
-            style={{
-              width: '100%',
-              padding: '7px 0',
-              borderRadius: 6,
-              border: isDirty ? 'none' : '1px solid var(--bd)',
-              background: isDirty ? 'var(--brand)' : 'transparent',
-              color: isDirty ? '#fff' : 'var(--fg3)',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: calculating ? 'default' : isDirty ? 'pointer' : 'default',
-              transition: 'background 120ms, color 120ms',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              opacity: calculating ? 0.6 : 1,
-            }}
-          >
-            <Calculator size={14} />
-            {calculating ? 'Расчёт...' : 'Пересчитать'}
-          </button>
-        </div>
-      </>
-    )
-
-    return (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : '1fr 280px',
-        height: '100%',
-        overflow: 'hidden',
-      }}>
-        {/* ── LEFT: Main zone ── */}
-        <div style={{ overflowY: 'auto', padding: '24px 28px' }}>
-
-          {/* Highlights 2×3 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
-            {HIGHLIGHTS.map(h => {
-              const dimmed = isDirty && h.fromResults
-              return (
-                <div key={h.label} style={{
-                  background: 'var(--bg-c)',
-                  border: '1px solid var(--bd)',
-                  borderRadius: 8,
-                  padding: '12px 14px',
-                  opacity: dimmed ? 0.5 : 1,
-                  transition: 'opacity 300ms',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500 }}>
-                      {h.label}
-                    </span>
-                    <h.Icon size={12} style={{ color: 'var(--fg3)' }} />
-                  </div>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 600, color: dimmed ? 'var(--fg2)' : 'var(--fg)', transition: 'color 300ms' }}>
-                    {h.value}
-                  </span>
-                  {h.unit && <span style={{ fontSize: 10, color: 'var(--fg2)', marginLeft: 4 }}>{h.unit}</span>}
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Coefficients bars */}
-          <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 12 }}>
-            Коэффициенты
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {COEFF_BARS.map(bar => (
-              <div key={bar.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12, color: 'var(--fg2)', width: 150, flexShrink: 0 }}>{bar.label}</span>
-                <div style={{ flex: 1, height: 4, borderRadius: 9999, background: 'var(--bg-m)', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${Math.min((bar.value / bar.max) * 100, 100)}%`,
-                    background: bar.color,
-                    borderRadius: 9999,
-                    transition: 'width 400ms ease',
-                  }} />
-                </div>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg)', width: 36, textAlign: 'right', flexShrink: 0 }}>
-                  {bar.value}%
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Narrow fallback: details panel as accordion */}
-          {isNarrow && (
-            <div style={{ marginTop: 28, border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
-              <button
-                onClick={() => setNarrowDetailsOpen(o => !o)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  background: 'var(--bg-s)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: 'var(--fg)',
-                }}
-              >
-                Параметры проекта
-                <ChevronDown size={14} style={{ color: 'var(--fg3)', transform: narrowDetailsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }} />
-              </button>
-              {narrowDetailsOpen && (
-                <div style={{ background: 'var(--bg-s)', display: 'flex', flexDirection: 'column' }}>
-                  {detailsContent}
-                </div>
-              )}
+    // Reusable row renderer (no hooks — plain function)
+    const Row = (row: PR) => {
+      const { Icon } = row
+      const val = params[row.id]
+      return (
+        <div key={row.id} style={{ display: 'flex', alignItems: 'center', minHeight: 34, gap: 8, borderBottom: '1px solid var(--bd)', padding: '0 2px' }}>
+          <Icon size={12} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: 'var(--fg2)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {row.label}
+          </span>
+          {row.bar && (
+            <div style={{ width: 60, height: 3, borderRadius: 9999, background: 'var(--bg-m)', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ height: '100%', width: `${Math.min((Number(val) / row.bar.max) * 100, 100)}%`, background: row.bar.color, borderRadius: 9999, transition: 'width 400ms ease' }} />
             </div>
           )}
+          {row.options ? (
+            <select className="param-select" value={String(val)} onChange={e => set(row.id, e.target.value)}>
+              {row.options.map(o => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
+            </select>
+          ) : (
+            <input
+              className="param-input"
+              type={row.type || 'number'}
+              step={row.step}
+              value={String(val)}
+              onChange={e => set(row.id, e.target.value)}
+            />
+          )}
+          {row.suffix && !row.options && (
+            <span style={{ fontSize: 10, color: 'var(--fg3)', width: 30, flexShrink: 0 }}>{row.suffix}</span>
+          )}
+        </div>
+      )
+    }
+
+    const SL = ({ children }: { children: string }) => (
+      <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginTop: 20, marginBottom: 2, paddingBottom: 4, borderBottom: '1px solid var(--bd)' }}>
+        {children}
+      </p>
+    )
+
+    const farmRows: PR[] = [
+      { id: 'initial_cows',        label: 'Маточное поголовье',    Icon: Users,       suffix: 'голов' },
+      { id: 'reproducer_capacity', label: 'Мощность репродуктора', Icon: Hash,        suffix: 'голов' },
+      { id: 'purchase_price_cow',  label: 'Цена коровы',           Icon: DollarSign,  suffix: 'тг' },
+      { id: 'purchase_price_bull', label: 'Цена быка',             Icon: DollarSign,  suffix: 'тг' },
+      { id: 'pasture_norm_ha',     label: 'Норма пастбищ',         Icon: MapPin,      suffix: 'га/гол' },
+      { id: 'calving_scenario',    label: 'Сценарий отёла',        Icon: Clock,       options: [{ label: 'Летний', value: 'Летний' }, { label: 'Зимний', value: 'Зимний' }] },
+      { id: 'project_start_date',  label: 'Дата старта',           Icon: Clock,       type: 'date' },
+    ]
+
+    const coeffRows: PR[] = [
+      { id: 'calf_yield_pct',      label: 'Приплод',          Icon: Percent,     suffix: '%', bar: { max: 100, color: 'var(--green)' } },
+      { id: 'cow_mortality_pct',   label: 'Падёж коров',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
+      { id: 'bull_mortality_pct',  label: 'Падёж быков',      Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
+      { id: 'heifer_mortality_pct',label: 'Падёж молодняка',  Icon: TrendingDown, suffix: '%', bar: { max: 20,  color: 'var(--red)' } },
+      { id: 'cow_culling_pct',     label: 'Выбраковка коров', Icon: RefreshCcw,  suffix: '%', bar: { max: 40,  color: 'var(--blue)' } },
+      { id: 'bull_culling_pct',    label: 'Выбраковка быков', Icon: RefreshCcw,  suffix: '%', bar: { max: 40,  color: 'var(--blue)' } },
+    ]
+
+    const techRows: PR[] = [
+      { id: 'steer_sale_age_months',    label: 'Реализация бычков',   Icon: Clock,      options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
+      { id: 'birth_weight_kg',          label: 'Вес при рождении',    Icon: Hash,        suffix: 'кг' },
+      { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
+      { id: 'daily_gain_steer_stall',   label: 'Привес бычки (зима)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
+      { id: 'daily_gain_heifer_pasture',label: 'Привес тёлки (лето)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
+      { id: 'daily_gain_heifer_stall',  label: 'Привес тёлки (зима)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
+      { id: 'cow_culled_weight_kg',     label: 'Вес коровы (убой)',   Icon: Hash,        suffix: 'кг' },
+      { id: 'bull_culled_weight_kg',    label: 'Вес быка (убой)',     Icon: Hash,        suffix: 'кг' },
+    ]
+
+    const finRows: PR[] = [
+      { id: 'equity_share_pct',        label: 'Собств. участие',  Icon: Percent,    suffix: '%' },
+      { id: 'capex_loan_term_years',   label: 'Срок кредита',     Icon: Clock,      suffix: 'лет' },
+      { id: 'capex_grace_period_years',label: 'Льготный период',  Icon: Clock,      suffix: 'лет' },
+      { id: 'livestock_loan_rate_pct', label: 'Ставка скот',      Icon: Percent,    suffix: '%' },
+      { id: 'wc_loan_rate_pct',        label: 'Ставка оборотная', Icon: Percent,    suffix: '%' },
+      { id: 'subsidy_switch',          label: 'Субсидии',         Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+      { id: 'wc_loan_switch',          label: 'Займы на ПОС',     Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+    ]
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+        {/* ── Top summary strip: live computed values ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, height: 38, borderBottom: '1px solid var(--bd)', background: 'var(--bg-m)', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {[
+            { label: 'Стоимость стада', value: `${Math.round(livestockCost).toLocaleString('ru-RU')} тыс. тг` },
+            { label: 'Быков', value: `${bulls}` },
+            { label: 'Пастбища', value: `${pasture.toLocaleString('ru-RU')} га` },
+            { label: 'Вес бычка', value: `~${estimateSaleWeight(params.birth_weight_kg, params.daily_gain_steer_pasture, params.daily_gain_steer_stall, params.steer_sale_age_months || 12)} кг` },
+          ].map((chip) => (
+            <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 18px', borderRight: '1px solid var(--bd)', height: '100%', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{chip.label}</span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{chip.value}</span>
+            </div>
+          ))}
+          <button
+            onClick={() => setMode('edit')}
+            style={{ marginLeft: 'auto', padding: '0 18px', height: '100%', background: 'none', border: 'none', fontSize: 11, color: 'var(--fg3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            Полный мастер →
+          </button>
         </div>
 
-        {/* ── RIGHT: Details panel (wide only) ── */}
-        {!isNarrow && (
-          <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--bd)', background: 'var(--bg-s)', overflow: 'hidden' }}>
-            {detailsContent}
+        {/* ── Main: form + results sidebar ── */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 260px', overflow: 'hidden' }}>
+
+          {/* LEFT: parameter form */}
+          <div style={{ overflowY: 'auto', padding: '0 24px 24px' }}>
+
+            <SL>Тип фермы</SL>
+            {farmRows.map(Row)}
+
+            <SL>Коэффициенты</SL>
+            {coeffRows.map(Row)}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 28px', marginTop: 4 }}>
+              <div>
+                <SL>Технология</SL>
+                {techRows.map(Row)}
+              </div>
+              <div>
+                <SL>Финансирование</SL>
+                {finRows.map(Row)}
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* RIGHT: results + recalculate */}
+          <div style={{ borderLeft: '1px solid var(--bd)', background: 'var(--bg-s)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px' }}>
+              <p style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, marginBottom: 12 }}>
+                Результаты
+              </p>
+
+              {isDirty && (
+                <div style={{ fontSize: 11, color: 'var(--fg3)', marginBottom: 12, padding: '6px 10px', background: 'var(--bg-m)', borderRadius: 6, lineHeight: 1.4 }}>
+                  Параметры изменены — запустите пересчёт
+                </div>
+              )}
+
+              {[
+                { label: 'IRR',        value: irrStr,  positive: (wacc.irr ?? 0) > 0.05 },
+                { label: 'NPV',        value: npvStr,  positive: (wacc.npv ?? 0) >= 0 },
+                { label: 'Payback',    value: pbkStr,  positive: true },
+                { label: 'Выручка Y5', value: revY5Str, positive: true },
+              ].map(kpi => (
+                <div key={kpi.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '9px 0', borderBottom: '1px solid var(--bd)', opacity: isDirty ? 0.35 : 1, transition: 'opacity 200ms' }}>
+                  <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{kpi.label}</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{kpi.value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '12px 16px', borderTop: '1px solid var(--bd)', background: 'var(--bg-s)', flexShrink: 0 }}>
+              <button
+                onClick={handleCalculate}
+                disabled={calculating}
+                style={{
+                  width: '100%', padding: '8px 0', borderRadius: 6,
+                  border: isDirty ? 'none' : '1px solid var(--bd)',
+                  background: isDirty ? 'var(--brand)' : 'var(--bg-m)',
+                  color: isDirty ? '#fff' : 'var(--fg3)',
+                  fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+                  cursor: calculating || !isDirty ? 'default' : 'pointer',
+                  transition: 'background 120ms, color 120ms',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  opacity: calculating ? 0.6 : 1,
+                }}
+              >
+                <Calculator size={14} />
+                {calculating ? 'Расчёт...' : 'Пересчитать'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }

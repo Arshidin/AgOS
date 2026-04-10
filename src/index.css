@@ -35,6 +35,48 @@
 /* Header tabs — hide scrollbar in webkit browsers */
 .tabs-scroll::-webkit-scrollbar { display: none; }
 
+/* ═══ Param form — inline inputs that look like data ═══ */
+.param-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg);
+  padding: 2px 2px;
+  width: 80px;
+  outline: none;
+  transition: border-color 80ms, background 80ms, border-radius 80ms, padding 80ms;
+  min-width: 0;
+}
+.param-input:hover {
+  border-bottom-color: var(--bd);
+}
+.param-input:focus {
+  border-bottom-color: var(--blue);
+  background: var(--bg-m);
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+.param-select {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--bd);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 2px;
+  outline: none;
+  cursor: pointer;
+  max-width: 130px;
+  text-align: right;
+}
+.param-select:focus {
+  border-bottom-color: var(--blue);
+  outline: none;
+}
+
 @keyframes menu-drop {
   0% {
     opacity: 0;
