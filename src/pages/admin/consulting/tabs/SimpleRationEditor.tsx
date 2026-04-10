@@ -115,11 +115,16 @@ export function SimpleRationEditor({
   )
   const [saving, setSaving] = useState(false)
 
-  // Load feed items and prices for ID resolution
+  // Load feed items, prices and animal categories for ID resolution
   const { data: feedItems } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
   const { data: feedPrices } = useRpc<FeedPrice[]>('rpc_list_feed_prices', {})
+  const { data: animalCategories } = useRpc<{ id: string; code: string }[]>('rpc_list_animal_categories', {})
 
-  // Build code→id and code→price maps
+  // Build animal category code → UUID map
+  const animalCategoryToId = new Map<string, string>()
+  ;(animalCategories || []).forEach(ac => animalCategoryToId.set(ac.code, ac.id))
+
+  // Build feed code→id and code→price maps
   const feedCodeToId = new Map<string, string>()
   const feedCodeToPrice = new Map<string, number>()
   ;(feedItems || []).forEach(f => {
@@ -217,11 +222,18 @@ export function SimpleRationEditor({
 
         const totalCostPerDay = items.reduce((s, i) => s + i.cost_per_day, 0)
 
+        // Resolve animal category UUID
+        const categoryId = animalCategoryToId.get(group.code)
+        if (!categoryId) {
+          console.warn(`[SimpleRation] No UUID for category ${group.code}, skipping`)
+          continue
+        }
+
         // Call RPC directly (simpler than Edge Function for manual input)
         const { error } = await supabase.rpc('rpc_save_consulting_ration', {
           p_organization_id: orgId,
           p_consulting_project_id: projectId,
-          p_animal_category_code: group.code,
+          p_animal_category_id: categoryId,
           p_items: items,
           p_results: {
             total_cost_per_day: totalCostPerDay,
