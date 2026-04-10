@@ -62,6 +62,9 @@
 | D-S9-3 | 2026-04-09 | DB | `economic_parameters` добавлен в CHECK constraint `consulting_reference_data`. Seed row: feed_inflation=0.105. Engine читает через refs, fallback на константу. |
 | D-S9-4 | 2026-04-09 | Architecture | feeding_model.py теперь возвращает физические объёмы кормов (тонны): `quantities.by_group`, `quantities.totals_by_feed`, `annual_feed_summary`. Backward-compatible аддиция к output. |
 | D-GATE-S9 | 2026-04-09 | Gate | Slice 9 gate pass. 0 TS errors, 0 server errors. Migration applied. 7 tasks (A–I) completed. |
+| D-S9-5 | 2026-04-10 | Architecture | fattening_enabled/fattening_months удалены из wizard — tech_card.py дериватирует из steer_sale_age_months. Единый источник правды. |
+| D-S9-6 | 2026-04-10 | Architecture | opex.py: feed_cost отдельный массив. PnlTab: строка "Расходы на корма". feeding_model: annual_feed_cost_summary во всех 3 путях. |
+| D-S9-7 | 2026-04-10 | UX | SummaryTab: детальные таблицы кормов — расходы по группам (тыс. тг) + объём по группам (тн). Работает для всех путей движка. |
 
 ---
 
