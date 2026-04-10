@@ -121,8 +121,12 @@ export function RationTab() {
 
   const totalCategories = relevantCategories.length
   const rationCount = rationsByCategory.size
-  const totalCogsMontly = [...rationsByCategory.values()].reduce(
-    (sum, r) => sum + r.results.total_cost_per_month, 0
+  const totalCogsMontly = [...rationsByCategory.entries()].reduce(
+    (sum, [catId, r]) => {
+      const cat = relevantCategories.find(c => c.id === catId)
+      const headCount = cat ? Math.round(getHeadCount(herd, cat.code)) : 1
+      return sum + r.results.total_cost_per_month * headCount
+    }, 0
   )
 
   return (

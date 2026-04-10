@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -85,7 +85,6 @@ export function StaffTab() {
   const { projectId } = useParams()
   const { organization } = useAuth()
   const orgId = organization?.id
-  const navigate = useNavigate()
   const { version, loading } = useProjectData()
 
   const [calculating, setCalculating] = useState(false)
@@ -103,12 +102,14 @@ export function StaffTab() {
         net_salary: p.net_salary ?? 0,
       }))
     }
-    // Default 5 positions
+    // Default 7 positions (synced with staff.py fallback)
     return [
       { id: makeId(), code: 'director', name: 'Директор фермы', category: 'production', fte: 1.0, net_salary: 600 },
       { id: makeId(), code: 'vet', name: 'Ветеринар', category: 'production', fte: 0.5, net_salary: 400 },
       { id: makeId(), code: 'cook', name: 'Повар', category: 'production', fte: 0.5, net_salary: 300 },
       { id: makeId(), code: 'tractor', name: 'Тракторист', category: 'production', fte: 1.0, net_salary: 400 },
+      { id: makeId(), code: 'herder', name: 'Скотник', category: 'production', fte: 1.0, net_salary: 250 },
+      { id: makeId(), code: 'herder', name: 'Скотник', category: 'production', fte: 1.0, net_salary: 250 },
       { id: makeId(), code: 'accountant', name: 'Бухгалтер', category: 'admin', fte: 0.3, net_salary: 300 },
     ]
   }, [version])
@@ -173,9 +174,6 @@ export function StaffTab() {
       })
       cacheResults(projectId, result.results, { ...currentParams, staff_positions: staffPositions })
       toast.success(`Расчёт завершён. Версия ${result.version_number}`)
-      navigate(`/admin/consulting/${projectId}/staff`)
-      // Force reload to pick up new results
-      window.location.reload()
     } catch (err: any) {
       toast.error(err.message || 'Ошибка расчёта')
     } finally {

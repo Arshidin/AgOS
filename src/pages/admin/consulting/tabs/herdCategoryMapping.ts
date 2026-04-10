@@ -58,7 +58,7 @@ export const CATEGORY_CODE_TO_HERD: Record<string, HerdMapping> = {
   YOUNG_CALF:    { group: 'calves',  metric: 'avg' },
   HEIFER_YOUNG:  { group: 'heifers', metric: 'avg' },
   HEIFER_PREG:   { group: 'heifers', metric: 'avg' },
-  BULL_CALF:     { group: 'heifers', metric: 'avg' },
+  BULL_CALF:     { group: 'steers',  metric: 'avg' },
   STEER:         { group: 'steers',  metric: 'avg' },
 }
 

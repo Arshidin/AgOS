@@ -229,7 +229,7 @@ Deno.serve(async (req: Request) => {
 
     const results = {
       total_cost_per_day: round2(totCost),
-      total_cost_per_month: round2(totCost * 30),
+      total_cost_per_month: round2(totCost * 30.44),
       total_dm_kg: round2(totDm),
       nutrients_met: met,
       nutrient_values: {

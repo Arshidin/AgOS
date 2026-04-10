@@ -44,8 +44,8 @@ CATEGORY_CODE_TO_HERD: dict[str, tuple[str, str]] = {
     "YOUNG_CALF":    ("calves",  "avg"),
     "HEIFER_YOUNG":  ("heifers", "avg"),
     "HEIFER_PREG":   ("heifers", "avg"),
-    "BULL_CALF":     ("heifers", "avg"),  # approximate: small group
-    "STEER":         ("heifers", "avg"),  # fattening, mapped to heifers as proxy
+    "BULL_CALF":     ("steers",  "avg"),
+    "STEER":         ("steers",  "avg"),
 }
 
 
@@ -187,15 +187,32 @@ def _build_annual_cost_summary(total_reproducer: list, total_fattening: list, n:
 
 
 def _calc_from_consulting_rations(
-    timeline: dict, herd: dict, rations: list
+    timeline: dict, herd: dict, rations: list, refs: dict
 ) -> dict:
     """Priority 1: Compute feeding costs from attached NASEM ration_versions.
 
     Each ration has results.total_cost_per_day (тг per head per day).
-    Cost formula: total_cost_per_day × heads × days / 1000 (→ тыс. тг)
+    Cost formula: total_cost_per_day × inflation × heads × days / 1000 (→ тыс. тг)
+    Inflation (10.5% annual) applied from year 2, same as hardcoded defaults.
     """
     n = timeline["horizon_months"]
     days = list(timeline["days_in_month"])
+    year_indices = timeline["year_index"]
+
+    # Feed inflation rate (same logic as Priority 3)
+    feed_inflation_rate = FEED_INFLATION_DEFAULT
+    economic_params = refs.get("economic_parameters", [])
+    if isinstance(economic_params, list):
+        for ref in economic_params:
+            if ref.get("code") == "feed_inflation":
+                feed_inflation_rate = ref.get("data", {}).get("rate", FEED_INFLATION_DEFAULT)
+                break
+    elif isinstance(economic_params, dict):
+        feed_inflation_rate = economic_params.get("rate", FEED_INFLATION_DEFAULT)
+
+    def _inflation(t: int) -> float:
+        yi = year_indices[t]
+        return (1 + feed_inflation_rate) ** (yi - 1) if yi > 1 else 1.0
 
     # Build cost_per_day_per_head lookup by category_code
     ration_by_code: dict[str, float] = {}
@@ -209,17 +226,20 @@ def _calc_from_consulting_rations(
         cpd = sum(ration_by_code.get(c, 0.0) for c in category_codes)
         if cpd == 0.0:
             return [0.0] * n
-        return [-(cpd * heads[t] * days[t]) / 1000 for t in range(n)]
+        return [-(cpd * _inflation(t) * heads[t] * days[t]) / 1000 for t in range(n)]
 
     group_costs: dict[str, list] = {}
     group_costs["molodnyak"]          = _group_cost(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
-    group_costs["heifers_prev"]       = _group_cost(["HEIFER_PREG"],   herd["heifers"]["avg"])
-    group_costs["heifers_curr"]       = _group_cost(["HEIFER_YOUNG"],  herd["heifers"]["avg"])
+    # Heifers: both HEIFER_PREG and HEIFER_YOUNG share herd["heifers"]["avg"].
+    # Combine into one group to avoid double-counting the same head count.
+    # This matches Priority 3 (hardcoded) where heifers_curr is always [0]*n.
+    group_costs["heifers_prev"]       = _group_cost(["HEIFER_PREG", "HEIFER_YOUNG"], herd["heifers"]["avg"])
+    group_costs["heifers_curr"]       = [0.0] * n
     group_costs["cows_12m"]           = _group_cost(["COW"],           herd["cows"]["eop"])
     group_costs["cows_9m"]            = [0.0] * n
     group_costs["bulls"]              = _group_cost(["BULL_BREEDING"],  herd["bulls"]["eop"])
-    group_costs["fattening_breeding"] = _group_cost(["BULL_CALF"],     herd["heifers"]["avg"])
-    group_costs["fattening_commercial"] = _group_cost(["STEER"],       herd["heifers"]["avg"])
+    group_costs["fattening_breeding"] = _group_cost(["BULL_CALF"],     herd["steers"]["avg"])
+    group_costs["fattening_commercial"] = _group_cost(["STEER"],       herd["steers"]["avg"])
 
     total_reproducer = [
         group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]
@@ -244,17 +264,34 @@ def _calc_from_consulting_rations(
 
 
 def _calc_from_norms(
-    timeline: dict, herd: dict, norms: list, feed_prices: list
+    timeline: dict, herd: dict, norms: list, feed_prices: list, refs: dict
 ) -> dict:
     """Priority 2: Compute feeding costs from feed_consumption_norms + feed_prices_d03.
 
     Norm items: [{feed_item_id, kg_per_day}]
-    Cost formula: sum(price_per_kg × kg_per_day × heads × days) / 1000
+    Cost formula: sum(price_per_kg × inflation × kg_per_day × heads × days) / 1000
     Season: pasture (May-Oct) or stall (Nov-Apr)
+    Inflation (10.5% annual) applied from year 2, same as hardcoded defaults.
     """
     n = timeline["horizon_months"]
     dates = timeline["dates"]
     days = list(timeline["days_in_month"])
+    year_indices = timeline["year_index"]
+
+    # Feed inflation rate (same logic as Priority 3)
+    feed_inflation_rate = FEED_INFLATION_DEFAULT
+    economic_params = refs.get("economic_parameters", [])
+    if isinstance(economic_params, list):
+        for ref in economic_params:
+            if ref.get("code") == "feed_inflation":
+                feed_inflation_rate = ref.get("data", {}).get("rate", FEED_INFLATION_DEFAULT)
+                break
+    elif isinstance(economic_params, dict):
+        feed_inflation_rate = economic_params.get("rate", FEED_INFLATION_DEFAULT)
+
+    def _inflation(t: int) -> float:
+        yi = year_indices[t]
+        return (1 + feed_inflation_rate) ** (yi - 1) if yi > 1 else 1.0
 
     # Build price lookup: feed_item_id → price_per_kg
     price_map: dict[str, float] = {}
@@ -330,6 +367,7 @@ def _calc_from_norms(
             # Since we don't have code here, we skip — Priority 2 is best-effort.
             # The norm's farm_type field can hint: beef_reproducer→cows/bulls, feedlot→fattening
             farm_type = norm.get("farm_type", "")
+            inf = _inflation(t)
             if "reproducer" in farm_type:
                 # Apply proportionally to cows and bulls (major groups)
                 for group_key, heads_arr in [
@@ -338,11 +376,11 @@ def _calc_from_norms(
                 ]:
                     heads = heads_arr[t] if t < len(heads_arr) else 0.0
                     if heads > 0:
-                        group_costs[group_key][t] += -(cpd * heads * days[t]) / 1000
+                        group_costs[group_key][t] += -(cpd * inf * heads * days[t]) / 1000
             elif "feedlot" in farm_type or "fattening" in farm_type:
-                heads = herd["heifers"]["avg"][t] if t < len(herd["heifers"]["avg"]) else 0.0
+                heads = herd["steers"]["avg"][t] if t < len(herd["steers"]["avg"]) else 0.0
                 if heads > 0:
-                    group_costs["fattening_commercial"][t] += -(cpd * heads * days[t]) / 1000
+                    group_costs["fattening_commercial"][t] += -(cpd * inf * heads * days[t]) / 1000
 
     total_reproducer = [
         group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]
@@ -392,13 +430,13 @@ def calculate_feeding(
     # Priority 1: consulting_rations — NASEM-computed costs per head per day
     consulting_rations = refs.get("consulting_rations", [])
     if consulting_rations:
-        return _calc_from_consulting_rations(timeline, herd, consulting_rations)
+        return _calc_from_consulting_rations(timeline, herd, consulting_rations, refs)
 
     # Priority 2: feed_consumption_norms from d03_feed
     feed_norms = refs.get("feed_consumption_norms", [])
     feed_prices_d03 = refs.get("feed_prices_d03", [])
     if feed_norms and feed_prices_d03:
-        return _calc_from_norms(timeline, herd, feed_norms, feed_prices_d03)
+        return _calc_from_norms(timeline, herd, feed_norms, feed_prices_d03, refs)
 
     # Priority 3: hardcoded CFC-verified defaults
     n = timeline["horizon_months"]
