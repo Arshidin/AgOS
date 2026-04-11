@@ -146,7 +146,10 @@ export function Header() {
             <PanelLeft size={15} />
           </button>
         )}
-        <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' }}>{title}</h1>
+        {config.titleLoading
+          ? <div className="sk" style={{ width: 120, height: 13, borderRadius: 5 }} />
+          : <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' }}>{title}</h1>
+        }
       </div>
 
       {/* Center: tabs (when configured) */}

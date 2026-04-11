@@ -27,5 +27,9 @@ export function RationPage() {
     return <Navigate to="/cabinet/ration/groups" replace />
   }
 
-  return <Outlet />
+  return (
+    <div key={pathname} className="tab-content">
+      <Outlet />
+    </div>
+  )
 }

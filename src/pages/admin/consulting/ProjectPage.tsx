@@ -21,7 +21,8 @@ export function ProjectPage() {
   const { projectId } = useParams()
   const { pathname } = useLocation()
   const { organization } = useAuth()
-  const [projectName, setProjectName] = useState<string>('Проект')
+  const [projectName, setProjectName] = useState<string>('')
+  const [nameLoading, setNameLoading] = useState(true)
 
   const orgId = organization?.id
   const base = `/admin/consulting/${projectId}`
@@ -36,6 +37,7 @@ export function ProjectPage() {
       })
       .then(({ data }) => {
         if (data?.name) setProjectName(data.name)
+        setNameLoading(false)
       })
   }, [orgId, projectId])
 
@@ -51,12 +53,16 @@ export function ProjectPage() {
     { label: 'Рационы', path: `${base}/ration` },
   ]
 
-  useSetTopbar({ title: projectName, tabs: TABS })
+  useSetTopbar({ title: projectName, titleLoading: nameLoading, tabs: TABS })
 
   // Redirect bare /admin/consulting/:id → /admin/consulting/:id/summary
   if (pathname === base || pathname === `${base}/`) {
     return <Navigate to={`${base}/summary`} replace />
   }
 
-  return <Outlet />
+  return (
+    <div key={pathname} className="tab-content">
+      <Outlet />
+    </div>
+  )
 }

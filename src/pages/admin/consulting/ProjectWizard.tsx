@@ -5,7 +5,7 @@
  */
 import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Hash, Percent, DollarSign, Users, TrendingUp, TrendingDown, RefreshCcw, Clock } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Calculator, Check, Beef, Landmark, ToggleLeft, MapPin, Hash, Percent, DollarSign, Users, TrendingUp, TrendingDown, RefreshCcw, Clock, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -153,6 +153,7 @@ export function ProjectWizard() {
   const [step, setStep] = useState(0)
   const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
   const [calculating, setCalculating] = useState(false)
+  const [paramsLoading, setParamsLoading] = useState(true)
   const [savedParamsStr, setSavedParamsStr] = useState('')
   const [results, setResults] = useState<any>({})
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
@@ -220,6 +221,7 @@ export function ProjectWizard() {
           setSavedParamsStr(JSON.stringify(merged))
         }
       }
+      setParamsLoading(false)
     })
   }, [orgId, projectId])
 
@@ -281,6 +283,49 @@ export function ProjectWizard() {
   const bulls = Math.ceil(params.initial_cows * (1 / 15))
   const pasture = params.pasture_norm_ha * params.reproducer_capacity
   const livestockCost = (params.initial_cows * params.purchase_price_cow + bulls * params.purchase_price_bull) / 1000
+
+  // ================================================================
+  // LOADING SKELETON — shown while params RPC is in flight
+  // ================================================================
+  if (paramsLoading) {
+    const skRow = (w: number, delay: number) => (
+      <div style={{ display: 'flex', alignItems: 'center', minHeight: 40, gap: 10, padding: '0 16px', borderBottom: '1px solid var(--bd)' }}>
+        <div className="sk" style={{ width: 13, height: 13, borderRadius: 3, flexShrink: 0, animationDelay: `${delay}ms` }} />
+        <div className="sk" style={{ flex: 1, height: 10, maxWidth: w, animationDelay: `${delay + 60}ms` }} />
+        <div className="sk" style={{ width: 70, height: 10, animationDelay: `${delay + 120}ms` }} />
+      </div>
+    )
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        {/* Top strip skeleton */}
+        <div style={{ height: 38, borderBottom: '1px solid var(--bd)', background: 'var(--bg-m)', display: 'flex', alignItems: 'center', gap: 20, padding: '0 20px', flexShrink: 0 }}>
+          {[96, 48, 80, 88].map((w, i) => (
+            <div key={i} className="sk" style={{ width: w, height: 12, animationDelay: `${i * 80}ms` }} />
+          ))}
+        </div>
+        {/* Main skeleton */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 280px', overflow: 'hidden' }}>
+          <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+            {[[140, 160, 120, 180], [130, 150, 140, 130, 160, 120], [110, 150, 130, 160]].map((rows, si) => (
+              <div key={si} style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+                {rows.map((w, ri) => skRow(w, si * 100 + ri * 40))}
+              </div>
+            ))}
+          </div>
+          <div style={{ borderLeft: '1px solid var(--bd)', background: 'var(--bg-s)', padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="sk" style={{ width: 70, height: 9, animationDelay: '0ms' }} />
+            <div className="sk" style={{ height: 28, borderRadius: 6, animationDelay: '80ms' }} />
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--bd)' }}>
+                <div className="sk" style={{ width: 55, height: 10, animationDelay: `${160 + i * 60}ms` }} />
+                <div className="sk" style={{ width: 75, height: 10, animationDelay: `${200 + i * 60}ms` }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ================================================================
   // VIEW MODE — full parameter form + results sidebar
@@ -525,7 +570,10 @@ export function ProjectWizard() {
                   opacity: calculating ? 0.65 : 1,
                 }}
               >
-                <Calculator size={14} />
+                {calculating
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <Calculator size={14} />
+                }
                 {calculating ? 'Расчёт...' : 'Рассчитать'}
               </button>
             </div>
