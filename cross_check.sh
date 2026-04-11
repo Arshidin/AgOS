@@ -26,19 +26,29 @@ echo ""
 # ----------------------------------------------------------
 echo "--- CHECK 1: Duplicate function definitions ---"
 
+# Known intentional cross-file duplicates (upgraded versions — last file wins by design)
+# fn_my_org_ids, fn_is_admin, fn_is_expert: defined in d01_kernel.sql (basic SQL),
+# then upgraded in d07_ai_gateway.sql with D-NEW-1 JWT fast path. d07 version is canonical.
+DUP_WHITELIST="fn_my_org_ids|fn_is_admin|fn_is_expert"
+
 # Extract all function names from CREATE OR REPLACE FUNCTION lines
+# BSD-safe: use [[:space:]]+ instead of \s+; case-insensitive via tr
 all_funcs=$(grep -h -i '^create or replace function' "${SQL_FILES[@]}" 2>/dev/null \
-  | sed -E 's/^create or replace function\s+(public\.)?//i' \
-  | sed -E 's/\s*\(.*$//' \
+  | sed -E 's/^[Cc][Rr][Ee][Aa][Tt][Ee][[:space:]]+[Oo][Rr][[:space:]]+[Rr][Ee][Pp][Ll][Aa][Cc][Ee][[:space:]]+[Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn][[:space:]]+(public\.)?//' \
+  | sed -E 's/[[:space:]]*\(.*$//' \
   | sort)
 
 dupes=$(echo "$all_funcs" | uniq -d)
 
 if [ -n "$dupes" ]; then
+  crit_before=$CRITICAL
   while IFS= read -r fname; do
-    # Find which files contain this function
-    locations=$(grep -l -i "create or replace function.*${fname}" "${SQL_FILES[@]}" 2>/dev/null | tr '\n' ', ')
-    # Count occurrences per file
+    # Skip known intentional upgrades
+    if echo "$fname" | grep -qE "^(${DUP_WHITELIST})$"; then
+      echo "  WHITELISTED: ${fname} (intentional upgrade — d07 JWT fast path version is canonical)"
+      continue
+    fi
+    # Count occurrences per file (same-file duplicate = always critical)
     for f in "${SQL_FILES[@]}"; do
       count=$(grep -c -i "create or replace function.*${fname}" "$f" 2>/dev/null || true)
       if [ "$count" -gt 1 ]; then
@@ -47,12 +57,16 @@ if [ -n "$dupes" ]; then
       fi
     done
     # Check cross-file duplicates
+    locations=$(grep -l -i "create or replace function.*${fname}" "${SQL_FILES[@]}" 2>/dev/null | tr '\n' ', ')
     file_count=$(grep -l -i "create or replace function.*${fname}" "${SQL_FILES[@]}" 2>/dev/null | wc -l | tr -d ' ')
     if [ "$file_count" -gt 1 ]; then
       echo "  CRITICAL: ${fname} defined in multiple files: ${locations}"
       ((CRITICAL++))
     fi
   done <<< "$dupes"
+  if [ "$CRITICAL" -eq "$crit_before" ]; then
+    echo "  OK: All duplicates are whitelisted intentional upgrades"
+  fi
 else
   echo "  OK: No duplicate function definitions found"
 fi
