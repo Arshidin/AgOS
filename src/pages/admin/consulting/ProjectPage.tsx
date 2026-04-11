@@ -22,7 +22,6 @@ export function ProjectPage() {
   const { pathname } = useLocation()
   const { organization } = useAuth()
   const [projectName, setProjectName] = useState<string>('Проект')
-  const [nameLoading, setNameLoading] = useState(true)
 
   const orgId = organization?.id
   const base = `/admin/consulting/${projectId}`
@@ -37,7 +36,6 @@ export function ProjectPage() {
       })
       .then(({ data, error }) => {
         if (!error && data?.name) setProjectName(data.name)
-        setNameLoading(false)
       })
   }, [orgId, projectId])
 
