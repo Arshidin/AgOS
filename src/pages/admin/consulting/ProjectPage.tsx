@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Activity, ChevronDown, ChevronUp, ClipboardList, LayoutGrid, MoreHorizontal, Package, RefreshCw, SlidersHorizontal, Star, TrendingUp, Users, Wheat, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useTopbarConfig } from '@/components/layout/TopbarContext'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
@@ -30,6 +30,7 @@ export function ProjectPage() {
   const navigate = useNavigate()
   const { organization } = useAuth()
   const [project, setProject] = useState<ProjectMeta | null>(null)
+  const [projects, setProjects] = useState<{ id: string }[]>([])
 
   const orgId = organization?.id
   const base = `/admin/consulting/${projectId}`
@@ -47,6 +48,13 @@ export function ProjectPage() {
         }
       })
   }, [orgId, projectId])
+
+  useEffect(() => {
+    if (!orgId) return
+    supabase
+      .rpc('rpc_list_consulting_projects', { p_organization_id: orgId })
+      .then(({ data }) => { if (data) setProjects(data) })
+  }, [orgId])
 
   const STATUS_LABELS: Record<string, string> = {
     draft: 'Черновик', calculating: 'Расчёт...', calculated: 'Рассчитан', archived: 'Архив',
@@ -88,7 +96,11 @@ export function ProjectPage() {
             </button>
           </div>
 
-          <span className="text-[12px] ml-1" style={{ color: 'var(--fg2)' }}>Инвестиционные проекты</span>
+          <span className="text-[12px] ml-1" style={{ color: 'var(--fg2)' }}>
+            {projects.length > 0
+              ? `${projects.findIndex(p => p.id === projectId) + 1} из ${projects.length} проектов`
+              : 'Инвестиционные проекты'}
+          </span>
 
           <div className="ml-auto">
             <button className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-muted transition-colors"
@@ -151,9 +163,13 @@ export function ProjectPage() {
 
       </div>
     )
-  }, [project, navigate, base])
+  }, [project, navigate, base, projects, projectId])
 
-  useSetTopbar({ headerContent })
+  const { setConfig, clearConfig } = useTopbarConfig()
+  useEffect(() => {
+    setConfig({ headerContent })
+    return () => clearConfig()
+  }, [headerContent, setConfig, clearConfig])
 
   // Redirect bare /admin/consulting/:id → /admin/consulting/:id/summary
   if (pathname === base || pathname === `${base}/`) {
