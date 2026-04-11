@@ -2026,6 +2026,7 @@ insert into public.rpc_name_registry (
     ('rpc_list_feed_items',             'rpc_list_feed_items',             null, 'd03_feed.sql (Slice 8 DEF-027)', 'RPC-F01: List feed items catalog for UI selectors'),
     ('rpc_upsert_feed_item',            'rpc_upsert_feed_item',            null, 'd03_feed.sql (Slice 8)',         'RPC-F03: Admin CRUD for feed items catalog'),
     ('rpc_upsert_feed_price',           'rpc_upsert_feed_price',           null, 'd03_feed.sql (Slice 8)',         'RPC-F04: Admin upsert feed price (region + valid_from)'),
+    ('rpc_list_feed_prices',            'rpc_list_feed_prices',            null, 'd03_feed.sql (Slice 8)',         'RPC-F04b: List active feed prices for Admin Prices tab (DEF-031 fix)'),
     ('rpc_upsert_feed_consumption_norm',    'rpc_upsert_feed_consumption_norm',    null, 'd03_feed.sql (Slice 8)', 'RPC-F05: Admin upsert feed consumption norm (ADR-FEED-01)'),
     ('rpc_list_feed_categories',            'rpc_list_feed_categories',            null, 'd03_feed.sql (Slice 8)', 'RPC-F06: List active feed categories for UI selectors'),
     ('rpc_list_feed_consumption_norms',     'rpc_list_feed_consumption_norms',     null, 'd03_feed.sql (Slice 8)', 'RPC-F07: List feed consumption norms for Admin UI and feeding_model.py')
