@@ -21,7 +21,7 @@ export function ProjectPage() {
   const { projectId } = useParams()
   const { pathname } = useLocation()
   const { organization } = useAuth()
-  const [projectName, setProjectName] = useState<string>('')
+  const [projectName, setProjectName] = useState<string>('Проект')
   const [nameLoading, setNameLoading] = useState(true)
 
   const orgId = organization?.id
@@ -39,6 +39,7 @@ export function ProjectPage() {
         if (data?.name) setProjectName(data.name)
         setNameLoading(false)
       })
+      .catch(() => setNameLoading(false))
   }, [orgId, projectId])
 
   const TABS = [

@@ -222,7 +222,7 @@ export function ProjectWizard() {
         }
       }
       setParamsLoading(false)
-    })
+    }).catch(() => setParamsLoading(false))
   }, [orgId, projectId])
 
   const set = useCallback((key: keyof WizardParams, raw: string) => {
