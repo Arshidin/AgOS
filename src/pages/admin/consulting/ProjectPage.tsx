@@ -35,11 +35,10 @@ export function ProjectPage() {
         p_organization_id: orgId,
         p_project_id: projectId,
       })
-      .then(({ data }) => {
-        if (data?.name) setProjectName(data.name)
+      .then(({ data, error }) => {
+        if (!error && data?.name) setProjectName(data.name)
         setNameLoading(false)
       })
-      .catch(() => setNameLoading(false))
   }, [orgId, projectId])
 
   const TABS = [

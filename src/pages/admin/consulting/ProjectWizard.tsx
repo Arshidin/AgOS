@@ -186,8 +186,8 @@ export function ProjectWizard() {
     supabase.rpc('rpc_get_consulting_project', {
       p_organization_id: orgId,
       p_project_id: projectId,
-    }).then(({ data: proj }) => {
-      if (proj?.versions?.length > 0) {
+    }).then(({ data: proj, error }) => {
+      if (!error && proj?.versions?.length > 0) {
         setMode('view')
         const saved = proj.versions[0].input_params
         if (saved) {
@@ -222,7 +222,7 @@ export function ProjectWizard() {
         }
       }
       setParamsLoading(false)
-    }).catch(() => setParamsLoading(false))
+    })
   }, [orgId, projectId])
 
   const set = useCallback((key: keyof WizardParams, raw: string) => {
