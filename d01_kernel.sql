@@ -309,7 +309,8 @@ comment on table public.memberships is
 -- FSM integrity: valid level per org_type (D2)
 -- Farmer has 4 levels; MPK has 3; others have 2
 create or replace function public.fn_membership_level_valid(p_org_type text, p_level text)
-returns boolean language plpgsql immutable as $$
+returns boolean language plpgsql immutable security definer
+set search_path = public, pg_temp as $$
 begin
     return case p_org_type
         when 'farmer'   then p_level in ('registered','observer','declared_supplier','standard_supplier')
@@ -1259,13 +1260,15 @@ create index idx_kc_review_due on public.knowledge_chunks (next_review_at)
 
 -- Returns current user's UUID (from our users table, not auth.uid())
 create or replace function public.fn_current_user_id()
-returns uuid language sql security definer stable as $$
+returns uuid language sql security definer stable
+set search_path = public, pg_temp as $$
     select id from public.users where auth_id = auth.uid() limit 1;
 $$;
 
 -- Returns all organization_ids the current user belongs to
 create or replace function public.fn_my_org_ids()
-returns uuid[] language sql security definer stable as $$
+returns uuid[] language sql security definer stable
+set search_path = public, pg_temp as $$
     select coalesce(array_agg(uor.organization_id), array[]::uuid[])
     from public.user_organization_roles uor
     join public.users u on u.id = uor.user_id
@@ -1274,7 +1277,8 @@ $$;
 
 -- Is current user an admin?
 create or replace function public.fn_is_admin()
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public, pg_temp as $$
     select exists (
         select 1 from public.admin_roles ar
         join public.users u on u.id = ar.user_id
@@ -1284,7 +1288,8 @@ $$;
 
 -- Is current user an expert?
 create or replace function public.fn_is_expert()
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public, pg_temp as $$
     select exists (
         select 1 from public.expert_profiles ep
         join public.users u on u.id = ep.user_id
@@ -1294,7 +1299,8 @@ $$;
 
 -- Is org currently restricted? (active restriction = lifted_at IS NULL)
 create or replace function public.fn_org_is_restricted(p_org_id uuid)
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = public, pg_temp as $$
     select exists (
         select 1 from public.restriction_records
         where organization_id = p_org_id and lifted_at is null
@@ -1694,7 +1700,8 @@ create policy "knowledge_expert_write"
 -- ============================================================
 
 create or replace function public.fn_set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer
+set search_path = public, pg_temp as $$
 begin
     new.updated_at = now();
     return new;

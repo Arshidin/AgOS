@@ -249,6 +249,22 @@ fi
 echo ""
 
 # ----------------------------------------------------------
+# CHECK 8: Article 171 disclaimer_text in rpc_list_feed_prices
+# Severity: CRITICAL (legal compliance — ст.171 ПК РК)
+# ----------------------------------------------------------
+echo "--- CHECK 8: Article 171 disclaimer_text in rpc_list_feed_prices ---"
+
+if grep -q "disclaimer_text" d03_feed.sql 2>/dev/null && \
+   awk '/rpc_list_feed_prices/,/^\$\$;/' d03_feed.sql | grep -q "disclaimer_text"; then
+  echo "  OK: rpc_list_feed_prices contains disclaimer_text (Article 171 compliant)"
+else
+  echo "  CRITICAL: rpc_list_feed_prices in d03_feed.sql is missing disclaimer_text (Article 171 violation)"
+  ((CRITICAL++))
+fi
+
+echo ""
+
+# ----------------------------------------------------------
 # SUMMARY
 # ----------------------------------------------------------
 echo "========================================"

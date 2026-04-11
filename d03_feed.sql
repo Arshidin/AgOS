@@ -1855,7 +1855,8 @@ begin
                 'valid_to',       fp.valid_to,
                 'region_id',      fp.region_id,
                 'is_active',      fp.is_active,
-                'updated_at',     fp.updated_at
+                'updated_at',     fp.updated_at,
+                'disclaimer_text', 'Цены носят справочный характер. ТОО ТУРАН не является стороной торговых сделок (ст.171 ПК РК).'
             ) order by fi.name_ru
         )
         from (
