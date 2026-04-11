@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Calculator, TrendingUp, LayoutGrid, ChevronDown, ArrowUpDown, ArrowRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,16 @@ export function ConsultingDashboard() {
 
   const orgId = organization?.id
 
+  useSetTopbar({
+    title: 'Инвестиционные проекты',
+    actions: (
+      <Button onClick={() => setShowCreate(true)} size="sm">
+        <Plus className="mr-2 h-4 w-4" />
+        Новый проект
+      </Button>
+    ),
+  })
+
   const loadProjects = async () => {
     if (!orgId) return
     setLoading(true)
@@ -109,13 +120,6 @@ export function ConsultingDashboard() {
   if (loading) {
     return (
       <div className="flex flex-col border border-border/60 rounded-[10px] overflow-hidden bg-background">
-        {/* Level 1 skeleton */}
-        <div className="flex items-center h-11 px-4 border-b border-border/60 gap-3">
-          <Skeleton className="w-5 h-5 rounded-[5px]" />
-          <Skeleton className="h-4 w-44" />
-          <Skeleton className="h-3 w-16 ml-1" />
-          <Skeleton className="h-7 w-28 ml-auto rounded-md" />
-        </div>
         {/* Level 2 skeleton */}
         <div className="flex items-center h-10 px-4 border-b border-border/60">
           <Skeleton className="h-[26px] w-32 rounded-md" />
@@ -162,21 +166,6 @@ export function ConsultingDashboard() {
   return (
     <div className="flex flex-col border border-border/60 rounded-[10px] overflow-hidden bg-background">
 
-      {/* ── УРОВЕНЬ 1: Заголовок раздела ── */}
-      <div className="flex items-center h-11 px-4 border-b border-border/60 gap-3">
-        <div className="w-5 h-5 rounded-[5px] bg-foreground flex items-center justify-center flex-shrink-0">
-          <LayoutGrid className="w-3 h-3 text-background" />
-        </div>
-        <span className="text-[13px] font-medium">Инвестиционные проекты</span>
-        <span className="text-[12px] text-muted-foreground ml-1">{projects.length} проектов</span>
-        <div className="ml-auto">
-          <Button onClick={() => setShowCreate(true)} size="sm" className="h-7 px-3 text-[12px] font-medium">
-            <Plus className="mr-1.5 h-3 w-3" />
-            Новый проект
-          </Button>
-        </div>
-      </div>
-
       {/* ── УРОВЕНЬ 2: Переключатель вида ── */}
       <div className="flex items-center h-10 px-4 border-b border-border/60 gap-2">
         <div className="h-[26px] px-2.5 rounded-md border border-border/60 text-[12px] text-foreground flex items-center gap-1.5 cursor-pointer select-none">
@@ -185,9 +174,6 @@ export function ConsultingDashboard() {
           <ChevronDown className="w-3 h-3 opacity-40 ml-0.5" />
         </div>
       </div>
-
-      {/* ── УРОВЕНЬ 3: Фильтры ── */}
-      <div className="flex items-center h-9 px-4 border-b border-border/60 bg-muted/40" />
 
       {/* ── ТАБЛИЦА ── */}
       {projects.length === 0 ? (
