@@ -1,15 +1,18 @@
 import { Outlet } from 'react-router-dom'
 import { ShellProvider, useShell } from './ShellContext'
-import { TopbarProvider } from './TopbarContext'
+import { TopbarProvider, useTopbarConfig } from './TopbarContext'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { DetailPanel } from './DetailPanel'
 
 function ShellGrid() {
   const { sidebar, panelOpen, theme } = useShell()
+  const { config } = useTopbarConfig()
 
   const sidebarWidth =
     sidebar === 'expanded' ? 240 : sidebar === 'collapsed' ? 56 : 0
+
+  const gridTemplateRows = config.headerContent ? 'auto 1fr' : '44px 1fr'
 
   return (
     <div
@@ -18,7 +21,7 @@ function ShellGrid() {
       style={{
         display: 'grid',
         gridTemplateColumns: `${sidebarWidth}px 1fr ${panelOpen ? '348px' : '0px'}`,
-        gridTemplateRows: '44px 1fr',
+        gridTemplateRows,
         height: '100vh',
         width: '100%',
         background: 'var(--bg)',

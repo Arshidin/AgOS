@@ -97,6 +97,20 @@ export function Header() {
     }
   }, [tabs])
 
+  if (config.headerContent) {
+    return (
+      <header
+        style={{
+          gridColumn: panelOpen ? '2 / 3' : '2 / -1',
+          borderBottom: '1px solid var(--bd)',
+          background: 'var(--bg)',
+        }}
+      >
+        {config.headerContent}
+      </header>
+    )
+  }
+
   return (
     <header
       style={{

@@ -1116,3 +1116,52 @@ on conflict (sql_name) do update set notes = excluded.notes;
 ```
 
 **Severity:** Significant. Не ломает деплой или функциональность. Нарушает инвариант D-NEW-A (все RPC должны быть в registry).
+
+---
+
+### D-LAYOUT-01 — headerContent override pattern в TopbarConfig
+
+**Date:** 2026-04-12  
+**Domain:** UI Layout Infrastructure
+
+**WHAT:** `TopbarConfig` расширен полем `headerContent?: ReactNode`. Когда передано — `Header.tsx` рендерит его напрямую вместо стандартного однострочного layout (title + tabs + actions). `ShellGrid` в `AppLayout.tsx` переключает `gridTemplateRows` на `auto 1fr` вместо `44px 1fr`.
+
+**WHY:** Редизайн страниц Consulting потребовал 3-строчный хедер (навигация / заголовок / табы) высотой ~108px. Стандартный API `{ title, tabs, actions }` покрывает одну строку. Альтернативы:
+- A) Добавить 5+ полей в TopbarConfig (breadcrumb, icon, showNavButtons, status...) — загрязняет интерфейс
+- B) `headerContent?: ReactNode` — даёт произвольную структуру без изменения существующих callers
+
+Выбрано B: аддитивно (P7), не ломает `RationPage` и `FeedReferenceAdmin` которые продолжают передавать стандартный config.
+
+**CONSEQUENCES:**
+- Easy: любая страница может задать полностью кастомный хедер через один проп
+- Risk: caller отвечает за полноту своего JSX (border-bottom, высота, фон — через CSS vars)
+- Accepted: потенциально несогласованный стиль между страницами → митигируется тем что пока только Consulting использует этот паттерн
+
+---
+
+### D-UI-CONSULTING-01 — Редизайн Consulting Dashboard и ProjectPage в Attio-стиль
+
+**Date:** 2026-04-12  
+**Domain:** UI / Consulting Module
+
+**WHAT:** Два файла изменены визуально (только className и JSX-структура, бизнес-логика не тронута):
+
+1. **ConsultingDashboard.tsx** — список проектов: `Card` list → Attio-style grid table.
+   - Корневой враппер: `page space-y-6` → `flex flex-col border border-border/60 rounded-[10px] overflow-hidden bg-background`
+   - 3 уровня хедера: раздел (иконка + заголовок + счётчик) / вид (view pill) / фильтры (пустой)
+   - Таблица: grid `32px 2fr 110px 1fr 110px 90px 32px`, строки по 46px, footer 30px
+   - NPV/IRR цветовая кодировка: negative → `text-destructive`, positive → `text-emerald-600`
+   - Skeleton переписан под grid-структуру
+
+2. **ProjectPage.tsx** — хедер: `useSetTopbar({ title, tabs })` → `useSetTopbar({ headerContent })` с 3-строчным JSX через `useMemo([project, navigate])`.
+   - Row 1 (h-10): X кнопка → navigate('/admin/consulting'), disabled prev/next стрелки, breadcrumb
+   - Row 2 (h-54px): иконка SVG, `project.name`, Star button
+   - Row 3 (h-10): NavLink табы с `border-b-2` active indicator
+   - Загружает `{ name, status }` из `rpc_get_consulting_project` (уже реализован, возвращает оба поля)
+
+**WHY:** Визуальная согласованность с Attio-стилем остальных admin-экранов. Список проектов с финансовыми метриками в таблице читаемее чем cards. 3-строчный хедер проекта даёт чёткую иерархию: контекст / идентификация / навигация.
+
+**CONSEQUENCES:**
+- Easy: визуально консистентно с другими admin-таблицами
+- Neutral: `useMemo` deps не включает `TABS` → `// eslint-disable-line` комментарий. Безопасно: TABS зависит от `projectId`, смена projectId → remount компонента
+- Risk: уровень 3 (фильтры) пустой — зарезервирован для будущих фильтров; не является дефектом

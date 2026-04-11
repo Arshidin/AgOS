@@ -1,11 +1,11 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-11
+> Last updated: 2026-04-12
 
 ---
 
-## Current Phase: Slice 9 (Expert Scenario) — завершён. QA инфраструктура обновлена. DEF-031 (rpc_list_feed_prices) — ожидает фикса DB Agent.
+## Current Phase: Slice 9 post-gate — UI редизайн Consulting завершён. DEF-031 исправлен. QA: 0 critical.
 
 ### Slice 0 — Foundation
 
@@ -221,6 +221,15 @@ Scope: стратегия реализации бычков (GAP-1 КРИТИЧ�
 | `d05ae0b` | **fix(ts)**: удалён неиспользуемый nameLoading state — TS6133 build error | DEF-037. Последний build fix. |
 
 **Build status: ✅ PASSING** (d05ae0b — все TS ошибки устранены)
+
+#### Post-gate UI redesign (2026-04-12)
+
+| Commit | Change | Notes |
+|--------|--------|-------|
+| — | **UI**: ConsultingDashboard → Attio-style grid table (3-level header, grid rows, footer) | D-UI-CONSULTING-01 |
+| — | **UI**: ProjectPage → 3-row header (nav / title / tabs) via `headerContent` TopbarConfig extension | D-LAYOUT-01 |
+| — | **Layout**: TopbarContext + Header.tsx + AppLayout.tsx — `headerContent?: ReactNode`, dynamic `gridTemplateRows` | D-LAYOUT-01 |
+| — | **QA**: cross_check.sh → 0 critical. tsc --noEmit → 0 errors. All useSetTopbar callers regression-free | QA PASS |
 
 #### ⚠️ Открытые дефекты
 

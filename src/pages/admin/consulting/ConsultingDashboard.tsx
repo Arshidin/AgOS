@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Calculator, TrendingUp } from 'lucide-react'
+import { Plus, Calculator, TrendingUp, LayoutGrid, ChevronDown, ArrowUpDown, ArrowRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PageHeader } from '@/components/ui/page-header'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -45,6 +45,8 @@ const FARM_TYPE_MAP: Record<string, string> = {
   feedlot: 'Откормочная',
   sheep_goat: 'МРС',
 }
+
+const COL_TEMPLATE = '32px minmax(180px,2fr) 110px minmax(120px,1fr) 110px 90px 32px'
 
 export function ConsultingDashboard() {
   const navigate = useNavigate()
@@ -106,60 +108,90 @@ export function ConsultingDashboard() {
 
   if (loading) {
     return (
-      <div className="page space-y-6">
-        {/* PageHeader skeleton */}
-        <div className="space-y-1">
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-24" />
+      <div className="flex flex-col border border-border/60 rounded-[10px] overflow-hidden bg-background">
+        {/* Level 1 skeleton */}
+        <div className="flex items-center h-11 px-4 border-b border-border/60 gap-3">
+          <Skeleton className="w-5 h-5 rounded-[5px]" />
+          <Skeleton className="h-4 w-44" />
+          <Skeleton className="h-3 w-16 ml-1" />
+          <Skeleton className="h-7 w-28 ml-auto rounded-md" />
         </div>
-        {/* Card skeletons */}
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <Card key={i}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-5 w-40" />
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                    <Skeleton className="h-5 w-20 rounded-full" />
-                  </div>
-                  <Skeleton className="h-4 w-48" />
-                </div>
-                <div className="flex items-center gap-6">
-                  <div className="space-y-1 text-right">
-                    <Skeleton className="ml-auto h-3 w-8" />
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <Skeleton className="ml-auto h-3 w-8" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                  <Skeleton className="h-5 w-5 rounded" />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Level 2 skeleton */}
+        <div className="flex items-center h-10 px-4 border-b border-border/60">
+          <Skeleton className="h-[26px] w-32 rounded-md" />
+        </div>
+        {/* Table header skeleton */}
+        <div className="grid border-b border-border/60 bg-muted/40" style={{ gridTemplateColumns: COL_TEMPLATE }}>
+          {[32, 180, 110, 120, 110, 90, 32].map((w, i) => (
+            <div key={i} className="h-[34px] px-2.5 flex items-center border-r border-border/60 last:border-r-0">
+              {i > 0 && i < 6 && <Skeleton className="h-3" style={{ width: w * 0.5 }} />}
+            </div>
           ))}
         </div>
+        {/* Row skeletons */}
+        {[1, 2, 3].map(i => (
+          <div key={i} className="grid border-b border-border/60" style={{ gridTemplateColumns: COL_TEMPLATE }}>
+            <div className="h-[46px] flex items-center justify-center border-r border-border/60">
+              <Skeleton className="w-3.5 h-3.5 rounded-[3px]" />
+            </div>
+            <div className="h-[46px] px-2.5 flex items-center gap-2 border-r border-border/60">
+              <Skeleton className="w-[22px] h-[22px] rounded-[5px] flex-shrink-0" />
+              <Skeleton className="h-4 w-36" />
+            </div>
+            <div className="h-[46px] px-2.5 flex items-center border-r border-border/60">
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <div className="h-[46px] px-2.5 flex items-center border-r border-border/60">
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="h-[46px] px-2.5 flex items-center justify-end border-r border-border/60">
+              <Skeleton className="h-4 w-16" />
+            </div>
+            <div className="h-[46px] px-2.5 flex items-center justify-end border-r border-border/60">
+              <Skeleton className="h-4 w-12" />
+            </div>
+            <div className="h-[46px] flex items-center justify-center">
+              <Skeleton className="w-3.5 h-3.5 rounded" />
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
 
   return (
-    <div className="page space-y-6">
-      <PageHeader
-        title="Инвестиционные проекты"
-        description={`${projects.length} проектов`}
-        actions={
-          <Button onClick={() => setShowCreate(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
+    <div className="flex flex-col border border-border/60 rounded-[10px] overflow-hidden bg-background">
+
+      {/* ── УРОВЕНЬ 1: Заголовок раздела ── */}
+      <div className="flex items-center h-11 px-4 border-b border-border/60 gap-3">
+        <div className="w-5 h-5 rounded-[5px] bg-foreground flex items-center justify-center flex-shrink-0">
+          <LayoutGrid className="w-3 h-3 text-background" />
+        </div>
+        <span className="text-[13px] font-medium">Инвестиционные проекты</span>
+        <span className="text-[12px] text-muted-foreground ml-1">{projects.length} проектов</span>
+        <div className="ml-auto">
+          <Button onClick={() => setShowCreate(true)} size="sm" className="h-7 px-3 text-[12px] font-medium">
+            <Plus className="mr-1.5 h-3 w-3" />
             Новый проект
           </Button>
-        }
-      />
+        </div>
+      </div>
 
-      {/* Project list */}
+      {/* ── УРОВЕНЬ 2: Переключатель вида ── */}
+      <div className="flex items-center h-10 px-4 border-b border-border/60 gap-2">
+        <div className="h-[26px] px-2.5 rounded-md border border-border/60 text-[12px] text-foreground flex items-center gap-1.5 cursor-pointer select-none">
+          <LayoutGrid className="w-3 h-3 opacity-60" />
+          Все проекты
+          <ChevronDown className="w-3 h-3 opacity-40 ml-0.5" />
+        </div>
+      </div>
+
+      {/* ── УРОВЕНЬ 3: Фильтры ── */}
+      <div className="flex items-center h-9 px-4 border-b border-border/60 bg-muted/40" />
+
+      {/* ── ТАБЛИЦА ── */}
       {projects.length === 0 ? (
-        <Card>
+        <Card className="rounded-none border-0">
           <CardContent className="flex flex-col items-center py-12">
             <Calculator className="mb-4 h-12 w-12 text-muted-foreground" />
             <h2 className="text-lg font-medium">Нет проектов</h2>
@@ -173,44 +205,125 @@ export function ConsultingDashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <>
+          {/* Заголовок таблицы */}
+          <div
+            className="grid border-b border-border/60 bg-muted/40"
+            style={{ gridTemplateColumns: COL_TEMPLATE }}
+          >
+            <div className="h-[34px] border-r border-border/60" />
+            <div className="h-[34px] px-2.5 flex items-center gap-1 text-[11px] font-medium text-muted-foreground border-r border-border/60">
+              Проект
+              <ArrowUpDown className="w-2.5 h-2.5 opacity-50" />
+            </div>
+            <div className="h-[34px] px-2.5 flex items-center text-[11px] font-medium text-muted-foreground border-r border-border/60">
+              Статус
+            </div>
+            <div className="h-[34px] px-2.5 flex items-center text-[11px] font-medium text-muted-foreground border-r border-border/60">
+              Тип хозяйства
+            </div>
+            <div className="h-[34px] px-2.5 flex items-center justify-end text-[11px] font-medium text-muted-foreground border-r border-border/60">
+              NPV, тыс.
+            </div>
+            <div className="h-[34px] px-2.5 flex items-center justify-end text-[11px] font-medium text-muted-foreground border-r border-border/60">
+              IRR
+            </div>
+            <div className="h-[34px]" />
+          </div>
+
+          {/* Строки */}
           {projects.map(p => (
-            <Card
+            <div
               key={p.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50"
               onClick={() => navigate(`/admin/consulting/${p.id}`)}
+              className="grid border-b border-border/60 cursor-pointer hover:bg-muted/40 transition-colors group"
+              style={{ gridTemplateColumns: COL_TEMPLATE }}
             >
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{p.name}</span>
-                    <Badge variant={STATUS_MAP[p.status]?.variant || 'secondary'}>
-                      {STATUS_MAP[p.status]?.label || p.status}
-                    </Badge>
-                    <Badge variant="outline">{FARM_TYPE_MAP[p.farm_type] || p.farm_type}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Создан {new Date(p.created_at).toLocaleDateString('ru-RU')}
-                    {p.latest_version && ` · Версия ${p.latest_version.version_number}`}
-                  </p>
+              {/* Чекбокс */}
+              <div className="flex items-center justify-center border-r border-border/60">
+                <div className="w-3.5 h-3.5 rounded-[3px] border border-border/60" />
+              </div>
+
+              {/* Название */}
+              <div className="px-2.5 h-[46px] flex items-center gap-2 border-r border-border/60">
+                <div className="w-[22px] h-[22px] rounded-[5px] border border-border/60 bg-muted flex items-center justify-center text-[10px] font-semibold text-muted-foreground flex-shrink-0">
+                  {p.name.slice(0, 2).toUpperCase()}
                 </div>
-                {p.latest_version && (
-                  <div className="flex items-center gap-6 text-right">
-                    <div>
-                      <p className="text-xs text-muted-foreground">NPV</p>
-                      <p className="font-mono text-sm font-medium">{formatNumber(p.latest_version.npv)} тыс.</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">IRR</p>
-                      <p className="font-mono text-sm font-medium">{formatPercent(p.latest_version.irr)}</p>
-                    </div>
-                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                  </div>
+                <span className="text-[13px] font-medium truncate">{p.name}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto flex-shrink-0" />
+              </div>
+
+              {/* Статус */}
+              <div className="px-2.5 h-[46px] flex items-center border-r border-border/60">
+                <Badge variant={STATUS_MAP[p.status]?.variant || 'secondary'}>
+                  {STATUS_MAP[p.status]?.label || p.status}
+                </Badge>
+              </div>
+
+              {/* Тип хозяйства */}
+              <div className="px-2.5 h-[46px] flex items-center border-r border-border/60">
+                <span className="text-[12px] text-muted-foreground truncate">
+                  {FARM_TYPE_MAP[p.farm_type] || p.farm_type}
+                </span>
+              </div>
+
+              {/* NPV */}
+              <div className="px-2.5 h-[46px] flex items-center justify-end border-r border-border/60">
+                {p.latest_version ? (
+                  <span className={cn(
+                    'text-[13px] font-medium tabular-nums',
+                    p.latest_version.npv === null ? 'text-muted-foreground' :
+                    p.latest_version.npv < 0 ? 'text-destructive' :
+                    'text-emerald-600 dark:text-emerald-400'
+                  )}>
+                    {formatNumber(p.latest_version.npv)}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-muted-foreground">—</span>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+
+              {/* IRR */}
+              <div className="px-2.5 h-[46px] flex items-center justify-end border-r border-border/60">
+                {p.latest_version ? (
+                  <span className={cn(
+                    'text-[13px] font-medium tabular-nums',
+                    p.latest_version.irr === null ? 'text-muted-foreground' :
+                    p.latest_version.irr < 0 ? 'text-destructive' :
+                    'text-emerald-600 dark:text-emerald-400'
+                  )}>
+                    {formatPercent(p.latest_version.irr)}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-muted-foreground">—</span>
+                )}
+              </div>
+
+              {/* Иконка */}
+              <div className="flex items-center justify-center">
+                <TrendingUp className="w-3.5 h-3.5 text-muted-foreground" />
+              </div>
+            </div>
           ))}
-        </div>
+
+          {/* Футер таблицы */}
+          <div
+            className="grid bg-muted/40"
+            style={{ gridTemplateColumns: COL_TEMPLATE }}
+          >
+            <div className="h-[30px] border-r border-border/60" />
+            <div className="h-[30px] px-2.5 flex items-center border-r border-border/60">
+              <span className="text-[11px] text-muted-foreground">
+                <span className="font-medium text-foreground">{projects.length}</span> проектов
+              </span>
+            </div>
+            <div className="h-[30px] border-r border-border/60" />
+            <div className="h-[30px] border-r border-border/60" />
+            <div className="h-[30px] border-r border-border/60" />
+            <div className="h-[30px] border-r border-border/60" />
+            <div className="h-[30px]" />
+          </div>
+        </>
       )}
 
       {/* Create dialog */}

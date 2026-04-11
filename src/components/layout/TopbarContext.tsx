@@ -17,6 +17,7 @@ export interface TopbarConfig {
   titleLoading?: boolean
   tabs?: TopbarTab[]
   actions?: ReactNode
+  headerContent?: ReactNode
 }
 
 interface TopbarCtxValue {
