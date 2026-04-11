@@ -72,6 +72,13 @@
 | D-PARAMS-1 | 2026-04-11 | UX | Параметры page редизайн: card sections + hero IRR + CoeffRow bars + empty state. ProjectWizard view mode. |
 | DEF-029 | 2026-04-11 | QA | cross_check.sh CHECK 1 BSD sed bug: `\s+` → `[[:space:]]+`. fn_ whitelist добавлен (d07 JWT upgrades). |
 | DEF-031 | 2026-04-11 | DB | rpc_list_feed_prices не зарегистрирована в rpc_name_registry. DB Agent должен добавить INSERT в d01_kernel.sql. |
+| D-UX-1 | 2026-04-11 | UX | Skeleton shimmer + tab fade animation + Loader2 на кнопке Рассчитать. |
+| DEF-032 | 2026-04-11 | UI | titleLoading skeleton бесконечен если orgId=null при mount (useEffect early return). Фикс: убрать titleLoading из topbar. |
+| DEF-033 | 2026-04-11 | UI | tab-content { height: 100% } обрезает скроллируемые страницы (Тех.карта пустая). Фикс: убрать height:100%. |
+| DEF-034 | 2026-04-11 | UI | skeleton использовал --bg-s (#1b1a18) почти неотличимый от фона (#141312). Фикс: gradient bg-m → bd-h → bg-m. |
+| DEF-035 | 2026-04-11 | TS | Supabase rpc() возвращает PromiseLike (не Promise) — .catch() не существует. Фикс: { data, error } в .then(). |
+| DEF-036 | 2026-04-11 | UI | Все 7 вкладок: skeleton = h-48 w-full без padding = прямоугольник от края до края. Фикс: .page + table-like rows. |
+| DEF-037 | 2026-04-11 | TS | nameLoading state объявлен но не читается после удаления titleLoading — TS6133 build error. Фикс: удалить state. |
 
 ---
 
