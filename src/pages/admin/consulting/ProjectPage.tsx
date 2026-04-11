@@ -53,7 +53,7 @@ export function ProjectPage() {
     { label: 'Рационы', path: `${base}/ration` },
   ]
 
-  useSetTopbar({ title: projectName, titleLoading: nameLoading, tabs: TABS })
+  useSetTopbar({ title: projectName, tabs: TABS })
 
   // Redirect bare /admin/consulting/:id → /admin/consulting/:id/summary
   if (pathname === base || pathname === `${base}/`) {

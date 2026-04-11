@@ -105,7 +105,18 @@ function SecondaryKpiCard({
 export function SummaryTab() {
   const { results, version, loading } = useProjectData()
 
-  if (loading) return <Skeleton className="h-48 w-full rounded-xl" />
+  if (loading) return (
+    <div className="page space-y-2">
+      <Skeleton className="h-5 w-44 mb-2" />
+      {Array.from({ length: 10 }, (_, i) => (
+        <div key={i} className="flex gap-3 items-center">
+          <Skeleton className="h-3.5 grow" />
+          <Skeleton className="h-3.5 w-16 shrink-0" />
+          <Skeleton className="h-3.5 w-16 shrink-0" />
+        </div>
+      ))}
+    </div>
+  )
 
   if (!version) {
     return (
