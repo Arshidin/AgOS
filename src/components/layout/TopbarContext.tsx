@@ -14,6 +14,7 @@ export interface TopbarTab {
 
 export interface TopbarConfig {
   title?: string
+  titleIcon?: ReactNode
   titleLoading?: boolean
   tabs?: TopbarTab[]
   actions?: ReactNode

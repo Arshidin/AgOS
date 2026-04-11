@@ -160,6 +160,11 @@ export function Header() {
             <PanelLeft size={15} />
           </button>
         )}
+        {config.titleIcon && (
+          <div style={{ display: 'flex', alignItems: 'center', color: 'var(--fg3)', flexShrink: 0 }}>
+            {config.titleIcon}
+          </div>
+        )}
         {config.titleLoading
           ? <div className="sk" style={{ width: 120, height: 13, borderRadius: 5 }} />
           : <h1 style={{ fontSize: 14, fontWeight: 600, margin: 0, whiteSpace: 'nowrap' }}>{title}</h1>
