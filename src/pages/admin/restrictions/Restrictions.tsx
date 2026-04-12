@@ -5,7 +5,8 @@
  */
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Shield } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 export function Restrictions() {
+  useSetTopbar({ title: 'Ограничения', titleIcon: <Shield size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [restrictions, setRestrictions] = useState<Restriction[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,7 +43,6 @@ export function Restrictions() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Ограничения</h1>
         <Button onClick={() => { const t = prompt('Тип ограничения: withdrawal_period / quarantine / disease_suspected'); if (t) alert('Используйте rpc_restrict_organization через Supabase Dashboard для создания ограничений. Полная форма будет в Slice 6b.') }}><Plus className="mr-2 h-4 w-4" />Создать</Button>
       </div>
       {loading ? <Skeleton className="h-32 w-full" /> : (

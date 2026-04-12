@@ -7,11 +7,13 @@
  */
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
+import { DollarSign } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
@@ -19,6 +21,7 @@ import { supabase } from '@/lib/supabase'
 const DISCLAIMER = 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное. Ст. 171 ПК РК.'
 
 export function PriceGridManagement() {
+  useSetTopbar({ title: 'Ценообразование', titleIcon: <DollarSign size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const { organization } = useAuth()
 
@@ -93,7 +96,6 @@ export function PriceGridManagement() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Управление ценами</h1>
 
       {/* DEF-024: Antitrust disclaimer — Article 171, mandatory on all price screens A11–A15 */}
       <Card className="border-amber-500/30 bg-amber-50/50">

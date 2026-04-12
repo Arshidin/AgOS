@@ -5,7 +5,8 @@
  */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, ClipboardList } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +26,7 @@ interface CascadeRow {
 }
 
 export function CascadePreview() {
+  useSetTopbar({ title: 'Каскадный план', titleIcon: <ClipboardList size={15} /> })
   const navigate = useNavigate()
   const { phaseId } = useParams()
   const { userContext } = useAuth()

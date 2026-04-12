@@ -5,7 +5,8 @@
  */
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { BookOpen, Plus, Search } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ const DOMAIN_LABELS: Record<string, string> = {
 }
 
 export function KnowledgeBase() {
+  useSetTopbar({ title: 'База знаний', titleIcon: <BookOpen size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const { organization } = useAuth()
   const [chunks, setChunks] = useState<Chunk[]>([])
@@ -53,7 +55,6 @@ export function KnowledgeBase() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">База знаний</h1>
         <Dialog open={showAdd} onOpenChange={setShowAdd}>
           <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />Добавить</Button></DialogTrigger>
           <DialogContent>

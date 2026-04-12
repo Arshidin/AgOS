@@ -1165,3 +1165,22 @@ on conflict (sql_name) do update set notes = excluded.notes;
 - Easy: визуально консистентно с другими admin-таблицами
 - Neutral: `useMemo` deps не включает `TABS` → `// eslint-disable-line` комментарий. Безопасно: TABS зависит от `projectId`, смена projectId → remount компонента
 - Risk: уровень 3 (фильтры) пустой — зарезервирован для будущих фильтров; не является дефектом
+
+---
+
+### 2026-04-12: D-UI-TOPBAR-01 — Topbar as single source of page header
+
+**WHAT:** Every page component MUST call `useSetTopbar()` with title + titleIcon. Inline `<h1>` and `<PageHeader>` are deprecated in favor of the topbar system. Icons must match Sidebar.tsx.
+
+**WHY:** After the Consulting redesign established a clean topbar pattern (title + icon + tabs + actions), only 4 of 59 pages used it. The remaining 55 used inconsistent approaches (inline h1, PageHeader component, or auto-title from ROUTE_TITLES). Standardizing eliminates visual inconsistency and establishes a single point of control for page headers.
+
+**ALTERNATIVES:**
+- Keep ROUTE_TITLES fallback as primary mechanism → rejected: no icon support, no actions, no tabs
+- Create a new `<PageShell>` wrapper component → rejected: hook pattern is simpler, already proven
+
+**CONSEQUENCES:**
+- Easy: every page has consistent header with icon matching sidebar
+- Easy: new pages just call `useSetTopbar()` — pattern is obvious
+- Risk: `<PageHeader>` component deprecated but not deleted (HS-5)
+- Files: all 59 page components under src/pages/, CLAUDE.md, page-header.tsx
+

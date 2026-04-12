@@ -2,10 +2,12 @@ import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search } from 'lucide-react'
+import { Building2, Search } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { supabase } from '@/lib/supabase'
 
 export function OrgManagement() {
+  useSetTopbar({ title: 'Организации', titleIcon: <Building2 size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [orgs, setOrgs] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -22,7 +24,6 @@ export function OrgManagement() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Организации</h1>
       <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input className="pl-9" placeholder="Поиск..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>

@@ -1,6 +1,8 @@
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
+import { Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +13,7 @@ import { useRpcMutation } from '@/hooks/useRpc'
 import { supabase } from '@/lib/supabase'
 
 export function RoleAssignment() {
+  useSetTopbar({ title: 'Роли', titleIcon: <Users size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const { organization } = useAuth()
   const [admins, setAdmins] = useState<any[]>([])
@@ -36,7 +39,6 @@ export function RoleAssignment() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Управление ролями</h1>
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Назначить роль</CardTitle></CardHeader>

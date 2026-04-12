@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, CheckCircle, XCircle, Loader2, Building2, MapPin, Hash, Calendar, Users2, Leaf } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Loader2, Building2, MapPin, Hash, Calendar, Users, Users2, Leaf } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 import { Button } from '@/components/ui/button'
@@ -87,6 +88,7 @@ const LEVEL_LABELS: Record<string, string> = {
 }
 
 export function MembershipDecision() {
+  useSetTopbar({ title: 'Рассмотрение заявки', titleIcon: <Users size={15} /> })
   const { applicationId } = useParams<{ applicationId: string }>()
   const navigate = useNavigate()
   const { organization } = useAuth()

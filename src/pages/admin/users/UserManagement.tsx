@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search } from 'lucide-react'
+import { Search, UserCog } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { supabase } from '@/lib/supabase'
 
 export function UserManagement() {
+  useSetTopbar({ title: 'Пользователи', titleIcon: <UserCog size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -23,7 +25,6 @@ export function UserManagement() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Пользователи</h1>
       <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input className="pl-9" placeholder="Поиск по имени, телефону..." value={search} onChange={e => setSearch(e.target.value)} />
       </div>

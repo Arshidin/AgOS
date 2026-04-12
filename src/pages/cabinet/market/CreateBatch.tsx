@@ -5,7 +5,8 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Loader2, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 interface SkuOption { id: string; code: string; name_ru: string }
 
 export function CreateBatch() {
+  useSetTopbar({ title: 'Новая партия', titleIcon: <ShoppingCart size={15} /> })
   const navigate = useNavigate()
   const { organization, farm, userContext } = useAuth()
   const [skus, setSkus] = useState<SkuOption[]>([])

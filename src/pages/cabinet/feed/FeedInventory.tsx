@@ -4,7 +4,8 @@
  * RPC: rpc_get_farm_summary (RPC-08) → feed_inventory[]
  */
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Plus, ChevronRight, Wheat } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ function formatKg(kg: number): string {
 }
 
 export function FeedInventory() {
+  useSetTopbar({ title: 'Склад кормов', titleIcon: <Wheat size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

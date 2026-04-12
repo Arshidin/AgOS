@@ -4,7 +4,8 @@
  * RPC: rpc_list_vaccination_plans (READ), rpc_create_vaccination_plan (RPC-29)
  */
 import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Plus, Syringe } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ export function VaccinationPlans() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
   const { organization } = useAuth()
+  useSetTopbar({ title: 'Планы вакцинации', titleIcon: <Syringe size={15} /> })
 
   const { data: plans = [], isLoading: loading } = useRpc<VacPlan[]>(
     'rpc_list_vaccination_plans',

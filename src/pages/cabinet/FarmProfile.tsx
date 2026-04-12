@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import {
   Loader2, Plus, Pencil, AlertTriangle, X,
-  Home, Calendar, ChevronRight, Activity,
+  Home, Calendar, ChevronRight, Activity, Leaf,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -90,6 +91,7 @@ function CharRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function FarmProfile() {
+  useSetTopbar({ title: 'Профиль фермы', titleIcon: <Leaf size={15} /> })
   const { userContext, isContextLoading, organization, refreshContext } = useAuth()
   const navigate = useNavigate()
   const farm = userContext?.farms?.[0] as Farm | undefined

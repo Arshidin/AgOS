@@ -3,6 +3,8 @@
  * Dok 6 Slice 6a: /admin/expert/kpi
  * RPC: rpc_get_expert_kpi
  */
+import { BarChart3 } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/hooks/useAuth'
@@ -17,6 +19,7 @@ interface ExpertKpiData {
 export function ExpertKpi() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
   const { organization } = useAuth()
+  useSetTopbar({ title: 'Показатели эксперта', titleIcon: <BarChart3 size={15} /> })
 
   const { data: stats, isLoading: loading } = useRpc<ExpertKpiData>(
     'rpc_get_expert_kpi',

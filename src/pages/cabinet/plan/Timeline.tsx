@@ -5,7 +5,8 @@
  * Read-only visualization — no writes.
  */
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,6 +32,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function Timeline() {
+  useSetTopbar({ title: 'Таймлайн', titleIcon: <ClipboardList size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

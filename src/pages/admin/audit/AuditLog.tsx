@@ -5,9 +5,11 @@
  */
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
+import { FileText } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { supabase } from '@/lib/supabase'
 
 interface AuditEntry {
@@ -16,6 +18,7 @@ interface AuditEntry {
 }
 
 export function AuditLog() {
+  useSetTopbar({ title: 'Журнал аудита', titleIcon: <FileText size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,7 +33,6 @@ export function AuditLog() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Журнал аудита</h1>
       {loading ? <Skeleton className="h-32 w-full" /> : entries.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">Нет записей</CardContent></Card>
       ) : (

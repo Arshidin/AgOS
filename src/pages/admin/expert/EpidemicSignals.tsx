@@ -4,6 +4,8 @@
  * RPC: rpc_list_epidemic_signals
  */
 import React from 'react'
+import { Activity } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,6 +28,7 @@ const SEV_STYLES: Record<string, React.CSSProperties> = {
 export function EpidemicSignals() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
   const { organization } = useAuth()
+  useSetTopbar({ title: 'Эпидемиология', titleIcon: <Activity size={15} /> })
 
   const { data: signals = [], isLoading: loading } = useRpc<Signal[]>(
     'rpc_list_epidemic_signals',

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Send, ChevronDown, ChevronUp } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Loader2, Send, ChevronDown, ChevronUp, Stethoscope } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 
 export function ReportSick() {
+  useSetTopbar({ title: 'Сообщить о болезни', titleIcon: <Stethoscope size={15} /> })
   const { userContext, isContextLoading, organization } = useAuth()
   const navigate = useNavigate()
 

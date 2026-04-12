@@ -5,7 +5,8 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Loader2, Wheat } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ interface FeedItemOption {
 }
 
 export function FeedItemForm() {
+  useSetTopbar({ title: 'Запись корма', titleIcon: <Wheat size={15} /> })
   const navigate = useNavigate()
   const { inventoryId } = useParams()
   const isEdit = !!inventoryId

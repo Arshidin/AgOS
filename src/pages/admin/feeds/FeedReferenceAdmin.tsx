@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Pencil, CheckCircle, Circle } from 'lucide-react'
+import { Plus, Pencil, CheckCircle, Circle, FlaskConical } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ const NUTRIENTS = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function FeedReferenceAdmin() {
-  useSetTopbar({ title: 'Кормовая база' })
+  useSetTopbar({ title: 'Кормовая база', titleIcon: <FlaskConical size={15} /> })
   const { isAdmin, checking } = useAdminGuard()
   const [activeTab, setActiveTab] = useState<'catalog' | 'prices' | 'norms'>('catalog')
 

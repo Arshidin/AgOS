@@ -4,7 +4,8 @@
  * RPC: rpc_get_farm_summary (RPC-08)
  */
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Plus, ChevronRight, Fence } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,7 @@ const SOURCE_LABELS: Record<string, string> = {
 }
 
 export function HerdOverview() {
+  useSetTopbar({ title: 'Стадо', titleIcon: <Fence size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

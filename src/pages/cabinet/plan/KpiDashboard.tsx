@@ -5,7 +5,8 @@
  * Read-only for farmer.
  */
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, BarChart3 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -32,6 +33,7 @@ interface PlanData {
 // Full per-phase KPI detail would need a separate RPC (future improvement).
 
 export function KpiDashboard() {
+  useSetTopbar({ title: 'Показатели', titleIcon: <BarChart3 size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

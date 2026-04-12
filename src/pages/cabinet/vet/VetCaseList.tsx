@@ -5,7 +5,8 @@
  */
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Plus, ChevronRight, Stethoscope } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,7 @@ const SEVERITY_STYLES: Record<string, React.CSSProperties> = {
 }
 
 export function VetCaseList() {
+  useSetTopbar({ title: 'Ветеринария', titleIcon: <Stethoscope size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

@@ -9,6 +9,7 @@
  */
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Calculator } from 'lucide-react'
 
 const TABS = [
   { label: 'Калькулятор', path: '/cabinet/ration/calculator' },
@@ -20,7 +21,7 @@ const TABS = [
 export function RationPage() {
   const { pathname } = useLocation()
 
-  useSetTopbar({ title: 'Рационы', tabs: TABS })
+  useSetTopbar({ title: 'Рационы', titleIcon: <Calculator size={15} />, tabs: TABS })
 
   // Redirect bare /cabinet/ration → /cabinet/ration/groups
   if (pathname === '/cabinet/ration' || pathname === '/cabinet/ration/') {

@@ -5,6 +5,8 @@
  */
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Stethoscope } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +33,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function VetCaseQueue() {
   const { isExpert, checking: expertChecking } = useExpertGuard()
   const navigate = useNavigate()
+  useSetTopbar({ title: 'Ветеринарные кейсы', titleIcon: <Stethoscope size={15} /> })
   const [cases, setCases] = useState<VetCase[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('active')

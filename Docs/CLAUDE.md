@@ -240,6 +240,26 @@ TSP is coordination infrastructure of the association, NOT a marketplace. It doe
 - Farmer cabinet = full web cabinet (`turanstandard.kz/cabinet`); WhatsApp = additional channel, not replacement
 - UI code in git (`src/`), same repo as SQL and backend — Vite + React + TypeScript
 
+### Topbar Principle (D-UI-TOPBAR-01)
+
+Every page component MUST call `useSetTopbar()` to declare its header:
+
+```typescript
+useSetTopbar({
+  title: 'Заголовок',                    // обязательно
+  titleIcon: <IconName size={15} />,      // иконка = та же что в Sidebar
+  tabs?: TopbarTab[],                     // если есть sub-routes (RationPage)
+  actions?: ReactNode,                    // кнопки справа (Новый проект, etc.)
+})
+```
+
+Rules:
+- Icon MUST match the icon used in `Sidebar.tsx` for this route
+- Title should be human-readable Russian, matching Sidebar label or expanding it
+- Do NOT render inline `<h1>` or `<PageHeader>` — the topbar IS the page header
+- For dynamic titles (loaded from DB), use `useTopbarConfig().setConfig` in `useEffect`
+- For custom multi-row headers, use `headerContent` override (see ProjectPage pattern)
+
 ---
 
 ## Prohibited Actions

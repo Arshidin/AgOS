@@ -5,7 +5,8 @@
  */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Syringe } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +29,7 @@ export function RecordVaccination() {
   const navigate = useNavigate()
   const { planId } = useParams()
   const { organization } = useAuth()
+  useSetTopbar({ title: 'Запись вакцинации', titleIcon: <Syringe size={15} /> })
 
   const [selectedItem, setSelectedItem] = useState<string>('')
   const [vetProductId, setVetProductId] = useState<string>('')

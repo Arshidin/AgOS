@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use `useSetTopbar()` from `@/components/layout/TopbarContext` instead.
+ * The topbar system is now the single source of page headers (D-UI-TOPBAR-01).
+ */
 interface PageHeaderProps {
   title: string
   description?: string

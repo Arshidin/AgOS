@@ -1,10 +1,13 @@
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
+import { MapPin } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { supabase } from '@/lib/supabase'
 
 export function RegionDirectory() {
+  useSetTopbar({ title: 'Регионы', titleIcon: <MapPin size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +22,6 @@ export function RegionDirectory() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Регионы</h1>
       {loading ? <Skeleton className="h-48 w-full" /> : (
         <Card><CardContent className="p-0">
           <table className="w-full text-sm">

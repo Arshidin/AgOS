@@ -6,7 +6,8 @@
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Package, Plus } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ const ST: Record<string, string> = {
 }
 
 export function PoolQueue() {
+  useSetTopbar({ title: 'Торговые пулы', titleIcon: <Package size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const navigate = useNavigate()
   const { organization } = useAuth()
@@ -102,7 +104,6 @@ export function PoolQueue() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Пул-запросы</h1>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Создать

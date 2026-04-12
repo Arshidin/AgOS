@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { Users, Stethoscope, Syringe, Activity, BarChart3, BookOpen, Shield, FileText, Package, DollarSign } from 'lucide-react'
-import { PageHeader } from '@/components/ui/page-header'
+import { Users, Stethoscope, Syringe, Activity, BarChart3, BookOpen, Shield, FileText, Package, DollarSign, LayoutDashboard } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { useAuth } from '@/hooks/useAuth'
 
 interface DashCard {
@@ -111,13 +111,11 @@ function DashboardCard({ card, onClick }: { card: DashCard; onClick: () => void 
 export function AdminDashboard() {
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
+  useSetTopbar({ title: 'Панель управления', titleIcon: <LayoutDashboard size={15} /> })
 
   return (
     <div className="page space-y-8">
-      <PageHeader
-        title="Панель управления"
-        description={isAdmin ? 'Администрирование TURAN' : 'Консоль эксперта TURAN'}
-      />
+      <p className="text-sm text-[var(--fg2)] mb-6">{isAdmin ? 'Администрирование TURAN' : 'Консоль эксперта TURAN'}</p>
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-[var(--fg2)] uppercase tracking-wider">

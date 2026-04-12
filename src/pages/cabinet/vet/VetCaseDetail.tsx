@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, AlertTriangle, Clock, Shield } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertTriangle, Clock, Shield, Stethoscope } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PageHeader } from '@/components/ui/page-header'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { StatusBadge, SeverityBadge } from '@/components/ui/status-badge'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -70,6 +70,7 @@ export function VetCaseDetail() {
   const { caseId } = useParams<{ caseId: string }>()
   const { organization } = useAuth()
   const navigate = useNavigate()
+  useSetTopbar({ title: 'Ветеринарный случай', titleIcon: <Stethoscope size={15} /> })
 
   const [vetCase, setVetCase] = useState<VetCaseData | null>(null)
   const [aiMessages, setAiMessages] = useState<Array<{role: string; content_text: string; created_at: string}>>([])
@@ -177,7 +178,7 @@ export function VetCaseDetail() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <PageHeader title="Ветеринарный случай" />
+            <h1 className="text-lg font-semibold">Ветеринарный случай</h1>
             <div className="flex items-center gap-2">
               <StatusBadge status={vetCase.status} />
               <SeverityBadge severity={vetCase.severity} />

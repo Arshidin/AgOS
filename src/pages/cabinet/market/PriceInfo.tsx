@@ -5,7 +5,8 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, DollarSign } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,6 +20,7 @@ interface PriceRow {
 const DISCLAIMER = 'Справочные цены являются индикативными рыночными ориентирами и не являются обязательными для применения. Участие добровольное.'
 
 export function PriceInfo() {
+  useSetTopbar({ title: 'Справочные цены', titleIcon: <DollarSign size={15} /> })
   const navigate = useNavigate()
   const [prices, setPrices] = useState<PriceRow[]>([])
   const [loading, setLoading] = useState(true)

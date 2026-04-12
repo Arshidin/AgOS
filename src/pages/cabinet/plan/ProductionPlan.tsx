@@ -4,7 +4,8 @@
  * RPC: rpc_get_active_plan (RPC-37)
  */
 import { useNavigate } from 'react-router-dom'
-import { ListChecks, Clock, BarChart3, ChevronRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ListChecks, Clock, BarChart3, ChevronRight, ClipboardList } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ProductionPlan() {
+  useSetTopbar({ title: 'Производственный план', titleIcon: <ClipboardList size={15} /> })
   const navigate = useNavigate()
   const { organization, farm } = useAuth()
 

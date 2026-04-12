@@ -6,7 +6,8 @@
  */
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Stethoscope } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +23,7 @@ export function CaseConsultation() {
   const navigate = useNavigate()
   const { caseId } = useParams()
   const { organization, userContext } = useAuth()
+  useSetTopbar({ title: 'Консультация', titleIcon: <Stethoscope size={15} /> })
   const [showDiagForm, setShowDiagForm] = useState(false)
   const [diagText, setDiagText] = useState('')
   const [diagConfidence, setDiagConfidence] = useState('70')

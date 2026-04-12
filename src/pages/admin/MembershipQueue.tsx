@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Inbox } from 'lucide-react'
+import { Inbox, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PageHeader } from '@/components/ui/page-header'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { StatusBadge } from '@/components/ui/status-badge'
 
 /**
@@ -83,6 +83,7 @@ function relativeDate(dateStr: string): string {
 export function MembershipQueue() {
   const navigate = useNavigate()
   const { organization } = useAuth()
+  useSetTopbar({ title: 'Заявки на членство', titleIcon: <Users size={15} /> })
   const [statusFilter, setStatusFilter] = useState<string | null>('submitted')
   const [page, setPage] = useState(1)
 
@@ -103,14 +104,12 @@ export function MembershipQueue() {
 
   return (
     <div className="page space-y-5">
-      {/* Header */}
-      <PageHeader title="Заявки на членство" actions={
-        totalCount > 0 ? (
-          <span className="px-2 py-0.5 text-[var(--blue)] rounded-full text-xs font-medium" style={{ background: 'rgba(69,113,184,0.12)' }}>
-            {totalCount}
-          </span>
-        ) : undefined
-      } />
+      {/* Count badge */}
+      {totalCount > 0 && (
+        <span className="px-2 py-0.5 text-[var(--blue)] rounded-full text-xs font-medium" style={{ background: 'rgba(69,113,184,0.12)' }}>
+          {totalCount}
+        </span>
+      )}
 
       {/* Status filter tabs */}
       <div className="flex gap-1 bg-[var(--bg-s)] p-1 rounded-lg overflow-x-auto">

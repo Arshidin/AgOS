@@ -5,7 +5,8 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, Check, ClipboardList } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ function relativeDays(dateStr: string): string {
 }
 
 export function TaskList() {
+  useSetTopbar({ title: 'Задачи', titleIcon: <ClipboardList size={15} /> })
   const navigate = useNavigate()
   const { organization, farm, userContext } = useAuth()
   const [activeTab, setActiveTab] = useState('upcoming')

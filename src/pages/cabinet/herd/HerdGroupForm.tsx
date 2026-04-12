@@ -6,7 +6,8 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Loader2, Fence } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +24,7 @@ interface AnimalCategory {
 }
 
 export function HerdGroupForm() {
+  useSetTopbar({ title: 'Группа стада', titleIcon: <Fence size={15} /> })
   const navigate = useNavigate()
   const { groupId } = useParams()
   const isEdit = !!groupId

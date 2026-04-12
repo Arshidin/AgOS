@@ -1,15 +1,17 @@
 import { useAdminGuard } from '@/hooks/useAdminGuard'
+import { Settings } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 
 export function SystemSettings() {
+  useSetTopbar({ title: 'Настройки', titleIcon: <Settings size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   if (adminChecking) return <div className="page">Проверка доступа...</div>
   if (!isAdmin) return null
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Системные настройки</h1>
       <Card>
         <CardHeader><CardTitle className="text-lg">Статус платформы</CardTitle></CardHeader>
         <CardContent className="space-y-3">

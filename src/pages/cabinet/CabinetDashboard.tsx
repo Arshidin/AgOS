@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { Stethoscope, Leaf, ChevronRight } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Stethoscope, Leaf, ChevronRight, LayoutDashboard } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function CabinetDashboard() {
+  useSetTopbar({ title: 'Главная', titleIcon: <LayoutDashboard size={15} /> })
   const { userContext, isContextLoading } = useAuth()
   const navigate = useNavigate()
 
@@ -23,9 +25,7 @@ export function CabinetDashboard() {
   return (
     <div className="page">
       <div className="mb-6">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
-          {orgName}
-        </h1>
+        <p className="text-base font-semibold text-foreground">{orgName}</p>
         <p className="text-sm mt-1 text-[var(--fg2)]">
           Добро пожаловать в кабинет фермера
         </p>

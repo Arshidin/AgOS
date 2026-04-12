@@ -8,7 +8,8 @@
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Package } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ const NEXT_STATUS: Record<string, string> = {
 }
 
 export function PoolDetail() {
+  useSetTopbar({ title: 'Детали пула', titleIcon: <Package size={15} /> })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const navigate = useNavigate()
   const { poolId } = useParams()
@@ -74,7 +76,6 @@ export function PoolDetail() {
     <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/pools')}><ArrowLeft className="h-5 w-5" /></Button>
-        <h1 className="text-2xl font-semibold">Пул</h1>
         <Badge>{pool.status}</Badge>
       </div>
 

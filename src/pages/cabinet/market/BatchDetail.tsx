@@ -4,7 +4,8 @@
  * RPCs: rpc_publish_batch (RPC-10), rpc_cancel_batch (RPC-11), rpc_get_price_for_sku (RPC-17)
  */
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { ArrowLeft, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export function BatchDetail() {
+  useSetTopbar({ title: 'Детали партии', titleIcon: <ShoppingCart size={15} /> })
   const navigate = useNavigate()
   const { batchId } = useParams()
   const { organization } = useAuth()

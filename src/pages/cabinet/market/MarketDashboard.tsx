@@ -4,7 +4,8 @@
  * RPCs: rpc_get_org_batches (AI-19, d07), rpc_get_market_summary (RPC-18, d02)
  */
 import { useNavigate } from 'react-router-dom'
-import { Plus, ChevronRight, TrendingUp } from 'lucide-react'
+import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { Plus, ChevronRight, TrendingUp, ShoppingCart } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
 }
 
 export function MarketDashboard() {
+  useSetTopbar({ title: 'Рынок', titleIcon: <ShoppingCart size={15} /> })
   const navigate = useNavigate()
   const { organization } = useAuth()
 
