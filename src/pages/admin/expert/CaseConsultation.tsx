@@ -53,7 +53,6 @@ export function CaseConsultation() {
     <div className="page space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/expert/queue')}><ArrowLeft className="h-5 w-5" /></Button>
-        <h1 className="text-2xl font-semibold">Кейс</h1>
         <Badge variant={c.status === 'resolved' ? 'outline' : 'default'}>{c.status}</Badge>
         {c.severity && <Badge className="text-xs">{c.severity}</Badge>}
       </div>

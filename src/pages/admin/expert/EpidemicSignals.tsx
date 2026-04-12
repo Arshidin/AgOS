@@ -41,7 +41,6 @@ export function EpidemicSignals() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Эпидемиология</h1>
       {loading ? <Skeleton className="h-32 w-full" /> : signals.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">Нет активных сигналов</CardContent></Card>
       ) : (

@@ -71,12 +71,9 @@ export function CascadePreview() {
 
   return (
     <div className="page space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-semibold">Сдвиг фаз</h1>
-      </div>
+      <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
+        <ArrowLeft className="h-5 w-5" />
+      </Button>
 
       <Card>
         <CardHeader>

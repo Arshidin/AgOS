@@ -33,10 +33,7 @@ export function PriceInfo() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/market')}><ArrowLeft className="h-5 w-5" /></Button>
-        <h1 className="text-2xl font-semibold">Справочные цены</h1>
-      </div>
+      <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/market')}><ArrowLeft className="h-5 w-5" /></Button>
 
       {/* Disclaimer — ALWAYS visible (Article 171) */}
       <Card className="border-amber-500/30 bg-amber-50/50">

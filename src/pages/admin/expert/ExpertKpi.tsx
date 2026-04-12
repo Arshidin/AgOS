@@ -33,7 +33,6 @@ export function ExpertKpi() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Мои показатели</h1>
       <div className="grid grid-cols-2 gap-4">
         <Card><CardContent className="p-5 text-center">
           <div className="text-3xl font-bold">{stats?.total_consultations ?? 0}</div>

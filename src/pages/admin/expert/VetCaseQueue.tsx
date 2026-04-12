@@ -51,7 +51,6 @@ export function VetCaseQueue() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Ветеринарные кейсы</h1>
       <div className="flex gap-2">
         {[{ key: 'active', label: 'Активные' }, { key: 'resolved', label: 'Закрытые' }, { key: 'all', label: 'Все' }].map(f => (
           <Button key={f.key} variant={statusFilter === f.key ? 'default' : 'outline'} size="sm"

@@ -58,7 +58,6 @@ export function HerdOverview() {
   if (!farm) {
     return (
       <div className="page">
-        <h1 className="text-2xl font-semibold mb-4">Моё стадо</h1>
         <Card><CardContent className="p-8 text-center">
           <p className="text-muted-foreground mb-4">Сначала создайте ферму</p>
           <Button variant="outline" onClick={() => navigate('/cabinet/farm')}>Создать ферму</Button>
@@ -80,14 +79,11 @@ export function HerdOverview() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Моё стадо</h1>
-          {totalHeads > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Всего: {totalHeads} голов в {groups.length} группах
-            </p>
-          )}
-        </div>
+        {totalHeads > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Всего: {totalHeads} голов в {groups.length} группах
+          </p>
+        )}
         <Button onClick={() => navigate('/cabinet/herd/add')}>
           <Plus className="mr-2 h-4 w-4" />
           Добавить группу

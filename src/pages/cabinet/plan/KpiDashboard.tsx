@@ -49,10 +49,7 @@ export function KpiDashboard() {
   if (!data) {
     return (
       <div className="page">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}><ArrowLeft className="h-5 w-5" /></Button>
-          <h1 className="text-2xl font-semibold">Показатели</h1>
-        </div>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}><ArrowLeft className="h-5 w-5" /></Button>
         <Card className="mt-4"><CardContent className="p-8 text-center text-muted-foreground">Нет показателей — план не создан</CardContent></Card>
       </div>
     )
@@ -62,12 +59,9 @@ export function KpiDashboard() {
 
   return (
     <div className="page space-y-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-semibold">Показатели</h1>
-      </div>
+      <Button variant="ghost" size="icon" onClick={() => navigate('/cabinet/plan')}>
+        <ArrowLeft className="h-5 w-5" />
+      </Button>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">

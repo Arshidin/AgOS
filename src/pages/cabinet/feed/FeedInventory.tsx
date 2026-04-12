@@ -61,7 +61,6 @@ export function FeedInventory() {
   if (!farm) {
     return (
       <div className="page">
-        <h1 className="text-2xl font-semibold mb-4">Запасы кормов</h1>
         <Card><CardContent className="p-8 text-center">
           <p className="text-muted-foreground mb-4">Сначала создайте ферму</p>
           <Button variant="outline" onClick={() => navigate('/cabinet/farm')}>Создать ферму</Button>
@@ -83,14 +82,11 @@ export function FeedInventory() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Запасы кормов</h1>
-          {items.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {items.length} видов · {formatKg(totalKg)}
-            </p>
-          )}
-        </div>
+        {items.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {items.length} видов · {formatKg(totalKg)}
+          </p>
+        )}
         <Button onClick={() => navigate('/cabinet/feed/add')}>
           <Plus className="mr-2 h-4 w-4" />
           Добавить корм

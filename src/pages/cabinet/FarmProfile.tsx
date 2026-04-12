@@ -287,22 +287,9 @@ export function FarmProfile() {
   if (!farm || isCreating) {
     return (
       <div className="page">
-        <div className="flex items-start gap-4 mb-8">
-          <div
-            className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-base font-semibold select-none"
-            style={{ background: 'var(--bg-m)', color: 'var(--fg3)' }}
-          >
-            Ф
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--fg)' }}>
-              Создать ферму
-            </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--fg2)' }}>
-              Добавьте информацию о вашем хозяйстве
-            </p>
-          </div>
-        </div>
+        <p className="text-sm mb-6" style={{ color: 'var(--fg2)' }}>
+          Добавьте информацию о вашем хозяйстве
+        </p>
 
         <div className="space-y-4">
           <div>
@@ -383,9 +370,9 @@ export function FarmProfile() {
             <div className="flex-1 min-w-0">
               {/* Name + pencil + badge */}
               <div className="flex items-center gap-2 flex-wrap mb-2">
-                <h1 className="text-lg font-bold tracking-tight" style={{ color: 'var(--fg)' }}>
+                <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--fg)' }}>
                   {farm.name}
-                </h1>
+                </span>
                 <button
                   onClick={openSheet}
                   title="Переименовать ферму"

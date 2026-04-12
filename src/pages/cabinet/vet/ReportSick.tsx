@@ -131,11 +131,8 @@ export function ReportSick() {
   return (
     <div className="page space-y-5">
 
-      {/* Page title */}
-      <div>
-        <h1 className="text-xl font-semibold text-[var(--fg)] tracking-tight">Сообщить о болезни</h1>
-        <p className="text-sm text-[var(--fg2)] mt-0.5">AI проанализирует симптомы и предложит рекомендации</p>
-      </div>
+      {/* Subtitle */}
+      <p className="text-sm text-[var(--fg2)]">AI проанализирует симптомы и предложит рекомендации</p>
 
       {/* No farms warning */}
       {noFarms && (

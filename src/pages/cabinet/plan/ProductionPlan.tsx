@@ -67,7 +67,6 @@ export function ProductionPlan() {
   if (!data) {
     return (
       <div className="page">
-        <h1 className="text-2xl font-semibold mb-4">Мой план на сезон</h1>
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground mb-2">
@@ -87,8 +86,6 @@ export function ProductionPlan() {
 
   return (
     <div className="page space-y-6">
-      <h1 className="text-2xl font-semibold">Мой план на сезон</h1>
-
       {/* Plan card */}
       <Card>
         <CardContent className="p-5">

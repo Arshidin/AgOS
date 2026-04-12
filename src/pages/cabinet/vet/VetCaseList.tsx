@@ -67,14 +67,11 @@ export function VetCaseList() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Ветеринарные случаи</h1>
-          {cases.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {cases.length} активных обращений
-            </p>
-          )}
-        </div>
+        {cases.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {cases.length} активных обращений
+          </p>
+        )}
         <Button onClick={() => navigate('/cabinet/vet/new')}>
           <Plus className="mr-2 h-4 w-4" />
           Сообщить о болезни

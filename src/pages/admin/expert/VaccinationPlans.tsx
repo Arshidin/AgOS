@@ -41,7 +41,6 @@ export function VaccinationPlans() {
   return (
     <div className="page space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Планы вакцинации</h1>
         <Button><Plus className="mr-2 h-4 w-4" />Создать план</Button>
       </div>
       {loading ? <Skeleton className="h-32 w-full" /> : plans.length === 0 ? (
