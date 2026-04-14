@@ -8,10 +8,10 @@
  *   3. Нормы кормления (feed_consumption_norms per farm_type + category + season)
  */
 import { useState } from 'react'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
 import { useSetTopbar } from '@/components/layout/TopbarContext'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Pencil, CheckCircle, Circle, FlaskConical } from 'lucide-react'
+import { Plus, Pencil, FlaskConical } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -65,6 +65,20 @@ const SEASON_LABELS: Record<string, string> = {
   transition: 'Переходный',
 }
 
+/* ── Avatar palette (same as ConsultingDashboard) ── */
+const AVATAR_COLORS = [
+  { bg: 'hsl(240 40% 93%)', text: 'hsl(240 50% 38%)' },
+  { bg: 'hsl(280 35% 93%)', text: 'hsl(280 45% 38%)' },
+  { bg: 'hsl(145 40% 90%)', text: 'hsl(145 48% 28%)' },
+  { bg: 'hsl(32 55% 90%)',  text: 'hsl(32 55% 32%)' },
+  { bg: 'hsl(0 38% 92%)',   text: 'hsl(0 45% 38%)' },
+  { bg: 'hsl(190 42% 90%)', text: 'hsl(190 48% 28%)' },
+]
+function avatarStyle(name: string) {
+  const hash = (name || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]!
+}
+
 const NUTRIENTS = [
   { key: 'dm_pct', label: 'СВ %' },
   { key: 'me_mj_per_kg_dm', label: 'ОЭ МДж/кг' },
@@ -76,43 +90,40 @@ const NUTRIENTS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+const FEEDS_TABS = [
+  { label: 'Каталог кормов',   path: '/admin/feeds/catalog' },
+  { label: 'Цены',             path: '/admin/feeds/prices' },
+  { label: 'Нормы кормления',  path: '/admin/feeds/norms' },
+]
+
 export function FeedReferenceAdmin() {
-  useSetTopbar({ title: 'Кормовая база', titleIcon: <FlaskConical size={15} /> })
+  const { pathname } = useLocation()
   const { isAdmin, checking } = useAdminGuard()
-  const [activeTab, setActiveTab] = useState<'catalog' | 'prices' | 'norms'>('catalog')
+
+  useSetTopbar({
+    title: 'Кормовая база',
+    titleIcon: <FlaskConical size={15} />,
+    tabs: FEEDS_TABS,
+  })
 
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null
 
-  return (
-    <div className="page space-y-4">
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border">
-        {(['catalog', 'prices', 'norms'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {{ catalog: 'Каталог кормов', prices: 'Цены', norms: 'Нормы кормления' }[tab]}
-          </button>
-        ))}
-      </div>
+  // Redirect bare /admin/feeds → /admin/feeds/catalog
+  if (pathname === '/admin/feeds' || pathname === '/admin/feeds/') {
+    return <Navigate to="/admin/feeds/catalog" replace />
+  }
 
-      {activeTab === 'catalog' && <CatalogTab />}
-      {activeTab === 'prices' && <PricesTab />}
-      {activeTab === 'norms' && <NormsTab />}
+  return (
+    <div key={pathname} className="tab-content">
+      <Outlet />
     </div>
   )
 }
 
 // ─── Tab 1: Catalog ───────────────────────────────────────────────────────────
 
-function CatalogTab() {
+export function CatalogTab() {
   const [search, setSearch] = useState('')
   const [editItem, setEditItem] = useState<FeedItem | null>(null)
   const [showCreate, setShowCreate] = useState(false)
@@ -123,67 +134,120 @@ function CatalogTab() {
     !search || i.name_ru.toLowerCase().includes(search.toLowerCase()) || i.code.toLowerCase().includes(search.toLowerCase())
   )
 
+  const COL = 'minmax(220px,2fr) 110px 150px 70px 70px 70px 140px 44px'
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
+    <div className="page space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2">
         <Input
           placeholder="Поиск по названию или коду..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="max-w-xs h-8 text-[13px]"
         />
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Добавить корм
+        <Button
+          size="sm"
+          onClick={() => setShowCreate(true)}
+          className="ml-auto h-7 px-3 text-[12px] font-medium"
+        >
+          <Plus className="mr-1.5 h-3 w-3" /> Добавить корм
         </Button>
       </div>
 
       {isLoading ? <Skeleton className="h-64 w-full" /> : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="p-3">Код</th>
-                    <th className="p-3">Название</th>
-                    <th className="p-3">Категория</th>
-                    <th className="p-3 text-center">СВ%</th>
-                    <th className="p-3 text-center">ОЭ</th>
-                    <th className="p-3 text-center">СП%</th>
-                    <th className="p-3 text-center">Валид.</th>
-                    <th className="p-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Нет данных</td></tr>
-                  ) : filtered.map(item => (
-                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="p-3 font-mono text-xs text-muted-foreground">{item.code}</td>
-                      <td className="p-3 font-medium">{item.name_ru}</td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-xs">{item.category_name_ru}</Badge>
-                      </td>
-                      <td className="p-3 text-center text-xs">{item.nutrient_composition?.dm_pct ?? '—'}</td>
-                      <td className="p-3 text-center text-xs">{item.nutrient_composition?.me_mj_per_kg_dm ?? '—'}</td>
-                      <td className="p-3 text-center text-xs">{item.nutrient_composition?.cp_pct_dm ?? '—'}</td>
-                      <td className="p-3 text-center">
-                        {item.is_validated
-                          ? <CheckCircle className="w-4 h-4 text-green-500 mx-auto" />
-                          : <Circle className="w-4 h-4 text-muted-foreground mx-auto" />}
-                      </td>
-                      <td className="p-3">
-                        <Button variant="ghost" size="icon" onClick={() => setEditItem(item)}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="flex flex-col border border-border/60 rounded-[8px] overflow-hidden bg-background">
+          {/* Header row */}
+          <div
+            className="grid border-b border-border/60 bg-muted/40"
+            style={{ gridTemplateColumns: COL }}
+          >
+            {[
+              { label: 'Название' },
+              { label: 'Код' },
+              { label: 'Категория' },
+              { label: 'СВ %', right: true },
+              { label: 'ОЭ',   right: true },
+              { label: 'СП %', right: true },
+              { label: 'Статус' },
+              { label: '' },
+            ].map((h, i) => (
+              <div
+                key={i}
+                className={`h-[34px] px-3 flex items-center text-[11px] font-medium border-r border-border/60 last:border-r-0 ${h.right ? 'justify-end' : ''}`}
+                style={{ color: 'var(--fg2)' }}
+              >
+                {h.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          {filtered.length === 0 ? (
+            <div className="h-[120px] flex items-center justify-center text-[13px]" style={{ color: 'var(--fg3)' }}>
+              {search ? 'Ничего не найдено' : 'Нет кормов в справочнике'}
             </div>
-          </CardContent>
-        </Card>
+          ) : filtered.map(item => {
+            const av = avatarStyle(item.name_ru)
+            return (
+              <div
+                key={item.id}
+                onClick={() => setEditItem(item)}
+                className="grid border-b border-border/60 cursor-pointer hover:bg-muted/40 transition-colors group last:border-b-0"
+                style={{ gridTemplateColumns: COL }}
+              >
+                {/* Название */}
+                <div className="h-[38px] px-3 flex items-center gap-2 border-r border-border/60 min-w-0">
+                  <div
+                    className="w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+                    style={{ background: av.bg, color: av.text }}
+                  >
+                    {item.name_ru.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-[13px] font-medium truncate">{item.name_ru}</span>
+                </div>
+
+                {/* Код */}
+                <div className="h-[38px] px-3 flex items-center border-r border-border/60 font-mono text-[11px]" style={{ color: 'var(--fg3)' }}>
+                  {item.code}
+                </div>
+
+                {/* Категория */}
+                <div className="h-[38px] px-3 flex items-center border-r border-border/60">
+                  <Badge variant="outline" className="text-[11px] font-normal">
+                    {item.category_name_ru}
+                  </Badge>
+                </div>
+
+                {/* СВ */}
+                <div className="h-[38px] px-3 flex items-center justify-end border-r border-border/60 text-[12px] tabular-nums" style={{ color: 'var(--fg2)' }}>
+                  {item.nutrient_composition?.dm_pct ?? '—'}
+                </div>
+                {/* ОЭ */}
+                <div className="h-[38px] px-3 flex items-center justify-end border-r border-border/60 text-[12px] tabular-nums" style={{ color: 'var(--fg2)' }}>
+                  {item.nutrient_composition?.me_mj_per_kg_dm ?? '—'}
+                </div>
+                {/* СП */}
+                <div className="h-[38px] px-3 flex items-center justify-end border-r border-border/60 text-[12px] tabular-nums" style={{ color: 'var(--fg2)' }}>
+                  {item.nutrient_composition?.cp_pct_dm ?? '—'}
+                </div>
+
+                {/* Статус */}
+                <div className="h-[38px] px-3 flex items-center gap-1.5 border-r border-border/60">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.is_validated ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  <span className="text-[12px]" style={{ color: 'var(--fg2)' }}>
+                    {item.is_validated ? 'Валидирован' : 'Черновик'}
+                  </span>
+                </div>
+
+                {/* Edit icon */}
+                <div className="h-[38px] flex items-center justify-center">
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--fg3)' }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
 
       <FeedItemDialog
@@ -323,7 +387,7 @@ interface FeedPrice {
 
 // ─── Tab 2: Prices ────────────────────────────────────────────────────────────
 
-function PricesTab() {
+export function PricesTab() {
   const [selectedItem, setSelectedItem] = useState<string>('')
   const [showForm, setShowForm] = useState(false)
   const [price, setPrice] = useState('')
@@ -363,54 +427,104 @@ function PricesTab() {
     setShowForm(true)
   }
 
+  const COL = 'minmax(220px,2fr) 130px 160px 130px 44px'
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Цены кормов (тенге/кг). Регион = null → общегосударственная цена.</p>
-        <Button size="sm" onClick={() => { setSelectedItem(''); setPrice(''); setShowForm(true) }}>
-          <Plus className="w-4 h-4 mr-1" /> Установить цену
+    <div className="page space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2">
+        <p className="text-[12px]" style={{ color: 'var(--fg3)' }}>
+          Цены кормов (тенге/кг). Регион = null → общегосударственная цена.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => { setSelectedItem(''); setPrice(''); setShowForm(true) }}
+          className="ml-auto h-7 px-3 text-[12px] font-medium"
+        >
+          <Plus className="mr-1.5 h-3 w-3" /> Установить цену
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-3">Корм</th>
-                  <th className="p-3">Код</th>
-                  <th className="p-3 text-right">Цена (тенге/кг)</th>
-                  <th className="p-3">Действует с</th>
-                  <th className="p-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {(items || []).length === 0 ? (
-                  <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Нет кормов в каталоге</td></tr>
-                ) : (items || []).map(item => {
-                  const p = priceMap.get(item.id)
-                  return (
-                    <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="p-3 font-medium">{item.name_ru}</td>
-                      <td className="p-3 font-mono text-xs text-muted-foreground">{item.code}</td>
-                      <td className="p-3 text-right font-medium">
-                        {p ? `${p.price_per_kg.toLocaleString('ru-RU')} ₸` : <span className="text-muted-foreground text-xs">не задана</span>}
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground">{p?.valid_from ?? '—'}</td>
-                      <td className="p-3">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item.id)}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      <div className="flex flex-col border border-border/60 rounded-[8px] overflow-hidden bg-background">
+        {/* Header row */}
+        <div className="grid border-b border-border/60 bg-muted/40" style={{ gridTemplateColumns: COL }}>
+          {[
+            { label: 'Корм' },
+            { label: 'Код' },
+            { label: 'Цена, ₸/кг', right: true },
+            { label: 'Действует с' },
+            { label: '' },
+          ].map((h, i) => (
+            <div
+              key={i}
+              className={`h-[34px] px-3 flex items-center text-[11px] font-medium border-r border-border/60 last:border-r-0 ${h.right ? 'justify-end' : ''}`}
+              style={{ color: 'var(--fg2)' }}
+            >
+              {h.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Rows */}
+        {(items || []).length === 0 ? (
+          <div className="h-[120px] flex items-center justify-center text-[13px]" style={{ color: 'var(--fg3)' }}>
+            Нет кормов в каталоге
           </div>
-        </CardContent>
-      </Card>
+        ) : (items || []).map(item => {
+          const p = priceMap.get(item.id)
+          const av = avatarStyle(item.name_ru)
+          return (
+            <div
+              key={item.id}
+              onClick={() => openEdit(item.id)}
+              className="grid border-b border-border/60 cursor-pointer hover:bg-muted/40 transition-colors group last:border-b-0"
+              style={{ gridTemplateColumns: COL }}
+            >
+              {/* Корм */}
+              <div className="h-[38px] px-3 flex items-center gap-2 border-r border-border/60 min-w-0">
+                <div
+                  className="w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+                  style={{ background: av.bg, color: av.text }}
+                >
+                  {item.name_ru.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-[13px] font-medium truncate">{item.name_ru}</span>
+              </div>
+
+              {/* Код */}
+              <div className="h-[38px] px-3 flex items-center border-r border-border/60 font-mono text-[11px]" style={{ color: 'var(--fg3)' }}>
+                {item.code}
+              </div>
+
+              {/* Цена */}
+              <div className="h-[38px] px-3 flex items-center justify-end border-r border-border/60 tabular-nums">
+                {p ? (
+                  <span className="text-[13px] font-medium">
+                    {p.price_per_kg.toLocaleString('ru-RU')} ₸
+                  </span>
+                ) : (
+                  <span className="text-[12px]" style={{ color: 'var(--fg3)' }}>не задана</span>
+                )}
+              </div>
+
+              {/* Действует с */}
+              <div className="h-[38px] px-3 flex items-center border-r border-border/60 text-[12px]" style={{ color: 'var(--fg2)' }}>
+                {p?.valid_from ?? '—'}
+              </div>
+
+              {/* Edit icon */}
+              <div className="h-[38px] flex items-center justify-center">
+                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--fg3)' }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Article 171 disclaimer (D-UI-PRICE-01) */}
+      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--fg3)' }}>
+        Цены носят справочный характер. ТОО ТУРАН не является стороной торговых сделок (ст. 171 Предпринимательского кодекса РК).
+      </p>
 
       <Dialog open={showForm} onOpenChange={v => !v && setShowForm(false)}>
         <DialogContent>
@@ -452,7 +566,7 @@ function PricesTab() {
 
 // ─── Tab 3: Consumption Norms ─────────────────────────────────────────────────
 
-function NormsTab() {
+export function NormsTab() {
   const [filterFarmType, setFilterFarmType] = useState('beef_reproducer')
   const [showForm, setShowForm] = useState(false)
   const [editNorm, setEditNorm] = useState<FeedConsumptionNorm | null>(null)
@@ -469,11 +583,14 @@ function NormsTab() {
   const getFeedName = (id: string) =>
     feedItems?.find(f => f.id === id)?.name_ru ?? id.slice(0, 8)
 
+  const COL = 'minmax(180px,1.2fr) 120px minmax(240px,2fr) 130px 44px'
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
+    <div className="page space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2">
         <Select value={filterFarmType} onValueChange={setFilterFarmType}>
-          <SelectTrigger className="w-52">
+          <SelectTrigger className="w-52 h-8 text-[13px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -482,59 +599,89 @@ function NormsTab() {
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" onClick={() => { setEditNorm(null); setShowForm(true) }}>
-          <Plus className="w-4 h-4 mr-1" /> Добавить норму
-        </Button>
-        <p className="text-xs text-muted-foreground ml-auto">
-          Нормы кормления (кг/день) для Python engine (feeding_model.py Priority 2)
+        <p className="text-[11px]" style={{ color: 'var(--fg3)' }}>
+          Нормы кормления (кг/день) → feeding_model.py Priority 2
         </p>
+        <Button
+          size="sm"
+          onClick={() => { setEditNorm(null); setShowForm(true) }}
+          className="ml-auto h-7 px-3 text-[12px] font-medium"
+        >
+          <Plus className="mr-1.5 h-3 w-3" /> Добавить норму
+        </Button>
       </div>
 
       {isLoading ? <Skeleton className="h-48 w-full" /> : (
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-3">Категория</th>
-                  <th className="p-3">Сезон</th>
-                  <th className="p-3">Корма (кол-во позиций)</th>
-                  <th className="p-3">Действует с</th>
-                  <th className="p-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {(!norms || norms.length === 0) ? (
-                  <tr>
-                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                      Нормы не заданы. Добавьте нормы кормления для {FARM_TYPE_LABELS[filterFarmType]}.
-                    </td>
-                  </tr>
-                ) : norms.map(norm => (
-                  <tr key={norm.id} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="p-3 font-medium">{getCategoryName(norm.animal_category_id)}</td>
-                    <td className="p-3">
-                      <Badge variant="secondary" className="text-xs">
-                        {SEASON_LABELS[norm.season]}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-sm text-muted-foreground">
-                      {norm.items.length} позиций · {norm.items.map(i =>
-                        `${getFeedName(i.feed_item_id)} ${i.kg_per_day}кг`
-                      ).slice(0, 2).join(', ')}{norm.items.length > 2 ? '...' : ''}
-                    </td>
-                    <td className="p-3 text-xs">{norm.valid_from}</td>
-                    <td className="p-3">
-                      <Button variant="ghost" size="icon" onClick={() => { setEditNorm(norm); setShowForm(true) }}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col border border-border/60 rounded-[8px] overflow-hidden bg-background">
+          {/* Header row */}
+          <div className="grid border-b border-border/60 bg-muted/40" style={{ gridTemplateColumns: COL }}>
+            {['Категория', 'Сезон', 'Корма', 'Действует с', ''].map((label, i) => (
+              <div
+                key={i}
+                className="h-[34px] px-3 flex items-center text-[11px] font-medium border-r border-border/60 last:border-r-0"
+                style={{ color: 'var(--fg2)' }}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {(!norms || norms.length === 0) ? (
+            <div className="h-[120px] flex items-center justify-center text-[13px] px-6 text-center" style={{ color: 'var(--fg3)' }}>
+              Нормы не заданы. Добавьте нормы кормления для {FARM_TYPE_LABELS[filterFarmType]}.
+            </div>
+          ) : norms.map(norm => {
+            const av = avatarStyle(getCategoryName(norm.animal_category_id))
+            return (
+              <div
+                key={norm.id}
+                onClick={() => { setEditNorm(norm); setShowForm(true) }}
+                className="grid border-b border-border/60 cursor-pointer hover:bg-muted/40 transition-colors group last:border-b-0"
+                style={{ gridTemplateColumns: COL }}
+              >
+                {/* Категория */}
+                <div className="h-[38px] px-3 flex items-center gap-2 border-r border-border/60 min-w-0">
+                  <div
+                    className="w-[22px] h-[22px] rounded-[5px] flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+                    style={{ background: av.bg, color: av.text }}
+                  >
+                    {getCategoryName(norm.animal_category_id).slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-[13px] font-medium truncate">
+                    {getCategoryName(norm.animal_category_id)}
+                  </span>
+                </div>
+
+                {/* Сезон */}
+                <div className="h-[38px] px-3 flex items-center border-r border-border/60">
+                  <Badge variant="secondary" className="text-[11px] font-normal">
+                    {SEASON_LABELS[norm.season]}
+                  </Badge>
+                </div>
+
+                {/* Корма */}
+                <div className="h-[38px] px-3 flex items-center border-r border-border/60 min-w-0">
+                  <span className="text-[12px] truncate" style={{ color: 'var(--fg2)' }}>
+                    <span className="font-medium" style={{ color: 'var(--fg)' }}>{norm.items.length}</span>
+                    {' · '}
+                    {norm.items.map(i => `${getFeedName(i.feed_item_id)} ${i.kg_per_day}кг`).slice(0, 2).join(', ')}
+                    {norm.items.length > 2 ? '…' : ''}
+                  </span>
+                </div>
+
+                {/* Действует с */}
+                <div className="h-[38px] px-3 flex items-center border-r border-border/60 text-[12px]" style={{ color: 'var(--fg2)' }}>
+                  {norm.valid_from}
+                </div>
+
+                {/* Edit icon */}
+                <div className="h-[38px] flex items-center justify-center">
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" style={{ color: 'var(--fg3)' }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {showForm && (
