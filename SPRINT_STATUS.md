@@ -13,7 +13,9 @@
 |-------|-----------|--------|-------|
 | ADR | ADR-ANIMAL-01 in DECISIONS_LOG + Dok 1 | ✅ Approved (2026-04-15) | 4-layer architecture (L1 canonical / L2 projections / L3 operational / L4 external), 7 invariants I1–I7, 4 lifecycle types, propagation ≤60s |
 | DB | M1: ALTER animal_categories + seed 6 axes (d01) | ✅ Done | purpose / physiological_state / age_band / status / deprecated_at / replaced_by_codes — 12 codes seeded |
-| DB | M2: animal_category_mappings + L2 seeds (d01) | ✅ Done | feeding_group (10), cfc_group (11, valid_to=2026-12-31), turnover_key (12), market_sex (6), market_age_group (9). EXCLUDE gist on daterange. |
+| DB | M2: animal_category_mappings + L2 seeds (d01) | ✅ Done | feeding_group (10+2), cfc_group (11+1, valid_to=2026-12-31), turnover_key (12+2), market_sex (9), market_age_group (6). EXCLUDE gist on daterange. |
+| QA | Gate audit post-M3a | ⚠️ FAIL → ✅ Fixed | 2 CRIT + 1 SIG found (non-deterministic resolve, RLS tautology, OX/MIXED unmapped). See M5 remediation. |
+| DB | M5: QA remediation (is_primary, RLS fix, OX/MIXED seeds) | ✅ Done | Added `is_primary boolean` + unique partial index; backfilled primaries; fixed ecm_read; seeded 5 L2 rows for OX/MIXED. |
 | DB | M3a: 6 RPCs + RLS + audit trigger (d01) | ✅ Done | rpc_list_animal_categories(date,bool), rpc_resolve_category, rpc_get_category_mappings, rpc_add/deprecate/migrate_animal_category |
 | DB | M4: external_category_mappings (d01) | ✅ Done | L4 bridge: global + org-scoped mappings with 2 partial unique indexes |
 | DB | DEF-TAXONOMY-01: duplicate rpc_list_animal_categories | ✅ Resolved (option D) | d01 canonical temporal overload + d03 legacy no-arg wrapper. @deprecated after M3c. Whitelist in cross_check.sh. |

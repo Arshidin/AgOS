@@ -5267,19 +5267,23 @@ language sql
 security definer
 set search_path = public, pg_temp
 as $$
+    -- CRITICAL-TAXONOMY-01 fix: deterministic pick when multiple active mappings exist
+    -- for the same (taxonomy, L1). is_primary=true marks the canonical target.
+    -- Tie-breakers: most recent valid_from, then target_code alphabetical.
     select m.target_code
     from public.animal_category_mappings m
     where m.animal_category_code = p_source_code
       and m.target_taxonomy      = p_target_taxonomy
       and m.valid_from <= p_at_date
       and (m.valid_to is null or m.valid_to >= p_at_date)
-    order by m.valid_from desc
+    order by m.is_primary desc, m.valid_from desc, m.target_code
     limit 1;
 $$;
 
 comment on function public.rpc_resolve_category(text, text, date) is
-    'ADR-ANIMAL-01: resolve L1 code → target taxonomy code at date. Returns NULL if no active mapping.
-     Note: if multiple mappings exist (e.g. feeding_group), returns the single target_code; use rpc_get_category_mappings for many-to-many.';
+    'ADR-ANIMAL-01: resolve L1 code → canonical target taxonomy code at date.
+     Returns the primary mapping if set; otherwise most recent. NULL if no active mapping.
+     For many-to-many queries (all targets for an L1), use rpc_get_category_mappings.';
 
 
 -- ------------------------------------------------------------
@@ -5567,10 +5571,12 @@ drop policy if exists "ecm_write_org"       on public.external_category_mappings
 create policy "ecm_read"
     on public.external_category_mappings for select
     using (
+        -- Global (org-less) rows: readable by everyone — they are association-level standard
         organization_id is null
+        -- Admins always read
         or public.fn_is_admin()
-        or organization_id in (select id from public.organizations where id = organization_id)
-        -- org-specific RLS read: same org
+        -- Org-scoped: only members of THAT organization (CRITICAL-TAXONOMY-02 fix:
+        -- prior version had a tautological subquery making all org rows world-readable).
         or exists (
             select 1 from public.memberships m
             where m.organization_id = external_category_mappings.organization_id
@@ -5678,6 +5684,100 @@ values
 on conflict (sql_name) do update
     set notes      = excluded.notes,
         created_in = excluded.created_in;
+
+-- ============================================================
+-- M5 — QA findings remediation (2026-04-15, post DB-gate QA)
+-- Addresses: CRITICAL-TAXONOMY-01 (is_primary), SIGNIFICANT-TAXONOMY-03 (OX/MIXED seed)
+-- CRITICAL-TAXONOMY-02 (RLS tautology) fixed in-place above.
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- M5.1 — Add is_primary to animal_category_mappings (CRITICAL-01)
+-- Deterministic tie-breaker for rpc_resolve_category when multiple
+-- mappings exist for the same (taxonomy, L1).
+-- ------------------------------------------------------------
+
+alter table public.animal_category_mappings
+    add column if not exists is_primary boolean not null default false;
+
+comment on column public.animal_category_mappings.is_primary is
+    'ADR-ANIMAL-01 CRITICAL-01 fix: marks canonical target for (taxonomy, L1) pair.
+     Must be exactly one is_primary=true per (taxonomy, L1) pair that has any mapping.
+     Used by rpc_resolve_category to pick deterministically.';
+
+-- Partial unique index: at most one primary per (taxonomy, L1, date-open).
+-- Only enforced for currently-open mappings (valid_to is null) to allow
+-- legacy deprecated rows to stay without violating the constraint.
+create unique index if not exists uq_acm_primary_per_source
+    on public.animal_category_mappings (target_taxonomy, animal_category_code)
+    where is_primary = true and valid_to is null;
+
+
+-- ------------------------------------------------------------
+-- M5.2 — Backfill primaries
+--
+-- Rule 1: if a (taxonomy, L1) pair has exactly ONE active row → that row is primary.
+-- Rule 2: for ambiguous pairs (>1 row), set primary on the canonical per ADR-ANIMAL-01:
+--   cfc_group    HEIFER_YOUNG → heifers_prev   (feeding_model.py:236)
+--   cfc_group    COW          → cows_12m       (feeding_model.py:238)
+--   turnover_key STEER        → steers         (herdCategoryMapping.ts:62)
+--   turnover_key BULL_CALF    → steers         (herdCategoryMapping.ts:61)
+-- ------------------------------------------------------------
+
+-- Rule 1: single-mapping pairs
+update public.animal_category_mappings m
+   set is_primary = true
+ where is_primary = false
+   and (m.valid_to is null or m.valid_to >= current_date)
+   and not exists (
+       select 1
+         from public.animal_category_mappings m2
+        where m2.id <> m.id
+          and m2.target_taxonomy     = m.target_taxonomy
+          and m2.animal_category_code = m.animal_category_code
+          and (m2.valid_to is null or m2.valid_to >= current_date)
+   );
+
+-- Rule 2: canonical rows for ambiguous pairs
+update public.animal_category_mappings
+   set is_primary = true
+ where is_primary = false
+   and (target_taxonomy, animal_category_code, target_code) in (
+       ('cfc_group',    'HEIFER_YOUNG', 'heifers_prev'),
+       ('cfc_group',    'COW',          'cows_12m'),
+       ('turnover_key', 'STEER',        'steers'),
+       ('turnover_key', 'BULL_CALF',    'steers')
+   );
+
+
+-- ------------------------------------------------------------
+-- M5.3 — Seed OX + MIXED mappings (SIGNIFICANT-TAXONOMY-03)
+-- Prevents NULL resolve for pre-existing L1 codes that lacked mappings.
+-- OX: semantically == castrated male cattle for meat → STEER feeding/turnover.
+-- MIXED: catch-all fallback → COW feeding (largest group), cows turnover.
+--   Marked primary for determinism; if farmers do use MIXED it resolves cleanly.
+-- ------------------------------------------------------------
+
+insert into public.animal_category_mappings
+    (target_taxonomy, target_code, animal_category_code, is_primary, notes)
+values
+    ('feeding_group', 'STEER',                'OX',    true, 'SIG-03: castrated male → STEER feeding group'),
+    ('feeding_group', 'COW',                  'MIXED', true, 'SIG-03: catch-all fallback to COW feeding'),
+    ('turnover_key',  'steers',               'OX',    true, 'SIG-03: OX accounted in steers turnover'),
+    ('turnover_key',  'cows',                 'MIXED', true, 'SIG-03: MIXED accounted in cows turnover'),
+    ('cfc_group',     'fattening_commercial', 'OX',    true, 'SIG-03: same as STEER in legacy CFC (deprecates 2026-12-31 anyway)')
+on conflict do nothing;
+
+-- Note: market_age_group intentionally NOT seeded for OX/MIXED —
+-- age is indeterminate for catch-all codes; rpc_get_category_mappings returns empty set.
+
+
+-- ------------------------------------------------------------
+-- M5.4 — I3 hardening in rpc_add_animal_category for future adds
+-- (no change to signature; the RPC body is already correct —
+--  this comment documents that is_primary=true should be set by admin UI
+--  when creating L2 rows via rpc_add_animal_category. Followup task for M3c.)
+-- ------------------------------------------------------------
 
 -- ============================================================
 -- END ADR-ANIMAL-01 SECTION
