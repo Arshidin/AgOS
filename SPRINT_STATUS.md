@@ -21,7 +21,7 @@
 | DB | DEF-TAXONOMY-01: duplicate rpc_list_animal_categories | ✅ Resolved (option D) | d01 canonical temporal overload + d03 legacy no-arg wrapper. @deprecated after M3c. Whitelist in cross_check.sh. |
 | DB | cross_check.sh | ✅ 0 / 0 / 0 | 2 new whitelist entries documented |
 | QA | Snapshot gate: rpc_resolve_category matches existing hardcodes 100% | 🟡 Pending | Critical gate before M3b — compare feeding_group output for all 12 L1 codes against feeding_model.py hardcodes |
-| Backend | M3b: feeding_model.py + compliance.py read via RPCs (feature flag) | 🔜 Next | Read-through cache, session-start load; switch by flag `TAXONOMY_RPC_READ=on` |
+| Backend | M3b: feeding_model.py + compliance.py read via RPCs (feature flag) | 🟡 In progress | `settings.taxonomy_rpc_read` flag + `app/engine/taxonomy_cache.py` (read-through) + `tests/test_taxonomy_snapshot.py` landed. Wiring into `_calc_from_rations` + ai_gateway + event-subscriber = follow-up once staging snapshot passes. |
 | UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | 🔜 After M3b | React Query staleTime=60s + `standards.animal_category.updated` event invalidation |
 | Architect | Dok 3 update: add 6 RPCs to catalog | 🔜 Pending | Separate Architect task |
 | Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
