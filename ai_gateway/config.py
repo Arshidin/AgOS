@@ -48,6 +48,14 @@ class Settings:
     # Role override timeout (Dok 5 §4.4 R-4)
     ROLE_OVERRIDE_TIMEOUT_MESSAGES: int = 5
 
+    # TAXONOMY-M3b (ADR-ANIMAL-01): when "on", tool schemas + extraction
+    # validation pull the canonical L1 code list via rpc_list_animal_categories
+    # at graph init, otherwise the hardcoded ANIMAL_CATEGORY_MAPPING keys are
+    # the source of truth. Default off until staging parity confirmed.
+    TAXONOMY_RPC_READ: bool = os.environ.get("TAXONOMY_RPC_READ", "").lower() in (
+        "1", "true", "on", "yes",
+    )
+
     def validate(self) -> list[str]:
         """Return list of missing required env vars."""
         missing = []
