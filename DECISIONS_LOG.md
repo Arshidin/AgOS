@@ -1184,3 +1184,212 @@ on conflict (sql_name) do update set notes = excluded.notes;
 - Risk: `<PageHeader>` component deprecated but not deleted (HS-5)
 - Files: all 59 page components under src/pages/, CLAUDE.md, page-header.tsx
 
+---
+
+### 2026-04-14: Herd turnover — устранение задвоения падежа + произвольный возраст реализации бычков
+
+**WHAT:**
+- `consulting_engine/app/engine/herd_turnover.py:132-135` — `calves_mort = 0.0`. Было: `-(HEIFER_MORTALITY_MONTHLY * 12 * new_calves[t])` — годовой 3% одним ударом на новый приплод.
+- `consulting_engine/app/engine/herd_turnover.py:253-261` — падёж бычков переведён на ежемесячный 0.25% × `steers_bop` с `mi > 17` (по паттерну тёлок и коров). Было: `-(0.03 * steers_from_calves[t])` — годовой 3% одним ударом на inflow.
+- `src/pages/admin/consulting/ProjectWizard.tsx` шаг «Бычки» — добавлено поле произвольного ввода `steer_sale_age_months` (number input, диапазон 6–24 мес.) рядом с 4 пресетами (0/7/12/18). Когортная логика продажи в движке (`herd_turnover.py:272-290`) принимает любое целое число без правок.
+
+**WHY (alternatives considered):**
+- Сравнение с эталонной моделью Zengi.Farm_Model (Excel «Operating Model» rows 50-105) показало, что приплод получал −3% при рождении, а потом те же животные в группах тёлок/бычков получали ещё −3%/год → суммарно ~6%/год вместо 3%.
+- Альтернатива «убрать ежемесячный, оставить разовый годовой удар» отвергнута: даёт скачки в графиках, неустойчивая картина.
+- Альтернатива «произвольный возраст реализации через поле — без пресетов» отвергнута: пресеты быстрее для типичных стратегий.
+
+**CONSEQUENCES:**
+- Easy: все группы теперь падают строго ≤3%/год (фактически ~2.96% из-за дискретного помесячного списания).
+- Easy: бычки помесячно «таят» вместе с тёлками — графики сглажены.
+- Easy: эксперт может задать любой возраст реализации (например, 9 или 15 мес.) — не ограничен жёсткими пресетами.
+- Hard/изменение: `heifers_eop` и `steers_eop` после первого отёла теперь ~69 (было ~67) — ближе к Excel. Сравнения старых cached-результатов с новыми будут расходиться — нужно пересчитать существующие проекты.
+- Files: `consulting_engine/app/engine/herd_turnover.py`, `src/pages/admin/consulting/ProjectWizard.tsx`
+- Связано с принципом P12 (Temporal Awareness) — падёж как явление времени, а не события рождения.
+
+
+---
+
+### 2026-04-14: ADR-FEED-05 — Simple = единственный writer, NASEM = advisor
+
+**WHAT:**
+- В Consulting-контексте `ration_versions` записи создаются **только** через Simple-редактор (`rpc_save_consulting_ration`, source=`simple_editor`).
+- NASEM-калькулятор разделяется на две advisor-функции:
+  1. **«Проверить баланс»** — читает текущий рацион группы из `ration_versions`, возвращает нутриентный отчёт (СВ/ME/СП/НДК/Ca/P: требуется, фактически, ∆). Ничего не пишет.
+  2. **«Подобрать»** — greedy solver по заданным параметрам, возвращает предлагаемый состав рациона для preview. Применение → **Replace** всей секции группы/сезона в UI-буфере. Save остаётся за Simple.
+- Edge Function `calculate-ration` получает параметр `mode: 'suggest' | 'save'`. Consulting использует `suggest` — не пишет `ration_versions`. Farm-контекст остаётся с `save`.
+
+**WHY (alternatives considered):**
+- Текущая модель: Simple и NASEM пишут в ту же `ration_versions` и конкурируют за `is_current` — два источника правды, рассинхрон в P&L.
+- Вариант «иерархия» (Simple=базовый, NASEM=per-category override) — отвергнут: завязан на незакрытый вопрос «5 vs 10 групп», усложняет engine резолвер, сохраняет два writer'а.
+- Вариант «унификация в одну сущность с двумя UI» — отвергнут: требует рефакторинга схемы + нарушает CEO-директиву «Simple оставляем как есть».
+- Выбран «помощник»: Simple — план, NASEM — инструмент. Один writer, два consumer'а advisor-функций.
+
+**CONSEQUENCES:**
+- Easy: однозначный ответ на вопрос «что реально кормят COW в проекте?» — одна запись, plain fields.
+- Easy: балансовый чекер работает автоматически на Simple (G3 закрыт) без отдельной кнопки NASEM.
+- Easy: частичное покрытие (G1) больше не возникает — Simple всегда заполняет 5 групп целиком.
+- Hard: существующие NASEM-рационы (`calculated_by='consulting_edge_function'`) остаются как legacy. Решение CEO: не мигрируем (тестовые проекты).
+- Hard: Edge Function calculate-ration получает новый режим — аддитивный параметр, farm-callers не ломаются.
+- Files to change (в будущих слайсах): `supabase/functions/calculate-ration/index.ts` (+mode), `src/pages/admin/consulting/tabs/RationTab.tsx` (NASEM-диалог → advisor-preview), `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx` (+ balance checker), `Docs/AGOS-Dok7-RationConsulting-Architecture.md` §10.
+- Принципы: P4 (One Source of Truth), P11 (Gradual Accumulation — Simple допускает неполный ввод, баланс non-blocking).
+
+---
+
+### 2026-04-14: ADR-FEED-06 — Сезонная модель рациона (pasture/stall)
+
+**WHAT:**
+- `ration_versions.results` меняет форму: плоский `total_cost_per_day` → структура с двумя секциями `pasture` и `stall`. Каждая секция содержит свой `items`, `total_cost_per_day`, `nutrients_met`, `deficiencies`, `solver_status`. Общие для пары: `calc_avg_weight_kg`, `calc_objective`, `source`.
+- Одна запись `ration_versions` = атомарная пара (pasture, stall). Save и версионирование — на пару, не на сезон.
+- Граница сезонов — **параметр проекта**, не хардкод: новые колонки `consulting_projects.pasture_start_month smallint default 5` и `pasture_end_month smallint default 10`. Аналогичные поля в `ProjectInput` (Pydantic).
+- Engine `feeding_model._calc_from_consulting_rations` для месяца `t`: `is_pasture = (pasture_start_month <= calendar_month(t) <= pasture_end_month)`, берёт `cpd = results.pasture.total_cost_per_day` или `results.stall.total_cost_per_day` соответственно.
+- `_is_pasture_month` в `feeding_model.py` больше не хардкодит 5..10 — читает параметры проекта.
+- **Legacy fallback:** если у ration_version нет `results.pasture` — engine читает плоский `total_cost_per_day` для всех месяцев (как до v1.1). Автомиграция не делается.
+- SimpleRationEditor `handleSave` — удаляется усреднение `avgKg = (pasture×183 + stall×182)/365`. Сохраняется две независимые секции.
+- Балансовый чекер работает отдельно для каждой секции — UI показывает два бейджа на строку группы.
+
+**WHY (alternatives considered):**
+- В Казахстане стадо в бимодальном режиме: пастбище (май–октябрь, green_mass ≈ 0 ₸/кг, ~200 ₸/гол/день) vs стойло (ноябрь–апрель, полноценный рацион, ~2340 ₸/гол/день). P&L обязан это видеть.
+- Текущее усреднение в SimpleRationEditor.handleSave теряет бимодальность — кормовой COGS размазан по году, сезонные впадины не видны финансовой модели.
+- Вариант «две отдельные row в `ration_versions` (pasture + stall)» — отвергнут: рассинхрон `is_current`, JOIN для получения группы целиком, неатомарный save.
+- Вариант «хардкод 5..10 в engine» — отвергнут: нарушает P8 (Standards as Data), не учитывает различия север/юг КЗ.
+- Вариант «дневная граница сезона» — отвергнут: ломает арифметику `days_in_month × heads × cpd`, CFC-Excel уже использует целомесячное назначение. Погрешность ≤30 дней/год зафиксирована как приемлемое допущение.
+
+**CONSEQUENCES:**
+- Easy: P&L теперь отражает реальность — два плато кормовых затрат, корректная финансовая модель.
+- Easy: Simple-редактор почти не меняется (колонки «Пастбище» / «Стойло» уже есть) — правится только `handleSave`.
+- Easy: балансовый чекер естественно разделяется по сезонам — нутриент-отчёт на каждый режим содержания.
+- Easy: северные и южные проекты задают свои границы без правок кода.
+- Hard: форма `results` меняется — нужен fallback для legacy-записей. Fallback реализован через проверку `results.pasture ?? flat total_cost_per_day`.
+- Hard: погрешность ≤30 дней/год на переходном месяце — задокументирована как осознанное допущение.
+- Files to change (в будущих слайсах): `consulting_engine/app/models/schemas.py` (+2 поля), `consulting_engine/app/engine/feeding_model.py` (_is_pasture_month читает из enriched_input; _calc_from_consulting_rations — сезонный cpd + legacy fallback), `d09_consulting.sql` (+2 колонки), `src/pages/admin/consulting/ProjectWizard.tsx` (+2 поля в блоке «Кормление»), `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx` (handleSave переписывается), `Docs/AGOS-Dok7-RationConsulting-Architecture.md` §9.
+- Принципы: P5 (Design for the Physical World — бимодальность реальна), P6 (Explicit Over Implicit — граница параметризована), P7 (Additive — аддитивно для schema и form), P8 (Standards as Data — границы сезона в БД).
+
+
+
+### 2026-04-15: ADR-ANIMAL-01 — Единая онтология животных AgOS (L1 канон + L2 проекции)
+
+**WHAT:**
+
+Устанавливается сквозная 4-слойная архитектура таксономии животных, заменяющая сегодняшние 7 параллельных таксономий с хардкод-мэппингами в Python и TypeScript.
+
+1. **L1 — Канонический словарь (расширение `animal_categories`).**
+   - ALTER animal_categories + три новые колонки-оси (nullable, чтобы быть additive):
+     - `purpose text check (purpose in ('breeding','fattening','replacement','culling','mixed'))`
+     - `physiological_state text check (physiological_state in ('suckling','weaned','pregnant','lactating','dry','none'))`
+     - `age_band text check (age_band in ('calf_0_6m','young_6_12m','young_12_18m','young_18_24m','adult_24plus','any'))`
+   - Добавляются поля lifecycle: `status text not null default 'active' check (status in ('active','deprecated'))`, `deprecated_at timestamptz`, `replaced_by_codes text[]`.
+   - Все существующие 12 кодов (`SUCKLING_CALF`, `YOUNG_CALF`, `BULL_CALF`, `STEER`, `HEIFER_YOUNG`, `HEIFER_PREG`, `COW`, `COW_CULL`, `BULL_BREEDING`, `BULL_CULL`, `OX`, `MIXED`) получают сид значений осей.
+   - L1 коды **никогда не удаляются**, только deprecated (инвариант I1 — иначе ломаются исторические отчёты).
+
+2. **L2 — Декларативные проекции (две новые таблицы).**
+   - `animal_category_mappings` (target_taxonomy, target_code, animal_category_code, valid_from, valid_to, conditions jsonb, notes). Target taxonomies: `feeding_group`, `cfc_group` (legacy, deprecated 2026-12-31), `turnover_key`, `market_sex`, `market_age_group`, далее расширяемо через CHECK.
+   - `external_category_mappings` (external_system, external_code, external_label, animal_category_code, mapping_confidence, reverse_default, valid_from, valid_to, organization_id nullable). NULL organization_id = глобальный стандарт (ИСЖ), non-NULL = org-специфичный (ERP, партнёр).
+   - `conditions jsonb` имеет фиксированную форму `{age_months:{min,max}, weight_kg:{min,max}}` с CHECK-валидацией schema.
+   - UNIQUE EXCLUDE-констрейнт: на один `(target_taxonomy, animal_category_code)` диапазоны `[valid_from, valid_to]` не пересекаются (инвариант I4).
+
+3. **L3 — Операционный слой.**
+   - `herd_groups` остаётся group-level (D20 сохраняется).
+   - `animals` (individual tracking) **не создаётся** в этом ADR (P11). Триггер для создания: первая реальная двусторонняя ИСЖ-интеграция. Архитектурный хук: `herd_groups.individual_tracking_enabled boolean default false` добавится в L3-слайсе, когда понадобится.
+
+4. **L4 — Внешние системы.**
+   - Подключение любой внешней системы (ИСЖ, RFID-поставщик, ERP 1С, партнёрская ферма) = N строк INSERT в `external_category_mappings`, ноль кода.
+   - AI Gateway tool schema для `animal_category_code` перечитывается при старте графа (не при deploy) — см. §P-AI-7.
+
+**RPC (новые, additive, подписи финальные):**
+- `rpc_list_animal_categories(p_at_date date default current_date, p_include_deprecated boolean default false) returns setof jsonb`
+- `rpc_resolve_category(p_source_code text, p_target_taxonomy text, p_at_date date default current_date) returns text`
+- `rpc_get_category_mappings(p_target_taxonomy text, p_at_date date default current_date) returns setof jsonb`
+- `rpc_add_animal_category(p_code text, p_name_ru text, p_sex text, p_purpose text, p_state text, p_age_band text, p_required_mappings jsonb) returns jsonb` — атомарно создаёт L1 + все обязательные L2 проекции (feeding_group, turnover_key, market_sex). Rejects если набор неполный (инвариант I3).
+- `rpc_deprecate_animal_category(p_code text, p_replaced_by text[], p_valid_to date) returns jsonb` — проставляет `status='deprecated'`, закрывает L2 проекции по `valid_to`. Не удаляет.
+- `rpc_migrate_animal_category(p_from_code text, p_to_code text, p_strategy text) returns jsonb` — для SPLIT/MERGE операций; `strategy` ∈ `{auto_remap, flag_farmer_task}`. При `flag_farmer_task` создаёт `FarmTask` "уточните категорию" для каждой затронутой `herd_groups` (P9, P11).
+
+**Event (добавляется в Dok 4):**
+- `standards.animal_category.updated` — producer: SQL migration / admin RPC; consumers: React Query invalidation, AI Gateway tool-schema rebuild, Python long-running process cache invalidation.
+
+**Governance — только SQL + DECISIONS_LOG (admin UI deferred):**
+- Любое изменение эталона проходит: CEO → Architect (ADR-ANIMAL-XX) → DB Agent (SQL patch в d01_kernel.sql) → Backend Agent (при необходимости миграции) → QA → sign-off.
+- Tier 3 ownership для `animal_categories` и `animal_category_mappings` (association standard).
+- Tier 1 ownership для `external_category_mappings` с non-NULL `organization_id` (org-managed); Tier 3 для глобальных записей с NULL.
+- RLS: INSERT/UPDATE/DELETE на L1/L2 глобальных — только роль `association_admin`.
+- Admin UI для редактирования — deferred. Триггер для появления: >1 изменение эталона в месяц.
+
+**Lifecycle — 4 типа изменений:**
+| Тип | Пример | Механика |
+|---|---|---|
+| ADD | `+DAIRY_COW` | INSERT L1 + N×INSERT L2. Propagation ≤60s через TTL + event. |
+| SPLIT | `COW → COW_DRY + COW_LACTATING` | ADD новых кодов, DEPRECATE старого, `rpc_migrate_animal_category('COW', strategy='flag_farmer_task')`. Существующие `herd_groups` остаются на старом коде пока фермер не уточнит. Исторические отчёты через `at_date` видят старый код. |
+| MERGE | `COW_CULL + BULL_CULL → CULL` | ADD нового + DEPRECATE двух старых + `rpc_migrate_animal_category(..., strategy='auto_remap')`. |
+| DEPRECATE | CFC 8 групп | `valid_to` на L2 проекциях target_taxonomy=cfc_group; после периода — удаление Python-кода в Backend слайсе. |
+
+**Temporal consistency:**
+- Каждое чтение L1/L2 принимает `at_date` параметр.
+- Consulting recalc фиксирует `snapshot_at_date = project.start_date` в начале расчёта и передаёт во ВСЕ чтения онтологии внутри этого recalc. Обеспечивает детерминизм результатов при изменении эталона во время долгого расчёта.
+- UI live operations: `at_date = now()`.
+- Retrospective reports: `at_date = report.reference_date`.
+
+**Инварианты (enforced в SQL/RLS/тестах, не в доке):**
+- I1: L1 код никогда не DELETE, только deprecated.
+- I2: Deprecated L1 код нельзя назначить на новую `herd_group` (CHECK в `rpc_create_herd_group`).
+- I3: Каждый active L1 код имеет mapping во все обязательные L2 target taxonomies (feeding_group, turnover_key, market_sex). QA тест + CHECK в `rpc_add_animal_category`.
+- I4: EXCLUDE-констрейнт: диапазоны `[valid_from, valid_to]` на один `(target_taxonomy, animal_category_code)` не пересекаются.
+- I5: Исторический отчёт с `at_date=X` воспроизводим — snapshot-тест фиксирует, через 30 дней повтор, diff пустой.
+- I6: Любое изменение L1/L2 логируется в `audit_log` (actor, before_state, after_state). TRIGGER на таблицах.
+- I7: INSERT/UPDATE/DELETE глобальных L1/L2 — только роль `association_admin` (RLS).
+
+**Propagation механизм:**
+- Python feeding_model.py читает L1/L2 один раз при старте расчёта проекта через RPC. Без process-cache.
+- TS frontend читает через supabase.rpc с React Query staleTime=60s + invalidation по event `standards.animal_category.updated`.
+- Edge Function calculate-ration — читает на каждом invoke (cold start часто).
+- AI Gateway — перечитывает tool schema при инициализации графа.
+- Max latency от INSERT до работы во всех приложениях: ≤60s.
+
+**WHY (alternatives considered):**
+- Текущее состояние: 7 параллельных таксономий (T1 animal_categories, T2 sex, T3 tsp_skus.sex, T4 tsp_skus.age_group, T5 breed_group, T6 CFC 8 групп, T7 6 turnover keys, T7b 5 UI feeding groups). Мэппинги между ними — хардкоды в `feeding_model.py:230-252`, `herdCategoryMapping.ts`, неявные правила в Market — размазаны по 2 языкам. Нарушение P4 и P6.
+- Вариант «один supertype таксономии на всё» отвергнут: D29 (TspCategory ≠ AnimalCategory) легитимен — Market и Herd имеют разные назначения. Насильственное объединение ломает D29.
+- Вариант «оставить хардкоды, синхронизировать вручную» отвергнут: через год любое изменение T1 ломает N мест одновременно в разных языках. Не масштабируется к ИСЖ/ERP.
+- Вариант «генерация mapping-кода из YAML» отвергнут: код-генерация = deploy на каждое изменение; теряется преимущество data-driven (P8).
+- Вариант «без temporal versioning (valid_from/valid_to)» отвергнут: при SPLIT категории исторические отчёты становятся невоспроизводимыми; CFC-legacy невозможно корректно deprecate.
+- Вариант «admin UI сразу» отвергнут: ассоциация меняет стандарты <1/мес, UI — premature optimization. SQL migrations + ADR обеспечивают traceability через git.
+
+**CONSEQUENCES:**
+- Easy: новая категория (`DAIRY_COW`) = INSERT в L1 + N×INSERT в L2. Ноль изменений в Python/TS.
+- Easy: ИСЖ/RFID/ERP подключаются строками в `external_category_mappings` без кода.
+- Easy: CFC 8 групп деприкейтятся через `valid_to`, потом удаляются из Python в отдельном слайсе без регрессии.
+- Easy: исторические отчёты воспроизводимы через `at_date` — snapshot-тест гарантирует.
+- Easy: при расширении эталона до 18–22 кодов (ожидаемое развитие) — тот же механизм, нулевые изменения в клиентах.
+- Hard: SPLIT требует `rpc_migrate_animal_category` + фермерского ввода (P9) — это штатный процесс, не баг. Нужна политика: через 90 дней без ответа — auto-remap в более частую ветку.
+- Hard: Python engine и TS клиенты больше не хардкодят мэппинги — должны читать из RPC. Переходный период: старые хардкоды остаются как fallback до snapshot-теста, после — удаляются. Переключение по местам, не one-shot.
+- Hard: cache invalidation — read-through без process-cache (Python) + event-based (React/AI Gateway). Запрет на долгоживущий кэш в памяти процесса.
+- Hard: admin UI deferred — значит до >1 изменения/мес CEO идёт через архитектора. Приемлемо для текущей фазы.
+- Files to change (в будущих слайсах, не в этом ADR):
+  - `d01_kernel.sql` — ALTER animal_categories (+3 оси + lifecycle колонки), CREATE animal_category_mappings, CREATE external_category_mappings, 6 новых RPC, RLS policies, TRIGGER для audit_log, seed всех текущих хардкодов из `feeding_model.py:230-252` и `src/pages/admin/consulting/tabs/herdCategoryMapping.ts`.
+  - `Docs/AGOS-Dok1-v1_8.md` — §3.2 ERD AnimalCategory (добавить оси + lifecycle), §Farm decisions D139 = reference на ADR-ANIMAL-01, новый §Animal Taxonomy Lifecycle.
+  - `Docs/AGOS-Dok4-EventBus-v1_1.md` — +1 событие `standards.animal_category.updated`.
+  - `Docs/AGOS-Dok3-RPC-Catalog-v1_4.md` — +6 RPC (list, resolve, get_mappings, add, deprecate, migrate).
+  - `consulting_engine/app/engine/feeding_model.py` — `_calc_from_consulting_rations` + `_calc_from_norms` + Priority 3 fallback: вместо хардкод-констант читают `rpc_get_category_mappings('feeding_group', at_date)`. Feature-flag `ANIMAL_TAXONOMY_FROM_DB=1` для постепенного переключения.
+  - `src/pages/admin/consulting/tabs/herdCategoryMapping.ts` — `CATEGORY_CODE_TO_HERD` заменяется на чтение из RPC с React Query; хардкод остаётся как offline fallback.
+  - `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx` — `RATION_GROUPS` const → derived from `rpc_list_animal_categories` фильтрованных по purpose/state.
+  - `supabase/functions/calculate-ration/index.ts` — ROUGHAGE_CODES и animal_category перекрёстные ссылки через RPC.
+  - `ai_gateway/nodes.py` — extractor tool schema для `animal_category_code` генерируется из `rpc_list_animal_categories` при старте графа.
+  - `consulting_engine/tests/fixtures/excel_reference.json` — CFC 8 групп fixture остаётся до 2026-12-31 (deprecated mapping), после — удаляется в отдельном слайсе.
+- Принципы: P1 (Data Model First — таксономия в схеме), P3 (Granularity — L1 остаётся 12+ гранулярным), P4 (One Source of Truth — L1 единственный writer), P6 (Explicit Over Implicit — мэппинги через таблицы), P7 (Additive — ничего не ломаем), P8 (Standards as Data — новая категория = INSERT), P11 (Gradual — L3 `animals` позже), P12 (Temporal — valid_from/valid_to + at_date).
+
+**Слайсы реализации (план, не этот ADR):**
+- TAXONOMY-M1: ALTER animal_categories + сид осей для 12 кодов (DB Agent).
+- TAXONOMY-M2: CREATE animal_category_mappings + seed всех хардкодов + EXCLUDE-констрейнт (DB Agent).
+- TAXONOMY-M3a: 6 RPC + RLS + audit TRIGGER (DB Agent).
+- TAXONOMY-M3b: Backend переключение feeding_model.py на RPC с feature-flag + snapshot-тест (Backend Agent).
+- TAXONOMY-M3c: UI переключение SimpleRationEditor + herdCategoryMapping на RPC (UI Agent).
+- TAXONOMY-M4: CREATE external_category_mappings + event standards.animal_category.updated + Dok 4 update (DB Agent).
+- TAXONOMY-CFC-DEPRECATE: valid_to='2026-12-31' на cfc_group проекциях + план удаления Python-кода после (Backend Agent, зависит от TAXONOMY-M3b).
+
+**Критический первый гейт (после M2, до M3b):**
+QA прогоняет `rpc_resolve_category` против существующих хардкодов — для каждой пары (code, target_taxonomy) результаты RPC и хардкода должны совпасть 100%. Несовпадение = баг в seed, чинится до того как клиенты переключаются.
+
+**Связь с предыдущими решениями:**
+- Расширяет D24 (AnimalCategory = association standard) — добавляет формальный механизм эволюции стандарта.
+- Расширяет D49 (AnimalCategory 12+ types) — 12 становятся 12-и-более, механизм расширения формализован.
+- Сохраняет D29 (TspCategory ≠ AnimalCategory) — формализует мост через L2 `market_sex`/`market_age_group` проекции, не объединяя таксономии.
+- Сохраняет D93 (platform_defined vs custom ERP categories) — custom ERP категории теперь попадают в `external_category_mappings` с `organization_id`, а не как отдельные `animal_categories` строки.
+- Сохраняет D20 (group-level) — `animals` layer deferred (P11).
+- Надстраивается над D92 (AnimalCategory → TspCategory mapping) — ручной мэппинг D92 становится декларативным в `animal_category_mappings` target_taxonomy='market_sex'/'market_age_group'.

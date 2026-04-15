@@ -273,8 +273,35 @@ erDiagram
         string code
         string name
         enum sex
+        enum purpose "breeding|fattening|replacement|culling|mixed (ADR-ANIMAL-01)"
+        enum physiological_state "suckling|weaned|pregnant|lactating|dry|none"
+        enum age_band "calf_0_6m|young_6_12m|young_12_18m|young_18_24m|adult_24plus|any"
+        enum status "active|deprecated (ADR-ANIMAL-01)"
+        timestamptz deprecated_at
+        array replaced_by_codes "text[] (for SPLIT lifecycle)"
         boolean is_platform_standard
         uuid organization_id FK
+    }
+    AnimalCategoryMapping {
+        uuid id PK
+        string target_taxonomy "feeding_group|cfc_group|turnover_key|market_sex|market_age_group|..."
+        string target_code
+        string animal_category_code FK
+        date valid_from
+        date valid_to
+        jsonb conditions "{age_months, weight_kg}"
+    }
+    ExternalCategoryMapping {
+        uuid id PK
+        string external_system "isz|rfid_x|erp_1c|..."
+        string external_code
+        string external_label
+        string animal_category_code FK
+        enum mapping_confidence "exact|approximate|ambiguous"
+        boolean reverse_default
+        date valid_from
+        date valid_to
+        uuid organization_id FK "NULL = global, non-NULL = org-specific"
     }
     Breed {
         uuid id PK
@@ -1319,6 +1346,7 @@ The following text MUST be displayed wherever reference prices are shown (PriceG
 | D49 | AnimalCategory expanded to 12+ types | Unified with MVP RationBuilder |
 | D50 | HerdEvent merged with GroupLifecycleEvent | One journal, one truth |
 | D54 | shelter_type, calving_system on Farm | Location properties, not group |
+| D139 | Animal Taxonomy — L1 canonical + L2 projections (ADR-ANIMAL-01) | 7 параллельных таксономий сведены к одному writer (`animal_categories` с осями purpose/state/age_band) и декларативным проекциям (`animal_category_mappings`, `external_category_mappings`). Lifecycle ADD/SPLIT/MERGE/DEPRECATE через `valid_from`/`valid_to` + `at_date` параметр для temporal consistency. ИСЖ/RFID/ERP подключаются строками в БД без кода. См. DECISIONS_LOG.md §2026-04-15 |
 
 ### Education (D12–D17)
 
@@ -1370,6 +1398,55 @@ The following text MUST be displayed wherever reference prices are shown (PriceG
 | Корова 24–48 мес | КВ | — |
 | Корова 48+ мес | КС | — |
 | Бык-производитель | ❌ не продаётся | маточное поголовье |
+
+### Animal Taxonomy Lifecycle (ADR-ANIMAL-01)
+
+**Source of truth:** `DECISIONS_LOG.md` → 2026-04-15 ADR-ANIMAL-01. Этот раздел — нормативный обзор контракта; детали реализации см. ADR.
+
+**Слои:**
+- **L1 Canonical** — `animal_categories` со статусом lifecycle (`active`/`deprecated`) и осями (`purpose`, `physiological_state`, `age_band`). Единственный writer таксономии. Tier 3 (association standard).
+- **L2 Projections** — `animal_category_mappings` декларативно связывает L1 коды с **внутренними** таксономиями (`feeding_group`, `cfc_group`, `turnover_key`, `market_sex`, `market_age_group`, …); `external_category_mappings` — с **внешними системами** (ИСЖ, RFID, ERP, партнёрские фермы). Обе с `valid_from`/`valid_to` + `conditions jsonb`.
+- **L3 Operational** — `herd_groups` (group-level, D20). `animals` (individual-level) отложен до первой реальной ИСЖ двусторонней интеграции (P11).
+- **L4 External** — подключение любой внешней системы = N строк INSERT в `external_category_mappings`. Ноль кода.
+
+**Четыре типа изменений эталона:**
+
+| Тип | Эффект на L1 | Эффект на L2 | Эффект на существующие `herd_groups` |
+|---|---|---|---|
+| ADD | INSERT новой строки (`status=active`) | N×INSERT проекций во все обязательные target taxonomies | — (новый код никем не использован) |
+| SPLIT | ADD двух-трёх новых + DEPRECATE старого | Новые mappings для новых кодов, `valid_to` на старых | `rpc_migrate_animal_category(strategy='flag_farmer_task')` создаёт FarmTask для каждой затронутой группы (P9). 90 дней grace, потом auto-remap в частую ветку |
+| MERGE | ADD нового + DEPRECATE двух старых | Проекции старых закрываются, нового — INSERT | `rpc_migrate_animal_category(strategy='auto_remap')` — безопасно, набор атрибутов не теряется |
+| DEPRECATE | `status='deprecated'`, `deprecated_at=now()`, `replaced_by_codes=…` | `valid_to` на всех проекциях этого кода | Запрет назначения на новые группы (I2). Существующие остаются, пока фермер не уточнит |
+
+**Инварианты (формализованы в SQL/RLS/тестах):**
+- I1: L1 код никогда не DELETE — только `status='deprecated'` (иначе ломаются исторические отчёты).
+- I2: Deprecated L1 код нельзя назначить на новый `herd_groups` (CHECK в `rpc_create_herd_group`).
+- I3: Каждый active L1 код имеет mapping во все обязательные target taxonomies (feeding_group, turnover_key, market_sex). Проверка в `rpc_add_animal_category` + QA тест.
+- I4: EXCLUDE-констрейнт — диапазоны `[valid_from, valid_to]` на `(target_taxonomy, animal_category_code)` не пересекаются.
+- I5: Snapshot-тест: отчёт с `at_date=X` воспроизводим через 30 дней — diff пустой.
+- I6: Все изменения L1/L2 логируются в `audit_log` через TRIGGER.
+- I7: Глобальные L1/L2 (organization_id IS NULL) — RLS INSERT/UPDATE/DELETE только для роли `association_admin`.
+
+**Temporal consistency:**
+- Все чтения L1/L2 принимают `at_date date default current_date`.
+- Consulting recalc фиксирует `snapshot_at_date = project.start_date` в начале расчёта и передаёт во все внутренние чтения. Детерминизм результатов при изменении эталона во время долгого recalc.
+- UI live: `at_date = now()`. Retrospective reports: `at_date = report.reference_date`.
+
+**Propagation механизм (≤60s от INSERT до живого клиента):**
+- Python engine — read-through на старте расчёта проекта, без process-cache.
+- TS frontend — React Query `staleTime=60s` + invalidate по событию `standards.animal_category.updated` (Dok 4).
+- AI Gateway — tool schema для `animal_category_code` перечитывается при инициализации графа (P-AI-7).
+- Edge Functions — чтение на каждом invoke.
+
+**Governance (admin UI deferred):**
+- Изменения эталона проходят только через: CEO → Architect (ADR-ANIMAL-XX в DECISIONS_LOG.md) → DB Agent (SQL patch в `d01_kernel.sql`) → Backend Agent (миграция данных при необходимости) → QA → Architect sign-off.
+- Триггер для появления admin UI: >1 изменение эталона в месяц. Сейчас private, через git и ADR.
+
+**Связь с предыдущими решениями:**
+- Расширяет D24, D49 (formalizes evolution mechanism).
+- Сохраняет D29, D90, D92 (Market/Herd раздельность; D92 mapping становится декларативным).
+- Сохраняет D20 (group-level; L3 `animals` — отдельный будущий слайс).
+- D93 (custom ERP categories) — переезжает в `external_category_mappings` с `organization_id`, не плодит строки в `animal_categories`.
 
 ### Feed & Nutrition (D42–D54)
 

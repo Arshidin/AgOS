@@ -1,11 +1,35 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-12
+> Last updated: 2026-04-15
 
 ---
 
-## Current Phase: Slice 9 post-gate — UI редизайн Consulting завершён. DEF-031 исправлен. QA: 0 critical.
+## Current Phase: TAXONOMY slice — ADR-ANIMAL-01 DB foundation landed (M1+M2+M3a+M4). Next: QA snapshot gate → M3b backend → M3c UI.
+
+### TAXONOMY slice — Animal Ontology (ADR-ANIMAL-01)
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| ADR | ADR-ANIMAL-01 in DECISIONS_LOG + Dok 1 | ✅ Approved (2026-04-15) | 4-layer architecture (L1 canonical / L2 projections / L3 operational / L4 external), 7 invariants I1–I7, 4 lifecycle types, propagation ≤60s |
+| DB | M1: ALTER animal_categories + seed 6 axes (d01) | ✅ Done | purpose / physiological_state / age_band / status / deprecated_at / replaced_by_codes — 12 codes seeded |
+| DB | M2: animal_category_mappings + L2 seeds (d01) | ✅ Done | feeding_group (10), cfc_group (11, valid_to=2026-12-31), turnover_key (12), market_sex (6), market_age_group (9). EXCLUDE gist on daterange. |
+| DB | M3a: 6 RPCs + RLS + audit trigger (d01) | ✅ Done | rpc_list_animal_categories(date,bool), rpc_resolve_category, rpc_get_category_mappings, rpc_add/deprecate/migrate_animal_category |
+| DB | M4: external_category_mappings (d01) | ✅ Done | L4 bridge: global + org-scoped mappings with 2 partial unique indexes |
+| DB | DEF-TAXONOMY-01: duplicate rpc_list_animal_categories | ✅ Resolved (option D) | d01 canonical temporal overload + d03 legacy no-arg wrapper. @deprecated after M3c. Whitelist in cross_check.sh. |
+| DB | cross_check.sh | ✅ 0 / 0 / 0 | 2 new whitelist entries documented |
+| QA | Snapshot gate: rpc_resolve_category matches existing hardcodes 100% | 🟡 Pending | Critical gate before M3b — compare feeding_group output for all 12 L1 codes against feeding_model.py hardcodes |
+| Backend | M3b: feeding_model.py + compliance.py read via RPCs (feature flag) | 🔜 Next | Read-through cache, session-start load; switch by flag `TAXONOMY_RPC_READ=on` |
+| UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | 🔜 After M3b | React Query staleTime=60s + `standards.animal_category.updated` event invalidation |
+| Architect | Dok 3 update: add 6 RPCs to catalog | 🔜 Pending | Separate Architect task |
+| Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
+| Cleanup | TAXONOMY-CFC-DEPRECATE: remove Python CFC after valid_to (2026-12-31) | 🕒 Scheduled | 11 L2 rows auto-expire; Python code removal after |
+
+**DB Gate: ✅ PASSED** (2026-04-15) — cross_check 0/0/0. Next gate: QA snapshot test before M3b cutover.
+
+---
+
+## Previous Phase: Slice 9 post-gate — UI редизайн Consulting завершён. DEF-031 исправлен. QA: 0 critical.
 
 ### Slice 0 — Foundation
 

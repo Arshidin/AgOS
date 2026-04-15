@@ -1621,37 +1621,40 @@ create trigger trg_fcn_updated_at
 
 
 -- -------------------------------------------------------
--- DEF-027: rpc_list_animal_categories — отсутствует в SQL,
--- но вызывается из Calculator.tsx (rpc_list_animal_categories).
--- Создаём здесь (d03_feed.sql) т.к. используется контекстом кормов.
+-- DEF-027: rpc_list_animal_categories() — legacy envelope (no args).
+-- ADR-ANIMAL-01 (2026-04-15, DEF-TAXONOMY-01 resolution = option D):
+--   Canonical L1 source is now d01_kernel.rpc_list_animal_categories(p_at_date, p_include_deprecated).
+--   This no-arg overload stays as a THIN WRAPPER to preserve the legacy return shape
+--   (jsonb aggregate with `id` field) for existing callers: Calculator.tsx, RationTab.tsx, Admin feeds.
+--   @deprecated — remove after TAXONOMY-M3c (UI switches to temporal RPC).
 -- -------------------------------------------------------
 create or replace function public.rpc_list_animal_categories()
 returns jsonb
-language plpgsql stable security definer
-set search_path = public
+language sql stable security definer
+set search_path = public, pg_temp
 as $$
-begin
-    return (
-        select jsonb_agg(
-            jsonb_build_object(
-                'id',      ac.id,
-                'code',    ac.code,
-                'name_ru', ac.name_ru,
-                'name_kk', ac.name_kk,
-                'sex',     ac.sex,
-                'sort_order', ac.sort_order
-            ) order by ac.sort_order, ac.name_ru
+    -- Route L1 filter (active/non-deprecated at today) through canonical d01 RPC,
+    -- rejoin on animal_categories to adorn with `id` for legacy envelope.
+    select jsonb_agg(
+        jsonb_build_object(
+            'id',         ac.id,
+            'code',       cat->>'code',
+            'name_ru',    cat->>'name_ru',
+            'name_kk',    cat->>'name_kk',
+            'sex',        cat->>'sex',
+            'sort_order', (cat->>'sort_order')::int
         )
-        from public.animal_categories ac
-        where ac.is_active = true
-    );
-end;
+        order by (cat->>'sort_order')::int, cat->>'name_ru'
+    )
+    from public.rpc_list_animal_categories(current_date, false) as cat
+    join public.animal_categories ac on ac.code = cat->>'code';
 $$;
 
 comment on function public.rpc_list_animal_categories() is
-    'RPC-F02 | Dok 3 §13b | Slice 8 (DEF-027 fix)
-     Список активных категорий животных для UI-селекторов.
-     Используется: Calculator.tsx, RationTab.tsx, Admin feeds.
+    'RPC-F02 | Dok 3 §13b | Slice 8 (DEF-027 fix) | ADR-ANIMAL-01 wrapper
+     Legacy envelope: returns jsonb-aggregate with `id` for Calculator.tsx / RationTab.tsx / Admin feeds.
+     Source of truth is rpc_list_animal_categories(p_at_date, p_include_deprecated) in d01_kernel.
+     @deprecated — remove after TAXONOMY-M3c (UI cut-over to temporal RPC).
      STABLE — no side effects.';
 
 

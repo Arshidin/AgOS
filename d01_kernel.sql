@@ -57,6 +57,7 @@
 create extension if not exists "uuid-ossp";       -- uuid_generate_v4() compatibility
 create extension if not exists "pgcrypto";         -- gen_random_bytes for reference codes
 create extension if not exists "vector";           -- pgvector: KnowledgeChunk embeddings (D70)
+create extension if not exists btree_gist;         -- ADR-ANIMAL-01: EXCLUDE constraint for L2 mapping daterange overlap
 
 -- ============================================================
 -- SECTION 0: REFERENCE / LOOKUP TABLES
@@ -4929,3 +4930,755 @@ insert into public.rpc_name_registry (sql_name, dok3_name, created_in, notes)
 values ('rpc_assign_role', null, 'd01_kernel.sql (Slice 6b)', 'Admin assign/revoke admin or expert roles')
 on conflict (sql_name) do update set notes = excluded.notes;
 
+
+-- ============================================================
+-- SECTION ADR-ANIMAL-01: Animal Taxonomy L1 axes + L2 projections
+-- ============================================================
+-- Date: 2026-04-15
+-- Reference: DECISIONS_LOG.md §2026-04-15 ADR-ANIMAL-01
+-- Slices delivered in this section:
+--   TAXONOMY-M1: ALTER animal_categories (+ purpose, state, age_band, status, deprecated_at, replaced_by_codes)
+--   TAXONOMY-M2: CREATE animal_category_mappings + seed existing hardcodes
+--   TAXONOMY-M3a: 6 RPCs + RLS + audit trigger
+--   TAXONOMY-M4: CREATE external_category_mappings
+-- ALL statements additive and idempotent (P7).
+-- Principles: P1, P3, P4, P6, P7, P8, P11, P12.
+-- ============================================================
+
+
+-- ------------------------------------------------------------
+-- M1.1 — ALTER animal_categories: add 3 semantic axes + lifecycle
+-- ------------------------------------------------------------
+
+alter table public.animal_categories
+    add column if not exists purpose text
+        check (purpose in ('breeding','fattening','replacement','culling','mixed'));
+
+alter table public.animal_categories
+    add column if not exists physiological_state text
+        check (physiological_state in ('suckling','weaned','pregnant','lactating','dry','none'));
+
+alter table public.animal_categories
+    add column if not exists age_band text
+        check (age_band in ('calf_0_6m','young_6_12m','young_12_18m','young_18_24m','adult_24plus','any'));
+
+alter table public.animal_categories
+    add column if not exists status text not null default 'active'
+        check (status in ('active','deprecated'));
+
+alter table public.animal_categories
+    add column if not exists deprecated_at timestamptz;
+
+alter table public.animal_categories
+    add column if not exists replaced_by_codes text[] not null default '{}';
+
+comment on column public.animal_categories.purpose is
+    'ADR-ANIMAL-01: semantic axis. breeding = маточное поголовье / производитель; fattening = откорм; replacement = ремонтное стадо; culling = выбраковка; mixed = сборная группа.';
+comment on column public.animal_categories.physiological_state is
+    'ADR-ANIMAL-01: semantic axis. suckling/weaned/pregnant/lactating/dry/none.';
+comment on column public.animal_categories.age_band is
+    'ADR-ANIMAL-01: coarse age bucket for projections (does not replace typical_age_min/max which stay informational).';
+comment on column public.animal_categories.status is
+    'ADR-ANIMAL-01 I1: lifecycle status. Deprecated codes are NEVER deleted; they persist for historical reports.';
+comment on column public.animal_categories.replaced_by_codes is
+    'ADR-ANIMAL-01: for SPLIT/MERGE lifecycle — points to codes that supersede this one.';
+
+
+-- ------------------------------------------------------------
+-- M1.2 — Seed axes for the 12 existing codes
+-- ------------------------------------------------------------
+
+update public.animal_categories set
+    purpose = 'mixed',        physiological_state = 'suckling',    age_band = 'calf_0_6m'    where code = 'SUCKLING_CALF';
+update public.animal_categories set
+    purpose = 'mixed',        physiological_state = 'weaned',      age_band = 'calf_0_6m'    where code = 'YOUNG_CALF';
+update public.animal_categories set
+    purpose = 'fattening',    physiological_state = 'none',        age_band = 'young_6_12m'  where code = 'BULL_CALF';
+update public.animal_categories set
+    purpose = 'fattening',    physiological_state = 'none',        age_band = 'young_12_18m' where code = 'STEER';
+update public.animal_categories set
+    purpose = 'replacement',  physiological_state = 'none',        age_band = 'young_6_12m'  where code = 'HEIFER_YOUNG';
+update public.animal_categories set
+    purpose = 'replacement',  physiological_state = 'pregnant',    age_band = 'young_18_24m' where code = 'HEIFER_PREG';
+update public.animal_categories set
+    purpose = 'breeding',     physiological_state = 'lactating',   age_band = 'adult_24plus' where code = 'COW';
+update public.animal_categories set
+    purpose = 'culling',      physiological_state = 'none',        age_band = 'adult_24plus' where code = 'COW_CULL';
+update public.animal_categories set
+    purpose = 'breeding',     physiological_state = 'none',        age_band = 'adult_24plus' where code = 'BULL_BREEDING';
+update public.animal_categories set
+    purpose = 'culling',      physiological_state = 'none',        age_band = 'adult_24plus' where code = 'BULL_CULL';
+update public.animal_categories set
+    purpose = 'fattening',    physiological_state = 'none',        age_band = 'adult_24plus' where code = 'OX';
+update public.animal_categories set
+    purpose = 'mixed',        physiological_state = 'none',        age_band = 'any'          where code = 'MIXED';
+
+
+-- ------------------------------------------------------------
+-- M2.1 — animal_category_mappings (internal projections)
+-- ------------------------------------------------------------
+
+create table if not exists public.animal_category_mappings (
+    id                      uuid        primary key default gen_random_uuid(),
+    target_taxonomy         text        not null
+        check (target_taxonomy in (
+            'feeding_group',       -- 5 feeding groups used by Consulting SimpleRationEditor
+            'cfc_group',           -- 8 legacy CFC groups (DEPRECATED by 2026-12-31)
+            'turnover_key',        -- 6 herd turnover keys used by Python engine
+            'market_sex',          -- T3: tsp_skus.sex (bull/heifer/cow)
+            'market_age_group',    -- T4: tsp_skus.age_group (young_1/young_2/adult/senior)
+            'vaccination_class',   -- reserved for future d04 use
+            'gos_program'          -- reserved for future government subsidy mapping
+        )),
+    target_code             text        not null,
+    animal_category_code    text        not null
+        references public.animal_categories(code) on update cascade,
+    valid_from              date        not null default date '2020-01-01',
+    valid_to                date,       -- null = open-ended (currently active)
+    conditions              jsonb       not null default '{}'::jsonb,
+    notes                   text,
+    created_at              timestamptz not null default now(),
+    -- Integrity: non-overlapping validity per (taxonomy, source category, target code) triple
+    constraint ck_acm_valid_range check (valid_to is null or valid_from <= valid_to),
+    -- Integrity: conditions must be a JSON object with allowed keys only (I4 schema validation)
+    constraint ck_acm_conditions_shape check (
+        jsonb_typeof(conditions) = 'object'
+        and (conditions - array['age_months','weight_kg'] = '{}'::jsonb)
+    ),
+    -- Non-overlap: same (target_taxonomy, animal_category_code, target_code) cannot have overlapping daterange
+    constraint excl_acm_daterange exclude using gist (
+        target_taxonomy with =,
+        animal_category_code with =,
+        target_code with =,
+        daterange(valid_from, coalesce(valid_to, 'infinity'::date), '[]') with &&
+    )
+);
+
+comment on table public.animal_category_mappings is
+    'ADR-ANIMAL-01 L2: declarative projections from canonical L1 (animal_categories) to internal taxonomies.
+     One row = "L1 code X maps to target code Y in taxonomy Z during [valid_from, valid_to]".
+     Conditions (optional) refine the mapping by age/weight ranges.
+     I4 invariant enforced via EXCLUDE constraint on daterange overlap.
+     Tier 3 ownership: association-standard. RLS write = association_admin only.';
+
+create index if not exists idx_acm_lookup
+    on public.animal_category_mappings (target_taxonomy, valid_from, valid_to);
+create index if not exists idx_acm_source
+    on public.animal_category_mappings (animal_category_code, target_taxonomy);
+
+
+-- ------------------------------------------------------------
+-- M2.2 — Seed L2 mappings: feeding_group (5 UI groups)
+-- Source: src/pages/admin/consulting/tabs/herdCategoryMapping.ts CATEGORY_CODE_TO_HERD
+--         src/pages/admin/consulting/tabs/SimpleRationEditor.tsx RATION_GROUPS
+-- CLAUDE.md §Consulting "5 Feeding Groups (NOT 10 categories)": COW_CULL/BULL_CULL merged into parent.
+-- ------------------------------------------------------------
+
+insert into public.animal_category_mappings
+    (target_taxonomy, target_code, animal_category_code, notes)
+values
+    ('feeding_group', 'COW',           'COW',           'CLAUDE.md: COW_CULL merged into COW for feeding'),
+    ('feeding_group', 'COW',           'COW_CULL',      'CLAUDE.md: COW_CULL same animals as COW before culling'),
+    ('feeding_group', 'SUCKLING_CALF', 'SUCKLING_CALF', 'feeding_model.py:232 molodnyak'),
+    ('feeding_group', 'SUCKLING_CALF', 'YOUNG_CALF',    'feeding_model.py:232 molodnyak'),
+    ('feeding_group', 'HEIFER_YOUNG',  'HEIFER_YOUNG',  'SimpleRationEditor RATION_GROUPS'),
+    ('feeding_group', 'HEIFER_YOUNG',  'HEIFER_PREG',   'feeding_model.py:236 heifers_prev'),
+    ('feeding_group', 'STEER',         'STEER',         'feeding_model.py:242 fattening_commercial'),
+    ('feeding_group', 'STEER',         'BULL_CALF',     'feeding_model.py:241 fattening_breeding → STEER feeding group'),
+    ('feeding_group', 'BULL_BREEDING', 'BULL_BREEDING', 'SimpleRationEditor RATION_GROUPS'),
+    ('feeding_group', 'BULL_BREEDING', 'BULL_CULL',     'CLAUDE.md: BULL_CULL same animals as BULL_BREEDING before culling')
+on conflict do nothing;
+
+
+-- ------------------------------------------------------------
+-- M2.3 — Seed L2 mappings: cfc_group (8 legacy CFC groups, DEPRECATED 2026-12-31)
+-- Source: consulting_engine/app/engine/feeding_model.py:230-252, 338-339
+-- ADR-ANIMAL-01: valid_to = '2026-12-31' — will be removed after TAXONOMY-CFC-DEPRECATE slice.
+-- ------------------------------------------------------------
+
+insert into public.animal_category_mappings
+    (target_taxonomy, target_code, animal_category_code, valid_to, notes)
+values
+    ('cfc_group', 'molodnyak',            'SUCKLING_CALF', date '2026-12-31', 'feeding_model.py:232'),
+    ('cfc_group', 'molodnyak',            'YOUNG_CALF',    date '2026-12-31', 'feeding_model.py:232'),
+    ('cfc_group', 'heifers_prev',         'HEIFER_YOUNG',  date '2026-12-31', 'feeding_model.py:236'),
+    ('cfc_group', 'heifers_prev',         'HEIFER_PREG',   date '2026-12-31', 'feeding_model.py:236'),
+    ('cfc_group', 'heifers_curr',         'HEIFER_YOUNG',  date '2026-12-31', 'feeding_model.py:491 (always 0 heads)'),
+    ('cfc_group', 'cows_12m',             'COW',           date '2026-12-31', 'feeding_model.py:238'),
+    ('cfc_group', 'cows_9m',              'COW',           date '2026-12-31', 'feeding_model.py:239 (always 0 heads)'),
+    ('cfc_group', 'bulls',                'BULL_BREEDING', date '2026-12-31', 'feeding_model.py group_costs[bulls]'),
+    ('cfc_group', 'bulls',                'BULL_CULL',     date '2026-12-31', 'CFC legacy: bulls group includes cull'),
+    ('cfc_group', 'fattening_breeding',   'BULL_CALF',     date '2026-12-31', 'feeding_model.py:241'),
+    ('cfc_group', 'fattening_commercial', 'STEER',         date '2026-12-31', 'feeding_model.py:242')
+on conflict do nothing;
+
+
+-- ------------------------------------------------------------
+-- M2.4 — Seed L2 mappings: turnover_key (6 Python engine keys)
+-- Source: consulting_engine/app/engine/herd_turnover.py + feeding_model.py
+-- ------------------------------------------------------------
+
+insert into public.animal_category_mappings
+    (target_taxonomy, target_code, animal_category_code, notes)
+values
+    ('turnover_key', 'cows',      'COW',           'herd["cows"]'),
+    ('turnover_key', 'cows',      'COW_CULL',      'accounting category within cows'),
+    ('turnover_key', 'bulls',     'BULL_BREEDING', 'herd["bulls"]'),
+    ('turnover_key', 'bulls',     'BULL_CULL',     'accounting category within bulls'),
+    ('turnover_key', 'calves',    'SUCKLING_CALF', 'herd["calves"]'),
+    ('turnover_key', 'calves',    'YOUNG_CALF',    'herd["calves"]'),
+    ('turnover_key', 'heifers',   'HEIFER_YOUNG',  'herd["heifers"]'),
+    ('turnover_key', 'heifers',   'HEIFER_PREG',   'herd["heifers"]'),
+    ('turnover_key', 'steers',    'STEER',         'herd["steers"]'),
+    ('turnover_key', 'steers',    'BULL_CALF',     'herd["steers"] (fattening_breeding source)'),
+    ('turnover_key', 'fattening', 'STEER',         'herd["fattening"] (reserved key)'),
+    ('turnover_key', 'fattening', 'BULL_CALF',     'herd["fattening"] (reserved key)')
+on conflict do nothing;
+
+
+-- ------------------------------------------------------------
+-- M2.5 — Seed L2 mappings: market_sex + market_age_group
+-- Source: d02_tsp.sql:110-118 tsp_skus + Dok 1 D92 mapping table
+-- ------------------------------------------------------------
+
+insert into public.animal_category_mappings
+    (target_taxonomy, target_code, animal_category_code, notes)
+values
+    ('market_sex', 'bull',   'BULL_CALF',     'D92: Бычки → BM1/BM2'),
+    ('market_sex', 'bull',   'STEER',         'D92: Бычки на откорме → BV/BS'),
+    ('market_sex', 'bull',   'BULL_BREEDING', 'D92: not sold — mapping provided for completeness'),
+    ('market_sex', 'bull',   'BULL_CULL',     'cull bulls → meat sale'),
+    ('market_sex', 'bull',   'OX',            'oxen → meat sale'),
+    ('market_sex', 'heifer', 'HEIFER_YOUNG',  'D92: Тёлка → TM'),
+    ('market_sex', 'cow',    'HEIFER_PREG',   'D89: Нетель → КВ (sold as meat animal)'),
+    ('market_sex', 'cow',    'COW',           'D92: Коровы → КВ/КС'),
+    ('market_sex', 'cow',    'COW_CULL',      'D92: cull cows → meat sale'),
+    ('market_age_group', 'young_1', 'BULL_CALF',    'D92: 6–12 мес → БМ1'),
+    ('market_age_group', 'young_2', 'STEER',        'D92: 12–24 мес → БМ2'),
+    ('market_age_group', 'young_2', 'HEIFER_YOUNG', 'D92: ТМ 12–24 мес'),
+    ('market_age_group', 'adult',   'HEIFER_PREG',  'D92: нетель → КВ 24–48 мес'),
+    ('market_age_group', 'adult',   'COW',          'D92: коровы 24–48 мес → КВ'),
+    ('market_age_group', 'senior',  'COW_CULL',     'D92: 48+ мес → КС')
+on conflict do nothing;
+
+
+-- ------------------------------------------------------------
+-- M4 — external_category_mappings (external systems projection)
+-- ADR-ANIMAL-01 L4: connect ИСЖ / RFID / ERP without code.
+-- ------------------------------------------------------------
+
+create table if not exists public.external_category_mappings (
+    id                      uuid        primary key default gen_random_uuid(),
+    external_system         text        not null
+        check (external_system ~ '^[a-z0-9_]+$'),  -- 'isz', 'rfid_supplier_x', 'erp_1c', 'partner_farm_42'
+    external_code           text        not null,
+    external_label          text,
+    animal_category_code    text        not null
+        references public.animal_categories(code) on update cascade,
+    mapping_confidence      text        not null default 'exact'
+        check (mapping_confidence in ('exact','approximate','ambiguous')),
+    reverse_default         boolean     not null default false,  -- T1→external fallback choice
+    valid_from              date        not null default current_date,
+    valid_to                date,
+    organization_id         uuid        references public.organizations(id) on delete cascade,
+    notes                   text,
+    created_at              timestamptz not null default now(),
+    constraint ck_ecm_valid_range check (valid_to is null or valid_from <= valid_to)
+);
+
+comment on table public.external_category_mappings is
+    'ADR-ANIMAL-01 L4: external-system mappings (ИСЖ, RFID supplier, partner ERP, …).
+     organization_id NULL = global standard (e.g. ИСЖ codes, owned by association — Tier 3).
+     organization_id non-NULL = org-specific (e.g. custom ERP, owned by that org — Tier 1).
+     reverse_default = true marks the canonical L1→external target when multiple L1 codes map to the same external code.';
+
+create unique index if not exists uq_ecm_triple_global
+    on public.external_category_mappings (external_system, external_code, animal_category_code, valid_from)
+    where organization_id is null;
+create unique index if not exists uq_ecm_triple_org
+    on public.external_category_mappings (external_system, external_code, animal_category_code, organization_id, valid_from)
+    where organization_id is not null;
+create index if not exists idx_ecm_lookup
+    on public.external_category_mappings (external_system, external_code, organization_id);
+create index if not exists idx_ecm_source
+    on public.external_category_mappings (animal_category_code);
+
+
+-- ============================================================
+-- M3a — RPCs for Animal Taxonomy
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- rpc_list_animal_categories
+-- Returns active (or all if p_include_deprecated) L1 codes as of p_at_date.
+-- Pure lookup — no organization_id required.
+-- ------------------------------------------------------------
+create or replace function public.rpc_list_animal_categories(
+    p_at_date              date    default current_date,
+    p_include_deprecated   boolean default false
+)
+returns setof jsonb
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+    select jsonb_build_object(
+        'code',                  ac.code,
+        'name_ru',               ac.name_ru,
+        'name_kk',               ac.name_kk,
+        'sex',                   ac.sex,
+        'purpose',               ac.purpose,
+        'physiological_state',   ac.physiological_state,
+        'age_band',              ac.age_band,
+        'typical_age_min_months',ac.typical_age_min_months,
+        'typical_age_max_months',ac.typical_age_max_months,
+        'status',                ac.status,
+        'deprecated_at',         ac.deprecated_at,
+        'replaced_by_codes',     ac.replaced_by_codes,
+        'sort_order',            ac.sort_order
+    )
+    from public.animal_categories ac
+    where ac.is_active = true
+      and (
+          p_include_deprecated
+          or ac.status = 'active'
+          or ac.deprecated_at is null
+          or ac.deprecated_at > p_at_date::timestamptz
+      )
+    order by ac.sort_order, ac.code;
+$$;
+
+comment on function public.rpc_list_animal_categories(date, boolean) is
+    'ADR-ANIMAL-01: list L1 canonical categories as of p_at_date. Deprecated codes included only if p_include_deprecated=true.';
+
+
+-- ------------------------------------------------------------
+-- rpc_resolve_category
+-- Resolve a single L1 code into its target taxonomy code at a given date.
+-- Returns NULL if no mapping is active on that date.
+-- ------------------------------------------------------------
+create or replace function public.rpc_resolve_category(
+    p_source_code      text,
+    p_target_taxonomy  text,
+    p_at_date          date default current_date
+)
+returns text
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+    select m.target_code
+    from public.animal_category_mappings m
+    where m.animal_category_code = p_source_code
+      and m.target_taxonomy      = p_target_taxonomy
+      and m.valid_from <= p_at_date
+      and (m.valid_to is null or m.valid_to >= p_at_date)
+    order by m.valid_from desc
+    limit 1;
+$$;
+
+comment on function public.rpc_resolve_category(text, text, date) is
+    'ADR-ANIMAL-01: resolve L1 code → target taxonomy code at date. Returns NULL if no active mapping.
+     Note: if multiple mappings exist (e.g. feeding_group), returns the single target_code; use rpc_get_category_mappings for many-to-many.';
+
+
+-- ------------------------------------------------------------
+-- rpc_get_category_mappings
+-- Return all mappings for a target taxonomy active as of p_at_date.
+-- Used by Python engine and TS UI to read ontology once per session.
+-- ------------------------------------------------------------
+create or replace function public.rpc_get_category_mappings(
+    p_target_taxonomy  text,
+    p_at_date          date default current_date
+)
+returns setof jsonb
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+    select jsonb_build_object(
+        'target_taxonomy',      m.target_taxonomy,
+        'target_code',          m.target_code,
+        'animal_category_code', m.animal_category_code,
+        'valid_from',           m.valid_from,
+        'valid_to',             m.valid_to,
+        'conditions',           m.conditions,
+        'notes',                m.notes
+    )
+    from public.animal_category_mappings m
+    where m.target_taxonomy = p_target_taxonomy
+      and m.valid_from <= p_at_date
+      and (m.valid_to is null or m.valid_to >= p_at_date)
+    order by m.target_code, m.animal_category_code;
+$$;
+
+comment on function public.rpc_get_category_mappings(text, date) is
+    'ADR-ANIMAL-01: all active mappings for a target taxonomy at p_at_date. Clients call this once per session and cache locally with staleTime<=60s.';
+
+
+-- ------------------------------------------------------------
+-- rpc_add_animal_category
+-- Atomically create a new L1 code + required L2 mappings.
+-- I3 invariant: fails if p_required_mappings doesn't cover feeding_group + turnover_key + market_sex.
+-- Admin-only.
+-- ------------------------------------------------------------
+create or replace function public.rpc_add_animal_category(
+    p_code                text,
+    p_name_ru             text,
+    p_name_kk             text,
+    p_sex                 text,
+    p_purpose             text,
+    p_physiological_state text,
+    p_age_band            text,
+    p_required_mappings   jsonb,  -- {"feeding_group":"COW","turnover_key":"cows","market_sex":"cow", ...}
+    p_description_ru      text default null,
+    p_sort_order          int  default 999
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_required_keys text[] := array['feeding_group','turnover_key','market_sex'];
+    v_key text;
+    v_target text;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: association_admin required' using errcode = 'P0001';
+    end if;
+
+    -- I3: every active L1 code must have mappings in all required target taxonomies
+    foreach v_key in array v_required_keys loop
+        if (p_required_mappings ->> v_key) is null then
+            raise exception 'INVARIANT_I3: required mapping missing for target_taxonomy=%', v_key
+                using errcode = 'P0001';
+        end if;
+    end loop;
+
+    insert into public.animal_categories (
+        code, name_ru, name_kk, sex, purpose, physiological_state, age_band,
+        description_ru, sort_order, status
+    ) values (
+        p_code, p_name_ru, p_name_kk, p_sex, p_purpose, p_physiological_state, p_age_band,
+        p_description_ru, p_sort_order, 'active'
+    );
+
+    foreach v_key in array v_required_keys loop
+        v_target := p_required_mappings ->> v_key;
+        insert into public.animal_category_mappings
+            (target_taxonomy, target_code, animal_category_code, notes)
+        values
+            (v_key, v_target, p_code, 'created via rpc_add_animal_category');
+    end loop;
+
+    -- Optional mappings (cfc_group, market_age_group, vaccination_class, gos_program)
+    insert into public.animal_category_mappings
+        (target_taxonomy, target_code, animal_category_code, notes)
+    select k.key, v.value::text, p_code, 'created via rpc_add_animal_category'
+    from jsonb_each_text(p_required_mappings - v_required_keys) as k(key, value)
+    where k.key in ('cfc_group','market_age_group','vaccination_class','gos_program');
+
+    insert into public.platform_events (event_type, entity_type, entity_id, actor_type, actor_id, payload, is_audit)
+    values (
+        'standards.animal_category.updated',
+        'animal_categories',
+        (select id from public.animal_categories where code = p_code),
+        'admin',
+        public.fn_current_user_id(),
+        jsonb_build_object('action','add','code',p_code,'mappings',p_required_mappings),
+        true
+    );
+
+    return jsonb_build_object('status','ok','code',p_code);
+end;
+$$;
+
+comment on function public.rpc_add_animal_category(text,text,text,text,text,text,text,jsonb,text,int) is
+    'ADR-ANIMAL-01: atomically add a new L1 canonical code with all required L2 projections.
+     I3 invariant: fails if required_mappings is missing feeding_group / turnover_key / market_sex.
+     Emits event standards.animal_category.updated.';
+
+
+-- ------------------------------------------------------------
+-- rpc_deprecate_animal_category
+-- Mark a L1 code deprecated. Closes its L2 projections by setting valid_to.
+-- I1 invariant: code is NEVER deleted.
+-- ------------------------------------------------------------
+create or replace function public.rpc_deprecate_animal_category(
+    p_code              text,
+    p_replaced_by       text[]  default '{}',
+    p_valid_to          date    default current_date
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: association_admin required' using errcode = 'P0001';
+    end if;
+
+    update public.animal_categories
+    set status             = 'deprecated',
+        deprecated_at      = now(),
+        replaced_by_codes  = p_replaced_by
+    where code = p_code and status = 'active';
+
+    if not found then
+        raise exception 'NOT_FOUND_OR_ALREADY_DEPRECATED: code=%', p_code using errcode = 'P0001';
+    end if;
+
+    update public.animal_category_mappings
+    set valid_to = p_valid_to
+    where animal_category_code = p_code
+      and (valid_to is null or valid_to > p_valid_to);
+
+    insert into public.platform_events (event_type, entity_type, entity_id, actor_type, actor_id, payload, is_audit)
+    values (
+        'standards.animal_category.updated',
+        'animal_categories',
+        (select id from public.animal_categories where code = p_code),
+        'admin',
+        public.fn_current_user_id(),
+        jsonb_build_object('action','deprecate','code',p_code,'replaced_by',p_replaced_by,'valid_to',p_valid_to),
+        true
+    );
+
+    return jsonb_build_object('status','ok','code',p_code,'replaced_by',p_replaced_by);
+end;
+$$;
+
+comment on function public.rpc_deprecate_animal_category(text, text[], date) is
+    'ADR-ANIMAL-01: deprecate a L1 code (never delete — I1). Closes L2 projections by valid_to.
+     Existing herd_groups continue to reference it until migrated (see rpc_migrate_animal_category).';
+
+
+-- ------------------------------------------------------------
+-- rpc_migrate_animal_category
+-- Migrate existing herd_groups from p_from_code to p_to_code.
+-- Strategy:
+--   auto_remap        → update herd_groups.animal_category_id directly
+--   flag_farmer_task  → leave herd_groups unchanged, create FarmTask placeholders (if farm_tasks exists)
+-- ------------------------------------------------------------
+create or replace function public.rpc_migrate_animal_category(
+    p_from_code   text,
+    p_to_code     text,
+    p_strategy    text  default 'auto_remap'    -- 'auto_remap' | 'flag_farmer_task'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_from_id uuid;
+    v_to_id   uuid;
+    v_count   int;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'FORBIDDEN: association_admin required' using errcode = 'P0001';
+    end if;
+
+    if p_strategy not in ('auto_remap','flag_farmer_task') then
+        raise exception 'INVALID_STRATEGY: must be auto_remap | flag_farmer_task' using errcode = 'P0001';
+    end if;
+
+    select id into v_from_id from public.animal_categories where code = p_from_code;
+    select id into v_to_id   from public.animal_categories where code = p_to_code;
+
+    if v_from_id is null or v_to_id is null then
+        raise exception 'UNKNOWN_CODE: from=% to=%', p_from_code, p_to_code using errcode = 'P0001';
+    end if;
+
+    if p_strategy = 'auto_remap' then
+        update public.herd_groups
+        set animal_category_id = v_to_id,
+            updated_at         = now()
+        where animal_category_id = v_from_id;
+        get diagnostics v_count = row_count;
+    else
+        -- flag_farmer_task: count affected, leave herd_groups unchanged.
+        -- Actual FarmTask creation is handled in a separate slice (S4-DB) when farm_tasks schema stabilises.
+        select count(*) into v_count
+        from public.herd_groups
+        where animal_category_id = v_from_id;
+    end if;
+
+    insert into public.platform_events (event_type, entity_type, entity_id, actor_type, actor_id, payload, is_audit)
+    values (
+        'standards.animal_category.updated',
+        'animal_categories',
+        v_from_id,
+        'admin',
+        public.fn_current_user_id(),
+        jsonb_build_object(
+            'action','migrate',
+            'from_code',p_from_code,
+            'to_code',p_to_code,
+            'strategy',p_strategy,
+            'affected_herd_groups', v_count
+        ),
+        true
+    );
+
+    return jsonb_build_object(
+        'status','ok',
+        'from_code',p_from_code,
+        'to_code',p_to_code,
+        'strategy',p_strategy,
+        'affected_herd_groups', v_count
+    );
+end;
+$$;
+
+comment on function public.rpc_migrate_animal_category(text,text,text) is
+    'ADR-ANIMAL-01: migrate herd_groups from deprecated L1 code to successor.
+     auto_remap: SQL UPDATE in place.
+     flag_farmer_task: count affected groups and emit event (FarmTask creation deferred to S4-DB slice).';
+
+
+-- ------------------------------------------------------------
+-- M3a — RLS on L1 axis columns and L2/L4 tables
+-- ------------------------------------------------------------
+
+alter table public.animal_category_mappings    enable row level security;
+alter table public.external_category_mappings  enable row level security;
+
+-- L2 animal_category_mappings — Tier 3 (association)
+drop policy if exists "acm_read_all"         on public.animal_category_mappings;
+drop policy if exists "acm_write_admin"      on public.animal_category_mappings;
+
+create policy "acm_read_all"
+    on public.animal_category_mappings for select
+    using (true);
+
+create policy "acm_write_admin"
+    on public.animal_category_mappings for all
+    using (public.fn_is_admin())
+    with check (public.fn_is_admin());
+
+-- L4 external_category_mappings — global rows = Tier 3; org-scoped = Tier 1
+drop policy if exists "ecm_read"            on public.external_category_mappings;
+drop policy if exists "ecm_write_global"    on public.external_category_mappings;
+drop policy if exists "ecm_write_org"       on public.external_category_mappings;
+
+create policy "ecm_read"
+    on public.external_category_mappings for select
+    using (
+        organization_id is null
+        or public.fn_is_admin()
+        or organization_id in (select id from public.organizations where id = organization_id)
+        -- org-specific RLS read: same org
+        or exists (
+            select 1 from public.memberships m
+            where m.organization_id = external_category_mappings.organization_id
+              and m.user_id = public.fn_current_user_id()
+              and m.is_active = true
+        )
+    );
+
+create policy "ecm_write_global"
+    on public.external_category_mappings for all
+    using (organization_id is null and public.fn_is_admin())
+    with check (organization_id is null and public.fn_is_admin());
+
+create policy "ecm_write_org"
+    on public.external_category_mappings for all
+    using (
+        organization_id is not null
+        and exists (
+            select 1 from public.memberships m
+            where m.organization_id = external_category_mappings.organization_id
+              and m.user_id = public.fn_current_user_id()
+              and m.is_active = true
+              and m.role in ('owner','admin')
+        )
+    )
+    with check (
+        organization_id is not null
+        and exists (
+            select 1 from public.memberships m
+            where m.organization_id = external_category_mappings.organization_id
+              and m.user_id = public.fn_current_user_id()
+              and m.is_active = true
+              and m.role in ('owner','admin')
+        )
+    );
+
+
+-- ------------------------------------------------------------
+-- M3a — Audit triggers on animal_categories and animal_category_mappings
+-- I6 invariant: every change to L1/L2 logs to audit_log.
+-- ------------------------------------------------------------
+
+create or replace function public.fn_audit_animal_taxonomy()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_changes jsonb;
+begin
+    if tg_op = 'INSERT' then
+        v_changes := jsonb_build_object('after', to_jsonb(new));
+    elsif tg_op = 'UPDATE' then
+        v_changes := jsonb_build_object('before', to_jsonb(old), 'after', to_jsonb(new));
+    else
+        v_changes := jsonb_build_object('before', to_jsonb(old));
+    end if;
+
+    insert into public.audit_log
+        (user_id, actor_type, action, entity_type, entity_id, organization_id, changes)
+    values (
+        public.fn_current_user_id(),
+        'admin',
+        lower(tg_op) || '.' || tg_table_name,
+        tg_table_name,
+        coalesce((new).id, (old).id),
+        null,
+        v_changes
+    );
+
+    return coalesce(new, old);
+end;
+$$;
+
+drop trigger if exists trg_audit_animal_categories        on public.animal_categories;
+drop trigger if exists trg_audit_animal_category_mappings on public.animal_category_mappings;
+drop trigger if exists trg_audit_external_cat_mappings   on public.external_category_mappings;
+
+create trigger trg_audit_animal_categories
+    after insert or update or delete on public.animal_categories
+    for each row execute function public.fn_audit_animal_taxonomy();
+
+create trigger trg_audit_animal_category_mappings
+    after insert or update or delete on public.animal_category_mappings
+    for each row execute function public.fn_audit_animal_taxonomy();
+
+create trigger trg_audit_external_cat_mappings
+    after insert or update or delete on public.external_category_mappings
+    for each row execute function public.fn_audit_animal_taxonomy();
+
+
+-- ------------------------------------------------------------
+-- rpc_name_registry entries for 6 new RPCs
+-- ------------------------------------------------------------
+
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+values
+    ('rpc_list_animal_categories',    null, 'list_animal_categories',    'd01_kernel.sql (ADR-ANIMAL-01)', 'L1 canonical list with lifecycle'),
+    ('rpc_resolve_category',          null, 'resolve_category',          'd01_kernel.sql (ADR-ANIMAL-01)', 'L1 → target taxonomy code at date'),
+    ('rpc_get_category_mappings',     null, 'get_category_mappings',     'd01_kernel.sql (ADR-ANIMAL-01)', 'All active mappings for a target taxonomy'),
+    ('rpc_add_animal_category',       null, null,                        'd01_kernel.sql (ADR-ANIMAL-01)', 'Admin-only: create L1 + required L2 projections (I3 enforced)'),
+    ('rpc_deprecate_animal_category', null, null,                        'd01_kernel.sql (ADR-ANIMAL-01)', 'Admin-only: deprecate L1 (I1: never delete)'),
+    ('rpc_migrate_animal_category',   null, null,                        'd01_kernel.sql (ADR-ANIMAL-01)', 'Admin-only: migrate herd_groups between L1 codes')
+on conflict (sql_name) do update
+    set notes      = excluded.notes,
+        created_in = excluded.created_in;
+
+-- ============================================================
+-- END ADR-ANIMAL-01 SECTION
+-- ============================================================

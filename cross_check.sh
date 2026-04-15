@@ -29,7 +29,11 @@ echo "--- CHECK 1: Duplicate function definitions ---"
 # Known intentional cross-file duplicates (upgraded versions — last file wins by design)
 # fn_my_org_ids, fn_is_admin, fn_is_expert: defined in d01_kernel.sql (basic SQL),
 # then upgraded in d07_ai_gateway.sql with D-NEW-1 JWT fast path. d07 version is canonical.
-DUP_WHITELIST="fn_my_org_ids|fn_is_admin|fn_is_expert"
+# rpc_list_animal_categories: ADR-ANIMAL-01 DEF-TAXONOMY-01 option D — d01 canonical
+# temporal overload (p_at_date, p_include_deprecated) + d03 legacy no-arg wrapper for
+# Calculator.tsx / RationTab.tsx. Different signatures, PostgreSQL overload-safe.
+# @deprecated removal of d03 wrapper: after TAXONOMY-M3c UI cut-over.
+DUP_WHITELIST="fn_my_org_ids|fn_is_admin|fn_is_expert|rpc_list_animal_categories"
 
 # Extract all function names from CREATE OR REPLACE FUNCTION lines
 # BSD-safe: use [[:space:]]+ instead of \s+; case-insensitive via tr
@@ -154,7 +158,9 @@ exceptions="get_active_prompt|rpc_name_registry|\
 rpc_list_animal_categories|rpc_list_feed_items|rpc_list_feed_categories|\
 rpc_list_feed_prices|rpc_list_feed_consumption_norms|\
 rpc_upsert_feed_item|rpc_upsert_feed_price|rpc_upsert_feed_consumption_norm|\
-rpc_upsert_consulting_reference|rpc_start_production_plan"
+rpc_upsert_consulting_reference|rpc_start_production_plan|\
+rpc_resolve_category|rpc_get_category_mappings|\
+rpc_add_animal_category|rpc_deprecate_animal_category|rpc_migrate_animal_category"
 sig_count_before=$SIGNIFICANT
 
 for f in "${SQL_FILES[@]}"; do
