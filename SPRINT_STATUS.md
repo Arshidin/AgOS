@@ -27,7 +27,11 @@
 | Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
 | Cleanup | TAXONOMY-CFC-DEPRECATE: remove Python CFC after valid_to (2026-12-31) | 🕒 Scheduled | 11 L2 rows auto-expire; Python code removal after |
 
-**DB Gate: ✅ PASSED** (2026-04-15) — cross_check 0/0/0. Next gate: QA snapshot test before M3b cutover.
+**DB Gate: ✅ PASSED** (2026-04-15) — cross_check 0/0/0 после M5 remediation.
+**QA Gate: ✅ PASSED** (2026-04-15) — 2 CRIT + 1 SIG + 1 MINOR закрыты (commit `87db44b`).
+**Architect sign-off: ✅** (2026-04-15) — Dok 3 §1.8/§9b + Dok 4 §3.9 обновлены, DECISIONS_LOG дополнен.
+
+**Next: TAXONOMY-M3b** — Backend Agent переключает `consulting_engine/app/engine/feeding_model.py` и `ai_gateway/` на чтение таксономии через RPC-T3 (`rpc_get_category_mappings`) и RPC-T2 (`rpc_resolve_category`) с feature-flag `TAXONOMY_RPC_READ`. Snapshot test: для всех 12 L1 кодов `rpc_resolve_category(code, 'turnover_key')` vs `CATEGORY_CODE_TO_HERD` — 100% match.
 
 ---
 

@@ -131,6 +131,18 @@
 | RPC-44 | `rpc_add_knowledge_chunk` | Platform | admin | 📋 Planned | uuid (chunk_id) |
 | RPC-45 | `rpc_restrict_organization` | Platform | admin | 📋 Planned | uuid (restriction_id) |
 
+### 1.8. Standards / Animal Taxonomy (ADR-ANIMAL-01, 2026-04-15)
+
+| ID | SQL canonical name | Domain | Caller | Status | Return |
+|----|--------------------|--------|--------|--------|--------|
+| RPC-T1 | `rpc_list_animal_categories(p_at_date, p_include_deprecated)` | Standards | web, ai, admin | ✅ Implemented | SETOF jsonb (L1 codes as of date) |
+| RPC-T1-legacy | `rpc_list_animal_categories()` | Standards | web (legacy) | ✅ Implemented (wrapper) | jsonb agg with `id` — @deprecated post-M3c |
+| RPC-T2 | `rpc_resolve_category(p_source_code, p_target_taxonomy, p_at_date)` | Standards | web, ai, backend | ✅ Implemented | text (canonical target, is_primary-first) |
+| RPC-T3 | `rpc_get_category_mappings(p_target_taxonomy, p_at_date)` | Standards | web, ai, backend | ✅ Implemented | SETOF jsonb (all L1→target pairs at date) |
+| RPC-T4 | `rpc_add_animal_category(p_code, p_name_ru, p_name_kk, p_sex, p_purpose, p_physiological_state, p_age_band, p_required_mappings, p_description_ru, p_sort_order)` | Standards | admin | ✅ Implemented | jsonb (I3: required mappings enforced) |
+| RPC-T5 | `rpc_deprecate_animal_category(p_code, p_replaced_by, p_valid_to)` | Standards | admin | ✅ Implemented | jsonb (I1: never delete; closes L2 via valid_to) |
+| RPC-T6 | `rpc_migrate_animal_category(p_from_code, p_to_code, p_strategy)` | Standards | admin | ✅ Implemented | jsonb (auto_remap \| flag_farmer_task) |
+
 ### 1.8. AI Gateway RPCs (d07_ai_gateway.sql) — ✅ Все реализованы
 
 Эти функции были созданы в migration 011_ai_rpc_catalog.sql (теперь в d07_ai_gateway.sql) для прямого использования из Python AI Gateway. Все имеют SECURITY DEFINER + `_ai_check_farm_org()` guard.
@@ -549,6 +561,38 @@ SQL-функция не существует ни в одном файле (d01�
 
 Добавление чанка в базу знаний → uuid (chunk_id)
 
+## 9b. Standards / Animal Taxonomy (ADR-ANIMAL-01, 2026-04-15)
+
+Каноничный слой L1 + декларативные проекции L2 + мосты L4 для внешних систем.
+Подробное обоснование и инварианты I1–I7 — см. `DECISIONS_LOG.md § 2026-04-15 ADR-ANIMAL-01` и Dok 1 §"Animal Taxonomy Lifecycle".
+
+### RPC-T1 `rpc_list_animal_categories(p_at_date, p_include_deprecated)` [WEB] [AI] [ADMIN] ✅ Implemented
+
+Возвращает активные L1 коды на дату. `p_include_deprecated=false` (default) скрывает депрекированные.
+
+**Legacy overload** `rpc_list_animal_categories()` без аргументов — тонкий wrapper с legacy envelope (agg jsonb с `id`) для Calculator.tsx/RationTab.tsx. @deprecated после TAXONOMY-M3c.
+
+### RPC-T2 `rpc_resolve_category(p_source_code, p_target_taxonomy, p_at_date)` [WEB] [AI] [BACKEND] ✅ Implemented
+
+Возвращает каноничный target_code. Порядок: `is_primary DESC, valid_from DESC, target_code`. NULL если нет активной проекции.
+Для many-to-many ответов — используйте RPC-T3.
+
+### RPC-T3 `rpc_get_category_mappings(p_target_taxonomy, p_at_date)` [WEB] [AI] [BACKEND] ✅ Implemented
+
+Возвращает полный набор активных L1→target пар для одной таксономии. Используется Python engine-ом и TS UI для read-through кэша на старт сессии.
+
+### RPC-T4 `rpc_add_animal_category(p_code, p_name_ru, p_name_kk, p_sex, p_purpose, p_physiological_state, p_age_band, p_required_mappings, p_description_ru, p_sort_order)` [ADMIN] ✅ Implemented
+
+Admin-only (guard: `fn_is_admin()`). Создаёт L1 код и обязательные L2 проекции. I3 invariant: `p_required_mappings` ДОЛЖНО содержать `feeding_group`, `turnover_key`, `market_sex`.
+
+### RPC-T5 `rpc_deprecate_animal_category(p_code, p_replaced_by, p_valid_to)` [ADMIN] ✅ Implemented
+
+Admin-only. Устанавливает `status='deprecated'`, `deprecated_at=now()`, `valid_to` на всех L2 проекциях. I1 invariant: НИКОГДА не удаляет.
+
+### RPC-T6 `rpc_migrate_animal_category(p_from_code, p_to_code, p_strategy)` [ADMIN] ✅ Implemented
+
+Admin-only. Перенос L3 `herd_groups` между L1 кодами. Стратегии: `auto_remap` (UPDATE FK с аудитом) или `flag_farmer_task` (создание FarmTask для ручного решения фермером).
+
 ### RPC-45 `rpc_restrict_organization` [ADMIN] 📋 Planned
 
 Ограничение организации → uuid (restriction_id)
@@ -661,6 +705,12 @@ Inbound webhook:
 | `fn_preview_cascade` | rpc_preview_cascade | ✅ Fixed v1.4 | fn_ prefix = SECURITY DEFINER, callable |
 | `rpc_search_knowledge_chunks` | rpc_search_knowledge | ✅ Fixed v1.4 | AI-14 canonical |
 | `rpc_get_ai_farm_context` | *(не было в Dok 3)* | ✅ Added v1.4 | AI-01, только AI Gateway |
+| `rpc_list_animal_categories(date, bool)` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T1 temporal; d03 legacy no-arg остаётся wrapper'ом |
+| `rpc_resolve_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T2, deterministic via is_primary |
+| `rpc_get_category_mappings` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T3 |
+| `rpc_add_animal_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T4, admin-only |
+| `rpc_deprecate_animal_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T5, admin-only |
+| `rpc_migrate_animal_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T6, admin-only |
 | `rpc_get_production_plan` | rpc_get_active_plan | ⚠️ Dual | RPC-37 = planned web version; AI-06 = implemented AI version |
 | ~~`rpc_extract_farm_data_from_dialogue`~~ | rpc_extract_farm_data_from_dialogue | ⛔ DEPRECATED | не существует в SQL |
 

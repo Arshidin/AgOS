@@ -1393,3 +1393,32 @@ QA прогоняет `rpc_resolve_category` против существующи
 - Сохраняет D93 (platform_defined vs custom ERP categories) — custom ERP категории теперь попадают в `external_category_mappings` с `organization_id`, а не как отдельные `animal_categories` строки.
 - Сохраняет D20 (group-level) — `animals` layer deferred (P11).
 - Надстраивается над D92 (AnimalCategory → TspCategory mapping) — ручной мэппинг D92 становится декларативным в `animal_category_mappings` target_taxonomy='market_sex'/'market_age_group'.
+
+---
+
+### 2026-04-15: ADR-ANIMAL-01 — M5 QA remediation (execution note, not a new ADR)
+
+**What:** После M3a deploy (commit `59ea829`) QA Agent выполнил snapshot audit L2 seed против Python/TS хардкодов и RLS-политик. Выявлено 2 CRITICAL + 1 SIGNIFICANT + 1 MINOR. DB Agent закрыл все (commit `87db44b`).
+
+**Findings и fixes:**
+
+| Severity | Finding | Fix |
+|---|---|---|
+| CRITICAL-01 | `rpc_resolve_category` non-deterministic на 4 ambiguous парах: (cfc_group, COW), (cfc_group, HEIFER_YOUNG), (turnover_key, STEER), (turnover_key, BULL_CALF). `ORDER BY valid_from desc LIMIT 1` возвращал произвольную строку. | Добавлена колонка `is_primary boolean default false` в `animal_category_mappings` + partial unique index `uq_acm_primary_per_source` (один primary на (taxonomy, L1, open)). `rpc_resolve_category` теперь `ORDER BY is_primary DESC, valid_from DESC, target_code`. Backfill: все single-mapping пары → primary; для 4 ambiguous назначены канонические по feeding_model.py + herdCategoryMapping.ts. |
+| CRITICAL-02 | `ecm_read` RLS содержал тавтологический subquery `organization_id in (select id from organizations where id = organization_id)` — всегда true благодаря FK. Все org-scoped L4 mappings были world-readable. Нарушение data isolation. | Тавтология удалена. Финальная policy: `organization_id is null OR fn_is_admin() OR exists(memberships where org=this)`. |
+| SIGNIFICANT-03 | L1 коды `OX` и `MIXED` не имели feeding_group/turnover_key/cfc_group mappings → `rpc_resolve_category` возвращал NULL → Python engine silent skip. | Добавлено 5 L2 строк: OX → STEER feeding, steers turnover, fattening_commercial cfc; MIXED → COW feeding, cows turnover. Все `is_primary=true`. |
+| MINOR-04 | SPRINT_STATUS.md swap count'ов market_sex (actually 9) ↔ market_age_group (actually 6). | Правка в SPRINT_STATUS.md. |
+
+**Architectural refinement:** `is_primary` стал восьмым неявным инвариантом (дополнение к I1–I7). Формально: **I8: deterministic resolve** — для любой пары (target_taxonomy, L1) с ≥1 активной проекцией существует ровно один `is_primary=true` через partial unique index `uq_acm_primary_per_source`.
+
+**Lesson Learned (L-8 candidate for CLAUDE.md):** Когда new таблица допускает many-to-one/many-to-many и есть `resolve` RPC → запроектировать tie-breaker (flag или rule) ДО seed, не после. `is_primary` должен был быть в M2, не в M5.
+
+**Files:** `d01_kernel.sql` (M5 block 5665–5740 + in-place RLS fix + is_primary in resolve RPC), `SPRINT_STATUS.md`, `cross_check.sh` (whitelists actualised ранее в commit 59ea829).
+
+**Verification:**
+- `cross_check.sh` — 0 critical / 0 significant / 0 minor
+- Grep duplicate definitions — один definition на каждую из 6 RPC + trigger (d03 legacy overload whitelisted)
+- QA Gate verdict: **PASS** ✅
+
+**Gate sign-off (Architect, 2026-04-15):** ✅ TAXONOMY DB foundation закрыт. Разблокирован **TAXONOMY-M3b** (Backend Agent — feature-flag переключение `feeding_model.py` на RPC-T3/T2).
+

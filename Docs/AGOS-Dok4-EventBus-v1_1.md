@@ -383,6 +383,23 @@ INSERT INTO public.user_notification_preferences (user_id, channel)
 
 ---
 
+### 3.9. Standards Domain (ADR-ANIMAL-01, 2026-04-15)
+
+| canonical_event_type | Producer | Consumers | Описание |
+|----------------------|----------|-----------|----------|
+| **standards.animal_category.updated** | RPC-T4 / RPC-T5 / RPC-T6 [ADMIN] | Python engine (read-through cache invalidate), React Query (invalidate `animal_categories`), AI Gateway (rebuild tool schema at session-start) | code, action (added\|deprecated\|migrated), replaced_by[], valid_to?, actor_user_id |
+
+**Продюсер:** любой из трёх admin-RPC (add/deprecate/migrate) — вызывает `publish_platform_event('standards.animal_category.updated', NULL, payload)` с `actor_org = NULL` (association-level).
+
+**Потребители (propagation chain, target ≤60s):**
+1. **Python engine** (`feeding_model.py`, `compliance.py`) — на session start читает таксономию через RPC-T3; подписчик realtime слушает event и сбрасывает кэш.
+2. **React Query** (`useAnimalCategories`, `useCategoryMapping`) — `staleTime=60s` + `invalidateQueries` на event.
+3. **AI Gateway graph init** — перестраивает tool JSON schema (enum значений L1) при рестарте или явном signal.
+
+**Полная цепочка распространения** — см. DECISIONS_LOG § 2026-04-15 ADR-ANIMAL-01 § "Propagation mechanism".
+
+---
+
 ## 4. Схемы payload (ключевые события)
 
 ### 4.1. market.batch.matched
