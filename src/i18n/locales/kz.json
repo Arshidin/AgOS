@@ -364,17 +364,6 @@
     "backHome": "Басты бетке оралу"
   },
   "admin": {
-    "login": {
-      "title": "TURAN Admin",
-      "enterPassword": "Кіру үшін email және құпиясөзді енгізіңіз",
-      "emailLabel": "Email",
-      "emailPlaceholder": "admin@example.com",
-      "password": "Құпия сөз",
-      "passwordPlaceholder": "Құпия сөз",
-      "wrongPassword": "Email немесе құпиясөз қате",
-      "adminOnly": "Тек әкімшілерге қол жетімді",
-      "loginBtn": "Кіру"
-    },
     "list": {
       "title": "Мүшелікке өтінімдер",
       "newCount": "{{count}} жаңа",

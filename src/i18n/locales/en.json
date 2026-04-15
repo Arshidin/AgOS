@@ -364,17 +364,6 @@
     "backHome": "Back to home"
   },
   "admin": {
-    "login": {
-      "title": "TURAN Admin",
-      "enterPassword": "Enter email and password to sign in",
-      "emailLabel": "Email",
-      "emailPlaceholder": "admin@example.com",
-      "password": "Password",
-      "passwordPlaceholder": "Password",
-      "wrongPassword": "Incorrect email or password",
-      "adminOnly": "Access for administrators only",
-      "loginBtn": "Sign in"
-    },
     "list": {
       "title": "Membership Applications",
       "newCount": "{{count}} new",

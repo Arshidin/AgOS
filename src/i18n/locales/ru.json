@@ -364,17 +364,6 @@
     "backHome": "Вернуться на главную"
   },
   "admin": {
-    "login": {
-      "title": "TURAN Admin",
-      "enterPassword": "Введите email и пароль для входа",
-      "emailLabel": "Email",
-      "emailPlaceholder": "admin@example.com",
-      "password": "Пароль",
-      "passwordPlaceholder": "Пароль",
-      "wrongPassword": "Неверный email или пароль",
-      "adminOnly": "Доступ только для администраторов",
-      "loginBtn": "Войти"
-    },
     "list": {
       "title": "Заявки на членство",
       "newCount": "{{count}} новых",

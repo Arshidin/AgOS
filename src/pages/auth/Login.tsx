@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Loader2, Phone, Lock, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { phoneToFakeEmail } from '@/lib/auth-utils'
@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 export function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [phone, setPhone] = useState('+7')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -59,7 +60,8 @@ export function Login() {
       }
 
       toast.success('Вход выполнен')
-      navigate('/cabinet', { replace: true })
+      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/cabinet'
+      navigate(from, { replace: true })
     } catch {
       setError('Ошибка подключения. Попробуйте позже.')
     } finally {
