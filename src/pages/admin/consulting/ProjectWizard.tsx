@@ -121,6 +121,45 @@ const STEER_SALE_OPTIONS = [
   { value: 18, label: 'Глубокое доращивание (18 мес.)' },
 ]
 
+const MONTHS = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+]
+
+/** Month selector — grid of 12 buttons, selected range highlighted */
+function MonthSelect({ value, onChange, rangeStart, rangeEnd }: {
+  value: number
+  onChange: (v: number) => void
+  rangeStart?: number
+  rangeEnd?: number
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {MONTHS.map((name, i) => {
+        const month = i + 1
+        const isSelected = month === value
+        const inRange = rangeStart != null && rangeEnd != null && month >= rangeStart && month <= rangeEnd && !isSelected
+        return (
+          <button
+            key={month}
+            type="button"
+            onClick={() => onChange(month)}
+            className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors border ${
+              isSelected
+                ? 'bg-[var(--color-cta)] text-white border-transparent'
+                : inRange
+                  ? 'bg-[var(--color-cta)]/10 text-[var(--color-cta)] border-[var(--color-cta)]/20'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+            }`}
+          >
+            {name.slice(0, 3)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Field component defined OUTSIDE to prevent re-mount on every render */
 function WizardField({ label, value, onChange, type = 'number', suffix, hint, step }: {
   label: string
@@ -153,9 +192,24 @@ export function ProjectWizard() {
   const navigate = useNavigate()
   const { projectId } = useParams()
   const { organization } = useAuth()
-  const [mode, setMode] = useState<'view' | 'edit'>('edit')
-  const [step, setStep] = useState(0)
-  const [params, setParams] = useState<WizardParams>(DEFAULT_PARAMS)
+  const [mode, setMode] = useState<'view' | 'edit'>(() => {
+    try {
+      const saved = sessionStorage.getItem(`wizard_mode_${projectId}`)
+      return (saved === 'view' || saved === 'edit') ? saved : 'edit'
+    } catch { return 'edit' }
+  })
+  const [step, setStep] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(`wizard_step_${projectId}`)
+      return saved ? Number(saved) : 0
+    } catch { return 0 }
+  })
+  const [params, setParams] = useState<WizardParams>(() => {
+    try {
+      const saved = sessionStorage.getItem(`wizard_params_${projectId}`)
+      return saved ? { ...DEFAULT_PARAMS, ...JSON.parse(saved) } : DEFAULT_PARAMS
+    } catch { return DEFAULT_PARAMS }
+  })
   const [calculating, setCalculating] = useState(false)
   const [paramsLoading, setParamsLoading] = useState(true)
   const [savedParamsStr, setSavedParamsStr] = useState('')
@@ -171,6 +225,16 @@ export function ProjectWizard() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+
+  // Persist wizard progress to sessionStorage
+  useEffect(() => {
+    if (!projectId) return
+    try {
+      sessionStorage.setItem(`wizard_step_${projectId}`, String(step))
+      sessionStorage.setItem(`wizard_mode_${projectId}`, mode)
+      sessionStorage.setItem(`wizard_params_${projectId}`, JSON.stringify(params))
+    } catch { /* quota exceeded — ignore */ }
+  }, [step, mode, params, projectId])
 
   // Load saved params + results from last version
   useEffect(() => {
@@ -438,8 +502,8 @@ export function ProjectWizard() {
 
     const techRows: PR[] = [
       { id: 'steer_sale_age_months',    label: 'Реализация бычков',   Icon: Clock,       options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
-      { id: 'pasture_start_month',      label: 'Пастбище: начало',    Icon: MapPin,      suffix: 'мес' },
-      { id: 'pasture_end_month',        label: 'Пастбище: конец',     Icon: MapPin,      suffix: 'мес' },
+      { id: 'pasture_start_month',      label: 'Пастбище: начало',    Icon: MapPin,      options: MONTHS.map((m, i) => ({ label: m, value: i + 1 })) },
+      { id: 'pasture_end_month',        label: 'Пастбище: конец',     Icon: MapPin,      options: MONTHS.map((m, i) => ({ label: m, value: i + 1 })) },
       { id: 'birth_weight_kg',          label: 'Вес при рождении',    Icon: Hash,        suffix: 'кг' },
       { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
       { id: 'daily_gain_steer_stall',   label: 'Привес бычки (зима)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
@@ -675,8 +739,24 @@ export function ProjectWizard() {
               <div className="h-px bg-border/50 my-2" />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Пастбищный сезон</p>
               <div className="grid grid-cols-2 gap-4">
-                <WizardField label="Начало (мес)" value={params.pasture_start_month} onChange={v => set('pasture_start_month', v)} suffix="мес" hint="мин 1, макс 12" />
-                <WizardField label="Конец (мес)" value={params.pasture_end_month} onChange={v => set('pasture_end_month', v)} suffix="мес" hint="мин 1, макс 12" />
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Начало</Label>
+                  <MonthSelect
+                    value={params.pasture_start_month}
+                    onChange={v => set('pasture_start_month', String(v))}
+                    rangeStart={params.pasture_start_month}
+                    rangeEnd={params.pasture_end_month}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Конец</Label>
+                  <MonthSelect
+                    value={params.pasture_end_month}
+                    onChange={v => set('pasture_end_month', String(v))}
+                    rangeStart={params.pasture_start_month}
+                    rangeEnd={params.pasture_end_month}
+                  />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">Центральный КЗ: 5–10 · Северный КЗ: 4–9 · Южный КЗ: 4–11</p>
 
@@ -711,9 +791,12 @@ export function ProjectWizard() {
                     max={24}
                     step={1}
                     value={params.steer_sale_age_months}
-                    onChange={e => {
-                      const v = parseInt(e.target.value, 10)
-                      if (!isNaN(v) && v >= 6 && v <= 24) set('steer_sale_age_months', String(v))
+                    onChange={e => set('steer_sale_age_months', e.target.value)}
+                    onBlur={() => {
+                      const v = params.steer_sale_age_months
+                      const isPreset = STEER_SALE_OPTIONS.some(o => o.value === v)
+                      if (!isPreset && v < 6) set('steer_sale_age_months', '6')
+                      else if (!isPreset && v > 24) set('steer_sale_age_months', '24')
                     }}
                     className="h-8 w-20 rounded-md border border-input bg-background px-2 text-sm"
                   />
