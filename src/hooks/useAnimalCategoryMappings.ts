@@ -8,6 +8,7 @@
  * P8: standards as data, not code. These hooks replace hardcoded mapping
  * consts over time, but hardcoded fallbacks remain (HS-5 additive architecture).
  */
+import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRpc } from '@/hooks/useRpc'
 
@@ -51,6 +52,8 @@ export function useAnimalCategoryMappings(targetTaxonomy: string) {
  */
 export function useInvalidateTaxonomyCache() {
   const queryClient = useQueryClient()
-  return () =>
-    queryClient.invalidateQueries({ queryKey: ['rpc_get_category_mappings'] })
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ['rpc_get_category_mappings'] }),
+    [queryClient],
+  )
 }
