@@ -46,6 +46,11 @@ CATEGORY_CODE_TO_HERD: dict[str, tuple[str, str]] = {
     "HEIFER_PREG":   ("heifers", "avg"),
     "BULL_CALF":     ("steers",  "avg"),
     "STEER":         ("steers",  "avg"),
+    # M5.3 / SIG-03: OX and MIXED were absent; added to match DB taxonomy seeds.
+    # OX = castrated male → fattening → steers group (turnover_key=steers, avg).
+    # MIXED = catch-all → cows group (turnover_key=cows, eop).
+    "OX":            ("steers",  "avg"),
+    "MIXED":         ("cows",    "eop"),
 }
 
 

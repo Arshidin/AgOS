@@ -17,7 +17,12 @@ import pytest
 
 # Both env vars must be present and non-empty.
 _SB_URL = os.getenv("SUPABASE_URL") or os.getenv("supabase_url") or ""
-_SB_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("supabase_service_key") or ""
+_SB_KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY")  # ai_gateway / .env convention
+    or os.getenv("SUPABASE_SERVICE_KEY")
+    or os.getenv("supabase_service_key")
+    or ""
+)
 
 pytestmark = pytest.mark.skipif(
     not (_SB_URL and _SB_KEY),
