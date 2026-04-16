@@ -4,10 +4,15 @@ import { TopbarProvider, useTopbarConfig } from './TopbarContext'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { DetailPanel } from './DetailPanel'
+import { useTaxonomyRealtimeSync } from '@/hooks/useTaxonomyRealtimeSync'
 
 function ShellGrid() {
   const { sidebar, panelOpen, theme } = useShell()
   const { config } = useTopbarConfig()
+
+  // TAXONOMY-M3c (Slice 4): invalidate rpc_get_category_mappings cache
+  // whenever association admin changes animal_category standards.
+  useTaxonomyRealtimeSync()
 
   const sidebarWidth =
     sidebar === 'expanded' ? 240 : sidebar === 'collapsed' ? 56 : 0

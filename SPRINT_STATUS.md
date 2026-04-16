@@ -5,7 +5,7 @@
 
 ---
 
-## Current Phase: TAXONOMY slice — M3c UI COMPLETE. Full stack wired: DB → Python → AI Gateway → React. Next: Dok 3/4 update (Architect) + Slice 4 proactive dispatch.
+## Current Phase: TAXONOMY slice — FULLY CLOSED (2026-04-16). All post-tasks done. TAXONOMY_RPC_READ=true. Realtime wired. Next: Slice 4 proactive dispatch.
 
 ### TAXONOMY slice — Animal Ontology (ADR-ANIMAL-01)
 
@@ -24,21 +24,20 @@
 | Backend | M3b: taxonomy_cache.py + test_taxonomy_snapshot.py | ✅ Done | consulting_engine: `taxonomy_rpc_read` flag + TaxonomyCache (read-through rpc_get_category_mappings/turnover_key). |
 | Backend | M3b: ai_gateway/taxonomy.py wiring | ✅ Done | get_l1_codes() enum in vet tool schema; is_valid_l1_code() in extraction/rules.py; handle_platform_event() skeleton in notification_worker.py. |
 | UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | ✅ Done | `useAnimalCategoryMappings` hook (staleTime=60s). `useCategoryToHerd()` + `rationGroups` from feeding_group taxonomy. Static fallbacks preserved (HS-5). `useInvalidateTaxonomyCache()` ready for Realtime wiring (Slice 4). |
-| Architect | Dok 3 update: add 6 RPCs to catalog | 🔜 Pending | Separate Architect task |
-| Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
+| Architect | Dok 3 update: add 6 RPCs to catalog | ✅ Done (2026-04-15) | RPC-T1..T6 in §1.8/§9b (lines 138-144, 569-592) |
+| Architect | Dok 4 update: event `standards.animal_category.updated` | ✅ Done (2026-04-15) | Dok 4 §3.9 line 390 |
 | Cleanup | TAXONOMY-CFC-DEPRECATE: remove Python CFC after valid_to (2026-12-31) | 🕒 Scheduled | 11 L2 rows auto-expire; Python code removal after |
 
 **DB Gate: ✅ PASSED** (2026-04-15) — cross_check 0/0/0 после M5 remediation.
 **QA Gate: ✅ PASSED** (2026-04-15) — 2 CRIT + 1 SIG + 1 MINOR закрыты (commit `87db44b`).
 **Architect sign-off: ✅** (2026-04-15) — Dok 3 §1.8/§9b + Dok 4 §3.9 обновлены, DECISIONS_LOG дополнен.
 
-**TAXONOMY slice COMPLETE (M1–M5 + M3b + M3c).** Full propagation path: DB seeds → rpc_get_category_mappings → Python TaxonomyCache (consulting_engine) + ai_gateway L1 enum + React useAnimalCategoryMappings (UI). Feature flag `TAXONOMY_RPC_READ` off by default — flip to activate live path.
+**TAXONOMY slice FULLY CLOSED (M1–M5 + M3b + M3c + all post-tasks).** Full propagation path: DB seeds → rpc_get_category_mappings → Python TaxonomyCache (consulting_engine) + ai_gateway L1 enum + React useAnimalCategoryMappings (UI). Feature flag `TAXONOMY_RPC_READ=true` (both services). Supabase Realtime wired in AppLayout.tsx.
 
-**Remaining open items:**
-- Architect: Dok 3 §1.8 + §9b update — add 6 new RPCs to catalog
-- Architect: Dok 4 §3.9 — `standards.animal_category.updated` event formal entry
-- Slice 4 (proactive dispatch): wire Supabase Realtime → `useInvalidateTaxonomyCache()` + `handle_platform_event()` polling
-- TAXONOMY-CFC-DEPRECATE (2026-12-31): remove Python CFC path after valid_to expires
+**Remaining scheduled items:**
+- TAXONOMY-CFC-DEPRECATE (2026-12-31): remove Python CFC path after cfc_group valid_to expires. Checklist in DECISIONS_LOG.md (2026-04-16 entry).
+
+**Next sprint:** Slice 4 proactive dispatch — `handle_platform_event()` polling loop + embedding_worker.
 
 ---
 

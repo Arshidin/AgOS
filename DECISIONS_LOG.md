@@ -1422,3 +1422,34 @@ QA прогоняет `rpc_resolve_category` против существующи
 
 **Gate sign-off (Architect, 2026-04-15):** ✅ TAXONOMY DB foundation закрыт. Разблокирован **TAXONOMY-M3b** (Backend Agent — feature-flag переключение `feeding_model.py` на RPC-T3/T2).
 
+---
+
+### 2026-04-16: TAXONOMY slice — post-tasks completion
+
+**What:** Закрыты все 4 post-task из TAXONOMY-M3c. TAXONOMY slice полностью завершён.
+
+**Task 1 — Dok 3/4 update:** Уже выполнен в предыдущей сессии (2026-04-15). RPC-T1..T6 в §1.8/§9b Dok 3 (строки 138-144, 569-592). `standards.animal_category.updated` в Dok 4 §3.9 (строка 390). Без изменений.
+
+**Task 2 — Supabase Realtime wiring:**
+- Создан `src/hooks/useTaxonomyRealtimeSync.ts` — подписка на `postgres_changes` для двух таблиц (`animal_categories`, `animal_category_mappings`) + forward-compatible channel на `platform_events WHERE event_type=standards.animal_category.updated` (Dok 4 §3.9).
+- Хук подключён в `AppLayout.tsx` (ShellGrid) — монтируется один раз на всё авторизованное сессию.
+- При любом изменении в taxonomy таблицах вызывается `useInvalidateTaxonomyCache()` → React Query инвалидирует `rpc_get_category_mappings` → все консьюмеры (useCategoryToHerd, SimpleRationEditor) получают актуальные данные в течение 60s.
+
+**Task 3 — TAXONOMY_RPC_READ=true:**
+- `consulting_engine/app/config.py`: `taxonomy_rpc_read: bool = True` (was `False`).
+- `ai_gateway/config.py`: `os.environ.get("TAXONOMY_RPC_READ", "true")` (was `""`).
+- Основание: snapshot tests 3/3 PASS (2026-04-15). Hardcoded fallbacks сохранены (HS-5).
+- Откат: установить `TAXONOMY_RPC_READ=false` в Railway env для любого сервиса.
+
+**Task 4 — CFC deprecation scheduled:**
+- В `d01_kernel.sql` M2 seeds: `cfc_group` mappings имеют `valid_to = '2026-12-31'` — 11+1 строк автоматически устаревают после этой даты (DB-level).
+- **Checklist для исполнения 2026-12-31:**
+  1. Запустить `rpc_get_category_mappings('cfc_group')` — убедиться, что возвращает 0 строк (все valid_to истекли).
+  2. В `consulting_engine/app/engine/taxonomy_cache.py`: удалить `_HERD_MEASUREMENT` const и `cfc_group` path из `get_herd_group_mapping()` (если он там есть). Убедиться, что `taxonomy_rpc_read=True` везде.
+  3. В `consulting_engine/app/engine/feeding_model.py`: убрать комментарии `# CFC-verified defaults` — заменить на `# L2 mapping via rpc_get_category_mappings`.
+  4. Прогнать snapshot test снова — ожидаемый результат: `cfc_group` отсутствует в RPC output, 0 строк.
+  5. Grep `cfc_group` по всему Python коду — убедиться, что нет прямых ссылок.
+  6. Commit: `git commit -m "TAXONOMY-CFC-DEPRECATE: remove Python CFC path (scheduled 2026-12-31)"`
+
+**Files changed:** `src/hooks/useTaxonomyRealtimeSync.ts` (new), `src/components/layout/AppLayout.tsx` (hook mount), `consulting_engine/app/config.py` (flag flip), `ai_gateway/config.py` (flag flip), `SPRINT_STATUS.md` (пункт 3 статус), `DECISIONS_LOG.md` (this entry).
+

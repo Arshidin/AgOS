@@ -29,8 +29,10 @@ class Settings(BaseSettings):
     # TAXONOMY-M3b (ADR-ANIMAL-01): when True, feeding_model reads
     # animal_category → herd_group mappings via rpc_get_category_mappings
     # instead of the hardcoded CATEGORY_CODE_TO_HERD dict.
-    # Default False until snapshot parity confirmed in staging.
-    taxonomy_rpc_read: bool = False
+    # Flipped True (2026-04-16): snapshot parity 3/3 confirmed.
+    # Hardcoded CATEGORY_CODE_TO_HERD stays as fallback (HS-5 additive arch).
+    # Override: set TAXONOMY_RPC_READ=false in Railway env to revert.
+    taxonomy_rpc_read: bool = True
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

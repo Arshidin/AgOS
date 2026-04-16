@@ -51,8 +51,11 @@ class Settings:
     # TAXONOMY-M3b (ADR-ANIMAL-01): when "on", tool schemas + extraction
     # validation pull the canonical L1 code list via rpc_list_animal_categories
     # at graph init, otherwise the hardcoded ANIMAL_CATEGORY_MAPPING keys are
-    # the source of truth. Default off until staging parity confirmed.
-    TAXONOMY_RPC_READ: bool = os.environ.get("TAXONOMY_RPC_READ", "").lower() in (
+    # the source of truth.
+    # Flipped on (2026-04-16): snapshot parity 3/3 confirmed.
+    # Hardcoded FALLBACK_L1_CODES stays as fallback (HS-5 additive arch).
+    # Override: set TAXONOMY_RPC_READ=false in Railway env to revert.
+    TAXONOMY_RPC_READ: bool = os.environ.get("TAXONOMY_RPC_READ", "true").lower() in (
         "1", "true", "on", "yes",
     )
 
