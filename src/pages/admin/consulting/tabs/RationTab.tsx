@@ -27,9 +27,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+// Skeleton import removed (was used only in NASEM CalcDialog mode — DEF-RATION-07)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown, AlertTriangle, Table2 } from 'lucide-react'
+import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -88,7 +88,8 @@ const OBJECTIVES = [
 export function RationTab() {
   const { projectId } = useParams<{ projectId: string }>()
   const { organization } = useAuth()
-  const [mode, setMode] = useState<'nasem' | 'simple'>('nasem')
+  // ADR-FEED-05: Simple is the only writer. NASEM is advisory via 🧮 in SimpleRationEditor.
+  // DEF-RATION-07: NASEM toggle removed — CalcDialog code preserved below but entry point closed.
   const [calcDialog, setCalcDialog] = useState<{
     categoryId: string
     categoryName: string
@@ -151,38 +152,16 @@ export function RationTab() {
         <div>
           <h2 className="text-lg font-semibold">Рационы кормления</h2>
           <p className="text-sm text-muted-foreground">
-            {mode === 'nasem'
-              ? 'NASEM-расчёт по категориям животных. Используется в P&L как точный COGS по кормам.'
-              : 'Табличный ввод рационов кг/гол/сут. Корректируйте под регион и условия.'}
+            Табличный ввод рационов кг/гол/сут. Используйте 🧮 для NASEM-подбора по сезону.
           </p>
-        </div>
-        <div className="flex gap-1 rounded-lg border p-0.5">
-          <Button
-            variant={mode === 'simple' ? 'default' : 'ghost'}
-            size="sm"
-            className="text-xs h-7 gap-1"
-            onClick={() => setMode('simple')}
-          >
-            <Table2 className="w-3 h-3" /> Простой
-          </Button>
-          <Button
-            variant={mode === 'nasem' ? 'default' : 'ghost'}
-            size="sm"
-            className="text-xs h-7 gap-1"
-            onClick={() => setMode('nasem')}
-          >
-            <Calculator className="w-3 h-3" /> NASEM
-          </Button>
         </div>
       </div>
 
-      {mode === 'simple' && (
-        <SimpleRationEditor
-          projectId={projectId}
-          orgId={orgId}
-          onSaved={() => refetch()}
-        />
-      )}
+      <SimpleRationEditor
+        projectId={projectId}
+        orgId={orgId}
+        onSaved={() => refetch()}
+      />
 
       {/* COGS Summary — visible in both modes (DEF-RATION-06) */}
       {!isLoading && rationCount > 0 && (
@@ -214,25 +193,8 @@ export function RationTab() {
         </Card>
       )}
 
-      {/* Fallback banner when no herd data */}
-      {mode === 'nasem' && !herd && !isLoading && (
-        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
-          <CardContent className="py-3 px-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              Запустите расчёт проекта для фильтрации категорий по стаду и автоподстановки голов/веса.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {mode === 'nasem' && isLoading && (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
-        </div>
-      )}
-
-      {mode === 'nasem' && !isLoading && (
+      {/* NASEM CalcDialog mode (preserved, entry point closed per ADR-FEED-05 / DEF-RATION-07) */}
+      {false && !isLoading && (
         <div className="space-y-3">
           {relevantCategories.map(cat => {
             const existing = rationsByCategory.get(cat.id)
