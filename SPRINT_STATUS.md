@@ -27,10 +27,12 @@
 | Architect | Dok 3 update: add 6 RPCs to catalog | ✅ Done (2026-04-15) | RPC-T1..T6 in §1.8/§9b (lines 138-144, 569-592) |
 | Architect | Dok 4 update: event `standards.animal_category.updated` | ✅ Done (2026-04-15) | Dok 4 §3.9 line 390 |
 | Cleanup | TAXONOMY-CFC-DEPRECATE: remove Python CFC after valid_to (2026-12-31) | 🕒 Scheduled | 11 L2 rows auto-expire; Python code removal after |
+| QA | Post-tasks audit (Realtime + flag flip) | ✅ PASSED (2026-04-16) | SIG-TAXONOMY-01 found+fixed (cd56ad8). MIN-TAXONOMY-01 accepted. cross_check 0/0/0. |
 
 **DB Gate: ✅ PASSED** (2026-04-15) — cross_check 0/0/0 после M5 remediation.
 **QA Gate: ✅ PASSED** (2026-04-15) — 2 CRIT + 1 SIG + 1 MINOR закрыты (commit `87db44b`).
-**Architect sign-off: ✅** (2026-04-15) — Dok 3 §1.8/§9b + Dok 4 §3.9 обновлены, DECISIONS_LOG дополнен.
+**QA Post-tasks Gate: ✅ PASSED** (2026-04-16) — SIG-TAXONOMY-01 fixed. 0 critical / 0 significant. MIN-TAXONOMY-01 accepted.
+**Architect sign-off: ✅** (2026-04-16) — TAXONOMY slice fully closed. No unresolved findings. Next: Backend Agent → proactive dispatch.
 
 **TAXONOMY slice FULLY CLOSED (M1–M5 + M3b + M3c + all post-tasks).** Full propagation path: DB seeds → rpc_get_category_mappings → Python TaxonomyCache (consulting_engine) + ai_gateway L1 enum + React useAnimalCategoryMappings (UI). Feature flag `TAXONOMY_RPC_READ=true` (both services). Supabase Realtime wired in AppLayout.tsx.
 
@@ -316,8 +318,8 @@ Scope: стратегия реализации бычков (GAP-1 КРИТИЧ�
 | `ai_gateway/tools/vet.py` | ✅ Slice 1 done | AI-07..10 via supabase.rpc(), P-AI-2 org_id injection |
 | `ai_gateway/compliance.py` | ✅ Slice 1 done | P-AI-4 dosage regex (14 patterns), CF-01 antitrust, CF-05 legal |
 | `ai_gateway/prompts.py` | ✅ Slice 1 done | System prompt builder from ai_prompts table (D133) |
-| `ai_gateway/proactive.py` | ⬜ Not started | Slice 4 |
-| `ai_gateway/embedding_worker.py` | ⬜ Not started | Slice 4 |
+| `ai_gateway/proactive.py` | ✅ Implemented in main.py | POST /proactive/dispatch (lines 220-241): INTERNAL_API_KEY guard + SKIP LOCKED via notification_worker.process_notification_batch(). No separate file needed. |
+| `ai_gateway/embedding_worker.py` | ⬜ Not started | Dok 5 §15: claim_embedding_batch → Embeddings API → complete_embedding_job. SQL FSM exists in d07 (embedding_queue). |
 | `src/` (React UI) | ✅ Slice 1 done | F01 (8-step reg), F02 (farm profile), F10 (report sick), F11 (vet case detail). AuthContext, useRpc hook, Supabase client. All data via supabase.rpc(). P-AI-4 dosage compliance verified. |
 
 ---
