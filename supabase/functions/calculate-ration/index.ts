@@ -38,6 +38,10 @@ interface RationRequest {
   objective?: string;
   shelter_type?: string;
   target_daily_gain_kg?: number;
+
+  // check_only mode (ADR-FEED-05): compute nutrients without saving
+  check_only?: boolean;
+  check_ration_items?: Array<{ feed_item_id: string; quantity_kg_per_day: number }>;
 }
 
 Deno.serve(async (req: Request) => {
@@ -149,6 +153,18 @@ Deno.serve(async (req: Request) => {
       p_g: (reqs.p_g_per_day || 14) * weightRatio,
     };
 
+    // check_only mode (ADR-FEED-05): skip solver, compute nutrients for provided items only
+    if (body.check_only && body.check_ration_items && body.check_ration_items.length > 0) {
+      const nutrients = computeNutrients(body.check_ration_items, feeds, body.avg_weight_kg, scaled);
+      return jsonResponse({
+        check_only: true,
+        nutrients_met: nutrients.nutrients_met,
+        deficiencies: nutrients.deficiencies,
+        actual_nutrients: nutrients.actual,
+        required_nutrients: nutrients.required,
+      });
+    }
+
     // 3. Greedy allocation: roughage first (50% DM), then concentrates
     let remaining = scaled.dm_kg;
     let roughageAlloc = 0;
@@ -196,31 +212,24 @@ Deno.serve(async (req: Request) => {
       remaining -= maxDm;
     }
 
-    // 4. Compute nutrient totals
-    let totDm = 0, totMe = 0, totCp = 0, totNdf = 0, totCa = 0, totP = 0, totCost = 0;
-    for (const item of rationItems) {
-      const f = feeds.find((x: any) => x.id === item.feed_item_id);
-      if (!f) continue;
-      const dm = item.quantity_kg_per_day * ((f.nc.dm_pct || 88) / 100);
-      totDm += dm; totMe += dm * (f.nc.me_mj_per_kg_dm || 0);
-      totCp += dm * (f.nc.cp_pct_dm || 0) * 10;
-      totNdf += dm * ((f.nc.ndf_pct_dm || 0) / 100);
-      totCa += dm * (f.nc.ca_g_per_kg_dm || 0);
-      totP += dm * (f.nc.p_g_per_kg_dm || 0);
-      totCost += item.cost_per_day;
-    }
-
+    // 4. Compute nutrient totals (shared logic via computeNutrients)
+    const nutrientResult = computeNutrients(
+      rationItems.map((i: any) => ({ feed_item_id: i.feed_item_id, quantity_kg_per_day: i.quantity_kg_per_day })),
+      feeds, body.avg_weight_kg, scaled,
+    );
+    const totDm = nutrientResult.actual.dm_kg;
+    const totMe = nutrientResult.actual.me_mj;
+    const totCp = nutrientResult.actual.cp_g;
+    const totCa = nutrientResult.actual.ca_g;
+    const totP  = nutrientResult.actual.p_g;
+    // Solver uses roughageAlloc for NDF check (roughage proportion, not raw NDF%)
     const roughPct = totDm > 0 ? (roughageAlloc / totDm) * 100 : 0;
-    const met = {
-      dm_kg: totDm >= scaled.dm_kg * 0.9, me_mj: totMe >= scaled.me_mj * 0.9,
-      cp_g: totCp >= scaled.cp_g * 0.9, ndf_pct: roughPct >= scaled.ndf_pct_min,
-      ca_g: totCa >= scaled.ca_g * 0.8, p_g: totP >= scaled.p_g * 0.8,
-    };
-
-    const deficiencies: string[] = [];
-    if (!met.dm_kg) deficiencies.push("СВ"); if (!met.me_mj) deficiencies.push("ОЭ");
-    if (!met.cp_g) deficiencies.push("СП"); if (!met.ndf_pct) deficiencies.push("НДК");
-    if (!met.ca_g) deficiencies.push("Ca"); if (!met.p_g) deficiencies.push("P");
+    let totCost = 0;
+    for (const item of rationItems) totCost += item.cost_per_day;
+    // Override ndf_pct with solver's roughage-based check (more accurate than nutrient-composition NDF)
+    const met = { ...nutrientResult.nutrients_met, ndf_pct: roughPct >= scaled.ndf_pct_min };
+    const deficiencies = [...nutrientResult.deficiencies.filter((d: string) => d !== "НДК")];
+    if (!met.ndf_pct) deficiencies.push("НДК");
 
     const unvalidated = feeds
       .filter((f: any) => !f.is_validated && rationItems.some((i: any) => i.feed_item_id === f.id))
@@ -291,6 +300,65 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: (err as Error).message }, 500);
   }
 });
+
+/**
+ * computeNutrients — shared nutrient check logic used by both solver path and check_only path.
+ * Items are {feed_item_id, quantity_kg_per_day}. feeds is the loaded feed catalog array.
+ * scaled is the weight-adjusted requirements object.
+ * Returns nutrients_met flags, deficiency list, actual values, and required values.
+ */
+function computeNutrients(
+  items: Array<{ feed_item_id: string; quantity_kg_per_day: number }>,
+  feeds: any[],
+  _avg_weight_kg: number,
+  scaled: { dm_kg: number; me_mj: number; cp_g: number; ndf_pct_min: number; ca_g: number; p_g: number },
+): {
+  nutrients_met: { dm_kg: boolean; me_mj: boolean; cp_g: boolean; ndf_pct: boolean; ca_g: boolean; p_g: boolean };
+  deficiencies: string[];
+  actual: { dm_kg: number; me_mj: number; cp_g: number; ndf_pct_dm: number; ca_g: number; p_g: number };
+  required: { dm_kg: number; me_mj: number; cp_g: number; ndf_pct_dm_min: number; ca_g: number; p_g: number };
+} {
+  let totDm = 0, totMe = 0, totCp = 0, totNdf = 0, totCa = 0, totP = 0;
+  for (const item of items) {
+    const f = feeds.find((x: any) => x.id === item.feed_item_id);
+    if (!f) continue;
+    const dm = item.quantity_kg_per_day * ((f.nc.dm_pct || 88) / 100);
+    totDm += dm;
+    totMe += dm * (f.nc.me_mj_per_kg_dm || 0);
+    totCp += dm * (f.nc.cp_pct_dm || 0) * 10;
+    totNdf += dm * ((f.nc.ndf_pct_dm || 0) / 100);
+    totCa += dm * (f.nc.ca_g_per_kg_dm || 0);
+    totP  += dm * (f.nc.p_g_per_kg_dm || 0);
+  }
+  const roughPct = totDm > 0 ? (totNdf / totDm) * 100 : 0;
+  const nutrients_met = {
+    dm_kg: totDm >= scaled.dm_kg * 0.9,
+    me_mj: totMe >= scaled.me_mj * 0.9,
+    cp_g:  totCp >= scaled.cp_g * 0.9,
+    ndf_pct: roughPct >= scaled.ndf_pct_min,
+    ca_g: totCa >= scaled.ca_g * 0.8,
+    p_g:  totP  >= scaled.p_g  * 0.8,
+  };
+  const deficiencies: string[] = [];
+  if (!nutrients_met.dm_kg)  deficiencies.push("СВ");
+  if (!nutrients_met.me_mj)  deficiencies.push("ОЭ");
+  if (!nutrients_met.cp_g)   deficiencies.push("СП");
+  if (!nutrients_met.ndf_pct) deficiencies.push("НДК");
+  if (!nutrients_met.ca_g)   deficiencies.push("Ca");
+  if (!nutrients_met.p_g)    deficiencies.push("P");
+  return {
+    nutrients_met,
+    deficiencies,
+    actual: {
+      dm_kg: round2(totDm), me_mj: round2(totMe), cp_g: round2(totCp),
+      ndf_pct_dm: round1(roughPct), ca_g: round2(totCa), p_g: round2(totP),
+    },
+    required: {
+      dm_kg: round2(scaled.dm_kg), me_mj: round2(scaled.me_mj), cp_g: round2(scaled.cp_g),
+      ndf_pct_dm_min: scaled.ndf_pct_min, ca_g: round2(scaled.ca_g), p_g: round2(scaled.p_g),
+    },
+  };
+}
 
 const ROUGHAGE_CODES = new Set([
   "HAY_MIXED_GRASS", "HAY_TIMOTHY", "STRAW_WHEAT", "HAYLAGE_GRASS",
