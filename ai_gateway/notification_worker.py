@@ -134,14 +134,15 @@ def process_notification_batch() -> dict[str, int]:
         template_id = notif["template_id"]
         params = notif.get("params") or {}
         user_id = notif["user_id"]
+        organization_id = notif["organization_id"]
 
         try:
             # Render message text
             text = render_template(template_id, params)
 
             if channel == "whatsapp":
-                # Look up user phone
-                phone = _get_user_phone(supabase, user_id)
+                # Look up user phone (DEF-013/P-AI-1: via RPC)
+                phone = _get_user_phone(supabase, user_id, organization_id)
                 if not phone:
                     _mark_failed(supabase, notif_id, "NO_PHONE: user has no phone number")
                     failed += 1
@@ -173,11 +174,18 @@ def process_notification_batch() -> dict[str, int]:
     return {"claimed": len(notifications), "sent": sent, "failed": failed}
 
 
-def _get_user_phone(supabase, user_id: str) -> str | None:
-    """Look up user phone from users table."""
+def _get_user_phone(supabase, user_id: str, organization_id: str) -> str | None:
+    """Look up user phone via RPC (DEF-013/P-AI-1: PII access org-scoped)."""
     try:
-        result = supabase.table("users").select("phone").eq("id", user_id).single().execute()
-        return result.data.get("phone") if result.data else None
+        result = (
+            supabase
+            .rpc("rpc_get_user_phone", {
+                "p_organization_id": str(organization_id),
+                "p_user_id": str(user_id),
+            })
+            .execute()
+        )
+        return result.data  # returns phone string or None
     except Exception as e:
         logger.error("Failed to get phone for user %s: %s", user_id[:8], e)
         return None

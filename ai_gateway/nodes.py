@@ -166,25 +166,25 @@ def load_context_node(state: dict) -> dict:
         if not farm_id and farm_context.get("farm_id"):
             farm_id = farm_context["farm_id"]
 
-        # Load conversation state for confirmation flow
+        # Load conversation state for confirmation flow (DEF-013/P-AI-1: via RPC)
         conv_id = state["conversation_id"]
-        conv_result = (
-            supabase.table("ai_conversations")
-            .select("confirmation_pending, confirmation_payload, current_role, "
-                    "role_was_overridden, message_history_summary, detected_language")
-            .eq("id", conv_id)
-            .single()
+        state_result = (
+            supabase
+            .rpc("rpc_get_conversation_state", {
+                "p_organization_id": str(org_id),
+                "p_conversation_id": str(conv_id),
+            })
             .execute()
         )
-        conv_data = conv_result.data or {}
+        conv_state = state_result.data or {}
 
         return {
             "farm_context": farm_context,
             "active_farm_id": farm_id,
-            "confirmation_pending": conv_data.get("confirmation_pending", False),
-            "confirmation_payload": conv_data.get("confirmation_payload"),
-            "current_role": conv_data.get("current_role", state.get("current_role", "consultant")),
-            "role_was_overridden": conv_data.get("role_was_overridden", False),
+            "confirmation_pending": conv_state.get("confirmation_pending", False),
+            "confirmation_payload": conv_state.get("confirmation_payload"),
+            "current_role": conv_state.get("current_role", state.get("current_role", "consultant")),
+            "role_was_overridden": conv_state.get("role_was_overridden", False),
         }
     except Exception as e:
         logger.error("load_context failed: %s", e, exc_info=True)
@@ -332,12 +332,12 @@ def _execute_confirmation_write(state: dict, payload: dict, supabase) -> dict:
 
 
 def _clear_confirmation(conversation_id: str, org_id: str, supabase) -> None:
-    """Clear confirmation state in DB."""
+    """Clear confirmation state in DB (DEF-013/P-AI-1: via RPC)."""
     try:
-        supabase.table("ai_conversations").update({
-            "confirmation_pending": False,
-            "confirmation_payload": None,
-        }).eq("id", conversation_id).execute()
+        supabase.rpc("rpc_clear_confirmation", {
+            "p_organization_id": str(org_id),
+            "p_conversation_id": str(conversation_id),
+        }).execute()
     except Exception as e:
         logger.error("Failed to clear confirmation: %s", e)
 
@@ -682,10 +682,13 @@ def save_response_node(state: dict) -> dict:
             "p_prompt_version": state.get("prompt_version"),
         }).execute()
 
-        # Sync current role to conversation (Dok 5 §3.5 O-3)
-        supabase.table("ai_conversations").update({
-            "current_role": state.get("current_role", "consultant"),
-        }).eq("id", conv_id).execute()
+        # Sync current role to conversation (Dok 5 §3.5 O-3) (DEF-013/P-AI-1: via RPC)
+        current_role = state.get("current_role", "consultant")
+        supabase.rpc("rpc_sync_conversation_role", {
+            "p_organization_id": str(state.get("organization_id")),
+            "p_conversation_id": str(conv_id),
+            "p_role": current_role,
+        }).execute()
 
     except Exception as e:
         logger.error("save_response failed: %s", e, exc_info=True)
