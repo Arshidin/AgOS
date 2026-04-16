@@ -5,7 +5,7 @@
 
 ---
 
-## Current Phase: TAXONOMY slice — M3b BACKEND COMPLETE. DB migration deployed to prod. Snapshot 3/3 PASS. Next: M3c UI (herdCategoryMapping.ts → RPC).
+## Current Phase: TAXONOMY slice — M3c UI COMPLETE. Full stack wired: DB → Python → AI Gateway → React. Next: Dok 3/4 update (Architect) + Slice 4 proactive dispatch.
 
 ### TAXONOMY slice — Animal Ontology (ADR-ANIMAL-01)
 
@@ -23,7 +23,7 @@
 | QA | Snapshot gate: rpc_get_category_mappings parity | ✅ PASSED (2026-04-16) | 3/3 tests: parity + I8 primary + cache invalidation. OX/MIXED gap found→fixed in CATEGORY_CODE_TO_HERD. |
 | Backend | M3b: taxonomy_cache.py + test_taxonomy_snapshot.py | ✅ Done | consulting_engine: `taxonomy_rpc_read` flag + TaxonomyCache (read-through rpc_get_category_mappings/turnover_key). |
 | Backend | M3b: ai_gateway/taxonomy.py wiring | ✅ Done | get_l1_codes() enum in vet tool schema; is_valid_l1_code() in extraction/rules.py; handle_platform_event() skeleton in notification_worker.py. |
-| UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | 🔜 After M3b | React Query staleTime=60s + `standards.animal_category.updated` event invalidation |
+| UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | ✅ Done | `useAnimalCategoryMappings` hook (staleTime=60s). `useCategoryToHerd()` + `rationGroups` from feeding_group taxonomy. Static fallbacks preserved (HS-5). `useInvalidateTaxonomyCache()` ready for Realtime wiring (Slice 4). |
 | Architect | Dok 3 update: add 6 RPCs to catalog | 🔜 Pending | Separate Architect task |
 | Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
 | Cleanup | TAXONOMY-CFC-DEPRECATE: remove Python CFC after valid_to (2026-12-31) | 🕒 Scheduled | 11 L2 rows auto-expire; Python code removal after |
@@ -32,7 +32,13 @@
 **QA Gate: ✅ PASSED** (2026-04-15) — 2 CRIT + 1 SIG + 1 MINOR закрыты (commit `87db44b`).
 **Architect sign-off: ✅** (2026-04-15) — Dok 3 §1.8/§9b + Dok 4 §3.9 обновлены, DECISIONS_LOG дополнен.
 
-**Next: TAXONOMY-M3c** — UI Agent: `herdCategoryMapping.ts` → React Query over `rpc_get_category_mappings('feeding_group')` с `staleTime=60000`, инвалидация по событию `standards.animal_category.updated`. SimpleRationEditor: enum категорий из RPC.
+**TAXONOMY slice COMPLETE (M1–M5 + M3b + M3c).** Full propagation path: DB seeds → rpc_get_category_mappings → Python TaxonomyCache (consulting_engine) + ai_gateway L1 enum + React useAnimalCategoryMappings (UI). Feature flag `TAXONOMY_RPC_READ` off by default — flip to activate live path.
+
+**Remaining open items:**
+- Architect: Dok 3 §1.8 + §9b update — add 6 new RPCs to catalog
+- Architect: Dok 4 §3.9 — `standards.animal_category.updated` event formal entry
+- Slice 4 (proactive dispatch): wire Supabase Realtime → `useInvalidateTaxonomyCache()` + `handle_platform_event()` polling
+- TAXONOMY-CFC-DEPRECATE (2026-12-31): remove Python CFC path after valid_to expires
 
 ---
 
