@@ -7,10 +7,11 @@
  * Saves results via rpc_save_consulting_ration (C-RPC-09).
  * Reads existing rations via rpc_get_consulting_rations (C-RPC-10).
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
+import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 import { useProjectData } from './usProjectData'
 import {
   getRelevantCategories,
@@ -104,16 +105,31 @@ export function RationTab() {
   const herd = results?.herd
   const weight = results?.weight
 
-  const { data: categories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
+  const { data: allCategories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
+  const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
   const { data: rations, isLoading, refetch } = useRpc<ConsultingRation[]>(
     'rpc_get_consulting_rations',
     { p_organization_id: orgId, p_consulting_project_id: projectId },
     { enabled: !!orgId && !!projectId }
   )
 
-  if (!orgId || !projectId) return null
+  // DEF-RATION-05: derive relevant categories from feeding_group taxonomy (single source)
+  const relevantCategories = useMemo(() => {
+    if (!allCategories) return []
+    if (!feedingGroupData || feedingGroupData.length === 0) {
+      // fallback: use old static-mapping logic
+      return getRelevantCategories(herd, allCategories)
+    }
+    // feeding_group taxonomy defines which categories are feeding groups
+    const feedingCodes = new Set(
+      feedingGroupData.filter(r => r.is_primary).map(r => r.animal_category_code)
+    )
+    const feedingCategories = allCategories.filter(c => feedingCodes.has(c.code))
+    // Further filter by herd data if available
+    return getRelevantCategories(herd, feedingCategories)
+  }, [allCategories, feedingGroupData, herd])
 
-  const relevantCategories = getRelevantCategories(herd, categories || [])
+  if (!orgId || !projectId) return null
 
   const rationsByCategory = new Map<string, ConsultingRation>(
     (rations || []).map(r => [r.animal_category_id, r])
@@ -168,8 +184,8 @@ export function RationTab() {
         />
       )}
 
-      {/* COGS Summary — visible in both modes */}
-      {mode === 'nasem' && !isLoading && rationCount > 0 && (
+      {/* COGS Summary — visible in both modes (DEF-RATION-06) */}
+      {!isLoading && rationCount > 0 && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="py-3 px-4">
             <div className="flex items-center justify-between">

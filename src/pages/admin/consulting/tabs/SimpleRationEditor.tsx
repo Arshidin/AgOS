@@ -236,7 +236,34 @@ export function SimpleRationEditor({
         const groupRation = rations[group.key]
         if (!groupRation) continue
 
-        // Build items array (stall season — primary for cost calculation)
+        // Build separate pasture and stall item arrays (DEF-RATION-01)
+        const pastureItems = Object.entries(groupRation)
+          .filter(([, vals]) => vals.pasture > 0)
+          .map(([feed, vals]) => {
+            const price = feedCodeToPrice.get(feed) ?? BASE_PRICES[feed] ?? 0
+            return {
+              feed_item_id: feedCodeToId.get(feed) || feed,
+              feed_item_code: feed,
+              quantity_kg_per_day: Number(vals.pasture.toFixed(3)),
+              effective_price_per_kg: price,
+              cost_per_day: Number((vals.pasture * price).toFixed(2)),
+            }
+          })
+
+        const stallItems = Object.entries(groupRation)
+          .filter(([, vals]) => vals.stall > 0)
+          .map(([feed, vals]) => {
+            const price = feedCodeToPrice.get(feed) ?? BASE_PRICES[feed] ?? 0
+            return {
+              feed_item_id: feedCodeToId.get(feed) || feed,
+              feed_item_code: feed,
+              quantity_kg_per_day: Number(vals.stall.toFixed(3)),
+              effective_price_per_kg: price,
+              cost_per_day: Number((vals.stall * price).toFixed(2)),
+            }
+          })
+
+        // p_items: year-average for RPC backward compatibility
         const items = Object.entries(groupRation)
           .filter(([, vals]) => vals.stall > 0 || vals.pasture > 0)
           .map(([feed, vals]) => {
@@ -253,7 +280,10 @@ export function SimpleRationEditor({
 
         if (items.length === 0) continue
 
-        const totalCostPerDay = items.reduce((s, i) => s + i.cost_per_day, 0)
+        const dailyCostPastureGroup = pastureItems.reduce((s, i) => s + i.cost_per_day, 0)
+        const dailyCostStallGroup = stallItems.reduce((s, i) => s + i.cost_per_day, 0)
+        // Weighted average: 6 pasture months + 6 stall months
+        const avgDailyCost = Number(((dailyCostPastureGroup * 6 + dailyCostStallGroup * 6) / 12).toFixed(2))
 
         // Resolve animal category UUID
         const categoryId = animalCategoryToId.get(group.code)
@@ -269,15 +299,19 @@ export function SimpleRationEditor({
           p_animal_category_id: categoryId,
           p_items: items,
           p_results: {
-            total_cost_per_day: totalCostPerDay,
-            total_cost_per_month: totalCostPerDay * 30.44,
+            // Seasonal split — primary data (DEF-RATION-01)
+            pasture: {
+              items: pastureItems,
+              total_cost_per_day: Number(dailyCostPastureGroup.toFixed(2)),
+            },
+            stall: {
+              items: stallItems,
+              total_cost_per_day: Number(dailyCostStallGroup.toFixed(2)),
+            },
             source: 'simple_editor',
-            pasture_ration: Object.fromEntries(
-              Object.entries(groupRation).filter(([, v]) => v.pasture > 0).map(([k, v]) => [k, v.pasture])
-            ),
-            stall_ration: Object.fromEntries(
-              Object.entries(groupRation).filter(([, v]) => v.stall > 0).map(([k, v]) => [k, v.stall])
-            ),
+            // Weighted average for display and backward compat
+            total_cost_per_day: avgDailyCost,
+            total_cost_per_month: Number((avgDailyCost * 30.44).toFixed(2)),
           },
         })
 
