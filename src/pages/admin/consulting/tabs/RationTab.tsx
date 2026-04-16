@@ -20,7 +20,7 @@ import {
   getDefaultObjective,
   CATEGORY_CODE_TO_HERD,
 } from './herdCategoryMapping'
-import { SimpleRationEditor, DEFAULT_RATIONS, FEED_NAMES } from './SimpleRationEditor'
+import { SimpleRationEditor, DEFAULT_RATIONS, FEED_NAMES, RationsState } from './SimpleRationEditor'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -100,10 +100,15 @@ export function RationTab() {
     defaultObjective: string
   } | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Live rations state — initialised to DEFAULT_RATIONS, updated by SimpleRationEditor
+  // via onRationsChange on every cell edit. Used for the feed-volume preview tables.
+  const [liveRations, setLiveRations] = useState<RationsState>(
+    () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
+  )
 
   const orgId = organization?.id
 
-  const { results } = useProjectData()
+  const { results, loading: projectLoading } = useProjectData()
   const herd = results?.herd
   const weight = results?.weight
 
@@ -162,6 +167,7 @@ export function RationTab() {
         projectId={projectId}
         orgId={orgId}
         onSaved={() => refetch()}
+        onRationsChange={setLiveRations}
       />
 
       {/* COGS Summary — visible in both modes (DEF-RATION-06) */}
@@ -196,101 +202,64 @@ export function RationTab() {
 
       {/* ========== Feed volumes by group & by feed type ========== */}
       {(() => {
-        // ── 1. Try engine-computed data first ──────────────────────────────────
+        // ── 1. Engine data (post-recalculation with DEF-RATION-08) ────────────
         const engineByGroup = results?.feeding?.quantities?.by_group as
           Record<string, Record<string, number[]>> | undefined
         const engineAnnual = results?.feeding?.annual_feed_summary as
           Record<string, number[]> | undefined
+        const hasEngineGroups = !!(engineByGroup && Object.keys(engineByGroup).length > 0)
+        const hasEngineAnnual = !!(engineAnnual && Object.keys(engineAnnual).length > 0)
 
-        const hasEngineGroups = engineByGroup && Object.keys(engineByGroup).length > 0
-        const hasEngineAnnual = engineAnnual && Object.keys(engineAnnual).length > 0
-
-        // ── 2. Client-side fallback: ration items × herd projections ──────────
-        // Runs when engine data is absent (project not yet recalculated with
-        // DEF-RATION-08). Formula: kg/day × avg_heads_this_year × 365 / 1000 = tonnes/year
-        // Falls back to DEFAULT_RATIONS when no rations saved yet (rationsByCategory empty).
+        // ── 2. Client-side computation from liveRations × herd ────────────────
+        // liveRations is in RationTab state, initialised to DEFAULT_RATIONS and
+        // updated on every cell edit via onRationsChange callback — no save needed.
+        // Formula: (pasture×183 + stall×182) × avgHeads_yr / 1000 = tonnes/yr
         let clientGroups: { key: string; label: string; annual: number[] }[] = []
-        let clientFeeds: { name: string; annual: number[] }[] = []
-        let usingDefaults = false
+        let clientFeeds:  { name: string; annual: number[] }[] = []
 
-        if (!hasEngineGroups && !hasEngineAnnual && herd) {
-          const grpAcc: Record<string, { label: string; annual: number[] }> = {}
+        if (!hasEngineGroups && !hasEngineAnnual) {
+          if (!herd) {
+            return projectLoading
+              ? <p className="text-xs text-muted-foreground animate-pulse px-0.5 py-2">Загрузка данных проекта...</p>
+              : <p className="text-xs text-muted-foreground px-0.5 py-2">Запустите расчёт проекта для отображения объёмов кормов</p>
+          }
+
+          const GROUP_LABEL_MAP: Record<string, string> = {
+            COW:           'Маточное поголовье',
+            SUCKLING_CALF: 'Молодняк (телята)',
+            HEIFER_YOUNG:  'Тёлки',
+            STEER:         'Бычки',
+            BULL_BREEDING: 'Быки-производители',
+          }
+          const grpAcc:  Record<string, { label: string; annual: number[] }> = {}
           const feedAcc: Record<string, number[]> = {}
 
-          // Prefer saved rations; fall back to DEFAULT_RATIONS for preview
-          const hasSaved = rationsByCategory.size > 0
+          for (const [code, feeds] of Object.entries(liveRations)) {
+            const mapping = CATEGORY_CODE_TO_HERD[code]
+            if (!mapping) continue
+            const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
+            if (!herdGrp) continue
+            const monthArr = herdGrp[mapping.metric]
+            if (!Array.isArray(monthArr) || monthArr.length === 0) continue
 
-          if (hasSaved) {
-            // Path A: saved rations from DB
-            for (const ration of rationsByCategory.values()) {
-              const code = ration.animal_category_code
-              const mapping = CATEGORY_CODE_TO_HERD[code]
-              if (!mapping) continue
+            const annual = Array<number>(10).fill(0)
+            for (let yr = 0; yr < 10; yr++) {
+              const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
+              if (slice.length === 0) break
+              const avgHeads = slice.reduce((a: number, b: number) => a + (b ?? 0), 0) / slice.length
+              if (avgHeads <= 0) continue
 
-              const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
-              if (!herdGrp) continue
-              const monthArr = herdGrp[mapping.metric]
-              if (!Array.isArray(monthArr) || monthArr.length === 0) continue
-
-              const annual = Array<number>(10).fill(0)
-              for (let yr = 0; yr < 10; yr++) {
-                const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
-                if (slice.length === 0) break
-                const avgHeads = slice.reduce((a, b) => a + (b ?? 0), 0) / slice.length
-                if (avgHeads <= 0) continue
-
-                for (const item of ration.items) {
-                  const tonnes = (item.quantity_kg_per_day * avgHeads * 365) / 1000
-                  annual[yr] = (annual[yr] ?? 0) + tonnes
-                  if (!feedAcc[item.feed_item_code])
-                    feedAcc[item.feed_item_code] = Array<number>(10).fill(0)
-                  feedAcc[item.feed_item_code]![yr] = (feedAcc[item.feed_item_code]![yr] ?? 0) + tonnes
-                }
+              for (const [feedCode, vals] of Object.entries(feeds)) {
+                const avgKg = (vals.pasture * 183 + vals.stall * 182) / 365
+                if (avgKg <= 0) continue
+                const tonnes = avgKg * avgHeads * 365 / 1000
+                annual[yr] = (annual[yr] ?? 0) + tonnes
+                if (!feedAcc[feedCode]) feedAcc[feedCode] = Array<number>(10).fill(0)
+                feedAcc[feedCode]![yr] = (feedAcc[feedCode]![yr] ?? 0) + tonnes
               }
-
-              if (annual.some(v => v > 0.05))
-                grpAcc[code] = { label: ration.animal_category_name, annual }
             }
-          } else {
-            // Path B: no saved rations yet — compute preview from DEFAULT_RATIONS
-            usingDefaults = true
-            const GROUP_LABEL_MAP: Record<string, string> = {
-              COW:           'Маточное поголовье',
-              SUCKLING_CALF: 'Молодняк (телята)',
-              HEIFER_YOUNG:  'Тёлки',
-              STEER:         'Бычки',
-              BULL_BREEDING: 'Быки-производители',
-            }
-            for (const [code, feeds] of Object.entries(DEFAULT_RATIONS)) {
-              const mapping = CATEGORY_CODE_TO_HERD[code]
-              if (!mapping) continue
-              const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
-              if (!herdGrp) continue
-              const monthArr = herdGrp[mapping.metric]
-              if (!Array.isArray(monthArr) || monthArr.length === 0) continue
-
-              const annual = Array<number>(10).fill(0)
-              for (let yr = 0; yr < 10; yr++) {
-                const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
-                if (slice.length === 0) break
-                const avgHeads = slice.reduce((a, b) => a + (b ?? 0), 0) / slice.length
-                if (avgHeads <= 0) continue
-
-                for (const [feedCode, vals] of Object.entries(feeds)) {
-                  // year-average kg/day (same formula as handleSave in SimpleRationEditor)
-                  const avgKg = (vals.pasture * 183 + vals.stall * 182) / 365
-                  if (avgKg <= 0) continue
-                  const tonnes = (avgKg * avgHeads * 365) / 1000
-                  annual[yr] = (annual[yr] ?? 0) + tonnes
-                  if (!feedAcc[feedCode])
-                    feedAcc[feedCode] = Array<number>(10).fill(0)
-                  feedAcc[feedCode]![yr] = (feedAcc[feedCode]![yr] ?? 0) + tonnes
-                }
-              }
-
-              if (annual.some(v => v > 0.05))
-                grpAcc[code] = { label: GROUP_LABEL_MAP[code] ?? code, annual }
-            }
+            if (annual.some(v => v > 0.05))
+              grpAcc[code] = { label: GROUP_LABEL_MAP[code] ?? code, annual }
           }
 
           clientGroups = Object.entries(grpAcc)
@@ -298,15 +267,12 @@ export function RationTab() {
             .filter(g => g.annual.some(v => v > 0.05))
 
           clientFeeds = Object.entries(feedAcc)
-            .map(([feedCode, annual]) => ({
-              name: FEED_NAMES[feedCode] ?? feedCode,
-              annual,
-            }))
+            .map(([fc, annual]) => ({ name: FEED_NAMES[fc] ?? fc, annual }))
             .filter(f => f.annual.some(v => v > 0.05))
             .sort((a, b) => (b.annual[0] ?? 0) - (a.annual[0] ?? 0))
         }
 
-        // ── 3. Merge engine data (if present) ─────────────────────────────────
+        // ── 3. Resolve final data source ──────────────────────────────────────
         const GROUP_LABELS: Record<string, string> = {
           molodnyak:            'Молодняк (телята)',
           heifers_prev:         'Тёлки',
@@ -332,9 +298,7 @@ export function RationTab() {
               .filter(([k]) => !SKIP.has(k))
               .map(([k, feeds]) => {
                 const monthly = Array<number>(120).fill(0)
-                Object.values(feeds).forEach(feedArr =>
-                  feedArr?.forEach((v, t) => { monthly[t] = (monthly[t] ?? 0) + (v ?? 0) })
-                )
+                Object.values(feeds).forEach(fa => fa?.forEach((v, t) => { monthly[t] = (monthly[t] ?? 0) + (v ?? 0) }))
                 return { key: k, label: GROUP_LABELS[k] ?? k, annual: toAnnual(monthly) }
               })
               .filter(g => g.annual.some(v => v > 0.05))
@@ -350,21 +314,18 @@ export function RationTab() {
         if (groups.length === 0 && feedRows.length === 0) return null
 
         const numYears = Math.max(
-          groups.length > 0 ? groups[0]!.annual.length : 0,
+          groups.length  > 0 ? groups[0]!.annual.length  : 0,
           feedRows.length > 0 ? feedRows[0]!.annual.length : 0,
         )
         const yearHeaders = Array.from({ length: numYears }, (_, i) => `Год ${i + 1}`)
-
-        const groupTotals = Array.from({ length: numYears }, (_, i) =>
-          groups.reduce((s, g) => s + (g.annual[i] ?? 0), 0))
-        const feedTotals = Array.from({ length: numYears }, (_, i) =>
-          feedRows.reduce((s, f) => s + (f.annual[i] ?? 0), 0))
+        const groupTotals = Array.from({ length: numYears }, (_, i) => groups.reduce((s, g) => s + (g.annual[i] ?? 0), 0))
+        const feedTotals  = Array.from({ length: numYears }, (_, i) => feedRows.reduce((s, f) => s + (f.annual[i] ?? 0), 0))
 
         const sourceLabel = hasEngineGroups || hasEngineAnnual
           ? null
-          : usingDefaults
-            ? 'нормативные значения · сохраните рационы для уточнения'
-            : 'на основе сохранённых рационов'
+          : rationsByCategory.size > 0
+            ? 'сохранённые рационы'
+            : 'нормативные значения'
 
         return (
           <div className="space-y-3">
@@ -383,18 +344,14 @@ export function RationTab() {
             {groups.length > 0 && (
               <Card>
                 <CardHeader className="pb-0 pt-3 px-4">
-                  <CardTitle className="text-xs text-muted-foreground font-medium">
-                    По группам животных, тн/год
-                  </CardTitle>
+                  <CardTitle className="text-xs text-muted-foreground font-medium">По группам животных, тн/год</CardTitle>
                 </CardHeader>
                 <CardContent className="px-0 pb-2 overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b text-muted-foreground">
                         <th className="px-4 py-2 text-left font-medium min-w-[180px]">Группа</th>
-                        {yearHeaders.map(y => (
-                          <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>
-                        ))}
+                        {yearHeaders.map(y => <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -403,16 +360,14 @@ export function RationTab() {
                           <td className="px-4 py-1.5">{g.label}</td>
                           {Array.from({ length: numYears }, (_, i) => (
                             <td key={i} className="px-2 py-1.5 text-right font-mono">
-                              {(g.annual[i] ?? 0) > 0.05 ? (g.annual[i]!).toFixed(1) : '—'}
+                              {(g.annual[i] ?? 0) > 0.05 ? g.annual[i]!.toFixed(1) : '—'}
                             </td>
                           ))}
                         </tr>
                       ))}
                       <tr className="border-t-2 bg-muted/40 font-semibold">
                         <td className="px-4 py-2">Итого</td>
-                        {groupTotals.map((v, i) => (
-                          <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>
-                        ))}
+                        {groupTotals.map((v, i) => <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>)}
                       </tr>
                     </tbody>
                   </table>
@@ -424,18 +379,14 @@ export function RationTab() {
             {feedRows.length > 0 && (
               <Card>
                 <CardHeader className="pb-0 pt-3 px-4">
-                  <CardTitle className="text-xs text-muted-foreground font-medium">
-                    По видам кормов, тн/год
-                  </CardTitle>
+                  <CardTitle className="text-xs text-muted-foreground font-medium">По видам кормов, тн/год</CardTitle>
                 </CardHeader>
                 <CardContent className="px-0 pb-2 overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b text-muted-foreground">
                         <th className="px-4 py-2 text-left font-medium min-w-[180px]">Корм</th>
-                        {yearHeaders.map(y => (
-                          <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>
-                        ))}
+                        {yearHeaders.map(y => <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -444,16 +395,14 @@ export function RationTab() {
                           <td className="px-4 py-1.5">{f.name}</td>
                           {Array.from({ length: numYears }, (_, i) => (
                             <td key={i} className="px-2 py-1.5 text-right font-mono">
-                              {(f.annual[i] ?? 0) > 0.05 ? (f.annual[i]!).toFixed(1) : '—'}
+                              {(f.annual[i] ?? 0) > 0.05 ? f.annual[i]!.toFixed(1) : '—'}
                             </td>
                           ))}
                         </tr>
                       ))}
                       <tr className="border-t-2 bg-muted/40 font-semibold">
                         <td className="px-4 py-2">Итого</td>
-                        {feedTotals.map((v, i) => (
-                          <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>
-                        ))}
+                        {feedTotals.map((v, i) => <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>)}
                       </tr>
                     </tbody>
                   </table>

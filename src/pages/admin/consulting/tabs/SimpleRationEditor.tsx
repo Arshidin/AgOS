@@ -138,20 +138,32 @@ function NutritionBadge({ season, status }: {
   )
 }
 
+/** Type alias exported so RationTab can type liveRations state. */
+export type RationsState = Record<string, Record<string, { pasture: number; stall: number }>>
+
 export function SimpleRationEditor({
   projectId,
   orgId,
   onSaved,
+  onRationsChange,
 }: {
   projectId: string
   orgId: string
   onSaved: () => void
+  /** Called on every rations change (including initial mount) so parent can show live volumes. */
+  onRationsChange?: (rations: RationsState) => void
 }) {
   const [activeGroup, setActiveGroup] = useState<string>(RATION_GROUPS[0]?.key ?? 'COW')
-  const [rations, setRations] = useState<Record<string, Record<string, { pasture: number; stall: number }>>>(
+  const [rations, setRations] = useState<RationsState>(
     () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
   )
   const [saving, setSaving] = useState(false)
+
+  // Notify parent of rations state on every change (including initial mount).
+  // Parent (RationTab) uses this for live feed-volume preview.
+  useEffect(() => {
+    onRationsChange?.(rations)
+  }, [rations, onRationsChange])
 
   // ADR-FEED-05 §10: NASEM Подобрать state
   const [suggestDialog, setSuggestDialog] = useState<{
