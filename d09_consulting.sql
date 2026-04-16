@@ -40,6 +40,15 @@ comment on table public.consulting_projects is
      FSM: draft → calculating → calculated → archived.
      Каждый проект принадлежит организации (Zengi tenant).';
 
+-- ADR-RATION-01 DEF-RATION-04: season boundaries for feeding cost split (Dok 7 §9.2)
+-- Default 5/10 = May–October = Kazakhstan central belt pasture season.
+-- Override per project in ProjectWizard for northern KZ (start=4) or southern (start=4, end=11).
+ALTER TABLE public.consulting_projects
+    ADD COLUMN IF NOT EXISTS pasture_start_month smallint NOT NULL DEFAULT 5
+        CHECK (pasture_start_month BETWEEN 1 AND 12),
+    ADD COLUMN IF NOT EXISTS pasture_end_month   smallint NOT NULL DEFAULT 10
+        CHECK (pasture_end_month   BETWEEN 1 AND 12);
+
 -- 1.2  Project Versions — версии расчёта (иммутабельные)
 create table if not exists public.consulting_project_versions (
     id                  uuid        primary key default gen_random_uuid(),
