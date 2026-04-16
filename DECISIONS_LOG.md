@@ -79,6 +79,7 @@
 | DEF-035 | 2026-04-11 | TS | Supabase rpc() возвращает PromiseLike (не Promise) — .catch() не существует. Фикс: { data, error } в .then(). |
 | DEF-036 | 2026-04-11 | UI | Все 7 вкладок: skeleton = h-48 w-full без padding = прямоугольник от края до края. Фикс: .page + table-like rows. |
 | DEF-037 | 2026-04-11 | TS | nameLoading state объявлен но не читается после удаления titleLoading — TS6133 build error. Фикс: удалить state. |
+| DEF-RATION-08 | 2026-04-16 | Backend | Priority 1 `_calc_from_consulting_rations` теперь вычисляет `quantities.by_group`, `totals_by_feed`, `annual_feed_summary` из ration items (feed_item_code / quantity_kg_per_day). |
 
 ---
 
@@ -1490,4 +1491,21 @@ QA прогоняет `rpc_resolve_category` против существующи
 - Hard: legacy ration_versions (созданные до этого fix) остаются в плоском формате, engine читает их через fallback
 
 **Files:** `d09_consulting.sql` (DB), `consulting_engine/app/models/schemas.py` (BE), `consulting_engine/app/engine/feeding_model.py` (BE), `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx` (UI), `src/pages/admin/consulting/tabs/RationTab.tsx` (UI), `src/pages/admin/consulting/ProjectWizard.tsx` (UI).
+
+---
+
+### DEF-RATION-08 — Priority 1 `_calc_from_consulting_rations` теперь вычисляет физические объёмы кормов
+
+**What:** `_calc_from_consulting_rations()` (Priority 1 path) теперь вычисляет `quantities.by_group`, `quantities.totals_by_feed` и `annual_feed_summary` из ration items, аналогично Priority 3 (hardcoded defaults). До фикса эти поля возвращались пустыми, что приводило к отсутствию данных в SummaryTab при наличии consulting_rations.
+
+**Why:** SummaryTab использует `annual_feed_summary` для отображения таблицы физических объёмов кормов (тонны/год). Priority 3 вычислял эти данные через `_calc_group()`. Priority 1 возвращал `{}` и `{}` — регрессия при переключении на NASEM/SimpleRation рационы.
+
+**Field names verified:** `SimpleRationEditor.tsx` `handleSave` сохраняет items с `feed_item_code` (primary) и `quantity_kg_per_day`. Engine использует `feed_item_code || feed_code || feed_name` как fallback цепочку для совместимости с NASEM CalcDialog.
+
+**Consequences:**
+- Easy: SummaryTab теперь показывает feed volume данные для всех 3 приоритетных путей
+- Easy: `annual_feed_summary` ключи — это feed_item_code строки (HAY_MIXED_GRASS, GRAIN_BARLEY, etc.) — те же что сохраняет SimpleRationEditor
+- No change: cost calculation logic не изменена, только добавлены quantity вычисления
+
+**Files:** `consulting_engine/app/engine/feeding_model.py`
 
