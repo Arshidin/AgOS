@@ -3,7 +3,7 @@
  * Альтернатива NASEM-калькулятору для базового сценария.
  * Сохраняет через rpc_save_consulting_ration.
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -115,6 +115,22 @@ const BASE_PRICES: Record<string, number> = {
   feed_phosphate: 145,
 }
 
+/** NutritionBadge — shows nutrient balance status for a season. */
+function NutritionBadge({ season, status }: {
+  season: string;
+  status: { met: boolean; deficiencies: string[] } | null;
+}) {
+  if (!status) return <span className="text-xs text-muted-foreground">{season}: —</span>
+  if (status.met) return (
+    <span className="text-xs font-medium text-green-600 dark:text-green-400">🟢 {season}</span>
+  )
+  return (
+    <span className="text-xs font-medium text-amber-600 dark:text-amber-400" title={status.deficiencies.join(', ')}>
+      🟡 {season}: {status.deficiencies.slice(0, 2).join(', ')}
+    </span>
+  )
+}
+
 export function SimpleRationEditor({
   projectId,
   orgId,
@@ -129,6 +145,13 @@ export function SimpleRationEditor({
     () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
   )
   const [saving, setSaving] = useState(false)
+  const [nutritionStatus, setNutritionStatus] = useState<Record<string, {
+    pasture: { met: boolean; deficiencies: string[] } | null;
+    stall:   { met: boolean; deficiencies: string[] } | null;
+    loading: boolean;
+  }>>({})
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const feedCodeToIdRef = useRef<Map<string, string>>(new Map())
 
   // TAXONOMY-M3c: dynamic feeding groups from DB (staleTime=60s, fallback to static RATION_GROUPS)
   const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
@@ -192,6 +215,84 @@ export function SimpleRationEditor({
       }
     }
   })
+
+  // Keep ref in sync with the latest feedCodeToId map (built each render from feedItems)
+  feedCodeToIdRef.current = feedCodeToId
+
+  // checkNutrition: calls Edge Function in check_only mode for pasture + stall
+  const checkNutrition = useCallback(async (group: string, groupRation: Record<string, { pasture: number; stall: number }>) => {
+    const idMap = feedCodeToIdRef.current
+    if (idMap.size === 0) return
+
+    const buildItems = (season: 'pasture' | 'stall') =>
+      Object.entries(groupRation)
+        .filter(([feed, vals]) => vals[season] > 0 && idMap.has(feed))
+        .reduce<Array<{ feed_item_id: string; quantity_kg_per_day: number }>>((acc, [feed, vals]) => {
+          const id = idMap.get(feed)
+          if (id) acc.push({ feed_item_id: id, quantity_kg_per_day: vals[season] })
+          return acc
+        }, [])
+
+    const pastureItems = buildItems('pasture')
+    const stallItems   = buildItems('stall')
+
+    if (pastureItems.length === 0 && stallItems.length === 0) return
+
+    setNutritionStatus(prev => ({
+      ...prev,
+      [group]: { pasture: prev[group]?.pasture ?? null, stall: prev[group]?.stall ?? null, loading: true },
+    }))
+
+    const supabaseUrl = (supabase as any).supabaseUrl as string | undefined
+    const edgeFnBase = supabaseUrl ? `${supabaseUrl}/functions/v1/calculate-ration` : '/functions/v1/calculate-ration'
+
+    const callCheck = async (items: Array<{ feed_item_id: string; quantity_kg_per_day: number }>) => {
+      if (items.length === 0) return null
+      try {
+        const res = await fetch(edgeFnBase, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            organization_id: orgId,
+            consulting_project_id: projectId,
+            animal_category_id: group, // will be resolved server-side; pass code as fallback
+            avg_weight_kg: 400,        // neutral default for check_only
+            head_count: 1,
+            check_only: true,
+            check_ration_items: items,
+          }),
+        })
+        if (!res.ok) return null
+        const data = await res.json()
+        return data.check_only
+          ? { met: Object.values(data.nutrients_met as Record<string, boolean>).every(Boolean), deficiencies: data.deficiencies as string[] }
+          : null
+      } catch {
+        return null
+      }
+    }
+
+    const [pastureResult, stallResult] = await Promise.all([
+      callCheck(pastureItems),
+      callCheck(stallItems),
+    ])
+
+    setNutritionStatus(prev => ({
+      ...prev,
+      [group]: { pasture: pastureResult, stall: stallResult, loading: false },
+    }))
+  }, [orgId, projectId])
+
+  // Debounced trigger: re-check whenever active group ration changes
+  useEffect(() => {
+    const groupRation = rations[activeGroup]
+    if (!groupRation) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      checkNutrition(activeGroup, groupRation)
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [rations, activeGroup, checkNutrition])
 
   const currentGroup = rations[activeGroup] || {}
 
@@ -359,6 +460,12 @@ export function SimpleRationEditor({
           <CardTitle className="text-sm">
             {rationGroups.find(g => g.key === activeGroup)?.label} — рацион кг/гол/сут
           </CardTitle>
+          {nutritionStatus[activeGroup] && !nutritionStatus[activeGroup].loading && (
+            <div className="flex gap-2 mt-1">
+              <NutritionBadge season="Пастбище" status={nutritionStatus[activeGroup].pasture} />
+              <NutritionBadge season="Стойло"   status={nutritionStatus[activeGroup].stall} />
+            </div>
+          )}
         </CardHeader>
         <CardContent className="px-0 pb-3">
           <table className="w-full text-sm">
