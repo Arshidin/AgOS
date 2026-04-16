@@ -3,13 +3,14 @@
  * Альтернатива NASEM-калькулятору для базового сценария.
  * Сохраняет через rpc_save_consulting_ration.
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Save, RotateCcw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRpc } from '@/hooks/useRpc'
+import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 import { toast } from 'sonner'
 
 interface FeedItem {
@@ -24,14 +25,28 @@ interface FeedPrice {
   price_per_kg: number
 }
 
-/** Simplified ration groups matching expert scenario */
+/** Simplified ration groups matching expert scenario — static fallback (HS-5). */
 const RATION_GROUPS = [
   { key: 'COW', label: 'Маточное поголовье', code: 'COW' },
   { key: 'SUCKLING_CALF', label: 'Молодняк (телята)', code: 'SUCKLING_CALF' },
   { key: 'HEIFER_YOUNG', label: 'Тёлки', code: 'HEIFER_YOUNG' },
   { key: 'STEER', label: 'Бычки', code: 'STEER' },
   { key: 'BULL_BREEDING', label: 'Быки-производители', code: 'BULL_BREEDING' },
-] as const
+]
+
+/**
+ * TAXONOMY-M3c: UI labels for feeding_group target codes.
+ * These are presentation labels — NOT taxonomy data. Taxonomy provides the
+ * canonical code (COW, STEER, …); the label is a UI concern kept here.
+ * If a new group code lacks a label, the code itself is displayed as fallback.
+ */
+const FEEDING_GROUP_LABELS: Record<string, string> = {
+  COW:           'Маточное поголовье',
+  SUCKLING_CALF: 'Молодняк (телята)',
+  HEIFER_YOUNG:  'Тёлки',
+  STEER:         'Бычки',
+  BULL_BREEDING: 'Быки-производители',
+}
 
 /** Default rations matching CFC Excel template (feeding_model.py hardcoded) */
 const DEFAULT_RATIONS: Record<string, Record<string, { pasture: number; stall: number }>> = {
@@ -109,11 +124,29 @@ export function SimpleRationEditor({
   orgId: string
   onSaved: () => void
 }) {
-  const [activeGroup, setActiveGroup] = useState<string>(RATION_GROUPS[0].key)
+  const [activeGroup, setActiveGroup] = useState<string>(RATION_GROUPS[0]?.key ?? 'COW')
   const [rations, setRations] = useState<Record<string, Record<string, { pasture: number; stall: number }>>>(
     () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
   )
   const [saving, setSaving] = useState(false)
+
+  // TAXONOMY-M3c: dynamic feeding groups from DB (staleTime=60s, fallback to static RATION_GROUPS)
+  const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
+  const rationGroups = useMemo(() => {
+    if (!feedingGroupData || feedingGroupData.length === 0) return RATION_GROUPS
+    const seen = new Set<string>()
+    const groups: Array<{ key: string; label: string; code: string }> = []
+    for (const row of feedingGroupData) {
+      if (!row.is_primary || seen.has(row.target_code)) continue
+      seen.add(row.target_code)
+      groups.push({
+        key: row.target_code,
+        label: FEEDING_GROUP_LABELS[row.target_code] ?? row.target_code,
+        code: row.target_code,
+      })
+    }
+    return groups.length > 0 ? groups : RATION_GROUPS
+  }, [feedingGroupData])
 
   // Load feed items, prices and animal categories for ID resolution
   const { data: feedItems } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
@@ -199,7 +232,7 @@ export function SimpleRationEditor({
     setSaving(true)
     try {
       // For each group, save a ration with combined items
-      for (const group of RATION_GROUPS) {
+      for (const group of rationGroups) {
         const groupRation = rations[group.key]
         if (!groupRation) continue
 
@@ -273,7 +306,7 @@ export function SimpleRationEditor({
     <div className="space-y-4">
       {/* Group tabs */}
       <div className="flex gap-1 overflow-x-auto">
-        {RATION_GROUPS.map(g => (
+        {rationGroups.map(g => (
           <Button
             key={g.key}
             variant={activeGroup === g.key ? 'default' : 'outline'}
@@ -290,7 +323,7 @@ export function SimpleRationEditor({
       <Card>
         <CardHeader className="py-3 px-4">
           <CardTitle className="text-sm">
-            {RATION_GROUPS.find(g => g.key === activeGroup)?.label} — рацион кг/гол/сут
+            {rationGroups.find(g => g.key === activeGroup)?.label} — рацион кг/гол/сут
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0 pb-3">

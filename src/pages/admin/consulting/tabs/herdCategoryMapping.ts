@@ -1,8 +1,13 @@
 /**
  * Maps animal_categories.code → herd turnover group key.
  * Mirror of CATEGORY_CODE_TO_HERD in consulting_engine/app/engine/feeding_model.py:37-48.
- * Keep both files in sync when changing this mapping.
+ *
+ * TAXONOMY-M3c: hardcoded const remains as fallback (HS-5 additive architecture).
+ * New code should use useCategoryToHerd() which reads from rpc_get_category_mappings
+ * ('turnover_key') with staleTime=60s and falls back to the const when loading.
  */
+import { useMemo } from 'react'
+import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,4 +193,49 @@ export function getDefaultObjective(categoryCode: string): string {
     default:
       return 'growth'
   }
+}
+
+// ─── TAXONOMY-M3c: dynamic hook ───────────────────────────────────────────────
+
+/**
+ * eop/avg is a CFC-math property of the herd group — NOT taxonomy data.
+ * Hardcoded here and in taxonomy_cache.py `_HERD_MEASUREMENT`.
+ * Changes to this mapping require a sync between TS and Python (documented in CLAUDE.md).
+ */
+const _HERD_METRIC: Record<string, HerdMapping['metric']> = {
+  cows:    'eop',
+  bulls:   'eop',
+  calves:  'avg',
+  heifers: 'avg',
+  steers:  'avg',
+}
+
+/**
+ * Dynamic alternative to the `CATEGORY_CODE_TO_HERD` const.
+ * Reads from rpc_get_category_mappings('turnover_key') via React Query
+ * (staleTime=60s per ADR-ANIMAL-01). Returns the hardcoded const while
+ * loading or on RPC error — never blocks the UI.
+ *
+ * New components should prefer this hook over the static const so that
+ * new L1 codes added by the association propagate automatically.
+ */
+export function useCategoryToHerd(): Record<string, HerdMapping> {
+  const { data } = useAnimalCategoryMappings('turnover_key')
+
+  return useMemo(() => {
+    if (!data || data.length === 0) return CATEGORY_CODE_TO_HERD
+
+    const result: Record<string, HerdMapping> = {}
+    for (const row of data) {
+      if (!row.is_primary) continue
+      const metric = _HERD_METRIC[row.target_code]
+      if (!metric) continue
+      result[row.animal_category_code] = {
+        group: row.target_code as HerdMapping['group'],
+        metric,
+      }
+    }
+
+    return Object.keys(result).length > 0 ? result : CATEGORY_CODE_TO_HERD
+  }, [data])
 }
