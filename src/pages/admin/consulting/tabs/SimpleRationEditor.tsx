@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { useRpc } from '@/hooks/useRpc'
 import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 import { toast } from 'sonner'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -645,16 +645,16 @@ export function SimpleRationEditor({
           </Button>
         </div>
       </div>
-      {/* ADR-FEED-05 §10: NASEM Подобрать Sheet */}
+      {/* ADR-FEED-05 §10: NASEM Подобрать Dialog */}
       {suggestDialog && (
-        <Sheet open={true} onOpenChange={() => { setSuggestDialog(null); setSuggestResult(null) }}>
-          <SheetContent side="right" className="w-[480px] overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>🧮 Подобрать рацион — {suggestDialog.groupLabel}</SheetTitle>
-              <SheetDescription>NASEM LP-solver предложит оптимальный состав. Вы можете принять или скорректировать.</SheetDescription>
-            </SheetHeader>
+        <Dialog open={true} onOpenChange={() => { setSuggestDialog(null); setSuggestResult(null) }}>
+          <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>🧮 Подобрать рацион — {suggestDialog.groupLabel}</DialogTitle>
+              <DialogDescription>NASEM LP-solver предложит оптимальный состав. Вы можете принять или скорректировать.</DialogDescription>
+            </DialogHeader>
 
-            <div className="space-y-4 mt-4">
+            <div className="space-y-4">
               {/* Params */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -754,8 +754,8 @@ export function SimpleRationEditor({
                 </div>
               )}
             </div>
-          </SheetContent>
-        </Sheet>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
