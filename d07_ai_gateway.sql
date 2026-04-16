@@ -2706,5 +2706,196 @@ on conflict (sql_name) do update
     set notes = excluded.notes, created_in = excluded.created_in;
 
 -- ============================================================
+-- DEF-013: Replace direct .table() calls with RPCs (P-AI-1 compliance)
+-- Instances 1–4: load_context_node, _clear_confirmation,
+--                save_response_node, _get_user_phone
+-- ============================================================
+
+-- ============================================================
+-- rpc_clear_confirmation — DEF-013 fix
+-- Clears pending confirmation state after farmer confirms/rejects.
+-- ============================================================
+create or replace function public.rpc_clear_confirmation(
+    p_organization_id   uuid,
+    p_conversation_id   uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- Ownership check: conversation belongs to this org
+    if not exists (
+        select 1 from public.ai_conversations
+        where id = p_conversation_id and organization_id = p_organization_id
+    ) then
+        raise exception 'FORBIDDEN: conversation % does not belong to organization %',
+            p_conversation_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    update public.ai_conversations
+    set
+        confirmation_pending  = false,
+        confirmation_payload  = null,
+        updated_at            = now()
+    where id = p_conversation_id;
+end;
+$$;
+
+comment on function public.rpc_clear_confirmation(uuid, uuid) is
+    'DEF-013/P-AI-1: Clears pending confirmation state after farmer confirms/rejects.
+     Ownership-checked: p_organization_id must match conversation.organization_id.
+     Replaces direct .table("ai_conversations").update() in nodes._clear_confirmation().';
+
+grant execute on function public.rpc_clear_confirmation(uuid, uuid) to service_role;
+revoke execute on function public.rpc_clear_confirmation(uuid, uuid) from anon, authenticated;
+
+
+-- ============================================================
+-- rpc_sync_conversation_role — DEF-013 fix
+-- Syncs active role back to conversation after AI run.
+-- ============================================================
+create or replace function public.rpc_sync_conversation_role(
+    p_organization_id   uuid,
+    p_conversation_id   uuid,
+    p_role              text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- Validate role value
+    if p_role is not null and p_role not in ('vet', 'zootechnician', 'trading_agent', 'consultant') then
+        raise exception 'INVALID_ROLE: % is not a valid role', p_role using errcode = 'P0001';
+    end if;
+
+    -- Ownership check
+    if not exists (
+        select 1 from public.ai_conversations
+        where id = p_conversation_id and organization_id = p_organization_id
+    ) then
+        raise exception 'FORBIDDEN: conversation % does not belong to organization %',
+            p_conversation_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    update public.ai_conversations
+    set
+        current_role  = p_role,
+        updated_at    = now()
+    where id = p_conversation_id;
+end;
+$$;
+
+comment on function public.rpc_sync_conversation_role(uuid, uuid, text) is
+    'DEF-013/P-AI-1: Syncs active role back to conversation after AI run.
+     Ownership-checked. Validates role against allowed values.
+     Replaces direct .table("ai_conversations").update({"current_role": ...}) in nodes.save_response_node().';
+
+grant execute on function public.rpc_sync_conversation_role(uuid, uuid, text) to service_role;
+revoke execute on function public.rpc_sync_conversation_role(uuid, uuid, text) from anon, authenticated;
+
+
+-- ============================================================
+-- rpc_get_conversation_state — DEF-013 fix
+-- Returns AI conversation processing state for load_context_node.
+-- ============================================================
+create or replace function public.rpc_get_conversation_state(
+    p_organization_id   uuid,
+    p_conversation_id   uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_result jsonb;
+begin
+    select jsonb_build_object(
+        'confirmation_pending',    c.confirmation_pending,
+        'confirmation_payload',    c.confirmation_payload,
+        'current_role',            c.current_role,
+        'role_was_overridden',     c.role_was_overridden,
+        'message_history_summary', c.message_history_summary,
+        'detected_language',       c.detected_language
+    )
+    into v_result
+    from public.ai_conversations c
+    where c.id = p_conversation_id
+      and c.organization_id = p_organization_id;
+
+    if v_result is null then
+        raise exception 'FORBIDDEN: conversation % not found or does not belong to org %',
+            p_conversation_id, p_organization_id using errcode = 'P0001';
+    end if;
+
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_get_conversation_state(uuid, uuid) is
+    'DEF-013/P-AI-1: Returns 6 AI conversation state fields for load_context_node.
+     Ownership-checked: raises FORBIDDEN if conversation not found or wrong org.
+     Replaces direct .table("ai_conversations").select(...) in nodes.load_context_node().';
+
+grant execute on function public.rpc_get_conversation_state(uuid, uuid) to service_role;
+revoke execute on function public.rpc_get_conversation_state(uuid, uuid) from anon, authenticated;
+
+
+-- ============================================================
+-- rpc_get_user_phone — DEF-013 fix
+-- Returns phone number for a user (PII — org-scoped access).
+-- ============================================================
+create or replace function public.rpc_get_user_phone(
+    p_organization_id   uuid,
+    p_user_id           uuid
+)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_phone text;
+begin
+    -- Verify user belongs to organization (via memberships)
+    select u.phone into v_phone
+    from public.users u
+    join public.memberships m on m.user_id = u.id
+    where u.id = p_user_id
+      and m.organization_id = p_organization_id
+      and m.status = 'active'
+    limit 1;
+
+    -- Note: null is acceptable — user may not have phone yet
+    return v_phone;
+end;
+$$;
+
+comment on function public.rpc_get_user_phone(uuid, uuid) is
+    'DEF-013/P-AI-1: Returns user phone (PII) scoped to organization.
+     Requires active membership in the organization — no cross-org PII leakage.
+     Returns null if user has no phone or is not active in this org.
+     Replaces direct .table("users").select("phone") in notification_worker._get_user_phone().';
+
+grant execute on function public.rpc_get_user_phone(uuid, uuid) to service_role;
+revoke execute on function public.rpc_get_user_phone(uuid, uuid) from anon, authenticated;
+
+
+-- ── RPC registry entries for DEF-013 ─────────────────────────────────────────
+INSERT INTO public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+VALUES
+    ('rpc_clear_confirmation',     null, null, 'd07_ai_gateway.sql', 'DEF-013: replaces direct .table() UPDATE in nodes._clear_confirmation()'),
+    ('rpc_sync_conversation_role', null, null, 'd07_ai_gateway.sql', 'DEF-013: replaces direct .table() UPDATE in nodes.save_response_node'),
+    ('rpc_get_conversation_state', null, null, 'd07_ai_gateway.sql', 'DEF-013: replaces direct .table() SELECT in nodes.load_context_node'),
+    ('rpc_get_user_phone',         null, null, 'd07_ai_gateway.sql', 'DEF-013: replaces direct .table() SELECT on users in notification_worker._get_user_phone()')
+ON CONFLICT (sql_name) DO NOTHING;
+
+-- ============================================================
 -- END d07_ai_gateway.sql
 -- ============================================================
