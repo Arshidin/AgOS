@@ -80,9 +80,17 @@ FEED_PRICES_BASE = {
 FEED_INFLATION_DEFAULT = 0.105
 
 
-def _is_pasture_month(calendar_year: int, month_in_year: int) -> bool:
-    """May-October = pasture, November-April = stall."""
-    return 5 <= month_in_year <= 10
+def _is_pasture_month(
+    calendar_year: int,
+    month_in_year: int,
+    pasture_start: int = 5,
+    pasture_end: int = 10,
+) -> bool:
+    """True if month_in_year is within the pasture season [start, end].
+    Defaults: May–October (Kazakhstan central belt).
+    Override via project pasture_start_month / pasture_end_month (ADR-RATION-01).
+    """
+    return pasture_start <= month_in_year <= pasture_end
 
 
 def _get_month_in_year(date_str: str) -> int:
@@ -192,15 +200,20 @@ def _build_annual_cost_summary(total_reproducer: list, total_fattening: list, n:
 
 
 def _calc_from_consulting_rations(
-    timeline: dict, herd: dict, rations: list, refs: dict
+    timeline: dict, herd: dict, rations: list, refs: dict,
+    pasture_start: int = 5, pasture_end: int = 10,
 ) -> dict:
     """Priority 1: Compute feeding costs from attached NASEM ration_versions.
 
-    Each ration has results.total_cost_per_day (тг per head per day).
-    Cost formula: total_cost_per_day × inflation × heads × days / 1000 (→ тыс. тг)
+    Supports dual-season format (ADR-RATION-01): results.pasture.total_cost_per_day
+    and results.stall.total_cost_per_day. Legacy flat results.total_cost_per_day is
+    used for both seasons as fallback.
+
+    Cost formula: cost_per_day × inflation × heads × days / 1000 (→ тыс. тг)
     Inflation (10.5% annual) applied from year 2, same as hardcoded defaults.
     """
     n = timeline["horizon_months"]
+    dates = timeline["dates"]
     days = list(timeline["days_in_month"])
     year_indices = timeline["year_index"]
 
@@ -219,19 +232,34 @@ def _calc_from_consulting_rations(
         yi = year_indices[t]
         return (1 + feed_inflation_rate) ** (yi - 1) if yi > 1 else 1.0
 
-    # Build cost_per_day_per_head lookup by category_code
-    ration_by_code: dict[str, float] = {}
+    # Build dual-season cost lookup by category_code (DEF-RATION-02)
+    ration_by_code: dict[str, dict] = {}  # code → {pasture: float, stall: float}
     for r in rations:
         code = r.get("animal_category_code", "")
-        cost_per_day = r.get("results", {}).get("total_cost_per_day", 0.0)
-        if code and cost_per_day:
-            ration_by_code[code] = float(cost_per_day)
+        results = r.get("results", {})
+        # New dual-season format (ADR-RATION-01)
+        if "pasture" in results and "stall" in results:
+            cpd_pasture = float(results["pasture"].get("total_cost_per_day", 0.0))
+            cpd_stall   = float(results["stall"].get("total_cost_per_day", 0.0))
+        else:
+            # Legacy flat format — use for both seasons
+            flat = float(results.get("total_cost_per_day", 0.0))
+            cpd_pasture = flat
+            cpd_stall   = flat
+        if code and (cpd_pasture or cpd_stall):
+            ration_by_code[code] = {"pasture": cpd_pasture, "stall": cpd_stall}
 
     def _group_cost(category_codes: list[str], heads: list) -> list:
-        cpd = sum(ration_by_code.get(c, 0.0) for c in category_codes)
-        if cpd == 0.0:
+        pasture_cpd = sum(ration_by_code.get(c, {}).get("pasture", 0.0) for c in category_codes)
+        stall_cpd   = sum(ration_by_code.get(c, {}).get("stall",   0.0) for c in category_codes)
+        if pasture_cpd == 0.0 and stall_cpd == 0.0:
             return [0.0] * n
-        return [-(cpd * _inflation(t) * heads[t] * days[t]) / 1000 for t in range(n)]
+        result = []
+        for t in range(n):
+            m = _get_month_in_year(dates[t])
+            cpd = pasture_cpd if _is_pasture_month(0, m, pasture_start, pasture_end) else stall_cpd
+            result.append(-(cpd * _inflation(t) * heads[t] * days[t]) / 1000)
+        return result
 
     group_costs: dict[str, list] = {}
     group_costs["molodnyak"]          = _group_cost(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
@@ -435,7 +463,11 @@ def calculate_feeding(
     # Priority 1: consulting_rations — NASEM-computed costs per head per day
     consulting_rations = refs.get("consulting_rations", [])
     if consulting_rations:
-        return _calc_from_consulting_rations(timeline, herd, consulting_rations, refs)
+        return _calc_from_consulting_rations(
+            timeline, herd, consulting_rations, refs,
+            pasture_start=enriched_input.get("pasture_start_month", 5),
+            pasture_end=enriched_input.get("pasture_end_month", 10),
+        )
 
     # Priority 2: feed_consumption_norms from d03_feed
     feed_norms = refs.get("feed_consumption_norms", [])

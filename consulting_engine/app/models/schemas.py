@@ -81,6 +81,12 @@ class ProjectInput(BaseModel):
         description="Штатное расписание проекта",
     )
 
+    # Сезон выпаса (DEF-RATION-03 / ADR-RATION-01)
+    pasture_start_month: int = Field(default=5, ge=1, le=12,
+        description="Month pasture season starts (1=Jan, 5=May default for Kazakhstan central belt)")
+    pasture_end_month: int = Field(default=10, ge=1, le=12,
+        description="Month pasture season ends (1=Jan, 10=Oct default for Kazakhstan central belt)")
+
     # Финансирование
     capex_loan_term_years: int = Field(default=10)
     capex_grace_period_years: int = Field(default=2)
