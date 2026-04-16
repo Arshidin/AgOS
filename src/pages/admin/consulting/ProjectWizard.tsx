@@ -687,6 +687,22 @@ export function ProjectWizard() {
                     </Button>
                   ))}
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Label className="text-xs text-muted-foreground whitespace-nowrap">Или произвольно:</Label>
+                  <input
+                    type="number"
+                    min={6}
+                    max={24}
+                    step={1}
+                    value={params.steer_sale_age_months}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10)
+                      if (!isNaN(v) && v >= 6 && v <= 24) set('steer_sale_age_months', String(v))
+                    }}
+                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">мес. (6–24)</span>
+                </div>
               </div>
 
               <div className="h-px bg-border/50 my-2" />

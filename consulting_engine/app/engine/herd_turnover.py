@@ -129,8 +129,10 @@ def calculate_herd_turnover(
         else:
             new_calves[t] = 0.0
 
-        # Падёж телят (до распределения): 3% от приплода
-        calves_mort[t] = -(HEIFER_MORTALITY_MONTHLY * 12 * new_calves[t]) if new_calves[t] > 0 else 0.0
+        # Падёж телят: 0 на этапе распределения.
+        # 3%/год падёж применяется ЕЖЕМЕСЯЧНО на BOP тёлок и бычков (0.25%/мес).
+        # Учёт здесь был бы задвоением — удалён.
+        calves_mort[t] = 0.0
         calves_after_mortality = calves_bop[t] + new_calves[t] + calves_mort[t]
 
         # Распределение: 50/50 на тёлок и бычков (после падежа)
@@ -250,8 +252,14 @@ def calculate_herd_turnover(
         else:
             steers_to_bulls[t] = 0.0
 
-        # Mortality: annual rate on inflow (Excel: =-$E93*SUM(from_calves))
-        steer_mort[t] = -(0.03 * steers_from_calves[t]) if steers_from_calves[t] > 0 else 0.0
+        # Mortality: monthly 0.25% × BOP (аналогично тёлкам и коровам).
+        # Было: годовой 3% одним ударом на inflow — заменено на ежемесячный
+        # паттерн, чтобы: (а) не задваивать с heifer-падежом, (б) соответствовать
+        # 3%/год суммарно на протяжении всей жизни бычка.
+        if steers_bop[t] > 0 and mi[t] > 17:
+            steer_mort[t] = -(STEER_MORTALITY_MONTHLY * steers_bop[t])
+        else:
+            steer_mort[t] = 0.0
         # Apply mortality proportionally to all cohorts
         if steer_mort[t] < -0.01:
             mort_abs = abs(steer_mort[t])

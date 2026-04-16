@@ -318,43 +318,80 @@ for t in range(120):
 
 ### 4.3.4 Тёлки (строки 79–88)
 
+> **ОБНОВЛЕНО 2026-04-14 (см. DECISIONS_LOG):** падёж — ежемесячный 0.25%/мес × BOP
+> (а не 3% разово на inflow). Это устраняет задвоение с падежом приплода (4.3.3).
+
 ```python
-heifer_mortality = 0.03  # 3% от новых
+heifer_mortality_monthly = heifer_mortality_rate / 12  # параметр из ProjectInput, default 3%/12
 
 for t in range(120):
     heifers_bop[t] = 0 if t == 0 else heifers_eop[t-1]
     heifers_from_calves[t] = -to_heifers[t]
-    heifer_mortality_t[t] = -heifer_mortality * heifers_from_calves[t]
+
+    # Падёж: ежемесячный на BOP, начиная с mi > 17 (после первого отёла)
+    if heifers_bop[t] > 0 and mi[t] > 17:
+        heifer_mortality_t[t] = -heifer_mortality_monthly * heifers_bop[t]
+    else:
+        heifer_mortality_t[t] = 0
+
     heifers_before[t] = heifers_bop[t] + heifers_from_calves[t] + heifer_mortality_t[t]
-    
-    # ⚠️ Перевод в маточное (строка 85) = 0 в шаблоне
-    # Логика: через ~18 мес., реализуется через OFFSET
-    heifers_to_cows[t] = 0
-    
-    # Продажа племенных (строка 83) — зеркало строки 56, но со сдвигом
-    heifers_sold_breeding[t] = -(cows_interim[t] - min(cows_interim[t], reproducer_capacity * farm_count[t]))
-    
+
+    # Перевод в маточное: лумп в декабре каждого года (после первого отёла)
+    heifers_to_cows[t] = -heifers_before[t] if (is_december and mi[t] > calving_mi) else 0
+
+    heifers_sold_breeding[t] = 0  # племенные продажи опциональны
+
     heifers_eop[t] = heifers_before[t] + heifers_to_cows[t]
     heifers_avg[t] = (heifers_bop[t] + heifers_from_calves[t] + heifers_eop[t]) / 2
 ```
 
 ### 4.3.5 Бычки (строки 90–97)
 
+> **ОБНОВЛЕНО 2026-04-14 (см. DECISIONS_LOG):** падёж переведён на ежемесячный
+> 0.25%/мес × BOP (как у тёлок и коров). Было: 3% разово на (BOP + inflow).
+> Также: продажа бычков теперь age-based (когортный трекинг) с настраиваемым
+> параметром `steer_sale_age_months` (диапазон 6–24 мес. или 0=декабрь legacy).
+
 ```python
-steer_mortality = 0.03
-bull_transfer_rate = 1/15
+steer_mortality_monthly = heifer_mortality_rate / 12  # один параметр для тёлок и бычков
+bull_transfer_rate = bull_ratio  # параметр из ProjectInput, default 1/15
+steer_sale_age = steer_sale_age_months  # параметр: 0=декабрь, 6-24 = age-based
+
+steer_cohorts = []  # [[birth_mi, count], ...] — для age-based продажи
 
 for t in range(120):
     steers_bop[t] = 0 if t == 0 else steers_eop[t-1]
     steers_from_calves[t] = -to_steers[t]
-    
-    # Перевод в быки: потребность = коэф × маточное_нп - (быки_нп + выбраковка + падёж)
-    steers_to_bulls[t] = -max(0, bull_transfer_rate * cows_bop[t] - (bulls_bop[t] + bulls_culled[t] + bulls_mortality[t]))
-    
-    steer_mortality_t[t] = -steer_mortality * (steers_bop[t] + steers_from_calves[t])
-    steers_sold[t] = 0  # продажа на откорм (настраивается)
-    
-    steers_eop[t] = steers_bop[t] + steers_from_calves[t] + steers_to_bulls[t] + steer_mortality_t[t] + steers_sold[t]
+
+    # Регистрация новой когорты для age-based продажи
+    if steers_from_calves[t] > 0.01:
+        steer_cohorts.append([mi[t], steers_from_calves[t]])
+
+    # Перевод в быки-производители: только если bull_need > 0
+    bull_need = bull_transfer_rate * cows_bop[t] - (bulls_bop[t] + bulls_culled[t] + bulls_mortality[t])
+    available = steers_bop[t] + steers_from_calves[t]
+    if bull_need > 0 and available > 0:
+        steers_to_bulls[t] = -min(bull_need, available)
+        # списать из старшей когорты
+    else:
+        steers_to_bulls[t] = 0
+
+    # Падёж: ежемесячный на BOP с mi > 17
+    if steers_bop[t] > 0 and mi[t] > 17:
+        steer_mortality_t[t] = -steer_mortality_monthly * steers_bop[t]
+    else:
+        steer_mortality_t[t] = 0
+
+    # Продажа: age-based (cohort-based) или decembre legacy
+    if steer_sale_age > 0:
+        # продать когорты, у которых age >= steer_sale_age
+        steers_sold[t] = -sum(c[1] for c in steer_cohorts if mi[t] - c[0] >= steer_sale_age)
+    elif is_december and mi[t] > calving_mi:
+        steers_sold[t] = -(steers_bop[t] + steers_from_calves[t] + steers_to_bulls[t] + steer_mortality_t[t])
+    else:
+        steers_sold[t] = 0
+
+    steers_eop[t] = max(0, steers_bop[t] + steers_from_calves[t] + steers_to_bulls[t] + steer_mortality_t[t] + steers_sold[t])
     steers_avg[t] = (steers_bop[t] + steers_eop[t]) / 2
 ```
 

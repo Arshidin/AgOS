@@ -8,6 +8,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from app.engine.timeline import calculate_timeline
 from app.engine.input_params import validate_and_enrich_input
 from app.engine.herd_turnover import calculate_herd_turnover
@@ -123,6 +125,11 @@ class TestCows:
 class TestBulls:
     """Быки-производители (Operating Model rows 60-67)."""
 
+    @pytest.mark.xfail(
+        reason="CEO decision 2026-04-14 pt.2: bull culling logic остаётся как есть "
+        "(не совпадает с Excel в месяце 17 — расхождение ~0.29 голов). "
+        "См. DECISIONS_LOG.md 2026-04-14."
+    )
     def test_bulls_eop(self):
         ref = load_reference()
         herd = calculate()
@@ -141,6 +148,10 @@ class TestBulls:
             "bulls", "purchased",
         )
 
+    @pytest.mark.xfail(
+        reason="CEO decision 2026-04-14 pt.2: bull culling остаётся как есть. "
+        "См. DECISIONS_LOG.md 2026-04-14."
+    )
     def test_bulls_culled(self):
         ref = load_reference()
         herd = calculate()
@@ -212,6 +223,10 @@ class TestSteers:
 class TestSummary:
     """Сводка (Operating Model rows 162-170)."""
 
+    @pytest.mark.xfail(
+        reason="Cascade from bulls divergence (CEO decision 2026-04-14 pt.2). "
+        "total_avg_livestock включает bulls, поэтому наследует расхождение ~0.15 голов."
+    )
     def test_total_avg_livestock(self):
         ref = load_reference()
         herd = calculate()
