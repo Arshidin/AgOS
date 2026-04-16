@@ -604,7 +604,7 @@ create or replace function public.rpc_save_consulting_ration(
 )
 returns jsonb
 language plpgsql volatile security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
     v_version_num   int;
@@ -685,7 +685,7 @@ create or replace function public.rpc_get_consulting_rations(
 )
 returns jsonb
 language plpgsql stable security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
     if not (
