@@ -21,7 +21,7 @@ import {
 } from './herdCategoryMapping'
 import { SimpleRationEditor } from './SimpleRationEditor'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -192,6 +192,158 @@ export function RationTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* ========== Feed volumes by group & by feed type ========== */}
+      {(() => {
+        const byGroup = results.feeding?.quantities?.by_group as
+          Record<string, Record<string, number[]>> | undefined
+        const annualSummary = results.feeding?.annual_feed_summary as
+          Record<string, number[]> | undefined
+
+        if (!byGroup && !annualSummary) return null
+
+        const GROUP_LABELS: Record<string, string> = {
+          molodnyak:             'Молодняк (телята)',
+          heifers_prev:          'Тёлки',
+          cows_12m:              'Маточное стадо',
+          bulls:                 'Быки-производители',
+          fattening_breeding:    'Доращивание',
+          fattening_commercial:  'Откорм (товарный)',
+        }
+        const SKIP = new Set(['cows_9m', 'heifers_curr'])
+
+        function toAnnual(arr: number[]): number[] {
+          const years: number[] = []
+          for (let yr = 0; yr < 10; yr++) {
+            const s = yr * 12, e = Math.min(s + 12, arr.length)
+            if (s >= arr.length) break
+            years.push(arr.slice(s, e).reduce((a, b) => a + (b ?? 0), 0))
+          }
+          return years
+        }
+
+        const groups = byGroup
+          ? Object.entries(byGroup)
+              .filter(([k]) => !SKIP.has(k))
+              .map(([k, feeds]) => {
+                const monthly = Array<number>(120).fill(0)
+                Object.values(feeds).forEach(feedArr =>
+                  feedArr?.forEach((v, t) => { monthly[t] = (monthly[t] ?? 0) + (v ?? 0) })
+                )
+                return { key: k, label: GROUP_LABELS[k] ?? k, annual: toAnnual(monthly) }
+              })
+              .filter(g => g.annual.some(v => v > 0.05))
+          : []
+
+        const feedRows = annualSummary
+          ? Object.entries(annualSummary)
+              .map(([name, arr]) => ({ name, annual: arr }))
+              .filter(f => f.annual.some(v => v > 0.05))
+              .sort((a, b) => (b.annual[0] ?? 0) - (a.annual[0] ?? 0))
+          : []
+
+        if (groups.length === 0 && feedRows.length === 0) return null
+
+        const numYears = groups.length > 0
+          ? groups[0]!.annual.length
+          : Math.max(...feedRows.map(f => f.annual.length))
+        const yearHeaders = Array.from({ length: numYears }, (_, i) => `Год ${i + 1}`)
+
+        const groupTotals = Array.from({ length: numYears }, (_, i) =>
+          groups.reduce((s, g) => s + (g.annual[i] ?? 0), 0))
+        const feedTotals = Array.from({ length: numYears }, (_, i) =>
+          feedRows.reduce((s, f) => s + (f.annual[i] ?? 0), 0))
+
+        return (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-0.5">
+              Потребность в кормах
+            </p>
+
+            {/* По группам животных */}
+            {groups.length > 0 && (
+              <Card>
+                <CardHeader className="pb-0 pt-3 px-4">
+                  <CardTitle className="text-xs text-muted-foreground font-medium">
+                    По группам животных, тн/год
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-0 pb-2 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium min-w-[180px]">Группа</th>
+                        {yearHeaders.map(y => (
+                          <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groups.map(g => (
+                        <tr key={g.key} className="border-b border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-1.5">{g.label}</td>
+                          {g.annual.map((v, i) => (
+                            <td key={i} className="px-2 py-1.5 text-right font-mono">
+                              {v > 0.05 ? v.toFixed(1) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 bg-muted/40 font-semibold">
+                        <td className="px-4 py-2">Итого</td>
+                        {groupTotals.map((v, i) => (
+                          <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* По видам кормов */}
+            {feedRows.length > 0 && (
+              <Card>
+                <CardHeader className="pb-0 pt-3 px-4">
+                  <CardTitle className="text-xs text-muted-foreground font-medium">
+                    По видам кормов, тн/год
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="px-0 pb-2 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="px-4 py-2 text-left font-medium min-w-[180px]">Корм</th>
+                        {yearHeaders.map(y => (
+                          <th key={y} className="px-2 py-2 text-right font-medium whitespace-nowrap">{y}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feedRows.map(f => (
+                        <tr key={f.name} className="border-b border-border/30 hover:bg-muted/20">
+                          <td className="px-4 py-1.5">{f.name}</td>
+                          {f.annual.map((v, i) => (
+                            <td key={i} className="px-2 py-1.5 text-right font-mono">
+                              {v > 0.05 ? v.toFixed(1) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 bg-muted/40 font-semibold">
+                        <td className="px-4 py-2">Итого</td>
+                        {feedTotals.map((v, i) => (
+                          <td key={i} className="px-2 py-2 text-right font-mono">{v.toFixed(1)}</td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )
+      })()}
 
       {/* NASEM CalcDialog mode (preserved, entry point closed per ADR-FEED-05 / DEF-RATION-07) */}
       {false && !isLoading && (
