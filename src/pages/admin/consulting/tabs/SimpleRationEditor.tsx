@@ -16,12 +16,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface FeedItem {
   id: string
   code: string
   name_ru: string
   category: string
+  category_name_ru: string
 }
 
 interface FeedPrice {
@@ -648,7 +650,7 @@ export function SimpleRationEditor({
       {/* ADR-FEED-05 §10: NASEM Подобрать Dialog */}
       {suggestDialog && (
         <Dialog open={true} onOpenChange={() => { setSuggestDialog(null); setSuggestResult(null) }}>
-          <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>🧮 Подобрать рацион — {suggestDialog.groupLabel}</DialogTitle>
               <DialogDescription>NASEM LP-solver предложит оптимальный состав. Вы можете принять или скорректировать.</DialogDescription>
@@ -682,35 +684,118 @@ export function SimpleRationEditor({
                 </div>
               </div>
 
-              {/* Feed selection */}
-              <div>
-                <Label>Корма для подбора</Label>
-                <p className="text-xs text-muted-foreground mb-1">Выберите корма из которых подбирать рацион</p>
-                <div className="flex flex-wrap gap-1 border rounded-md p-2 max-h-40 overflow-y-auto">
-                  {(feedItems || []).map(f => (
-                    <Badge
-                      key={f.id}
-                      variant={suggestParams.feed_item_ids.includes(f.id) ? 'default' : 'outline'}
-                      className="cursor-pointer text-xs"
-                      onClick={() => setSuggestParams(p => ({
-                        ...p,
-                        feed_item_ids: p.feed_item_ids.includes(f.id)
-                          ? p.feed_item_ids.filter(id => id !== f.id)
-                          : [...p.feed_item_ids, f.id],
-                      }))}
-                    >
-                      {f.name_ru || f.code}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              {/* Feed selection — grouped by category */}
+              {(() => {
+                const CATEGORY_ICONS: Record<string, string> = {
+                  ROUGHAGE:     '🌾',
+                  SILAGE:       '🌽',
+                  CONCENTRATE:  '🌰',
+                  PROTEIN_SUPP: '🫘',
+                  MINERAL:      '🧂',
+                  PASTURE:      '🌿',
+                }
+
+                // Group feedItems by category
+                const grouped = (feedItems || []).reduce<Record<string, { name: string; icon: string; items: FeedItem[] }>>(
+                  (acc, f) => {
+                    const key = f.category
+                    if (!acc[key]) acc[key] = { name: f.category_name_ru || key, icon: CATEGORY_ICONS[key] ?? '•', items: [] }
+                    acc[key]!.items.push(f)
+                    return acc
+                  },
+                  {}
+                )
+
+                const totalSelected = suggestParams.feed_item_ids.length
+
+                const toggleAll = (ids: string[], select: boolean) =>
+                  setSuggestParams(p => ({
+                    ...p,
+                    feed_item_ids: select
+                      ? [...new Set([...p.feed_item_ids, ...ids])]
+                      : p.feed_item_ids.filter(id => !ids.includes(id)),
+                  }))
+
+                return (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Корма для подбора</Label>
+                      {totalSelected > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setSuggestParams(p => ({ ...p, feed_item_ids: [] }))}
+                        >
+                          Сбросить все
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden divide-y">
+                      {Object.entries(grouped).map(([catCode, { name, icon, items }]) => {
+                        const catIds = items.map(f => f.id)
+                        const selectedInCat = catIds.filter(id => suggestParams.feed_item_ids.includes(id)).length
+                        const allSelected = selectedInCat === items.length
+
+                        return (
+                          <div key={catCode}>
+                            {/* Category header */}
+                            <div className="flex items-center justify-between px-3 py-2 bg-muted/40">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">{icon}</span>
+                                <span className="text-xs font-semibold text-foreground">{name}</span>
+                                {selectedInCat > 0 && (
+                                  <span className="text-xs text-muted-foreground">({selectedInCat}/{items.length})</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                className="text-xs text-primary hover:underline"
+                                onClick={() => toggleAll(catIds, !allSelected)}
+                              >
+                                {allSelected ? 'Убрать все' : 'Выбрать все'}
+                              </button>
+                            </div>
+
+                            {/* Feed rows */}
+                            <div className="divide-y divide-border/40">
+                              {items.map(f => {
+                                const checked = suggestParams.feed_item_ids.includes(f.id)
+                                return (
+                                  <label
+                                    key={f.id}
+                                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
+                                  >
+                                    <Checkbox
+                                      checked={checked}
+                                      onCheckedChange={(v) =>
+                                        setSuggestParams(p => ({
+                                          ...p,
+                                          feed_item_ids: v
+                                            ? [...p.feed_item_ids, f.id]
+                                            : p.feed_item_ids.filter(id => id !== f.id),
+                                        }))
+                                      }
+                                    />
+                                    <span className="text-sm select-none">{f.name_ru || f.code}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Run button */}
               <Button className="w-full" disabled={suggestLoading || suggestParams.feed_item_ids.length === 0}
                 onClick={handleSuggest}>
                 {suggestLoading
                   ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Считаем...</>
-                  : '🧮 Подобрать'}
+                  : `🧮 Подобрать${suggestParams.feed_item_ids.length > 0 ? ` (${suggestParams.feed_item_ids.length})` : ''}`}
               </Button>
 
               {/* Preview result */}
