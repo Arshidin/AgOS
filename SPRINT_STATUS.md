@@ -113,11 +113,18 @@ Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
-| Dok 6 | F19–F23 | ⬜ Not started | |
-| DB | RPC-37, 43..45 (d05) | ⬜ Not started | |
+| Dok 6 | F19–F23 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice4-Operations.md` v1.0 |
+| DB | RPC-37 `rpc_get_active_plan` (d05) | ✅ Done | d05_ops_edu.sql line 3535. Comprehensive jsonb: plan + phases[] + tasks_summary + kpis_summary. |
+| DB | RPC-44 `rpc_add_knowledge_chunk` (d05) | ✅ Done | d05_ops_edu.sql line 3697. Deferred to Slice 7 UI. |
+| DB | RPC-43 `rpc_create_proactive_alert` | ⚠️ Not as RPC | Backend writes directly to proactive_alerts via .table() — DEF-013 tech debt. Deferred. |
+| DB | RPC-45 `rpc_restrict_organization` | ⬜ Deferred | Slice 6 (admin screens). |
 | Backend | proactive dispatch + embedding + platform_events polling | ✅ Done (a06e0de) | /proactive/dispatch ✅ (main.py). embedding_worker.py ✅. poll_platform_events() ✅. |
-| UI | F19–F23 | ⬜ Not started | 5 screens |
-| QA | Slice 4 gate | ⬜ Not started | |
+| UI | F19 ProductionPlan | ✅ Done | 175 lines. rpc_get_active_plan, phases accordion, quick links. |
+| UI | F20 TaskList | ✅ Done | 154 lines. Tabs: upcoming/overdue/completed. rpc_get_farm_tasks + rpc_complete_farm_task. |
+| UI | F21 Timeline | ✅ Done | 143 lines. Gantt-style, CSS flexbox, today marker. |
+| UI | F22 CascadePreview | ✅ Done | 153 lines. fn_preview_cascade + fn_shift_phase_cascade. |
+| UI | F23 KpiDashboard | ✅ Done | 130 lines. Phase KPI groups, achieved/missed/pending. |
+| QA | Slice 4 gate | 🔄 Pending QA run | All code present. 0 TS errors. |
 
 Already implemented: RPC-33..36.
 
