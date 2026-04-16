@@ -100,10 +100,12 @@ Already implemented: RPC-25 (`rpc_create_vet_case`), AI-01..AI-22.
 | Layer | Component | Status | Notes |
 |-------|-----------|--------|-------|
 | Dok 6 | F03, F04, F15–F18 | ✅ APPROVED | `Docs/AGOS-Dok6-Slice3-Feed.md` v1.0 — 4 CEO decisions. F18 dual-view: per-head + total. |
-| DB | RPC-07 (d01) + RPC-08 (d01) + RPC-21..24 (d03) | ⬜ Not started | 6 RPCs to implement |
-| Backend | AI-03 feed tool + calculate_ration + get_feed_budget Edge Functions | ⬜ Not started | |
-| UI | F03, F04, F15–F18 | ⬜ Not started | 6 screens |
-| QA | Slice 3 gate | ⬜ Not started | |
+| DB | RPC-07 `rpc_log_herd_event` (d01) | ✅ Done | Implemented in d01_kernel.sql (commit 0f6456f). Append-only herd event log. |
+| DB | RPC-08 `rpc_get_farm_summary` (d01) | ✅ Done | Implemented in d01_kernel.sql (commit 0f6456f). Cross-domain jsonb summary. |
+| DB | RPC-21..24 `rpc_upsert_feed_inventory`, `rpc_save_ration`, `rpc_archive_ration`, `rpc_get_current_ration` (d03) | ✅ Done | Implemented in d03_feed.sql (commit 0f6456f). Was incorrectly marked "Not started" — doc discrepancy. |
+| Backend | AI-03 feed tool + calculate_ration + get_feed_budget Edge Functions | ✅ Done | Implemented (commit c8cbb7a) |
+| UI | F03, F04, F15–F18 | ✅ Done | 6 screens implemented (commit f1f9631) |
+| QA | Slice 3 gate | ✅ PASSED | D-GATE-S3 (commit e8eb953) |
 
 Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 
