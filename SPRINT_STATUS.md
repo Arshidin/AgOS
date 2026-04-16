@@ -124,7 +124,7 @@ Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 | UI | F21 Timeline | ✅ Done | 143 lines. Gantt-style, CSS flexbox, today marker. |
 | UI | F22 CascadePreview | ✅ Done | 153 lines. fn_preview_cascade + fn_shift_phase_cascade. |
 | UI | F23 KpiDashboard | ✅ Done | 130 lines. Phase KPI groups, achieved/missed/pending. |
-| QA | Slice 4 gate | 🔄 Pending QA run | All code present. 0 TS errors. |
+| QA | Slice 4 gate | ✅ PASSED (2026-04-16) — 0 Critical · 0 Significant after registry fix · 2 Minor accepted | fn_shift_phase_cascade + fn_preview_cascade added to rpc_name_registry. cross_check.sh → 0/0/0. |
 
 Already implemented: RPC-33..36.
 
