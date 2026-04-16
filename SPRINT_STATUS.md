@@ -77,7 +77,7 @@
 | Backend | LangGraph graph | ✅ Implemented | D116 stateless, D117 one-run. 6 nodes: load_context→route→process→tools→compliance→save |
 | Backend | Vet tools AI-07..10 | ✅ Implemented | `ai_gateway/tools/vet.py` — all 4 tools via supabase.rpc() |
 | Backend | Compliance filter (P-AI-4) | ✅ Implemented | `ai_gateway/compliance.py` — dosage regex + antitrust + legal |
-| Backend | ⚠️ DEF-013: 3x .table() in nodes.py | 🟡 Known | ai_conversations direct read/write — needs RPCs (rpc_update_confirmation, rpc_sync_conversation_role) |
+| Backend | ✅ DEF-013: 4x .table() calls replaced | ✅ Fixed (2026-04-16) | rpc_get_conversation_state, rpc_clear_confirmation, rpc_sync_conversation_role, rpc_get_user_phone |
 | UI | F01 (Register), F02 (Farm Profile) | ✅ Implemented | 8-step conversational registration (4 roles), farm profile with herd groups |
 | UI | F10 (Report Sick), F11 (Vet Case Detail) | ✅ Implemented | Vet case creation (severity=null, CEO decision), realtime detail view, P-AI-4 dosage compliance |
 | QA | Slice 1 gate | ✅ **PASSED** (2026-03-19) | 0 critical, 0 significant in scope. DEF-013 accepted tech debt. cross_check.sh fixed (DEF-014/015). |
@@ -323,7 +323,7 @@ Scope: стратегия реализации бычков (GAP-1 КРИТИЧ�
 |-----------|--------|-------|
 | `ai_gateway/main.py` | ✅ Slice 1 done | FastAPI `/chat` webhook, P-AI-8 save-first |
 | `ai_gateway/graph.py` | ✅ Slice 1 done | LangGraph StateGraph, D116 stateless, D117 one-run |
-| `ai_gateway/nodes.py` | ✅ Slice 1 done | 7 nodes: load_context→check_confirm→route→process→tools→compliance→save. ⚠️ DEF-013 |
+| `ai_gateway/nodes.py` | ✅ Slice 1 done | 7 nodes: load_context→check_confirm→route→process→tools→compliance→save. ✅ DEF-013 fixed |
 | `ai_gateway/tools/vet.py` | ✅ Slice 1 done | AI-07..10 via supabase.rpc(), P-AI-2 org_id injection |
 | `ai_gateway/compliance.py` | ✅ Slice 1 done | P-AI-4 dosage regex (14 patterns), CF-01 antitrust, CF-05 legal |
 | `ai_gateway/prompts.py` | ✅ Slice 1 done | System prompt builder from ai_prompts table (D133) |
@@ -347,10 +347,10 @@ Scope: стратегия реализации бычков (GAP-1 КРИТИЧ�
 | DEF-008 | Significant | `d05_ops_edu.sql` | `rpc_start_production_plan` — 2 definitions | ✅ Fixed (2026-03-18) — V1 removed, V2 kept |
 | DEF-009 | ~~Minor~~ | `d07_ai_gateway.sql` | `fn_my_org_ids`, `fn_is_admin`, `fn_is_expert` in d01+d07 | ⚪ Not a defect — intentional deploy-order dependency |
 | DEF-012 | Significant | `d01_kernel.sql` | `rpc_register_organization` org_type CHECK constraint | 🟡 Known — verify against Dok 1 valid org_types |
-| DEF-013 | Significant | `ai_gateway/nodes.py` | 3x `.table("ai_conversations")` direct access (lines 155, 320, 633) — violates P-AI-1 | 🟡 Accepted tech debt — must resolve before Slice 3 |
+| DEF-013 | Significant | `ai_gateway/nodes.py` + `notification_worker.py` | 3x `.table("ai_conversations")` + 1x `.table("users")` direct access — violates P-AI-1 | ✅ Fixed (2026-04-16) — 4 RPCs added: rpc_get_conversation_state, rpc_clear_confirmation, rpc_sync_conversation_role, rpc_get_user_phone. Instance 5 (platform_events) intentional (immutable log, documented) |
 | DEF-014 | Minor | `cross_check.sh` | CHECK 3 window too narrow (10 lines) for multi-param functions | ✅ Fixed (2026-03-19) — expanded to 25 lines |
 | DEF-015 | Minor | `cross_check.sh` | CHECK 4 matched advisory lock in SQL comments | ✅ Fixed (2026-03-19) — filter comment lines |
-| DEF-016 | Minor | `ai_gateway/notification_worker.py` | `.table("users").select("phone")` direct read (line 179) — service_role, read-only | 🟡 Accepted — minor, phone lookup |
+| DEF-016 | Minor | `ai_gateway/notification_worker.py` | `.table("users").select("phone")` direct read (line 179) — service_role, read-only | ✅ Fixed (2026-04-16) — resolved as Instance 4 in DEF-013 via rpc_get_user_phone |
 | DEF-017 | **Critical** | `d01_kernel.sql` | `o.name` → `o.legal_name` in rpc_get_membership_queue + rpc_process_membership_application | ✅ Fixed (2026-03-19) — tested on Supabase |
 | DEF-018 | **Critical** | `d01_kernel.sql` | `o.org_type` doesn't exist — need JOIN on `organization_type_assignments` | ✅ Fixed (2026-03-19) — tested on Supabase |
 | DEF-019 | **Critical** | `d01_kernel.sql` | `hg.animal_category_code` → `hg.animal_category_id` (uuid), join on `ac.id` not `ac.code` | ✅ Fixed (2026-03-19) — tested on Supabase |
