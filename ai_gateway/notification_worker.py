@@ -202,19 +202,93 @@ def _mark_failed(supabase, notif_id: str, error: str) -> None:
         logger.error("mark_notification_failed failed for %s: %s", notif_id[:8], e)
 
 
-# ─── TAXONOMY-M3b: platform_event handler skeleton ──────────────────────────
+# ─── TAXONOMY-M3b → Slice 4: platform_event polling ─────────────────────────
 # Dok 4 §3.9: standards.animal_category.updated → invalidate taxonomy caches
 # in both ai_gateway (this process) and consulting_engine (separate process).
 #
-# Full wiring (S4-DB / Slice 4 proactive dispatch):
-#   1. Poll platform_events WHERE event_type = 'standards.animal_category.updated'
-#      AND processed_at IS NULL (SKIP LOCKED per L-NEW-2)
-#   2. Call handle_platform_event for each row
-#   3. Mark row processed
+# Design note: platform_events is APPEND-ONLY (no processed_at column — by design,
+# it is an immutable event log per Dok 4 §2). Polling uses a module-level watermark
+# (_pe_watermark) that persists for the process lifetime. Reset on restart = catch
+# events from last 60s to avoid missing events during restart window.
 #
-# For now: the handler is wired; the polling loop is deferred to Slice 4.
-# Consulting_engine invalidation is cross-process — needs HTTP call or shared
-# cache (Redis) when both run as separate services. Current stub logs the intent.
+# SKIP LOCKED: N/A for a read-only SELECT; watermark ensures each event is
+# processed exactly once per process (service_role read access).
+
+from datetime import datetime, timezone, timedelta
+
+# Watermark: process events newer than this timestamp.
+# Initialized to now()-60s to catch events during deploy window.
+_pe_watermark: datetime = datetime.now(timezone.utc) - timedelta(seconds=60)
+
+
+def poll_platform_events() -> dict:
+    """
+    Poll platform_events for new events since last check (watermark pattern).
+
+    Called periodically (e.g. from /proactive/dispatch or standalone cron).
+    Returns: {"polled": N, "handled": N, "errors": N}
+
+    platform_events is append-only — no processed_at update needed.
+    Watermark advances after each successful poll.
+    """
+    global _pe_watermark
+
+    supabase = get_supabase()
+    since = _pe_watermark.isoformat()
+    now = datetime.now(timezone.utc)
+
+    try:
+        # service_role: SELECT allowed without RLS restriction
+        result = (
+            supabase.table("platform_events")
+            .select("id, event_type, payload, created_at")
+            .gt("created_at", since)
+            .order("created_at")
+            .limit(100)
+            .execute()
+        )
+    except Exception as e:
+        logger.error("poll_platform_events: SELECT failed: %s", e)
+        return {"polled": 0, "handled": 0, "errors": 1}
+
+    events = result.data or []
+    if not events:
+        _pe_watermark = now
+        return {"polled": 0, "handled": 0, "errors": 0}
+
+    logger.info(
+        "poll_platform_events: %d new events since %s",
+        len(events),
+        since[:19],
+    )
+
+    handled = 0
+    errors = 0
+
+    for event in events:
+        event_type = event.get("event_type", "")
+        payload = event.get("payload") or {}
+        try:
+            handle_platform_event(event_type, payload)
+            handled += 1
+        except Exception as e:
+            logger.error(
+                "poll_platform_events: handler failed for %s (id=%s): %s",
+                event_type,
+                str(event.get("id", "?"))[:8],
+                e,
+            )
+            errors += 1
+
+    # Advance watermark past the last processed event
+    last_created = events[-1].get("created_at", now.isoformat())
+    try:
+        _pe_watermark = datetime.fromisoformat(last_created.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        _pe_watermark = now
+
+    return {"polled": len(events), "handled": handled, "errors": errors}
+
 
 def handle_platform_event(event_type: str, payload: dict) -> None:
     """Dispatch a platform_events row to the appropriate handler.

@@ -6,9 +6,12 @@ D117: One webhook call = one graph run.
 P-AI-8: Save incoming message BEFORE processing.
 
 Slice 1: /chat endpoint with LangGraph graph + vet tools.
+Slice 4 (D-4): embedding_worker_loop launched in lifespan.
 """
+import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request, HTTPException
@@ -24,7 +27,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agos.gateway")
 
-app = FastAPI(title="AgOS AI Gateway", version="0.4.0-slice4")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan: start background workers on startup, cancel on shutdown.
+
+    Dok 5 §15.3: embedding_worker_loop runs inside FastAPI process via asyncio.Task.
+    Cancelled cleanly on SIGTERM/SIGINT.
+    """
+    supabase = get_supabase()
+
+    from ai_gateway.embedding_worker import embedding_worker_loop
+
+    # Start embedding worker as asyncio background task
+    embed_task = asyncio.create_task(
+        embedding_worker_loop(supabase),
+        name="embedding_worker",
+    )
+    logger.info("Embedding worker task started")
+
+    yield  # ← app serves requests here
+
+    # Graceful shutdown
+    embed_task.cancel()
+    try:
+        await embed_task
+    except asyncio.CancelledError:
+        pass
+    logger.info("Embedding worker task stopped")
+
+
+app = FastAPI(title="AgOS AI Gateway", version="0.5.0-slice4-embed", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -239,4 +273,33 @@ async def proactive_dispatch(request: Request):
     # is the real concurrency protection. Two instances both call claim,
     # which uses FOR UPDATE SKIP LOCKED — they get different batches.
     result = process_notification_batch()
+
+    # Dok 4 §3.9: poll platform_events for taxonomy cache invalidation + other handlers
+    from ai_gateway.notification_worker import poll_platform_events
+    events_result = poll_platform_events()
+
+    return {"status": "ok", **result, "events": events_result}
+
+
+@app.post("/embeddings/process")
+async def process_embeddings(request: Request):
+    """
+    Dok 5 §15: Manual trigger for one embedding cycle.
+    Normally the lifespan task runs automatically every 60s.
+    This endpoint allows pg_cron or manual backfill trigger.
+    Requires INTERNAL_API_KEY header.
+    """
+    from ai_gateway.embedding_worker import run_embedding_cycle
+
+    settings = get_settings()
+    if settings.INTERNAL_API_KEY:
+        api_key = (
+            request.headers.get("x-api-key", "")
+            or request.headers.get("authorization", "").removeprefix("Bearer ")
+        )
+        if api_key != settings.INTERNAL_API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+
+    supabase = get_supabase()
+    result = await run_embedding_cycle(supabase)
     return {"status": "ok", **result}

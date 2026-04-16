@@ -48,6 +48,17 @@ class Settings:
     # Role override timeout (Dok 5 §4.4 R-4)
     ROLE_OVERRIDE_TIMEOUT_MESSAGES: int = 5
 
+    # Embedding Worker (Dok 5 §15): provider + API keys.
+    # EMBEDDING_PROVIDER: "voyage" (primary, per Dok 5) | "openai" (fallback)
+    # vector(1536) compatible with both text-embedding-3-small and voyage-3.
+    EMBEDDING_PROVIDER: str = os.environ.get("EMBEDDING_PROVIDER", "voyage")
+    VOYAGE_API_KEY: str = os.environ.get("VOYAGE_API_KEY", "")
+    OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+    # Batch size: claim_embedding_batch pulls this many jobs per cycle.
+    EMBEDDING_BATCH_SIZE: int = int(os.environ.get("EMBEDDING_BATCH_SIZE", "10"))
+    # Interval in seconds between embedding cycles (Dok 5 §15.2: 60s default).
+    EMBEDDING_INTERVAL_SECONDS: int = int(os.environ.get("EMBEDDING_INTERVAL_SECONDS", "60"))
+
     # TAXONOMY-M3b (ADR-ANIMAL-01): when "on", tool schemas + extraction
     # validation pull the canonical L1 code list via rpc_list_animal_categories
     # at graph init, otherwise the hardcoded ANIMAL_CATEGORY_MAPPING keys are
