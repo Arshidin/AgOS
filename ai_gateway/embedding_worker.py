@@ -253,20 +253,29 @@ async def embedding_worker_loop(supabase) -> None:
         settings.EMBEDDING_PROVIDER,
     )
 
-    # Warn early if no API key is configured
-    if settings.EMBEDDING_PROVIDER == "voyage" and not settings.VOYAGE_API_KEY:
-        logger.warning(
-            "VOYAGE_API_KEY not set — embedding worker will fail on first cycle. "
-            "Set VOYAGE_API_KEY or switch to EMBEDDING_PROVIDER=openai."
-        )
-    elif settings.EMBEDDING_PROVIDER == "openai" and not settings.OPENAI_API_KEY:
-        logger.warning(
-            "OPENAI_API_KEY not set — embedding worker will fail on first cycle. "
-            "Set OPENAI_API_KEY or switch to EMBEDDING_PROVIDER=voyage."
+    # If no API key is configured, log once at debug and sleep — no noise in logs.
+    provider = settings.EMBEDDING_PROVIDER.lower()
+    no_key = (provider == "voyage" and not settings.VOYAGE_API_KEY) or (
+        provider == "openai" and not settings.OPENAI_API_KEY
+    )
+    if no_key:
+        logger.debug(
+            "Embedding worker: no API key configured (EMBEDDING_PROVIDER=%s). "
+            "Worker will skip cycles until a key is set.",
+            settings.EMBEDDING_PROVIDER,
         )
 
     while True:
         try:
+            # Skip cycle silently when no API key — avoids noise until key is wired
+            _s = get_settings()
+            _p = _s.EMBEDDING_PROVIDER.lower()
+            if (_p == "voyage" and not _s.VOYAGE_API_KEY) or (
+                _p == "openai" and not _s.OPENAI_API_KEY
+            ):
+                await asyncio.sleep(interval)
+                continue
+
             await run_embedding_cycle(supabase)
         except asyncio.CancelledError:
             logger.info("Embedding worker cancelled — shutting down")
