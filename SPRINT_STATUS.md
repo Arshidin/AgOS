@@ -113,7 +113,7 @@ Already implemented: RPC-06 (`rpc_upsert_herd_group`).
 |-------|-----------|--------|-------|
 | Dok 6 | F19–F23 | ⬜ Not started | |
 | DB | RPC-37, 43..45 (d05) | ⬜ Not started | |
-| Backend | AI-04..06 ops tools + proactive + embedding | ⬜ Not started | |
+| Backend | proactive dispatch + embedding + platform_events polling | ✅ Done (a06e0de) | /proactive/dispatch ✅ (main.py). embedding_worker.py ✅. poll_platform_events() ✅. |
 | UI | F19–F23 | ⬜ Not started | 5 screens |
 | QA | Slice 4 gate | ⬜ Not started | |
 
@@ -319,7 +319,7 @@ Scope: стратегия реализации бычков (GAP-1 КРИТИЧ�
 | `ai_gateway/compliance.py` | ✅ Slice 1 done | P-AI-4 dosage regex (14 patterns), CF-01 antitrust, CF-05 legal |
 | `ai_gateway/prompts.py` | ✅ Slice 1 done | System prompt builder from ai_prompts table (D133) |
 | `ai_gateway/proactive.py` | ✅ Implemented in main.py | POST /proactive/dispatch (lines 220-241): INTERNAL_API_KEY guard + SKIP LOCKED via notification_worker.process_notification_batch(). No separate file needed. |
-| `ai_gateway/embedding_worker.py` | ⬜ Not started | Dok 5 §15: claim_embedding_batch → Embeddings API → complete_embedding_job. SQL FSM exists in d07 (embedding_queue). |
+| `ai_gateway/embedding_worker.py` | ✅ Done (a06e0de) | Dok 5 §15: voyage-3 primary / OpenAI httpx fallback. WORKER_ID per hostname. SKIP LOCKED. FSM retry. lifespan asyncio.Task in main.py. |
 | `src/` (React UI) | ✅ Slice 1 done | F01 (8-step reg), F02 (farm profile), F10 (report sick), F11 (vet case detail). AuthContext, useRpc hook, Supabase client. All data via supabase.rpc(). P-AI-4 dosage compliance verified. |
 
 ---
