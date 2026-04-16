@@ -1,11 +1,11 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-15
+> Last updated: 2026-04-16
 
 ---
 
-## Current Phase: TAXONOMY slice — ADR-ANIMAL-01 DB foundation landed (M1+M2+M3a+M4). Next: QA snapshot gate → M3b backend → M3c UI.
+## Current Phase: TAXONOMY slice — M3b BACKEND COMPLETE. DB migration deployed to prod. Snapshot 3/3 PASS. Next: M3c UI (herdCategoryMapping.ts → RPC).
 
 ### TAXONOMY slice — Animal Ontology (ADR-ANIMAL-01)
 
@@ -20,8 +20,9 @@
 | DB | M4: external_category_mappings (d01) | ✅ Done | L4 bridge: global + org-scoped mappings with 2 partial unique indexes |
 | DB | DEF-TAXONOMY-01: duplicate rpc_list_animal_categories | ✅ Resolved (option D) | d01 canonical temporal overload + d03 legacy no-arg wrapper. @deprecated after M3c. Whitelist in cross_check.sh. |
 | DB | cross_check.sh | ✅ 0 / 0 / 0 | 2 new whitelist entries documented |
-| QA | Snapshot gate: rpc_resolve_category matches existing hardcodes 100% | 🟡 Pending | Critical gate before M3b — compare feeding_group output for all 12 L1 codes against feeding_model.py hardcodes |
-| Backend | M3b: feeding_model.py + compliance.py read via RPCs (feature flag) | 🟡 In progress | Consulting engine: `settings.taxonomy_rpc_read` flag + `app/engine/taxonomy_cache.py` (read-through over `rpc_get_category_mappings('turnover_key')`) + `tests/test_taxonomy_snapshot.py` (I8 + parity). AI Gateway: `TAXONOMY_RPC_READ` env flag + `ai_gateway/taxonomy.py` (L1 enum cache over `rpc_list_animal_categories`, fallback to 12 seed codes). Wiring в `_calc_from_rations` / tool schemas + event-subscriber = follow-up после staging snapshot PASS. |
+| QA | Snapshot gate: rpc_get_category_mappings parity | ✅ PASSED (2026-04-16) | 3/3 tests: parity + I8 primary + cache invalidation. OX/MIXED gap found→fixed in CATEGORY_CODE_TO_HERD. |
+| Backend | M3b: taxonomy_cache.py + test_taxonomy_snapshot.py | ✅ Done | consulting_engine: `taxonomy_rpc_read` flag + TaxonomyCache (read-through rpc_get_category_mappings/turnover_key). |
+| Backend | M3b: ai_gateway/taxonomy.py wiring | ✅ Done | get_l1_codes() enum in vet tool schema; is_valid_l1_code() in extraction/rules.py; handle_platform_event() skeleton in notification_worker.py. |
 | UI | M3c: SimpleRationEditor + herdCategoryMapping.ts → RPC | 🔜 After M3b | React Query staleTime=60s + `standards.animal_category.updated` event invalidation |
 | Architect | Dok 3 update: add 6 RPCs to catalog | 🔜 Pending | Separate Architect task |
 | Architect | Dok 4 update: event `standards.animal_category.updated` | 🔜 Pending | Separate Architect task |
@@ -31,7 +32,7 @@
 **QA Gate: ✅ PASSED** (2026-04-15) — 2 CRIT + 1 SIG + 1 MINOR закрыты (commit `87db44b`).
 **Architect sign-off: ✅** (2026-04-15) — Dok 3 §1.8/§9b + Dok 4 §3.9 обновлены, DECISIONS_LOG дополнен.
 
-**Next: TAXONOMY-M3b** — Backend Agent переключает `consulting_engine/app/engine/feeding_model.py` и `ai_gateway/` на чтение таксономии через RPC-T3 (`rpc_get_category_mappings`) и RPC-T2 (`rpc_resolve_category`) с feature-flag `TAXONOMY_RPC_READ`. Snapshot test: для всех 12 L1 кодов `rpc_resolve_category(code, 'turnover_key')` vs `CATEGORY_CODE_TO_HERD` — 100% match.
+**Next: TAXONOMY-M3c** — UI Agent: `herdCategoryMapping.ts` → React Query over `rpc_get_category_mappings('feeding_group')` с `staleTime=60000`, инвалидация по событию `standards.animal_category.updated`. SimpleRationEditor: enum категорий из RPC.
 
 ---
 
