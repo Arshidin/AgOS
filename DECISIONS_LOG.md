@@ -1453,3 +1453,41 @@ QA прогоняет `rpc_resolve_category` против существующи
 
 **Files changed:** `src/hooks/useTaxonomyRealtimeSync.ts` (new), `src/components/layout/AppLayout.tsx` (hook mount), `consulting_engine/app/config.py` (flag flip), `ai_gateway/config.py` (flag flip), `SPRINT_STATUS.md` (пункт 3 статус), `DECISIONS_LOG.md` (this entry).
 
+---
+
+### 2026-04-16: ADR-RATION-01 — Рационы v2: сезонная модель + единый источник групп
+
+**What:** Комплексное исправление модуля Рационов. Закрывает 6 дефектов (DEF-RATION-01..06) и открытый вопрос Dok 7 v1.1 «5 vs 10 групп».
+
+**Решение 1 — «5 vs 10 групп» закрыт:**
+`rpc_get_category_mappings('feeding_group')` — единственный источник групп кормления. Вопрос не архитектурный, а данные: сколько feeding_group есть в taxonomy → столько и групп. Сейчас 5. SimpleRationEditor уже читает из taxonomy (TAXONOMY-M3c). RationTab NASEM-режим нужно выровнять (DEF-RATION-05).
+
+**Решение 2 — Сезонная модель (ADR-FEED-06 реализация):**
+- `consulting_projects`: ADD `pasture_start_month smallint DEFAULT 5`, `pasture_end_month smallint DEFAULT 10`
+- `SimpleRationEditor.handleSave`: убрать усреднение `avgKg=(pasture×183+stall×182)/365`. Сохранять `p_results = {pasture: {items, total_cost_per_day}, stall: {items, total_cost_per_day}, source: 'simple_editor'}`
+- `feeding_model._is_pasture_month`: читать из `enriched_input.pasture_start_month/pasture_end_month` (было хардкод 5–10)
+- `feeding_model._calc_from_consulting_rations`: читать `results.pasture.total_cost_per_day` vs `results.stall.total_cost_per_day` по месяцу. Fallback на плоский `total_cost_per_day` для legacy-записей.
+
+**Обратная совместимость:** DEFAULT 5/10 покрывает все существующие проекты. Legacy ration_versions (плоский `total_cost_per_day`) читаются через fallback в engine — автомиграция не делается (решение CEO, Dok 7 §9.6).
+
+**Почему сейчас:** Каждая запись через текущий SimpleRationEditor создаёт legacy-формат даже через новый UI. P&L использует одну цену корма для пастбища и стойла — модель экономически неверна для Казахстана (бимодальный климат, сезонная разница в затратах 5–10x).
+
+**Альтернативы отклонены:**
+- Два отдельных row в ration_versions (pasture/stall) — рассинхрон is_current, неатомарный save. Отклонено.
+- Хардкод месяцев 5-10 в engine — нарушает P8 (регионы КЗ разные). Отклонено.
+- Отдельный «режим сезонности» с флагом — усложняет engine, нарушает P4. Отклонено.
+
+**Порядок реализации:**
+1. DB Agent: DEF-RATION-04 — ALTER consulting_projects (d09_consulting.sql)
+2. Backend Agent: DEF-RATION-02/03 — feeding_model + schemas (параллельно с шагом 3)
+3. UI Agent: DEF-RATION-01/05/06 — SimpleRationEditor + RationTab (параллельно с шагом 2)
+4. QA: gate-check + seasonal split тест
+
+**Последствия:**
+- Easy: P&L теперь видит реальные сезонные впадины COGS по кормам
+- Easy: новые группы из taxonomy → автоматически в обоих редакторах без кода
+- Easy: `pasture_start_month=4` в ProjectWizard для северного Казахстана — без деплоя
+- Hard: legacy ration_versions (созданные до этого fix) остаются в плоском формате, engine читает их через fallback
+
+**Files:** `d09_consulting.sql` (DB), `consulting_engine/app/models/schemas.py` (BE), `consulting_engine/app/engine/feeding_model.py` (BE), `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx` (UI), `src/pages/admin/consulting/tabs/RationTab.tsx` (UI), `src/pages/admin/consulting/ProjectWizard.tsx` (UI).
+
