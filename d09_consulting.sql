@@ -49,6 +49,10 @@ ALTER TABLE public.consulting_projects
     ADD COLUMN IF NOT EXISTS pasture_end_month   smallint NOT NULL DEFAULT 10
         CHECK (pasture_end_month   BETWEEN 1 AND 12);
 
+-- Dok 7 §10.5: staleness flag — set true when rations change, cleared on recalculation
+ALTER TABLE public.consulting_projects
+    ADD COLUMN IF NOT EXISTS needs_recalc boolean NOT NULL DEFAULT false;
+
 -- 1.2  Project Versions — версии расчёта (иммутабельные)
 create table if not exists public.consulting_project_versions (
     id                  uuid        primary key default gen_random_uuid(),
@@ -300,6 +304,7 @@ begin
         'name', cp.name,
         'farm_type', cp.farm_type,
         'status', cp.status,
+        'needs_recalc', cp.needs_recalc,
         'created_by', cp.created_by,
         'created_at', cp.created_at,
         'updated_at', cp.updated_at,
@@ -418,9 +423,9 @@ begin
     )
     returning id into v_version_id;
 
-    -- Update project status
+    -- Update project status + clear staleness flag (Dok 7 §10.5)
     update public.consulting_projects
-    set status = 'calculated', updated_at = now()
+    set status = 'calculated', needs_recalc = false, updated_at = now()
     where id = p_project_id;
 
     -- Event
@@ -663,6 +668,11 @@ begin
         'consulting_edge_function'
     )
     returning id into v_version_id;
+
+    -- Dok 7 §10.5: rations changed → project needs recalculation
+    update public.consulting_projects
+    set needs_recalc = true, updated_at = now()
+    where id = p_consulting_project_id;
 
     return jsonb_build_object(
         'ration_version_id', v_version_id,

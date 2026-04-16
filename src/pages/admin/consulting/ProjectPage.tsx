@@ -11,17 +11,21 @@
  *   /admin/consulting/:projectId/cashflow → Cash Flow tab
  *   /admin/consulting/:projectId/capex    → CAPEX tab
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Activity, ChevronDown, ChevronUp, ClipboardList, LayoutGrid, MoreHorizontal, Package, RefreshCw, SlidersHorizontal, Star, TrendingUp, Users, Wheat, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useTopbarConfig } from '@/components/layout/TopbarContext'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { calculateProject } from '@/lib/consulting-api'
 
 interface ProjectMeta {
   name: string
   status: string
+  needs_recalc: boolean
+  latestInputParams: Record<string, unknown> | null
 }
 
 export function ProjectPage() {
@@ -31,23 +35,51 @@ export function ProjectPage() {
   const { organization } = useAuth()
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [projects, setProjects] = useState<{ id: string }[]>([])
+  const [recalcLoading, setRecalcLoading] = useState(false)
 
   const orgId = organization?.id
   const base = `/admin/consulting/${projectId}`
 
-  useEffect(() => {
-    if (!orgId || !projectId) return
+  const loadProject = useCallback((oId: string, pId: string) => {
     supabase
       .rpc('rpc_get_consulting_project', {
-        p_organization_id: orgId,
-        p_project_id: projectId,
+        p_organization_id: oId,
+        p_project_id: pId,
       })
       .then(({ data, error }) => {
         if (!error && data) {
-          setProject({ name: data.name, status: data.status })
+          const versions: Array<{ input_params: Record<string, unknown> }> = data.versions ?? []
+          setProject({
+            name: data.name,
+            status: data.status,
+            needs_recalc: data.needs_recalc ?? false,
+            latestInputParams: versions[0]?.input_params ?? null,
+          })
         }
       })
-  }, [orgId, projectId])
+  }, [])
+
+  useEffect(() => {
+    if (!orgId || !projectId) return
+    loadProject(orgId, projectId)
+  }, [orgId, projectId, loadProject])
+
+  const handleRecalculate = useCallback(async () => {
+    if (!orgId || !projectId || !project?.latestInputParams) return
+    setRecalcLoading(true)
+    try {
+      await calculateProject({
+        project_id: projectId,
+        organization_id: orgId,
+        input_params: project.latestInputParams,
+      })
+      loadProject(orgId, projectId)
+    } catch {
+      // keep badge visible on error — user can retry
+    } finally {
+      setRecalcLoading(false)
+    }
+  }, [orgId, projectId, project?.latestInputParams, loadProject])
 
   useEffect(() => {
     if (!orgId) return
@@ -61,6 +93,7 @@ export function ProjectPage() {
   }
 
   const headerContent = useMemo(() => {
+    // captured for closure — useMemo re-runs when project changes
     const TABS = [
       { label: 'Параметры',    path: `${base}/edit`,     icon: SlidersHorizontal },
       { label: 'Сводка',       path: `${base}/summary`,  icon: LayoutGrid },
@@ -136,6 +169,25 @@ export function ProjectPage() {
               {STATUS_LABELS[project.status] ?? project.status}
             </Badge>
           )}
+
+          {/* Dok 7 §10.5: staleness badge + recalc trigger */}
+          {project?.needs_recalc && (
+            <>
+              <Badge variant="outline" className="ml-1 border-amber-400 text-amber-600 dark:text-amber-400 text-xs">
+                Требуется пересчёт
+              </Badge>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1 ml-1"
+                disabled={recalcLoading || !project.latestInputParams}
+                onClick={handleRecalculate}
+              >
+                <RefreshCw className={`w-3 h-3 ${recalcLoading ? 'animate-spin' : ''}`} />
+                {recalcLoading ? 'Расчёт...' : 'Пересчитать'}
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Строка 3: табы */}
@@ -163,7 +215,7 @@ export function ProjectPage() {
 
       </div>
     )
-  }, [project, navigate, base, projects, projectId])
+  }, [project, navigate, base, projects, projectId, handleRecalculate, recalcLoading])
 
   const { setConfig, clearConfig } = useTopbarConfig()
   useEffect(() => {
