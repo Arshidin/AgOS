@@ -249,6 +249,35 @@ def _calc_from_consulting_rations(
         if code and (cpd_pasture or cpd_stall):
             ration_by_code[code] = {"pasture": cpd_pasture, "stall": cpd_stall}
 
+    # Build feed quantities lookup by category_code (DEF-RATION-08)
+    # Field names from SimpleRationEditor.tsx handleSave: feed_item_code, quantity_kg_per_day
+    ration_items_by_code: dict[str, dict] = {}  # code → {pasture: {feed_code: kg/day}, stall: {feed_code: kg/day}}
+    for r in rations:
+        code = r.get("animal_category_code", "")
+        results = r.get("results", {})
+        pasture_items: list = []
+        stall_items: list = []
+        if "pasture" in results and "stall" in results:
+            pasture_items = results["pasture"].get("items", [])
+            stall_items   = results["stall"].get("items", [])
+        # Build feed_code → kg/day dicts
+        p_map: dict[str, float] = {}
+        for item in pasture_items:
+            # Primary field from SimpleRationEditor: feed_item_code
+            # Fallbacks for NASEM CalcDialog or other sources
+            fc = item.get("feed_item_code") or item.get("feed_code") or item.get("feed_name", "")
+            kg = float(item.get("quantity_kg_per_day", 0) or item.get("kg_per_day", 0))
+            if fc and kg > 0:
+                p_map[fc] = p_map.get(fc, 0.0) + kg
+        s_map: dict[str, float] = {}
+        for item in stall_items:
+            fc = item.get("feed_item_code") or item.get("feed_code") or item.get("feed_name", "")
+            kg = float(item.get("quantity_kg_per_day", 0) or item.get("kg_per_day", 0))
+            if fc and kg > 0:
+                s_map[fc] = s_map.get(fc, 0.0) + kg
+        if code and (p_map or s_map):
+            ration_items_by_code[code] = {"pasture": p_map, "stall": s_map}
+
     def _group_cost(category_codes: list[str], heads: list) -> list:
         pasture_cpd = sum(ration_by_code.get(c, {}).get("pasture", 0.0) for c in category_codes)
         stall_cpd   = sum(ration_by_code.get(c, {}).get("stall",   0.0) for c in category_codes)
@@ -259,6 +288,34 @@ def _calc_from_consulting_rations(
             m = _get_month_in_year(dates[t])
             cpd = pasture_cpd if _is_pasture_month(0, m, pasture_start, pasture_end) else stall_cpd
             result.append(-(cpd * _inflation(t) * heads[t] * days[t]) / 1000)
+        return result
+
+    def _group_quantity(category_codes: list[str], heads: list) -> dict[str, list]:
+        """Returns {feed_code: [tons_per_month × n_months]} for a herd group."""
+        merged_pasture: dict[str, float] = {}
+        merged_stall:   dict[str, float] = {}
+        for c in category_codes:
+            items = ration_items_by_code.get(c, {})
+            for fc, kg in items.get("pasture", {}).items():
+                merged_pasture[fc] = merged_pasture.get(fc, 0.0) + kg
+            for fc, kg in items.get("stall", {}).items():
+                merged_stall[fc] = merged_stall.get(fc, 0.0) + kg
+
+        all_feeds = set(merged_pasture) | set(merged_stall)
+        if not all_feeds:
+            return {}
+
+        result: dict[str, list] = {fc: [] for fc in all_feeds}
+        for t in range(n):
+            m = _get_month_in_year(dates[t])
+            is_p = _is_pasture_month(0, m, pasture_start, pasture_end)
+            feed_map = merged_pasture if is_p else merged_stall
+            h = heads[t] if t < len(heads) else 0.0
+            d = days[t]
+            for fc in all_feeds:
+                kg_day = feed_map.get(fc, 0.0)
+                tons = (kg_day * h * d) / 1000.0
+                result[fc].append(tons)
         return result
 
     group_costs: dict[str, list] = {}
@@ -285,13 +342,48 @@ def _calc_from_consulting_rations(
         for t in range(n)
     ]
 
+    # DEF-RATION-08: compute physical quantities (тонны) from ration items
+    qty_by_group: dict[str, dict[str, list]] = {}
+    qty_by_group["molodnyak"]            = _group_quantity(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
+    qty_by_group["heifers_prev"]         = _group_quantity(["HEIFER_PREG", "HEIFER_YOUNG"], herd["heifers"]["avg"])
+    qty_by_group["heifers_curr"]         = {}
+    qty_by_group["cows_12m"]             = _group_quantity(["COW"],           herd["cows"]["eop"])
+    qty_by_group["cows_9m"]              = {}
+    qty_by_group["bulls"]                = _group_quantity(["BULL_BREEDING"],  herd["bulls"]["eop"])
+    qty_by_group["fattening_breeding"]   = _group_quantity(["BULL_CALF"],     herd["steers"]["avg"])
+    qty_by_group["fattening_commercial"] = _group_quantity(["STEER"],         herd["steers"]["avg"])
+
+    # Aggregate totals_by_feed across all groups
+    all_feed_codes: set[str] = set()
+    for gq in qty_by_group.values():
+        all_feed_codes.update(gq.keys())
+
+    totals_by_feed: dict[str, list] = {}
+    for fc in all_feed_codes:
+        monthly = [0.0] * n
+        for gq in qty_by_group.values():
+            if fc in gq:
+                for t in range(n):
+                    monthly[t] += gq[fc][t]
+        totals_by_feed[fc] = monthly
+
+    # annual_feed_summary: {feed_code: [tons_year_1, ..., tons_year_10]}
+    annual_feed_summary: dict[str, list] = {}
+    for fc, monthly in totals_by_feed.items():
+        annual: list = []
+        for yr in range(10):
+            start = yr * 12
+            end = min(start + 12, n)
+            annual.append(round(sum(monthly[start:end]), 2))
+        annual_feed_summary[fc] = annual
+
     return {
         "groups": group_costs,
         "total_reproducer": total_reproducer,
         "total_fattening": total_fattening,
         "_source": "consulting_rations",
-        "quantities": {"by_group": {}, "totals_by_feed": {}},
-        "annual_feed_summary": {},
+        "quantities": {"by_group": qty_by_group, "totals_by_feed": totals_by_feed},
+        "annual_feed_summary": annual_feed_summary,
         "annual_feed_cost_summary": _build_annual_cost_summary(total_reproducer, total_fattening, n),
     }
 
