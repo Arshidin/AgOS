@@ -3754,3 +3754,15 @@ insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, creat
 values ('rpc_add_knowledge_chunk', 'rpc_add_knowledge_chunk', null, 'd05_ops_edu.sql (Slice 6a)', 'RPC-44: Admin knowledge base CRUD')
 on conflict (sql_name) do update set notes = excluded.notes, created_in = excluded.created_in;
 
+-- ============================================================
+-- SLICE 4 QA FIX: Register fn_* cascade RPCs in rpc_name_registry
+-- These functions are called by UI via supabase.rpc() but lacked registry entries.
+-- ============================================================
+INSERT INTO public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+VALUES
+('fn_shift_phase_cascade', 'RPC-35', null, 'd05_ops_edu.sql',
+ 'fn_* prefix by convention (trigger-style function). Called by UI as supabase.rpc(). Cascade shifts linked phases.'),
+('fn_preview_cascade',     'RPC-36', null, 'd05_ops_edu.sql',
+ 'fn_* prefix by convention. Read-only preview of cascade shift. Returns table of affected phases.')
+ON CONFLICT (sql_name) DO NOTHING;
+
