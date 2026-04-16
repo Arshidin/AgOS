@@ -35,6 +35,8 @@ interface WizardParams {
   gestation_months: number          // Стельность (мес)
   suckling_months: number           // Подсосный период (мес)
   steer_sale_age_months: number     // Возраст реализации бычков (0=декабрь, 7/12/18)
+  pasture_start_month: number       // Начало пастбищного сезона (месяц 1-12, по умолчанию 5)
+  pasture_end_month: number         // Конец пастбищного сезона (месяц 1-12, по умолчанию 10)
   // Привесы и вес (Task A)
   birth_weight_kg: number
   daily_gain_steer_pasture: number
@@ -92,6 +94,8 @@ const DEFAULT_PARAMS: WizardParams = {
   gestation_months: 9,
   suckling_months: 7,
   steer_sale_age_months: 0,
+  pasture_start_month: 5,
+  pasture_end_month: 10,
   birth_weight_kg: 30,
   daily_gain_steer_pasture: 0.850,
   daily_gain_steer_stall: 0.650,
@@ -209,6 +213,8 @@ export function ProjectWizard() {
             bioasset_revaluation_switch: saved.bioasset_revaluation_switch ?? DEFAULT_PARAMS.bioasset_revaluation_switch,
             project_start_date: saved.project_start_date ?? DEFAULT_PARAMS.project_start_date,
             steer_sale_age_months: saved.steer_sale_age_months ?? DEFAULT_PARAMS.steer_sale_age_months,
+            pasture_start_month: saved.pasture_start_month ?? DEFAULT_PARAMS.pasture_start_month,
+            pasture_end_month: saved.pasture_end_month ?? DEFAULT_PARAMS.pasture_end_month,
             birth_weight_kg: saved.birth_weight_kg ?? DEFAULT_PARAMS.birth_weight_kg,
             daily_gain_steer_pasture: saved.daily_gain_steer_pasture ?? DEFAULT_PARAMS.daily_gain_steer_pasture,
             daily_gain_steer_stall: saved.daily_gain_steer_stall ?? DEFAULT_PARAMS.daily_gain_steer_stall,
@@ -432,6 +438,8 @@ export function ProjectWizard() {
 
     const techRows: PR[] = [
       { id: 'steer_sale_age_months',    label: 'Реализация бычков',   Icon: Clock,       options: STEER_SALE_OPTIONS.map(o => ({ label: o.label, value: o.value })) },
+      { id: 'pasture_start_month',      label: 'Пастбище: начало',    Icon: MapPin,      suffix: 'мес' },
+      { id: 'pasture_end_month',        label: 'Пастбище: конец',     Icon: MapPin,      suffix: 'мес' },
       { id: 'birth_weight_kg',          label: 'Вес при рождении',    Icon: Hash,        suffix: 'кг' },
       { id: 'daily_gain_steer_pasture', label: 'Привес бычки (лето)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
       { id: 'daily_gain_steer_stall',   label: 'Привес бычки (зима)', Icon: TrendingUp,  suffix: 'кг/д', step: '0.01' },
@@ -663,6 +671,14 @@ export function ProjectWizard() {
               </div>
               <WizardField label="Дата старта проекта" value={params.project_start_date} onChange={v => set('project_start_date', v)} type="date" />
               <WizardField label="Норма пастбищ на 1 голову" value={params.pasture_norm_ha} onChange={v => set('pasture_norm_ha', v)} suffix="га" />
+
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Пастбищный сезон</p>
+              <div className="grid grid-cols-2 gap-4">
+                <WizardField label="Начало (мес)" value={params.pasture_start_month} onChange={v => set('pasture_start_month', v)} suffix="мес" hint="мин 1, макс 12" />
+                <WizardField label="Конец (мес)" value={params.pasture_end_month} onChange={v => set('pasture_end_month', v)} suffix="мес" hint="мин 1, макс 12" />
+              </div>
+              <p className="text-xs text-muted-foreground">Центральный КЗ: 5–10 · Северный КЗ: 4–9 · Южный КЗ: 4–11</p>
 
               <div className="h-px bg-border/50 my-2" />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Производственный цикл</p>
