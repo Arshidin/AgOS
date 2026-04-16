@@ -7,11 +7,15 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, RotateCcw } from 'lucide-react'
+import { Save, RotateCcw, Calculator, Loader2, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRpc } from '@/hooks/useRpc'
 import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 import { toast } from 'sonner'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 
 interface FeedItem {
   id: string
@@ -145,6 +149,24 @@ export function SimpleRationEditor({
     () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
   )
   const [saving, setSaving] = useState(false)
+
+  // ADR-FEED-05 §10: NASEM Подобрать state
+  const [suggestDialog, setSuggestDialog] = useState<{
+    groupCode: string
+    season: 'pasture' | 'stall'
+    groupLabel: string
+  } | null>(null)
+  const [suggestResult, setSuggestResult] = useState<{
+    items: Array<{ feed_item_id: string; feed_code: string; quantity_kg_per_day: number; unit_price: number; total_cost_per_day: number }>
+    nutrients_met: Record<string, boolean>
+    deficiencies: string[]
+  } | null>(null)
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const [suggestParams, setSuggestParams] = useState({
+    weight: 450,
+    objective: 'maintenance',
+    feed_item_ids: [] as string[],
+  })
   const [nutritionStatus, setNutritionStatus] = useState<Record<string, {
     pasture: { met: boolean; deficiencies: string[] } | null;
     stall:   { met: boolean; deficiencies: string[] } | null;
@@ -328,6 +350,59 @@ export function SimpleRationEditor({
     return sum + price * vals.stall
   }, 0)
 
+  // ADR-FEED-05 §10: call Edge Function in suggest mode
+  const handleSuggest = async () => {
+    if (!suggestDialog) return
+    setSuggestLoading(true)
+    setSuggestResult(null)
+    try {
+      const { data, error } = await supabase.functions.invoke('calculate-ration', {
+        body: {
+          organization_id: orgId,
+          consulting_project_id: projectId,
+          animal_category_id: animalCategoryToId.get(suggestDialog.groupCode) || suggestDialog.groupCode,
+          feed_item_ids: suggestParams.feed_item_ids,
+          avg_weight_kg: suggestParams.weight,
+          head_count: 1,
+          objective: suggestParams.objective,
+          season: suggestDialog.season,
+          mode: 'suggest',
+        },
+      })
+      if (error) throw error
+      setSuggestResult(data)
+    } catch (e: any) {
+      toast.error('Ошибка подбора: ' + (e.message || String(e)))
+    } finally {
+      setSuggestLoading(false)
+    }
+  }
+
+  // ADR-FEED-05 §10: apply NASEM suggestion into rations state
+  const handleApplySuggest = () => {
+    if (!suggestDialog || !suggestResult) return
+    const { groupCode, season } = suggestDialog
+    setRations(prev => {
+      const updated = { ...prev }
+      const existingGroup = { ...(updated[groupCode] || {}) }
+      // Apply suggested items — zero out other entries for this season first
+      const newGroup: Record<string, { pasture: number; stall: number }> = {}
+      for (const [fc, seasonVals] of Object.entries(existingGroup)) {
+        newGroup[fc] = { ...seasonVals, [season]: 0 }
+      }
+      for (const item of suggestResult.items) {
+        const fc = item.feed_code
+        if (!newGroup[fc]) newGroup[fc] = { pasture: 0, stall: 0 }
+        newGroup[fc] = { ...newGroup[fc], [season]: item.quantity_kg_per_day }
+      }
+      updated[groupCode] = newGroup
+      return updated
+    })
+    toast.success('Рацион вставлен в Simple. Проверьте и сохраните.')
+    setSuggestDialog(null)
+    setSuggestResult(null)
+  }
+
   // Save all groups as consulting rations
   const handleSave = async () => {
     setSaving(true)
@@ -472,8 +547,24 @@ export function SimpleRationEditor({
             <thead>
               <tr className="border-b text-xs text-muted-foreground">
                 <th className="px-4 py-2 text-left font-medium">Корм</th>
-                <th className="px-2 py-2 text-right font-medium w-28">Пастбище</th>
-                <th className="px-2 py-2 text-right font-medium w-28">Стойло</th>
+                <th className="px-2 py-2 text-right font-medium w-28">
+                  <span className="flex items-center justify-end gap-1">
+                    Пастбище
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" title="Подобрать рацион (NASEM)"
+                      onClick={() => setSuggestDialog({ groupCode: activeGroup, season: 'pasture', groupLabel: `${rationGroups.find(g => g.key === activeGroup)?.label ?? activeGroup} — Пастбище` })}>
+                      <Calculator className="w-3 h-3" />
+                    </Button>
+                  </span>
+                </th>
+                <th className="px-2 py-2 text-right font-medium w-28">
+                  <span className="flex items-center justify-end gap-1">
+                    Стойло
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" title="Подобрать рацион (NASEM)"
+                      onClick={() => setSuggestDialog({ groupCode: activeGroup, season: 'stall', groupLabel: `${rationGroups.find(g => g.key === activeGroup)?.label ?? activeGroup} — Стойло` })}>
+                      <Calculator className="w-3 h-3" />
+                    </Button>
+                  </span>
+                </th>
                 <th className="px-2 py-2 text-right font-medium w-24">Цена тг/кг</th>
               </tr>
             </thead>
@@ -554,6 +645,118 @@ export function SimpleRationEditor({
           </Button>
         </div>
       </div>
+      {/* ADR-FEED-05 §10: NASEM Подобрать Sheet */}
+      {suggestDialog && (
+        <Sheet open={true} onOpenChange={() => { setSuggestDialog(null); setSuggestResult(null) }}>
+          <SheetContent side="right" className="w-[480px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>🧮 Подобрать рацион — {suggestDialog.groupLabel}</SheetTitle>
+              <SheetDescription>NASEM LP-solver предложит оптимальный состав. Вы можете принять или скорректировать.</SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-4 mt-4">
+              {/* Params */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Живой вес (кг)</Label>
+                  <input
+                    type="number"
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm mt-1"
+                    value={suggestParams.weight}
+                    onChange={e => setSuggestParams(p => ({ ...p, weight: Number(e.target.value) }))}
+                  />
+                </div>
+                <div>
+                  <Label>Цель</Label>
+                  <Select value={suggestParams.objective}
+                    onValueChange={v => setSuggestParams(p => ({ ...p, objective: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="maintenance">Поддержание</SelectItem>
+                      <SelectItem value="growth">Рост</SelectItem>
+                      <SelectItem value="gestation">Стельность</SelectItem>
+                      <SelectItem value="lactation">Лактация</SelectItem>
+                      <SelectItem value="finishing">Финишный откорм</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Feed selection */}
+              <div>
+                <Label>Корма для подбора</Label>
+                <p className="text-xs text-muted-foreground mb-1">Выберите корма из которых подбирать рацион</p>
+                <div className="flex flex-wrap gap-1 border rounded-md p-2 max-h-40 overflow-y-auto">
+                  {(feedItems || []).map(f => (
+                    <Badge
+                      key={f.id}
+                      variant={suggestParams.feed_item_ids.includes(f.id) ? 'default' : 'outline'}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setSuggestParams(p => ({
+                        ...p,
+                        feed_item_ids: p.feed_item_ids.includes(f.id)
+                          ? p.feed_item_ids.filter(id => id !== f.id)
+                          : [...p.feed_item_ids, f.id],
+                      }))}
+                    >
+                      {f.name_ru || f.code}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Run button */}
+              <Button className="w-full" disabled={suggestLoading || suggestParams.feed_item_ids.length === 0}
+                onClick={handleSuggest}>
+                {suggestLoading
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Считаем...</>
+                  : '🧮 Подобрать'}
+              </Button>
+
+              {/* Preview result */}
+              {suggestResult && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium">Предложение NASEM</span>
+                    {suggestResult.deficiencies.length > 0
+                      ? <Badge variant="destructive" className="text-xs">{suggestResult.deficiencies.length} дефицит</Badge>
+                      : <Badge className="text-xs bg-green-600 text-white">Баланс ✓</Badge>
+                    }
+                  </div>
+
+                  {/* Diff table: было → станет */}
+                  <div className="border rounded-md overflow-hidden text-xs">
+                    <div className="grid grid-cols-3 bg-muted px-3 py-1.5 font-medium">
+                      <span>Корм</span>
+                      <span className="text-right">Было</span>
+                      <span className="text-right">NASEM</span>
+                    </div>
+                    {suggestResult.items.map(item => {
+                      const feedName = (feedItems || []).find(f => f.id === item.feed_item_id)?.name_ru || item.feed_code
+                      const currentVal = rations[suggestDialog.groupCode]?.[item.feed_code]?.[suggestDialog.season] ?? 0
+                      return (
+                        <div key={item.feed_item_id} className="grid grid-cols-3 px-3 py-1 border-t">
+                          <span className="truncate">{feedName}</span>
+                          <span className="text-right text-muted-foreground">
+                            {currentVal > 0 ? `${currentVal} кг` : '—'}
+                          </span>
+                          <span className="text-right font-medium">{item.quantity_kg_per_day} кг</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Apply button */}
+                  <Button variant="default" className="w-full" onClick={handleApplySuggest}>
+                    ✅ Вставить в Simple
+                  </Button>
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   )
 }

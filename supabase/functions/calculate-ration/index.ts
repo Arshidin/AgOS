@@ -42,6 +42,10 @@ interface RationRequest {
   // check_only mode (ADR-FEED-05): compute nutrients without saving
   check_only?: boolean;
   check_ration_items?: Array<{ feed_item_id: string; quantity_kg_per_day: number }>;
+
+  // suggest mode (ADR-FEED-05 §10): run solver, return result WITHOUT saving
+  mode?: 'save' | 'suggest'; // default 'save' for backward compat
+  season?: 'pasture' | 'stall'; // which season this solve is for (suggest mode)
 }
 
 Deno.serve(async (req: Request) => {
@@ -260,7 +264,27 @@ Deno.serve(async (req: Request) => {
       objective: body.objective || "growth",
     };
 
-    // 5. Save via appropriate RPC based on context
+    // 5. suggest mode (ADR-FEED-05 §10): return solver result WITHOUT saving
+    if (body.mode === 'suggest') {
+      return jsonResponse({
+        suggest: true,
+        season: body.season || 'stall',
+        items: rationItems.map((i: any) => ({
+          feed_item_id: i.feed_item_id,
+          feed_code: i.feed_item_code,
+          quantity_kg_per_day: i.quantity_kg_per_day,
+          unit_price: i.effective_price_per_kg,
+          total_cost_per_day: i.cost_per_day,
+        })),
+        nutrients_met: results.nutrients_met,
+        deficiencies: results.deficiencies,
+        actual_nutrients: results.nutrient_values,
+        required_nutrients: results.nutrient_requirements,
+        solver_status: results.solver_status,
+      });
+    }
+
+    // 6. Save via appropriate RPC based on context
     if (isFarmCtx) {
       // Farm context → rpc_save_ration (existing, unchanged)
       const { data: saveResult, error: saveError } = await supabase.rpc("rpc_save_ration", {
