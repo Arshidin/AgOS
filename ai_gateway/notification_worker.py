@@ -202,6 +202,54 @@ def _mark_failed(supabase, notif_id: str, error: str) -> None:
         logger.error("mark_notification_failed failed for %s: %s", notif_id[:8], e)
 
 
+# ─── TAXONOMY-M3b: platform_event handler skeleton ──────────────────────────
+# Dok 4 §3.9: standards.animal_category.updated → invalidate taxonomy caches
+# in both ai_gateway (this process) and consulting_engine (separate process).
+#
+# Full wiring (S4-DB / Slice 4 proactive dispatch):
+#   1. Poll platform_events WHERE event_type = 'standards.animal_category.updated'
+#      AND processed_at IS NULL (SKIP LOCKED per L-NEW-2)
+#   2. Call handle_platform_event for each row
+#   3. Mark row processed
+#
+# For now: the handler is wired; the polling loop is deferred to Slice 4.
+# Consulting_engine invalidation is cross-process — needs HTTP call or shared
+# cache (Redis) when both run as separate services. Current stub logs the intent.
+
+def handle_platform_event(event_type: str, payload: dict) -> None:
+    """Dispatch a platform_events row to the appropriate handler.
+
+    Called from future polling loop (Slice 4 proactive dispatch).
+    Currently only wires taxonomy cache invalidation.
+    """
+    if event_type == "standards.animal_category.updated":
+        _handle_taxonomy_updated(payload)
+    # Other event types handled in Slice 4
+
+
+def _handle_taxonomy_updated(payload: dict) -> None:
+    """Invalidate in-process L1 taxonomy cache on standards.animal_category.updated.
+
+    ai_gateway.taxonomy._cache holds the L1 code list for tool schemas.
+    After invalidation, next call to get_l1_codes() re-fetches from DB.
+    """
+    try:
+        from ai_gateway.taxonomy import invalidate_l1
+        invalidate_l1()
+        logger.info(
+            "taxonomy_updated: L1 cache invalidated (action=%s, code=%s)",
+            payload.get("action", "?"),
+            payload.get("code", "?"),
+        )
+    except Exception as exc:
+        logger.error("taxonomy_updated: invalidate_l1 failed: %s", exc)
+
+    # Consulting_engine runs in a separate process — its TaxonomyCache must be
+    # invalidated via an HTTP call to /internal/taxonomy/invalidate or a shared
+    # Redis key. Deferred to Slice 4 when service mesh is defined.
+    logger.debug("taxonomy_updated: consulting_engine invalidation deferred to Slice 4")
+
+
 # --- Standalone runner ---
 if __name__ == "__main__":
     logging.basicConfig(

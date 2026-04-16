@@ -8,6 +8,8 @@ import re
 import logging
 from typing import Any, Optional
 
+from ai_gateway.taxonomy import is_valid_l1_code
+
 logger = logging.getLogger("agos.gateway.extraction")
 
 # C-NEW-1: Animal category mapping (Russian/Kazakh -> English DB codes)
@@ -144,6 +146,11 @@ def extract_entities_from_message(text: str) -> list[dict[str, Any]]:
 
     # Herd group extraction
     category = extract_animal_category(text)
+    # TAXONOMY-M3b: validate extracted code against canonical L1 list.
+    # is_valid_l1_code uses FALLBACK_L1_CODES when flag is off — zero-cost.
+    if category and not is_valid_l1_code(category):
+        logger.warning("extract_entities: unrecognised L1 code %r — discarding", category)
+        category = None
     head_count = extract_head_count(text)
     if category and head_count:
         weight = extract_weight(text)

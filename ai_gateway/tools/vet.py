@@ -16,6 +16,11 @@ from typing import Any, Optional
 
 from supabase import Client
 
+# TAXONOMY-M3b: feature-flagged L1 code list for tool schema enum.
+# When TAXONOMY_RPC_READ=off returns FALLBACK_L1_CODES (12 codes); when on
+# pulls from rpc_list_animal_categories once per process and caches.
+from ai_gateway.taxonomy import get_l1_codes
+
 logger = logging.getLogger("agos.gateway.tools.vet")
 
 
@@ -130,6 +135,7 @@ VET_TOOL_DEFINITIONS = [
                 },
                 "animal_category_code": {
                     "type": "string",
+                    "enum": list(get_l1_codes()),
                     "description": "Код категории животного (BULL_CALF, STEER, COW...)",
                 },
             },
