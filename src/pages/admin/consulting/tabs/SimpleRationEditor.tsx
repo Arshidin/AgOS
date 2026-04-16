@@ -54,8 +54,9 @@ const FEEDING_GROUP_LABELS: Record<string, string> = {
   BULL_BREEDING: 'Быки-производители',
 }
 
-/** Default rations matching CFC Excel template (feeding_model.py hardcoded) */
-const DEFAULT_RATIONS: Record<string, Record<string, { pasture: number; stall: number }>> = {
+/** Default rations matching CFC Excel template (feeding_model.py hardcoded).
+ * Exported so RationTab can compute feed volume preview before user saves. */
+export const DEFAULT_RATIONS: Record<string, Record<string, { pasture: number; stall: number }>> = {
   COW: {
     green_mass: { pasture: 32, stall: 0 },
     hay: { pasture: 0, stall: 8 },
@@ -91,8 +92,8 @@ const DEFAULT_RATIONS: Record<string, Record<string, { pasture: number; stall: n
   },
 }
 
-/** Feed display names (ru) */
-const FEED_NAMES: Record<string, string> = {
+/** Feed display names (ru). Exported for RationTab volume preview. */
+export const FEED_NAMES: Record<string, string> = {
   green_mass: 'Зелёная масса',
   hay: 'Сено',
   straw: 'Солома',

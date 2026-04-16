@@ -20,7 +20,7 @@ import {
   getDefaultObjective,
   CATEGORY_CODE_TO_HERD,
 } from './herdCategoryMapping'
-import { SimpleRationEditor } from './SimpleRationEditor'
+import { SimpleRationEditor, DEFAULT_RATIONS, FEED_NAMES } from './SimpleRationEditor'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -208,42 +208,88 @@ export function RationTab() {
         // ── 2. Client-side fallback: ration items × herd projections ──────────
         // Runs when engine data is absent (project not yet recalculated with
         // DEF-RATION-08). Formula: kg/day × avg_heads_this_year × 365 / 1000 = tonnes/year
+        // Falls back to DEFAULT_RATIONS when no rations saved yet (rationsByCategory empty).
         let clientGroups: { key: string; label: string; annual: number[] }[] = []
         let clientFeeds: { name: string; annual: number[] }[] = []
+        let usingDefaults = false
 
-        if (!hasEngineGroups && !hasEngineAnnual && herd && rationsByCategory.size > 0) {
+        if (!hasEngineGroups && !hasEngineAnnual && herd) {
           const grpAcc: Record<string, { label: string; annual: number[] }> = {}
           const feedAcc: Record<string, number[]> = {}
 
-          for (const ration of rationsByCategory.values()) {
-            const code = ration.animal_category_code
-            const mapping = CATEGORY_CODE_TO_HERD[code]
-            if (!mapping) continue
+          // Prefer saved rations; fall back to DEFAULT_RATIONS for preview
+          const hasSaved = rationsByCategory.size > 0
 
-            const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
-            if (!herdGrp) continue
-            const monthArr = herdGrp[mapping.metric]
-            if (!Array.isArray(monthArr) || monthArr.length === 0) continue
+          if (hasSaved) {
+            // Path A: saved rations from DB
+            for (const ration of rationsByCategory.values()) {
+              const code = ration.animal_category_code
+              const mapping = CATEGORY_CODE_TO_HERD[code]
+              if (!mapping) continue
 
-            const annual = Array<number>(10).fill(0)
-            for (let yr = 0; yr < 10; yr++) {
-              const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
-              if (slice.length === 0) break
-              const avgHeads = slice.reduce((a, b) => a + (b ?? 0), 0) / slice.length
-              if (avgHeads <= 0) continue
+              const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
+              if (!herdGrp) continue
+              const monthArr = herdGrp[mapping.metric]
+              if (!Array.isArray(monthArr) || monthArr.length === 0) continue
 
-              for (const item of ration.items) {
-                const tonnes = (item.quantity_kg_per_day * avgHeads * 365) / 1000
-                annual[yr] = (annual[yr] ?? 0) + tonnes
+              const annual = Array<number>(10).fill(0)
+              for (let yr = 0; yr < 10; yr++) {
+                const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
+                if (slice.length === 0) break
+                const avgHeads = slice.reduce((a, b) => a + (b ?? 0), 0) / slice.length
+                if (avgHeads <= 0) continue
 
-                if (!feedAcc[item.feed_item_code])
-                  feedAcc[item.feed_item_code] = Array<number>(10).fill(0)
-                feedAcc[item.feed_item_code]![yr] = (feedAcc[item.feed_item_code]![yr] ?? 0) + tonnes
+                for (const item of ration.items) {
+                  const tonnes = (item.quantity_kg_per_day * avgHeads * 365) / 1000
+                  annual[yr] = (annual[yr] ?? 0) + tonnes
+                  if (!feedAcc[item.feed_item_code])
+                    feedAcc[item.feed_item_code] = Array<number>(10).fill(0)
+                  feedAcc[item.feed_item_code]![yr] = (feedAcc[item.feed_item_code]![yr] ?? 0) + tonnes
+                }
               }
-            }
 
-            if (annual.some(v => v > 0.05)) {
-              grpAcc[code] = { label: ration.animal_category_name, annual }
+              if (annual.some(v => v > 0.05))
+                grpAcc[code] = { label: ration.animal_category_name, annual }
+            }
+          } else {
+            // Path B: no saved rations yet — compute preview from DEFAULT_RATIONS
+            usingDefaults = true
+            const GROUP_LABEL_MAP: Record<string, string> = {
+              COW:           'Маточное поголовье',
+              SUCKLING_CALF: 'Молодняк (телята)',
+              HEIFER_YOUNG:  'Тёлки',
+              STEER:         'Бычки',
+              BULL_BREEDING: 'Быки-производители',
+            }
+            for (const [code, feeds] of Object.entries(DEFAULT_RATIONS)) {
+              const mapping = CATEGORY_CODE_TO_HERD[code]
+              if (!mapping) continue
+              const herdGrp = (herd as Record<string, Record<string, number[]>>)[mapping.group]
+              if (!herdGrp) continue
+              const monthArr = herdGrp[mapping.metric]
+              if (!Array.isArray(monthArr) || monthArr.length === 0) continue
+
+              const annual = Array<number>(10).fill(0)
+              for (let yr = 0; yr < 10; yr++) {
+                const slice = monthArr.slice(yr * 12, (yr + 1) * 12)
+                if (slice.length === 0) break
+                const avgHeads = slice.reduce((a, b) => a + (b ?? 0), 0) / slice.length
+                if (avgHeads <= 0) continue
+
+                for (const [feedCode, vals] of Object.entries(feeds)) {
+                  // year-average kg/day (same formula as handleSave in SimpleRationEditor)
+                  const avgKg = (vals.pasture * 183 + vals.stall * 182) / 365
+                  if (avgKg <= 0) continue
+                  const tonnes = (avgKg * avgHeads * 365) / 1000
+                  annual[yr] = (annual[yr] ?? 0) + tonnes
+                  if (!feedAcc[feedCode])
+                    feedAcc[feedCode] = Array<number>(10).fill(0)
+                  feedAcc[feedCode]![yr] = (feedAcc[feedCode]![yr] ?? 0) + tonnes
+                }
+              }
+
+              if (annual.some(v => v > 0.05))
+                grpAcc[code] = { label: GROUP_LABEL_MAP[code] ?? code, annual }
             }
           }
 
@@ -252,7 +298,10 @@ export function RationTab() {
             .filter(g => g.annual.some(v => v > 0.05))
 
           clientFeeds = Object.entries(feedAcc)
-            .map(([name, annual]) => ({ name, annual }))
+            .map(([feedCode, annual]) => ({
+              name: FEED_NAMES[feedCode] ?? feedCode,
+              annual,
+            }))
             .filter(f => f.annual.some(v => v > 0.05))
             .sort((a, b) => (b.annual[0] ?? 0) - (a.annual[0] ?? 0))
         }
@@ -311,7 +360,11 @@ export function RationTab() {
         const feedTotals = Array.from({ length: numYears }, (_, i) =>
           feedRows.reduce((s, f) => s + (f.annual[i] ?? 0), 0))
 
-        const isClientSide = !hasEngineGroups && !hasEngineAnnual
+        const sourceLabel = hasEngineGroups || hasEngineAnnual
+          ? null
+          : usingDefaults
+            ? 'нормативные значения · сохраните рационы для уточнения'
+            : 'на основе сохранённых рационов'
 
         return (
           <div className="space-y-3">
@@ -319,9 +372,9 @@ export function RationTab() {
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Потребность в кормах
               </p>
-              {isClientSide && (
+              {sourceLabel && (
                 <span className="text-[10px] text-muted-foreground border border-border/50 rounded px-1.5 py-0.5">
-                  на основе сохранённых рационов
+                  {sourceLabel}
                 </span>
               )}
             </div>
