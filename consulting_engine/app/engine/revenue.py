@@ -1,33 +1,27 @@
 """Модуль выручки + субсидий (Часть 4.8.1-4.8.2).
 
 Revenue sources (all in тыс. тенге):
-  Row 189: Тёлки племенные — sold_breeding × 267кг × 2200 тг/кг × inflation / 1000
-  Row 190: Маточное выбракованное — abs(culled_cows) × 600кг × 1800 тг/кг × inflation / 1000
-  Row 191: Быки выбракованные — abs(culled_bulls) × 750кг × 2200 тг/кг × inflation / 1000
+  Тёлки племенные    — sold_breeding × heifer_transfer_weight × price_heifer_breeding × inflation / 1000
+  Маточное выбракованное — abs(culled_cows) × cow_culled_weight × price_cow_culled × inflation / 1000
+  Быки выбракованные — abs(culled_bulls) × bull_culled_weight × price_bull_culled × inflation / 1000
+  Собственные бычки  — abs(steers_sold) × steer_sale_weight × price_steer_own × inflation / 1000
+
+Веса:
+  - Молодняк (бычки, тёлки) — динамически из weight_model (birth + Σ daily_gain × days)
+  - Выбракованные (коровы, быки) — статично из weight_params (параметр проекта)
+
+Цены:
+  - Из enriched_input["price_params"] (параметр проекта, P8 — not hardcode)
 
 Subsidies (subsidy_switch != 2):
-  Row 194: Закуп поголовья — 260 тыс.тг × (purchased_cows + purchased_bulls), month 1 only
-  Row 195: Выращивание племенного молодняка — 15 тыс.тг × inflation × sold_breeding_heifers
-  Row 196: Содержание быков — 100 тыс.тг × bulls_eop × inflation, every month
+  Закуп поголовья — 260 тыс.тг × (purchased_cows + purchased_bulls), month 1 only
+  Выращивание племенного молодняка — 15 тыс.тг × inflation × sold_breeding_heifers
+  Содержание быков — 100 тыс.тг × bulls_eop × inflation, every month
 
 Inflation: 10.5% annual, applied from year 2 onward.
 """
 
 CPI_ANNUAL = 0.105  # Annual livestock price inflation
-
-# Base prices (тг/кг живого веса) — from Excel row 181-186
-BASE_PRICES = {
-    "heifer_breeding": 2200,
-    "cow_culled": 1800,
-    "bull_culled": 2200,
-    "steer_own": 2200,       # own steers sold after growth
-}
-
-# Weight constants (кг) — from Excel CFC rows 103-108
-COW_CULLED_WEIGHT = 600      # mature cow weight at culling
-BULL_CULLED_WEIGHT = 750     # mature bull weight at culling
-HEIFER_WEIGHT = 267          # ~170 + 4mo × 30d × 810г/d ≈ 267 кг
-STEER_WEIGHT = 331           # from Excel E152: avg live weight after growth
 
 
 def calculate_revenue(
@@ -44,8 +38,9 @@ def calculate_revenue(
         enriched_input: validated project parameters
         herd: herd turnover results with cows/bulls/heifers/steers sub-dicts
         refs: reference data (unused here, kept for signature compatibility)
-        weight: dynamic weight model results (steer_sale_weight, heifer_transfer_weight, etc.)
-                If None, falls back to hardcoded weight constants.
+        weight: dynamic weight model results (steer_sale_weight, heifer_transfer_weight,
+                cow_culled_weight, bull_culled_weight). Expected to be populated for every
+                month where sales occur — raises ValueError on missing young-animal weights.
 
     Returns:
         dict with livestock_revenue, subsidies, total_revenue arrays
@@ -53,6 +48,17 @@ def calculate_revenue(
     n = timeline["horizon_months"]
     year_idx = timeline["year_index"]
     subsidy_switch = enriched_input.get("subsidy_switch", 1)
+
+    # Цены — из параметров проекта (P8). price_params всегда есть в enriched_input.
+    prices = enriched_input["price_params"]
+
+    # Веса выбракованных — статично из weight_params (коровы/быки — зрелые).
+    # Fallback на STEER_WEIGHT/HEIFER_WEIGHT убран: в норме weight_model всегда
+    # заполняет steer_sale_weight/heifer_transfer_weight для месяцев с продажей.
+    # Если не заполнил — это баг, ловим через assertion, а не маскируем завышением.
+    wp = enriched_input["weight_params"]
+    cow_culled_wt = weight["cow_culled_weight"] if weight else wp["cow_culled_weight_kg"]
+    bull_culled_wt = weight["bull_culled_weight"] if weight else wp["bull_culled_weight_kg"]
 
     livestock_revenue = [0.0] * n
     subsidies = [0.0] * n
@@ -72,46 +78,49 @@ def calculate_revenue(
         inf = (1 + CPI_ANNUAL) ** (yr - 1) if yr > 1 else 1.0
 
         # ----- Livestock revenue (POSITIVE) -----
-        # Dynamic weights from weight_model or fallback to hardcoded constants
-        cow_wt = weight["cow_culled_weight"] if weight else COW_CULLED_WEIGHT
-        bull_wt = weight["bull_culled_weight"] if weight else BULL_CULLED_WEIGHT
-        heifer_wt = (
-            weight["heifer_transfer_weight"][t]
-            if weight and weight["heifer_transfer_weight"][t] > 0
-            else HEIFER_WEIGHT
-        )
-        steer_wt = (
-            weight["steer_sale_weight"][t]
-            if weight and weight["steer_sale_weight"][t] > 0
-            else STEER_WEIGHT
-        )
 
         # Sold breeding heifers: heads × weight × price × inflation / 1000
+        # Вес — динамический из weight_model (перевод тёлок в коровы).
         sold_breeding = abs(herd["cows"]["sold_breeding"][t])
         if sold_breeding > 0:
-            val = sold_breeding * heifer_wt * BASE_PRICES["heifer_breeding"] * inf / 1000
+            heifer_wt = weight["heifer_transfer_weight"][t] if weight else 0.0
+            if heifer_wt <= 0:
+                raise ValueError(
+                    f"heifer_transfer_weight[{t}] = 0 при sold_breeding={sold_breeding}. "
+                    "weight_model не отследил когорту."
+                )
+            val = sold_breeding * heifer_wt * prices["heifer_breeding"] * inf / 1000
             livestock_revenue[t] += val
             rev_heifers[t] = val
 
         # Culled cows: heads × weight × price × inflation / 1000
+        # Вес — статично из weight_params (зрелые коровы).
         culled_cows = abs(herd["cows"]["culled"][t])
         if culled_cows > 0:
-            val = culled_cows * cow_wt * BASE_PRICES["cow_culled"] * inf / 1000
+            val = culled_cows * cow_culled_wt * prices["cow_culled"] * inf / 1000
             livestock_revenue[t] += val
             rev_cows_culled[t] = val
 
         # Culled bulls: heads × weight × price × inflation / 1000
+        # Вес — статично из weight_params (зрелые быки).
         culled_bulls = abs(herd["bulls"]["culled"][t])
         if culled_bulls > 0:
-            val = culled_bulls * bull_wt * BASE_PRICES["bull_culled"] * inf / 1000
+            val = culled_bulls * bull_culled_wt * prices["bull_culled"] * inf / 1000
             livestock_revenue[t] += val
             rev_bulls_culled[t] = val
 
         # Steers sold (own): heads × weight × price × inflation / 1000
-        # PRIMARY revenue source — steers sold after growth period
+        # PRIMARY revenue source. Вес — динамический из weight_model согласно
+        # стратегии реализации (steer_sale_age_months).
         steers_sold = abs(herd["steers"]["sold"][t])
         if steers_sold > 0:
-            val = steers_sold * steer_wt * BASE_PRICES["steer_own"] * inf / 1000
+            steer_wt = weight["steer_sale_weight"][t] if weight else 0.0
+            if steer_wt <= 0:
+                raise ValueError(
+                    f"steer_sale_weight[{t}] = 0 при steers_sold={steers_sold}. "
+                    "weight_model не отследил когорту бычков."
+                )
+            val = steers_sold * steer_wt * prices["steer_own"] * inf / 1000
             livestock_revenue[t] += val
             rev_steers[t] = val
 

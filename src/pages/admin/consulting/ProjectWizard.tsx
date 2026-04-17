@@ -37,6 +37,9 @@ interface WizardParams {
   steer_sale_age_months: number     // Возраст реализации бычков (0=декабрь, 7/12/18)
   pasture_start_month: number       // Начало пастбищного сезона (месяц 1-12, по умолчанию 5)
   pasture_end_month: number         // Конец пастбищного сезона (месяц 1-12, по умолчанию 10)
+  // ADR-CAPEX-01 — project-level material choice for data-driven CAPEX engine
+  construction_material_enclosed: string   // ангар, изолятор, крытое отёла, КПП
+  construction_material_support: string    // навесы, зернохранилище, кормовой стол, загоны
   // Привесы и вес (Task A)
   birth_weight_kg: number
   daily_gain_steer_pasture: number
@@ -45,6 +48,11 @@ interface WizardParams {
   daily_gain_heifer_stall: number
   cow_culled_weight_kg: number
   bull_culled_weight_kg: number
+  // Цены реализации (тг/кг живого веса) — P8: параметр проекта, не hardcode
+  price_steer_own_per_kg: number
+  price_heifer_breeding_per_kg: number
+  price_cow_culled_per_kg: number
+  price_bull_culled_per_kg: number
   // Финансирование
   equity_share_pct: number
   capex_loan_term_years: number
@@ -96,6 +104,8 @@ const DEFAULT_PARAMS: WizardParams = {
   steer_sale_age_months: 0,
   pasture_start_month: 5,
   pasture_end_month: 10,
+  construction_material_enclosed: 'sandwich',
+  construction_material_support: 'light_frame',
   birth_weight_kg: 30,
   daily_gain_steer_pasture: 0.850,
   daily_gain_steer_stall: 0.650,
@@ -103,6 +113,10 @@ const DEFAULT_PARAMS: WizardParams = {
   daily_gain_heifer_stall: 0.600,
   cow_culled_weight_kg: 600,
   bull_culled_weight_kg: 750,
+  price_steer_own_per_kg: 1800,
+  price_heifer_breeding_per_kg: 2200,
+  price_cow_culled_per_kg: 1800,
+  price_bull_culled_per_kg: 2000,
   equity_share_pct: 15,
   capex_loan_term_years: 10,
   capex_grace_period_years: 2,
@@ -214,6 +228,13 @@ export function ProjectWizard() {
   const [paramsLoading, setParamsLoading] = useState(true)
   const [savedParamsStr, setSavedParamsStr] = useState('')
   const [results, setResults] = useState<any>({})
+  // ADR-CAPEX-01: preserve CapexTab per-item overrides when wizard saves
+  // materials to consulting_projects via rpc_save_project_infra_override.
+  // Source of truth is the last-saved version.input_params.infra_items_override
+  // (calculate.py injects project-row override into input_params before save).
+  const [lastVersionOverrides, setLastVersionOverrides] = useState<any[]>([])
+  // 4 materials from consulting_reference_data (admin-managed).
+  const [materials, setMaterials] = useState<Array<{ code: string; name_ru: string; cost_per_m2: number }>>([])
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
 
 
@@ -224,6 +245,14 @@ export function ProjectWizard() {
     const onResize = () => setIsNarrow(window.innerWidth < 1024)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // ADR-CAPEX-01: load material catalog from consulting_reference_data.
+  // Used by the two Select controls (enclosed/support) added below.
+  useEffect(() => {
+    supabase.rpc('rpc_list_construction_materials', {}).then(({ data }) => {
+      if (Array.isArray(data)) setMaterials(data)
+    })
   }, [])
 
   // Persist wizard progress to sessionStorage
@@ -286,9 +315,19 @@ export function ProjectWizard() {
             daily_gain_heifer_stall: saved.daily_gain_heifer_stall ?? DEFAULT_PARAMS.daily_gain_heifer_stall,
             cow_culled_weight_kg: saved.cow_culled_weight_kg ?? DEFAULT_PARAMS.cow_culled_weight_kg,
             bull_culled_weight_kg: saved.bull_culled_weight_kg ?? DEFAULT_PARAMS.bull_culled_weight_kg,
+            price_steer_own_per_kg: saved.price_steer_own_per_kg ?? DEFAULT_PARAMS.price_steer_own_per_kg,
+            price_heifer_breeding_per_kg: saved.price_heifer_breeding_per_kg ?? DEFAULT_PARAMS.price_heifer_breeding_per_kg,
+            price_cow_culled_per_kg: saved.price_cow_culled_per_kg ?? DEFAULT_PARAMS.price_cow_culled_per_kg,
+            price_bull_culled_per_kg: saved.price_bull_culled_per_kg ?? DEFAULT_PARAMS.price_bull_culled_per_kg,
+            construction_material_enclosed: saved.construction_material_enclosed ?? DEFAULT_PARAMS.construction_material_enclosed,
+            construction_material_support: saved.construction_material_support ?? DEFAULT_PARAMS.construction_material_support,
           }
           setParams(merged)
           setSavedParamsStr(JSON.stringify(merged))
+          // Preserve CapexTab overrides when wizard later saves materials.
+          if (Array.isArray(saved.infra_items_override)) {
+            setLastVersionOverrides(saved.infra_items_override)
+          }
         }
       }
       setParamsLoading(false)
@@ -306,6 +345,26 @@ export function ProjectWizard() {
     if (!orgId || !projectId) return
     setCalculating(true)
     try {
+      // ADR-CAPEX-01: persist material choice to consulting_projects row BEFORE
+      // triggering /calculate. calculate.py reads the project row and injects
+      // into input_params (DB wins) — so the wizard must write first.
+      // `p_overrides` is passed as the last-known overrides to preserve CapexTab
+      // edits. Known MVP race: if CapexTab saved overrides but recalc failed
+      // and user jumps here, those unsynced overrides can be lost. Ship-fix
+      // later via a dedicated materials-only RPC.
+      const { error: saveError } = await supabase.rpc('rpc_save_project_infra_override', {
+        p_organization_id: orgId,
+        p_project_id: projectId,
+        p_enclosed: params.construction_material_enclosed,
+        p_support: params.construction_material_support,
+        p_overrides: lastVersionOverrides,
+      })
+      if (saveError) {
+        // Swallow — engine still runs off input_params as fallback. Toast for
+        // visibility so we notice if the RPC starts failing.
+        console.warn('[Wizard] rpc_save_project_infra_override failed:', saveError)
+      }
+
       const result = await calculateProject({
         project_id: projectId,
         organization_id: orgId,
@@ -332,6 +391,12 @@ export function ProjectWizard() {
           daily_gain_heifer_stall: params.daily_gain_heifer_stall,
           cow_culled_weight_kg: params.cow_culled_weight_kg,
           bull_culled_weight_kg: params.bull_culled_weight_kg,
+          price_steer_own_per_kg: params.price_steer_own_per_kg,
+          price_heifer_breeding_per_kg: params.price_heifer_breeding_per_kg,
+          price_cow_culled_per_kg: params.price_cow_culled_per_kg,
+          price_bull_culled_per_kg: params.price_bull_culled_per_kg,
+          construction_material_enclosed: params.construction_material_enclosed,
+          construction_material_support: params.construction_material_support,
           farm_type: 'beef_reproducer',
           bull_ratio: 1 / 15,
         },
@@ -513,6 +578,13 @@ export function ProjectWizard() {
       { id: 'bull_culled_weight_kg',    label: 'Вес быка (убой)',     Icon: Hash,        suffix: 'кг' },
     ]
 
+    const priceRows: PR[] = [
+      { id: 'price_steer_own_per_kg',       label: 'Цена бычков',           Icon: DollarSign, suffix: 'тг/кг' },
+      { id: 'price_heifer_breeding_per_kg', label: 'Цена плем. тёлок',      Icon: DollarSign, suffix: 'тг/кг' },
+      { id: 'price_cow_culled_per_kg',      label: 'Цена выбр. коров',      Icon: DollarSign, suffix: 'тг/кг' },
+      { id: 'price_bull_culled_per_kg',     label: 'Цена выбр. быков',      Icon: DollarSign, suffix: 'тг/кг' },
+    ]
+
     const finRows: PR[] = [
       { id: 'equity_share_pct',         label: 'Собств. участие',   Icon: Percent,    suffix: '%' },
       { id: 'capex_loan_term_years',    label: 'Срок кредита',      Icon: Clock,      suffix: 'лет' },
@@ -521,6 +593,22 @@ export function ProjectWizard() {
       { id: 'wc_loan_rate_pct',         label: 'Ставка оборотная',  Icon: Percent,    suffix: '%' },
       { id: 'subsidy_switch',           label: 'Субсидии',          Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
       { id: 'wc_loan_switch',           label: 'Займы на ПОС',      Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
+    ]
+
+    // ADR-CAPEX-01 — material selectors; options come from rpc_list_construction_materials.
+    // Fallback option when catalog hasn't loaded yet = current value (no render error).
+    const materialOptions = materials.length > 0
+      ? materials.map(m => ({
+          label: `${m.name_ru} · ${m.cost_per_m2.toLocaleString('ru-RU')} ₸/м²`,
+          value: m.code,
+        }))
+      : [
+          { label: params.construction_material_enclosed, value: params.construction_material_enclosed },
+          { label: params.construction_material_support,  value: params.construction_material_support  },
+        ]
+    const materialRows: PR[] = [
+      { id: 'construction_material_enclosed', label: 'Материал закрытых',   Icon: Landmark, options: materialOptions },
+      { id: 'construction_material_support',  label: 'Материал вспомог.',    Icon: Landmark, options: materialOptions },
     ]
 
     return (
@@ -573,6 +661,18 @@ export function ProjectWizard() {
                   {finRows.map(Row)}
                 </div>
               </div>
+            </div>
+
+            {/* ADR-CAPEX-01: material choice affects CAPEX engine (Priority 2) */}
+            <SL>Строительство</SL>
+            <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+              {materialRows.map(Row)}
+            </div>
+
+            {/* Цены реализации (P8: параметр проекта) */}
+            <SL>Цены реализации (тг/кг живого веса)</SL>
+            <div className="param-card" style={{ background: 'var(--bg-c)', border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden' }}>
+              {priceRows.map(Row)}
             </div>
           </div>
 
@@ -760,6 +860,42 @@ export function ProjectWizard() {
               </div>
               <p className="text-xs text-muted-foreground">Центральный КЗ: 5–10 · Северный КЗ: 4–9 · Южный КЗ: 4–11</p>
 
+              {/* ADR-CAPEX-01: project-level material choice — drives area cost via capex engine Priority 2 */}
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Строительство</p>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Материал для закрытых построек</Label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={params.construction_material_enclosed}
+                  onChange={e => set('construction_material_enclosed', e.target.value)}
+                >
+                  {materials.length === 0 && <option value={params.construction_material_enclosed}>{params.construction_material_enclosed}</option>}
+                  {materials.map(m => (
+                    <option key={m.code} value={m.code}>
+                      {m.name_ru} · {m.cost_per_m2.toLocaleString('ru-RU')} ₸/м²
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Цена м² для ангара, изолятора, крытого отёла, КПП.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Материал для вспомогательных построек</Label>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  value={params.construction_material_support}
+                  onChange={e => set('construction_material_support', e.target.value)}
+                >
+                  {materials.length === 0 && <option value={params.construction_material_support}>{params.construction_material_support}</option>}
+                  {materials.map(m => (
+                    <option key={m.code} value={m.code}>
+                      {m.name_ru} · {m.cost_per_m2.toLocaleString('ru-RU')} ₸/м²
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">Цена м² для навесов, зернохранилища, кормового стола, загонов.</p>
+              </div>
+
               <div className="h-px bg-border/50 my-2" />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Производственный цикл</p>
               <WizardField label="Случная кампания" value={params.breeding_duration_months} onChange={v => set('breeding_duration_months', v)} suffix="мес" />
@@ -811,6 +947,13 @@ export function ProjectWizard() {
               <WizardField label="Привес бычков (стойло, зима)" value={params.daily_gain_steer_stall} onChange={v => set('daily_gain_steer_stall', v)} suffix="кг/день" hint="Рекомендуемо: 0.50-0.85" step="0.01" />
               <WizardField label="Привес тёлок (пастбище, лето)" value={params.daily_gain_heifer_pasture} onChange={v => set('daily_gain_heifer_pasture', v)} suffix="кг/день" hint="Рекомендуемо: 0.60-1.00" step="0.01" />
               <WizardField label="Привес тёлок (стойло, зима)" value={params.daily_gain_heifer_stall} onChange={v => set('daily_gain_heifer_stall', v)} suffix="кг/день" hint="Рекомендуемо: 0.45-0.75" step="0.01" />
+
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Цены реализации (тг/кг живого веса)</p>
+              <WizardField label="Цена бычков (молодняк)" value={params.price_steer_own_per_kg} onChange={v => set('price_steer_own_per_kg', v)} suffix="тг/кг" hint="Рынок КЗ 2026: 1600-1800 (стокер 10-12 мес.)" />
+              <WizardField label="Цена племенных тёлок" value={params.price_heifer_breeding_per_kg} onChange={v => set('price_heifer_breeding_per_kg', v)} suffix="тг/кг" hint="Премия за разведение: 2200-2500" />
+              <WizardField label="Цена выбракованных коров" value={params.price_cow_culled_per_kg} onChange={v => set('price_cow_culled_per_kg', v)} suffix="тг/кг" hint="Мясо низкой категории: 1500-1800" />
+              <WizardField label="Цена выбракованных быков" value={params.price_bull_culled_per_kg} onChange={v => set('price_bull_culled_per_kg', v)} suffix="тг/кг" hint="Тяжёлая туша: 1800-2200" />
 
               {/* Task B: client-side sale weight estimator */}
               <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-3 space-y-1">

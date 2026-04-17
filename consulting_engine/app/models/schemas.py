@@ -85,6 +85,21 @@ class ProjectInput(BaseModel):
     bull_culled_weight_kg: float = Field(default=750.0, ge=500, le=1100,
         description="Вес выбракованного быка, кг")
 
+    # Цены реализации (тг/кг живого веса). P8 — справочник как параметр проекта.
+    # Defaults откалиброваны под рынок КЗ 2026:
+    # - молодняк (стокер 10-11 мес) 1600-1800 тг/кг
+    # - племенные тёлки 2200-2500 тг/кг (премия за разведение)
+    # - выбракованные коровы 1500-1800 тг/кг (мясо низкой категории)
+    # - выбракованные быки 1800-2200 тг/кг (тяжёлая туша)
+    price_steer_own_per_kg: float = Field(default=1800.0, ge=500, le=5000,
+        description="Цена реализации бычков (тг/кг живого веса)")
+    price_heifer_breeding_per_kg: float = Field(default=2200.0, ge=500, le=5000,
+        description="Цена реализации племенных тёлок (тг/кг живого веса)")
+    price_cow_culled_per_kg: float = Field(default=1800.0, ge=500, le=5000,
+        description="Цена реализации выбракованных коров (тг/кг живого веса)")
+    price_bull_culled_per_kg: float = Field(default=2000.0, ge=500, le=5000,
+        description="Цена реализации выбракованных быков (тг/кг живого веса)")
+
     # Стратегия реализации бычков
     steer_sale_age_months: int = Field(default=0, ge=0, le=24,
         description="Возраст реализации бычков (мес). 0=продажа в декабре (legacy)")

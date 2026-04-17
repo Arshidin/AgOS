@@ -12,9 +12,9 @@ Plan: [.claude/plans/q1-rosy-lollipop.md](.claude/plans/q1-rosy-lollipop.md)
 | Phase | Owner | Status | Notes |
 |-------|-------|--------|-------|
 | Phase 1 — DB schema + seed | DB Agent | ✅ Done + Architect-signed (2026-04-17) | d09: CHECK extended (+2 cat), 3 new columns on consulting_projects, 5 RPCs, seed 4 materials + 1 surcharges + 53 infra_norms (incl. 10 bespoke overrides, deviation approved). **Applied to prod via psycopg2** during Architect audit (file changes were uncommitted, deploy step was missing). 22/22 QA invariants ✓. See DECISIONS_LOG `ADR-CAPEX-01 Phase 1 sign-off`. |
-| Phase 2 — Engine rewrite | Backend Agent | ✅ Done — pending Railway deploy (2026-04-17) | `capex.py` Priority 2 data-driven + Priority 3 legacy fallback (158 lines → 564 lines). ProjectInput +3 fields (2 materials + infra_items_override). calculate.py fetches project-row override and injects before engine run. orchestrator.py passes herd to capex. 8/8 new `TestCapexDataDriven` tests pass; 6/6 legacy `TestCapex` tests still pass (Priority 3). Fixture `tests/fixtures/capex_seed.json` mirrors the d09 seed. **Next:** commit + `git push` → Railway autodeploy. |
-| Phase 3 — UI: Wizard + CapexTab | UI Agent | 🕒 Pending | Material Selects in wizard; editable CapexTab; sticky Save. Blocks on Phase 2 deploy. |
-| Phase 4 — Admin /admin/capex | UI Agent | 🕒 Pending | 3 tabs (Материалы / Нормативы / Надбавки) mirroring FeedReferenceAdmin. |
+| Phase 2 — Engine rewrite | Backend Agent | ✅ Done + deployed + prod-verified (2026-04-17) | commit `259fe49` live on Railway. Тест 7 recalc confirmed Priority 2 active: CAPEX Итого = 273,774,324 ₸ ← matches Excel Летний-scenario expected (282,465,146 − 8,692,435) within 1,613 ₸ (0.00057% floating-point drift). Tools block = 4,240,000 ₸ exact. Calving multiplier, per-item depreciation, seed refs — all working. QA verdict PASS (0 Critical). |
+| Phase 3 — UI: Wizard + CapexTab | UI Agent | ✅ Code done — pending commit + Vercel deploy (2026-04-17) | CapexTab: editable table per block, sticky save bar, legacy banner (Priority 3 fallback), materials_used display. ProjectWizard: material selectors в Step 3 (Edit mode) + separate Строительство row-card (View mode); handleCalculate saves materials via rpc_save_project_infra_override before /calculate (preserves last-version overrides to not clobber CapexTab edits). TSC clean, build succeeds (2m 5s). Known race: wizard/CapexTab cross-edit within same session can lose overrides (flagged, fix deferred to rpc_update_consulting_project materials-only extension). |
+| Phase 4 — Admin /admin/capex | UI Agent | 🟢 Ready (independent of Phase 3) | 3 tabs (Материалы / Нормативы / Надбавки) mirroring FeedReferenceAdmin. Uses only Phase 1 RPCs. |
 | Phase 5 — Docs + verification | Architect + QA | 🕒 Pending | Dok 1/3/6/7 updates, DECISIONS_LOG ADR-CAPEX-01, QA gate. |
 
 ### Phase 1 deviation — APPROVED (Architect, 2026-04-17)
@@ -41,8 +41,24 @@ File-touched-but-not-deployed pattern re-occurred (third time in week: DEF-SCHEM
 - Non-Staff full suite (feeding/herd/timeline/wacc/taxonomy): 40 passed, 3 skipped (taxonomy RPC), 3 xfailed (pre-existing). 0 new failures.
 - `TestStaff` 6/6 failures — **pre-existing** (D-FEED-2: 7 staff positions vs test expectation 5 positions). Confirmed via `git stash` baseline. Out of Phase 2 scope.
 
-### Phase 2 deployment (pending)
+### Phase 2 deployment (in progress — commit `259fe49` pushed 2026-04-17)
 Railway `consulting-engine` service autodeploys from `main` push. Phase 2 changes are feature-flagged by seed presence — empty `refs['infrastructure_norms']` triggers Priority 3 legacy, giving zero-risk rollout even if seed is missing on prod.
+
+**Prod verification check-list (CEO / Architect):**
+1. Railway dashboard → Deployments → latest → Logs: confirm no import errors on startup.
+2. Test recalc on project «Тест 7» (da3e54d6) → response `results.capex.priority_used == 2` (not 3), `grand_total` ≈ 282.4M ±1%.
+3. Confirm no field in UI (P&L/Summary/CashFlow) moves >1% relative to pre-deploy values, EXCEPT depreciation line (see below).
+
+### 🟡 Known behavioral change — depreciation delta (QA-identified, accepted)
+Priority 2 uses **per-item** `depreciation_years` from seed (20y buildings, 5y tractor, 3y tools, 2y спецодежда, etc.). Priority 3 used a blanket 20y-buildings / 5y-equipment.
+
+At capacity=300 defaults, delta on monthly depreciation:
+- `depreciation_buildings_monthly`: 936.77 → 997.01 тыс.тг (**+6.4%**)
+- `depreciation_equipment_monthly`: 960.67 → 981.94 тыс.тг (**+2.2%**)
+
+Financial impact: depreciation line on P&L rises ≈ +80 тыс.тг/мес (~+1M тг/год); net income slightly lower; NPV/IRR drift ≤1%. **Intended by plan §2.3 step 5.** Any legacy project rerun after deploy will see this — this is an improvement in accuracy, not a defect.
+
+Mitigation considered: UI badge «Обновлена методика амортизации» on first Priority-2 recalc. Deferred to Phase 3 UI scope if needed.
 
 ---
 

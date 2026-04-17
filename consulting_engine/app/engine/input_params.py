@@ -51,4 +51,12 @@ def validate_and_enrich_input(params: ProjectInput) -> dict:
         "bull_culled_weight_kg": params.bull_culled_weight_kg,
     }
 
+    # Цены реализации (тг/кг живого веса) — P8: параметр проекта, не hardcode
+    d["price_params"] = {
+        "steer_own": params.price_steer_own_per_kg,
+        "heifer_breeding": params.price_heifer_breeding_per_kg,
+        "cow_culled": params.price_cow_culled_per_kg,
+        "bull_culled": params.price_bull_culled_per_kg,
+    }
+
     return d
