@@ -135,8 +135,8 @@
 
 | ID | SQL canonical name | Domain | Caller | Status | Return |
 |----|--------------------|--------|--------|--------|--------|
-| RPC-T1 | `rpc_list_animal_categories(p_at_date, p_include_deprecated)` | Standards | web, ai, admin | ✅ Implemented | SETOF jsonb (L1 codes as of date) |
-| RPC-T1-legacy | `rpc_list_animal_categories()` | Standards | web (legacy) | ✅ Implemented (wrapper) | jsonb agg with `id` — @deprecated post-M3c |
+| RPC-T1 | `rpc_list_animal_categories(p_at_date, p_include_deprecated)` | Standards | web, ai, admin | ✅ Implemented | SETOF jsonb (incl. `id`; L1 codes as of date) |
+| ~~RPC-T1-legacy~~ | ~~`rpc_list_animal_categories()`~~ | — | — | ⛔ DROPPED 2026-04-17 (DEF-RATION-SAVE-01) | PostgREST не мог разрешить overload при вызове `.rpc(name, {})` → PGRST203. Wrapper удалён; canonical теперь возвращает `id` в jsonb. |
 | RPC-T2 | `rpc_resolve_category(p_source_code, p_target_taxonomy, p_at_date)` | Standards | web, ai, backend | ✅ Implemented | text (canonical target, is_primary-first) |
 | RPC-T3 | `rpc_get_category_mappings(p_target_taxonomy, p_at_date)` | Standards | web, ai, backend | ✅ Implemented | SETOF jsonb (all L1→target pairs at date) |
 | RPC-T4 | `rpc_add_animal_category(p_code, p_name_ru, p_name_kk, p_sex, p_purpose, p_physiological_state, p_age_band, p_required_mappings, p_description_ru, p_sort_order)` | Standards | admin | ✅ Implemented | jsonb (I3: required mappings enforced) |
@@ -568,9 +568,9 @@ SQL-функция не существует ни в одном файле (d01�
 
 ### RPC-T1 `rpc_list_animal_categories(p_at_date, p_include_deprecated)` [WEB] [AI] [ADMIN] ✅ Implemented
 
-Возвращает активные L1 коды на дату. `p_include_deprecated=false` (default) скрывает депрекированные.
+Возвращает активные L1 коды на дату. `p_include_deprecated=false` (default) скрывает депрекированные. Jsonb содержит `id` (с 2026-04-17, DEF-RATION-SAVE-01) — для UI-callers, которым нужен `animal_category_id` при сохранении связанных сущностей (например, `rpc_save_consulting_ration`).
 
-**Legacy overload** `rpc_list_animal_categories()` без аргументов — тонкий wrapper с legacy envelope (agg jsonb с `id`) для Calculator.tsx/RationTab.tsx. @deprecated после TAXONOMY-M3c.
+**~~Legacy no-arg overload~~** ⛔ **DROPPED 2026-04-17** (DEF-RATION-SAVE-01). Два overload'а создавали ambiguity для PostgREST при вызове `supabase.rpc('rpc_list_animal_categories', {})` → `PGRST203 "Could not choose the best candidate function"`. 4 UI callers (`Calculator.tsx`, `RationTab.tsx`, `SimpleRationEditor.tsx`, `FeedReferenceAdmin.tsx`) теперь передают explicit params `{ p_at_date: null, p_include_deprecated: false }`.
 
 ### RPC-T2 `rpc_resolve_category(p_source_code, p_target_taxonomy, p_at_date)` [WEB] [AI] [BACKEND] ✅ Implemented
 
@@ -705,7 +705,7 @@ Inbound webhook:
 | `fn_preview_cascade` | rpc_preview_cascade | ✅ Fixed v1.4 | fn_ prefix = SECURITY DEFINER, callable |
 | `rpc_search_knowledge_chunks` | rpc_search_knowledge | ✅ Fixed v1.4 | AI-14 canonical |
 | `rpc_get_ai_farm_context` | *(не было в Dok 3)* | ✅ Added v1.4 | AI-01, только AI Gateway |
-| `rpc_list_animal_categories(date, bool)` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T1 temporal; d03 legacy no-arg остаётся wrapper'ом |
+| `rpc_list_animal_categories(date, bool)` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15; updated 2026-04-17 | RPC-T1 temporal (d01_kernel). Включает `id` в jsonb с 2026-04-17. d03 legacy no-arg wrapper ⛔ DROPPED 2026-04-17 (DEF-RATION-SAVE-01). |
 | `rpc_resolve_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T2, deterministic via is_primary |
 | `rpc_get_category_mappings` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T3 |
 | `rpc_add_animal_category` | *(новая — ADR-ANIMAL-01)* | ✅ Added 2026-04-15 | RPC-T4, admin-only |
@@ -830,7 +830,7 @@ fn_auth_custom_claims(event jsonb)              — Supabase Auth hook: JWT + or
 | RPC ID | Функция | File | Caller | Status |
 |--------|---------|------|--------|--------|
 | RPC-F01 | `rpc_list_feed_items` | d03_feed.sql | UI Calculator, Admin | ✅ Implemented (2026-04-09) — DEF-027 fix |
-| RPC-F02 | `rpc_list_animal_categories` | d03_feed.sql | UI Calculator, Admin | ✅ Implemented (2026-04-09) — DEF-027 fix |
+| RPC-F02 | `rpc_list_animal_categories(p_at_date, p_include_deprecated)` | d01_kernel.sql (canonical) | UI Calculator, Admin, RationTab, SimpleRationEditor | ✅ Canonical in d01 since 2026-04-15 (ADR-ANIMAL-01); d03 no-arg wrapper dropped 2026-04-17 (DEF-RATION-SAVE-01) |
 | RPC-F03 | `rpc_upsert_feed_item` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
 | RPC-F04 | `rpc_upsert_feed_price` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
 | RPC-F05 | `rpc_upsert_feed_consumption_norm` | d03_feed.sql | Admin UI `/admin/feeds` | ✅ Implemented (2026-04-09) |
@@ -880,8 +880,8 @@ rpc_upsert_feed_consumption_norm(
 
 | RPC ID | Функция | File | Caller | Status |
 |--------|---------|------|--------|--------|
-| C-RPC-09 | `rpc_save_consulting_ration` | d09_consulting.sql | Edge Function `calculate-ration` (consulting ctx) | ✅ Implemented (2026-04-09) |
-| C-RPC-10 | `rpc_get_consulting_rations` | d09_consulting.sql | UI RationTab, feeding_model.py | ✅ Implemented (2026-04-09) |
+| C-RPC-09 | `rpc_save_consulting_ration` | d09_consulting.sql | Edge Function `calculate-ration` (consulting ctx), SimpleRationEditor | ✅ Implemented (2026-04-09). Устанавливает `consulting_projects.needs_recalc=true`. |
+| C-RPC-10 | `rpc_get_consulting_rations` | d09_consulting.sql | UI RationTab, Python consulting_engine (Priority 1) | ✅ Implemented (2026-04-09). **Auth helpers `fn_my_org_ids()/fn_is_admin()` removed 2026-04-17 (DEF-CONSULTING-AUTH-01)** — они возвращали false при вызове из service_role (`auth.uid()=null`), из-за чего RPC raised UNAUTHORIZED и `calculate.py` молча падал в Priority 2. Защита через `consulting_projects.id = p_consulting_project_id AND organization_id = p_organization_id` сохранена. |
 
 **`rpc_save_consulting_ration` signature:**
 ```sql
