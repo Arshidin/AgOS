@@ -85,6 +85,8 @@
 | DEF-OPEX-FATTENING-01 | 2026-04-17 | Backend | `opex.py:93` использовал только `feeding["total_reproducer"]` — рацион для STEER/BULL_CALF (откорм) не попадал в COGS P&L. Fix: split на `feed_cost_repro` → `cogs_reproducer` и `feed_cost_fatt` → `cogs_fattening`. Total_cogs теперь включает оба. |
 | DEF-FEED-NORMS-02 | 2026-04-17 | Backend | `_calc_from_norms` игнорировал `season='transition'` (COW имеет такую норму в БД). Fix: в `_lookup_cpd` fallback цепочка: season → transition → opposite season → 0. |
 | DEF-SCHEMA-DRIFT-01 | 2026-04-17 | DB/Deploy | `consulting_projects.needs_recalc` определён в `d09_consulting.sql:54` (ADD COLUMN IF NOT EXISTS), но отсутствует в deployed БД. Причина: `d09_consulting.sql` не был в `SQL_FILES` списке `deploy_sql.py`. Fix: d09 добавлен в deploy pipeline; `rpc_save_consulting_ration` и `rpc_recalculate_consulting_project` после применения начнут корректно управлять `needs_recalc`. |
+| ADR-CAPEX-01 | 2026-04-17 | Architecture | CAPEX модуль: переход с hardcoded `capex.py` на data-driven архитектуру. Priority chain (override → norm×material → legacy fallback). 2 новые категории в `consulting_reference_data` (construction_materials, capex_surcharges), 3 новые колонки в `consulting_projects`, 5 RPC, 58 seed-строк. 4 типа материалов × norm_m²_per_head × capacity → area cost. 10 bespoke unit_cost_per_m2_override сохраняют Excel-парность 282.4M ₸. |
+| D-GATE-CAPEX-01-PHASE1 | 2026-04-17 | Gate | Phase 1 (DB) sign-off: `cross_check.sh` 0/0/0. 58 seed rows. Математика Excel-парности проверена вручную (delta +1,614 ₸ от 282,465,145.54 = 0.00057%). Отклонение DB Agent от плана (10 overrides вместо 4) одобрено — реконциляция внутреннего противоречия плана §1.3 vs §2.5. Phase 2 (Backend) разблокирован после SQL deploy. |
 
 ---
 
@@ -1893,4 +1895,57 @@ not in scope of this session.
 **Remaining tech debt (next session):**
 - `memberships_level_valid_for_type already exists` — CHECK constraint in d01
   without IF NOT EXISTS idempotency. Full `deploy_sql.py` re-apply blocked.
+
+
+---
+
+### ADR-CAPEX-01 — Phase 1 sign-off (2026-04-17)
+
+**Architect verdict:** ✅ APPROVED
+
+**Scope delivered (DB Agent, d09_consulting.sql +393 lines):**
+- CHECK constraint on `consulting_reference_data.category` extended: `+construction_materials`, `+capex_surcharges`
+- 3 new columns on `consulting_projects`: `construction_material_enclosed` (text, default 'sandwich'), `construction_material_support` (text, default 'light_frame'), `infra_items_override` (jsonb, default '[]')
+- 5 new RPCs, all SECURITY DEFINER + `search_path = public, pg_temp`, registered in `rpc_name_registry`:
+  - `rpc_list_construction_materials()` — STABLE reader, 4 rows
+  - `rpc_list_infrastructure_norms()` — STABLE reader, grouped by block
+  - `rpc_upsert_construction_material(code, name_ru, cost_per_m2)` — admin-guarded
+  - `rpc_upsert_infrastructure_norm(code, data, block)` — admin-guarded
+  - `rpc_save_project_infra_override(org_id, project_id, enclosed, support, overrides)` — ownership-guarded, sets `needs_recalc=true`
+- Seed: 4 materials (light_frame, sandwich, steel, brick), 1 surcharges row (default), 53 infrastructure norms
+- `cross_check.sh` whitelist: +4 entries for the new RPCs
+- `cross_check.sh` output: 0 / 0 / 0
+
+**Deviation approved: plan §1.3 had 4 bespoke override items, Excel has 10**
+
+Plan text in §1.3 line 91-92 listed `unit_cost_per_m2_override` only for FAC-009, INF-008, PAD-001, PAD-007. Actual Excel CAPEX sheet encodes bespoke per-m² prices on **10 area items**, adding: FAC-001 (12500), FAC-012 (80000), FAC-013 (83333), FAC-015 (19500), FAC-015b (9000), FAC-019 (40000).
+
+**Resolution logic:** Plan §2.5 acceptance target `grand_total = 282,465,145.54 ₸` is a
+hard numeric criterion that can only be met if every Excel bespoke price is seeded.
+Plan §1.3 text was under-specified (missed 6 items). DB Agent resolved by seeding
+all 10, preserving `material_target` on each so admin can delete the override to
+activate catalog pricing (sandwich/light_frame/steel/brick) — additive, reversible.
+
+**Verified in prod via psycopg2:**
+| Invariant | Expected | Actual |
+|---|---|---|
+| `construction_materials` rows | 4 | ✅ 4 |
+| `capex_surcharges` rows | 1 | ✅ 1 |
+| `infrastructure_norms` rows | 53 | ✅ 53 |
+| bespoke `unit_cost_per_m2_override` items | 10 (Excel truth) | ✅ 10 |
+| `rpc_upsert_construction_material` rejects non-admin | raises `ADMIN_REQUIRED` | ✅ |
+| 5 RPCs in `rpc_name_registry` | all 5 | ✅ |
+| All 5 RPCs `SECURITY DEFINER` + `search_path` | yes | ✅ |
+| CHECK constraint contains both new categories | yes | ✅ |
+
+**Phase 1 deploy note:** SPRINT_STATUS had «Phase 1 ✅ Done (2026-04-17)» from DB Agent,
+but SQL file changes were uncommitted and **not applied to prod**. Architect audit caught
+the gap; applied Phase 1 block via psycopg2 (preamble ALTER TABLE + full section from
+d09:775+). This pattern — «file touched, deploy forgotten» — is now the third occurrence
+(cf. DEF-SCHEMA-DRIFT-01 for `needs_recalc`, DEF-SCHEMA-DRIFT-02 for `role_was_overridden`).
+Recommended process fix: **DB Agent must run `deploy_sql.py` or equivalent psycopg2 apply
+as part of phase completion**, then re-verify with `cross_check.sh` + a targeted
+information_schema query.
+
+**Next:** Phase 2 (Backend Agent) unblocked. See plan §2.
 

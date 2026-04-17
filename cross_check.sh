@@ -160,7 +160,9 @@ rpc_list_feed_prices|rpc_list_feed_consumption_norms|\
 rpc_upsert_feed_item|rpc_upsert_feed_price|rpc_upsert_feed_consumption_norm|\
 rpc_upsert_consulting_reference|rpc_start_production_plan|\
 rpc_resolve_category|rpc_get_category_mappings|\
-rpc_add_animal_category|rpc_deprecate_animal_category|rpc_migrate_animal_category"
+rpc_add_animal_category|rpc_deprecate_animal_category|rpc_migrate_animal_category|\
+rpc_list_construction_materials|rpc_list_infrastructure_norms|\
+rpc_upsert_construction_material|rpc_upsert_infrastructure_norm"
 sig_count_before=$SIGNIFICANT
 
 for f in "${SQL_FILES[@]}"; do

@@ -53,6 +53,13 @@ ALTER TABLE public.consulting_projects
 ALTER TABLE public.consulting_projects
     ADD COLUMN IF NOT EXISTS needs_recalc boolean NOT NULL DEFAULT false;
 
+-- ADR-CAPEX-01: CAPEX module — per-project material choice + per-item overrides
+-- Defaults encode Excel row 84-85 "Выбранная цена м²" selections.
+ALTER TABLE public.consulting_projects
+    ADD COLUMN IF NOT EXISTS construction_material_enclosed text  NOT NULL DEFAULT 'sandwich',
+    ADD COLUMN IF NOT EXISTS construction_material_support  text  NOT NULL DEFAULT 'light_frame',
+    ADD COLUMN IF NOT EXISTS infra_items_override           jsonb NOT NULL DEFAULT '[]'::jsonb;
+
 -- 1.2  Project Versions — версии расчёта (иммутабельные)
 create table if not exists public.consulting_project_versions (
     id                  uuid        primary key default gen_random_uuid(),
@@ -87,7 +94,10 @@ create table if not exists public.consulting_reference_data (
                                             'subsidy_programs',
                                             'livestock_norms',
                                             'regional_prices',
-                                            'economic_parameters'
+                                            'economic_parameters',
+                                            -- ADR-CAPEX-01: CAPEX module reference data
+                                            'construction_materials',
+                                            'capex_surcharges'
                                         )),
     code                text        not null,
     data                jsonb       not null,
@@ -760,6 +770,387 @@ values (
 )
 on conflict (category, code, valid_from) do update
     set data = excluded.data;
+
+-- ============================================================
+-- ADR-CAPEX-01: CAPEX Module — Phase 1 (Data Model + Seed + RPCs)
+-- Reference: .claude/plans/q1-rosy-lollipop.md (CEO-approved)
+-- Acceptance target: at capacity=300, Зимний, defaults (sandwich+light_frame),
+-- no overrides → engine reproduces Excel grand_total 282,465,145.54 ₸ ±1%.
+-- ============================================================
+
+-- ~~ 1. CHECK constraint (drop + re-add for existing deploys) ~~
+-- Inline CREATE TABLE CHECK was already extended above; this ALTER ensures
+-- existing databases (where CREATE TABLE IF NOT EXISTS is a no-op) receive
+-- the two new categories. Additive — NEVER removes existing categories.
+alter table public.consulting_reference_data
+    drop constraint if exists consulting_reference_data_category_check;
+alter table public.consulting_reference_data
+    add constraint consulting_reference_data_category_check check (category in (
+        'infrastructure_norms',
+        'equipment_norms',
+        'tax_rates',
+        'wacc_parameters',
+        'subsidy_programs',
+        'livestock_norms',
+        'regional_prices',
+        'economic_parameters',
+        'construction_materials',
+        'capex_surcharges'
+    ));
+
+
+-- ~~ 2. RPC — public readers (STABLE, readable to all authenticated) ~~
+
+create or replace function public.rpc_list_construction_materials()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+begin
+    return coalesce((
+        select jsonb_agg(
+            jsonb_build_object(
+                'code',        crd.code,
+                'name_ru',     crd.data->>'name_ru',
+                'cost_per_m2', (crd.data->>'cost_per_m2')::numeric,
+                'currency',    coalesce(crd.data->>'currency', 'KZT'),
+                'valid_from',  crd.valid_from,
+                'valid_to',    crd.valid_to
+            ) order by (crd.data->>'cost_per_m2')::numeric
+        )
+        from public.consulting_reference_data crd
+        where crd.category = 'construction_materials'
+          and (crd.valid_to is null or crd.valid_to > current_date)
+    ), '[]'::jsonb);
+end;
+$$;
+
+comment on function public.rpc_list_construction_materials() is
+    'RPC-CAPEX-1 | ADR-CAPEX-01 | Phase 1
+     Lists active construction materials (MVP: light_frame, sandwich, steel, brick).
+     Used by ProjectWizard material selectors and CapexTab material override dropdown.';
+
+
+create or replace function public.rpc_list_infrastructure_norms()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+declare v_result jsonb;
+begin
+    select coalesce(jsonb_object_agg(block, items), '{}'::jsonb)
+    into v_result
+    from (
+        select crd.data->>'block' as block,
+               jsonb_agg(
+                   jsonb_build_object(
+                       'code',       crd.code,
+                       'data',       crd.data,
+                       'valid_from', crd.valid_from,
+                       'valid_to',   crd.valid_to
+                   ) order by coalesce((crd.data->>'display_order')::int, 0), crd.code
+               ) as items
+        from public.consulting_reference_data crd
+        where crd.category = 'infrastructure_norms'
+          and (crd.valid_to is null or crd.valid_to > current_date)
+          and crd.data ? 'block'
+        group by crd.data->>'block'
+    ) g;
+    return v_result;
+end;
+$$;
+
+comment on function public.rpc_list_infrastructure_norms() is
+    'RPC-CAPEX-2 | ADR-CAPEX-01 | Phase 1
+     Lists active infrastructure norms grouped by block (farm/pasture/equipment/tools),
+     sorted by display_order. Used by engine/capex.py (Priority 2), CapexTab, /admin/capex.';
+
+
+-- ~~ 3. RPC — admin upserts (fn_is_admin guard) ~~
+
+create or replace function public.rpc_upsert_construction_material(
+    p_code        text,
+    p_name_ru     text,
+    p_cost_per_m2 numeric
+)
+returns int
+language plpgsql volatile security definer
+set search_path = public, pg_temp
+as $$
+declare v_id int;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'ADMIN_REQUIRED' using errcode = 'P0001';
+    end if;
+    if p_cost_per_m2 is null or p_cost_per_m2 < 0 then
+        raise exception 'INVALID_COST: cost_per_m2 must be >= 0' using errcode = 'P0001';
+    end if;
+
+    insert into public.consulting_reference_data (category, code, data, valid_from)
+    values (
+        'construction_materials',
+        p_code,
+        jsonb_build_object('name_ru', p_name_ru, 'cost_per_m2', p_cost_per_m2, 'currency', 'KZT'),
+        current_date
+    )
+    on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now()
+    returning id into v_id;
+
+    return v_id;
+end;
+$$;
+
+comment on function public.rpc_upsert_construction_material(text, text, numeric) is
+    'RPC-CAPEX-3 | ADR-CAPEX-01 | Phase 1
+     Admin-only: upserts construction material (code + name_ru + cost_per_m2).
+     Currency fixed to KZT in MVP (Q7: no regionalization).';
+
+
+create or replace function public.rpc_upsert_infrastructure_norm(
+    p_code  text,
+    p_data  jsonb,
+    p_block text default null
+)
+returns int
+language plpgsql volatile security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_id    int;
+    v_data  jsonb;
+    v_block text;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'ADMIN_REQUIRED' using errcode = 'P0001';
+    end if;
+
+    v_data  := coalesce(p_data, '{}'::jsonb);
+    v_block := coalesce(p_block, v_data->>'block');
+    if v_block is null then
+        raise exception 'BLOCK_REQUIRED: pass p_block or include block in data' using errcode = 'P0001';
+    end if;
+    if v_block not in ('farm', 'pasture', 'equipment', 'tools') then
+        raise exception 'INVALID_BLOCK: must be farm | pasture | equipment | tools' using errcode = 'P0001';
+    end if;
+    v_data := v_data || jsonb_build_object('block', v_block);
+
+    insert into public.consulting_reference_data (category, code, data, valid_from)
+    values ('infrastructure_norms', p_code, v_data, current_date)
+    on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now()
+    returning id into v_id;
+
+    return v_id;
+end;
+$$;
+
+comment on function public.rpc_upsert_infrastructure_norm(text, jsonb, text) is
+    'RPC-CAPEX-4 | ADR-CAPEX-01 | Phase 1
+     Admin-only: upserts infrastructure norm. data JSONB contains cost_model,
+     applies_to, material_target, depreciation_years, and model parameters.';
+
+
+-- ~~ 4. RPC — project-scoped override save ~~
+
+create or replace function public.rpc_save_project_infra_override(
+    p_organization_id uuid,
+    p_project_id      uuid,
+    p_enclosed        text    default null,
+    p_support         text    default null,
+    p_overrides       jsonb   default '[]'::jsonb
+)
+returns boolean
+language plpgsql volatile security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_user_id uuid;
+begin
+    -- Project ownership check. Same pattern as rpc_save_consulting_ration
+    -- (DEF-CONSULTING-AUTH-01): works for both web JWT and service_role.
+    if not exists (
+        select 1 from public.consulting_projects
+        where id = p_project_id
+          and organization_id = p_organization_id
+          and is_active = true
+    ) then
+        raise exception 'PROJECT_NOT_FOUND' using errcode = 'P0001';
+    end if;
+
+    -- Validate materials exist (if provided)
+    if p_enclosed is not null and not exists (
+        select 1 from public.consulting_reference_data
+        where category = 'construction_materials'
+          and code = p_enclosed
+          and (valid_to is null or valid_to > current_date)
+    ) then
+        raise exception 'MATERIAL_NOT_FOUND: enclosed=%', p_enclosed using errcode = 'P0001';
+    end if;
+    if p_support is not null and not exists (
+        select 1 from public.consulting_reference_data
+        where category = 'construction_materials'
+          and code = p_support
+          and (valid_to is null or valid_to > current_date)
+    ) then
+        raise exception 'MATERIAL_NOT_FOUND: support=%', p_support using errcode = 'P0001';
+    end if;
+
+    if jsonb_typeof(p_overrides) <> 'array' then
+        raise exception 'INVALID_OVERRIDES: must be a JSON array' using errcode = 'P0001';
+    end if;
+
+    -- Resolve user (may be null for service_role)
+    select id into v_user_id from public.users where auth_id = auth.uid();
+
+    -- Persist + trigger recalc
+    update public.consulting_projects
+    set construction_material_enclosed = coalesce(p_enclosed, construction_material_enclosed),
+        construction_material_support  = coalesce(p_support,  construction_material_support),
+        infra_items_override           = p_overrides,
+        needs_recalc                   = true,
+        updated_at                     = now()
+    where id = p_project_id;
+
+    -- Emit event (Dok 4: consulting.capex_override.saved)
+    insert into public.platform_events (
+        event_type, entity_type, entity_id, organization_id,
+        actor_type, actor_id, payload, is_audit
+    ) values (
+        'consulting.capex_override.saved',
+        'consulting_projects',
+        p_project_id,
+        p_organization_id,
+        case when v_user_id is null then 'system' else 'farmer' end,
+        v_user_id,
+        jsonb_build_object(
+            'project_id',     p_project_id,
+            'enclosed',       p_enclosed,
+            'support',        p_support,
+            'override_count', jsonb_array_length(p_overrides)
+        ),
+        false
+    );
+
+    return true;
+end;
+$$;
+
+comment on function public.rpc_save_project_infra_override(uuid, uuid, text, text, jsonb) is
+    'RPC-CAPEX-5 | ADR-CAPEX-01 | Phase 1
+     Saves project-level CAPEX override: material choice + per-item override array.
+     Sets needs_recalc=true. Emits consulting.capex_override.saved.
+     Override shape: [{code, include?, qty_override?, material_override?, unit_cost_override?}]';
+
+
+-- ~~ 5. RPC Registry ~~
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_list_construction_materials',   'rpc_list_construction_materials',   null, 'd09_consulting.sql (ADR-CAPEX-01)', 'RPC-CAPEX-1: List active construction materials'),
+    ('rpc_list_infrastructure_norms',     'rpc_list_infrastructure_norms',     null, 'd09_consulting.sql (ADR-CAPEX-01)', 'RPC-CAPEX-2: List infrastructure norms grouped by block'),
+    ('rpc_upsert_construction_material',  'rpc_upsert_construction_material',  null, 'd09_consulting.sql (ADR-CAPEX-01)', 'RPC-CAPEX-3: Admin upsert material'),
+    ('rpc_upsert_infrastructure_norm',    'rpc_upsert_infrastructure_norm',    null, 'd09_consulting.sql (ADR-CAPEX-01)', 'RPC-CAPEX-4: Admin upsert infrastructure norm'),
+    ('rpc_save_project_infra_override',   'rpc_save_project_infra_override',   null, 'd09_consulting.sql (ADR-CAPEX-01)', 'RPC-CAPEX-5: Save project CAPEX override + material choice')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+
+-- ~~ 6. Seed: construction_materials (4 rows) ~~
+insert into public.consulting_reference_data (category, code, data, valid_from) values
+    ('construction_materials', 'light_frame', '{"name_ru": "Лёгкий каркас",        "cost_per_m2": 15000, "currency": "KZT"}'::jsonb, '2026-04-17'),
+    ('construction_materials', 'sandwich',    '{"name_ru": "Сэндвич-панель",       "cost_per_m2": 25000, "currency": "KZT"}'::jsonb, '2026-04-17'),
+    ('construction_materials', 'steel',       '{"name_ru": "Металлоконструкция",   "cost_per_m2": 35000, "currency": "KZT"}'::jsonb, '2026-04-17'),
+    ('construction_materials', 'brick',       '{"name_ru": "Кирпич / капитальное", "cost_per_m2": 50000, "currency": "KZT"}'::jsonb, '2026-04-17')
+on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now();
+
+
+-- ~~ 7. Seed: capex_surcharges (1 row) ~~
+-- Excel row 28 visually shows "0.03" but actual computed contingency is 2.5% of (subtotal+works).
+-- Pasture (row 37) uses 2.5% of items only. Encoding that quirk in contingency_base_by_block.
+insert into public.consulting_reference_data (category, code, data, valid_from) values
+    ('capex_surcharges', 'default',
+     '{"works_rate": 0.06,
+       "contingency_rate": 0.025,
+       "applies_to_blocks": ["farm", "pasture"],
+       "contingency_base_by_block": {"farm": "items_plus_work", "pasture": "items_only"}}'::jsonb,
+     '2026-04-17')
+on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now();
+
+
+-- ~~ 8. Seed: infrastructure_norms (53 rows) ~~
+-- Calibrated to reproduce Excel CAPEX grand_total 282,465,145.54 ₸ at capacity=300, Зимний.
+-- Area items carry unit_cost_per_m2_override equal to Excel's bespoke price (preserves parity).
+-- material_target is retained so admin can remove override to activate catalog pricing.
+insert into public.consulting_reference_data (category, code, data, valid_from) values
+    -- Block A: Farm (22 rows) — Excel rows 5–26
+    ('infrastructure_norms', 'FAC-015',  '{"name_ru":"Навес для техники 500м²",              "block":"farm","display_order":1,"cost_model":"area_per_head","applies_to":"capacity","material_target":"support","depreciation_years":20,"area_per_head_m2":1.6667,"unit_cost_per_m2_override":19500}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-001',  '{"name_ru":"Жилой дом",                             "block":"farm","display_order":2,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":20,"fixed_cost":30000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-002',  '{"name_ru":"Резервуар для питьевой воды 2м³",       "block":"farm","display_order":3,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":20,"fixed_cost":1000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-003',  '{"name_ru":"Скважина",                              "block":"farm","display_order":4,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":20,"fixed_cost":15000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-014',  '{"name_ru":"Автовесы",                              "block":"farm","display_order":5,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":10,"fixed_cost":1500000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-019',  '{"name_ru":"КПП с санпропускником 50м²",            "block":"farm","display_order":6,"cost_model":"area_per_head","applies_to":"capacity","material_target":"enclosed","depreciation_years":20,"area_per_head_m2":0.1667,"unit_cost_per_m2_override":40000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-004',  '{"name_ru":"Наружные сети электроснабжения 10 кВ",  "block":"farm","display_order":7,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":20,"fixed_cost":11185000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-005',  '{"name_ru":"Скотомогильник",                        "block":"farm","display_order":8,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":20,"fixed_cost":4000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-015b', '{"name_ru":"Зернохранилище 2000м²",                 "block":"farm","display_order":9,"cost_model":"area_per_head","applies_to":"capacity","material_target":"support","depreciation_years":20,"area_per_head_m2":6.6667,"unit_cost_per_m2_override":9000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-006',  '{"name_ru":"Трап для погрузки КРС",                 "block":"farm","display_order":10,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":10,"fixed_cost":500000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-012',  '{"name_ru":"Крытое помещение для отёла 200м²",      "block":"farm","display_order":11,"cost_model":"area_per_head","applies_to":"capacity","material_target":"enclosed","depreciation_years":20,"area_per_head_m2":0.6667,"unit_cost_per_m2_override":80000,"calving_scenario_multiplier":{"Зимний":1.0,"Летний":0.5}}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-014b', '{"name_ru":"Раскол-деление на 20 голов",            "block":"farm","display_order":12,"cost_model":"fixed_per_project","applies_to":"always","material_target":null,"depreciation_years":10,"fixed_cost":980000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-008',  '{"name_ru":"Накопитель",                            "block":"farm","display_order":13,"cost_model":"per_head_unit","applies_to":"capacity","material_target":null,"depreciation_years":20,"unit_cost":4000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-015c', '{"name_ru":"Открытая площадка для силоса/сена",     "block":"farm","display_order":14,"cost_model":"per_head_unit","applies_to":"capacity","material_target":null,"depreciation_years":20,"unit_cost":5000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-001',  '{"name_ru":"Общий ангар 8 м²/гол",                  "block":"farm","display_order":15,"cost_model":"area_per_head","applies_to":"capacity","material_target":"enclosed","depreciation_years":20,"area_per_head_m2":8,"unit_cost_per_m2_override":12500}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-013',  '{"name_ru":"Изолятор 120 м² (8 м²/гол × 15 голов)", "block":"farm","display_order":16,"cost_model":"fixed_area","applies_to":"always","material_target":"enclosed","depreciation_years":20,"fixed_area_m2":120,"unit_cost_per_m2_override":83333}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-009',  '{"name_ru":"Открытый загон для изолятора 300 м²",   "block":"farm","display_order":17,"cost_model":"fixed_area","applies_to":"always","material_target":"support","depreciation_years":20,"fixed_area_m2":300,"unit_cost_per_m2_override":3450}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'PAD-001',  '{"name_ru":"Загон для 30 коров 600 м²",             "block":"farm","display_order":18,"cost_model":"fixed_area","applies_to":"always","material_target":"support","depreciation_years":20,"fixed_area_m2":600,"unit_cost_per_m2_override":4140}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'PAD-007',  '{"name_ru":"Загон для быков-производителей 500 м²", "block":"farm","display_order":19,"cost_model":"fixed_area","applies_to":"always","material_target":"support","depreciation_years":20,"fixed_area_m2":500,"unit_cost_per_m2_override":4968}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-007',  '{"name_ru":"Ветрозащита",                           "block":"farm","display_order":20,"cost_model":"per_head_unit","applies_to":"capacity","material_target":null,"depreciation_years":20,"unit_cost":8280}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'INF-008',  '{"name_ru":"Кормовой стол 0.5 м²/гол",              "block":"farm","display_order":21,"cost_model":"area_per_head","applies_to":"capacity","material_target":"support","depreciation_years":20,"area_per_head_m2":0.5,"unit_cost_per_m2_override":6900}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'FAC-017',  '{"name_ru":"Тёплая поилка",                         "block":"farm","display_order":22,"cost_model":"per_head_unit","applies_to":"capacity","material_target":null,"depreciation_years":10,"unit_cost":4830}'::jsonb, '2026-04-17'),
+
+    -- Block B: Pasture (4 rows) — Excel rows 32–35
+    ('infrastructure_norms', 'PST-001',  '{"name_ru":"Мобильный жилой дом (вагончик)",         "block":"pasture","display_order":1,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":10,"fixed_qty":1,"unit_cost":4000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'PST-002',  '{"name_ru":"Поилки от скважин с ветряными насосами", "block":"pasture","display_order":2,"cost_model":"per_area_ha","applies_to":"pasture_area_ha","material_target":null,"depreciation_years":10,"area_divisor_ha":1500,"unit_cost":8800000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'PST-003',  '{"name_ru":"Скважина (пастбищная)",                  "block":"pasture","display_order":3,"cost_model":"per_area_ha","applies_to":"pasture_area_ha","material_target":null,"depreciation_years":20,"area_divisor_ha":3000,"unit_cost":3000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'PST-004',  '{"name_ru":"Ограждение пастбищ",                     "block":"pasture","display_order":4,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":15,"fixed_qty":1,"unit_cost":18800000}'::jsonb, '2026-04-17'),
+
+    -- Block C: Equipment (8 rows) — Excel rows 41–48. MVP: fixed_qty=1, expert overrides via CapexTab.
+    ('infrastructure_norms', 'EQP-001',  '{"name_ru":"Колёсный трактор 100–150 л.с.",         "block":"equipment","display_order":1,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":20000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-002',  '{"name_ru":"Кун с ковшом и стогометом",             "block":"equipment","display_order":2,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":3500000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-003',  '{"name_ru":"Кормораздатчик (миксер) 8–12 м³",       "block":"equipment","display_order":3,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":10000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-004',  '{"name_ru":"Зернодробилка",                         "block":"equipment","display_order":4,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":3000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-005',  '{"name_ru":"Прицеп самосвальный 10-15 т",           "block":"equipment","display_order":5,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":10000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-006',  '{"name_ru":"Прицеп для перевозки скота",            "block":"equipment","display_order":6,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":5000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-007',  '{"name_ru":"Прицеп с ёмкостью для воды",            "block":"equipment","display_order":7,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":1500000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'EQP-008',  '{"name_ru":"Бензиновые генераторы 3-5 кВт",         "block":"equipment","display_order":8,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":400000}'::jsonb, '2026-04-17'),
+
+    -- Block D: Tools (19 rows) — Excel rows 52–70. MVP: fixed_qty from Excel columns F/G.
+    ('infrastructure_norms', 'TOL-001',  '{"name_ru":"Считыватель чипов",                     "block":"tools","display_order":1,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":1,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-002',  '{"name_ru":"Электрический погонщик",                "block":"tools","display_order":2,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":1,"unit_cost":30000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-003',  '{"name_ru":"Станок для фиксации КРС",               "block":"tools","display_order":3,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":2000000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-004',  '{"name_ru":"Электронные весы",                      "block":"tools","display_order":4,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":150000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-005',  '{"name_ru":"Вакцинаторы",                           "block":"tools","display_order":5,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":5,"unit_cost":35000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-006',  '{"name_ru":"Дренчер",                               "block":"tools","display_order":6,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":1,"unit_cost":10000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-007',  '{"name_ru":"Копытные ножи",                         "block":"tools","display_order":7,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":2,"unit_cost":15000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-008',  '{"name_ru":"Молокоотсос",                           "block":"tools","display_order":8,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":2,"unit_cost":60000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-009',  '{"name_ru":"Поилки для молока",                     "block":"tools","display_order":9,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":20,"unit_cost":5000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-010',  '{"name_ru":"Термо чемодан",                         "block":"tools","display_order":10,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":1,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-011',  '{"name_ru":"Огнетушитель",                          "block":"tools","display_order":11,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":5,"unit_cost":15000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-012',  '{"name_ru":"Набор лопат и вил",                     "block":"tools","display_order":12,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":5,"unit_cost":30000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-013',  '{"name_ru":"Набор инструментов (электро)",          "block":"tools","display_order":13,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":3,"unit_cost":100000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-014',  '{"name_ru":"Набор инструментов (строительные)",     "block":"tools","display_order":14,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":2,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-015',  '{"name_ru":"Тачка",                                 "block":"tools","display_order":15,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":5,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-016',  '{"name_ru":"Ручные рации",                          "block":"tools","display_order":16,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":2,"unit_cost":25000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-017',  '{"name_ru":"Спецодежда",                            "block":"tools","display_order":17,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":2,"fixed_qty":4,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-018',  '{"name_ru":"Набор инструментов для трактористов",   "block":"tools","display_order":18,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":3,"fixed_qty":1,"unit_cost":50000}'::jsonb, '2026-04-17'),
+    ('infrastructure_norms', 'TOL-019',  '{"name_ru":"Спутниковые антенны",                   "block":"tools","display_order":19,"cost_model":"fixed_qty","applies_to":"always","material_target":null,"depreciation_years":5,"fixed_qty":1,"unit_cost":350000}'::jsonb, '2026-04-17')
+on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now();
+
+
+-- ============================================================
+-- END ADR-CAPEX-01 Phase 1
+-- ============================================================
+
 
 -- ============================================================
 -- END Slice 8 d09_consulting.sql

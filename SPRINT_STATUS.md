@@ -5,7 +5,31 @@
 
 ---
 
-## Current Phase: ✅ Feed Cost Engine Audit — CLOSED (2026-04-17). 9 defects fixed, deployed, QA+Architect signed off.
+## Current Phase: 🟡 ADR-CAPEX-01 — CAPEX Module (Consulting)
+
+Plan: [.claude/plans/q1-rosy-lollipop.md](.claude/plans/q1-rosy-lollipop.md)
+
+| Phase | Owner | Status | Notes |
+|-------|-------|--------|-------|
+| Phase 1 — DB schema + seed | DB Agent | ✅ Done + Architect-signed (2026-04-17) | d09: CHECK extended (+2 cat), 3 new columns on consulting_projects, 5 RPCs, seed 4 materials + 1 surcharges + 53 infra_norms (incl. 10 bespoke overrides, deviation approved). **Applied to prod via psycopg2** during Architect audit (file changes were uncommitted, deploy step was missing). 22/22 QA invariants ✓. See DECISIONS_LOG `ADR-CAPEX-01 Phase 1 sign-off`. |
+| Phase 2 — Engine rewrite | Backend Agent | 🟢 Ready to start | `capex.py` Priority chain + legacy fallback; 8 new tests; ProjectInput fields. DB Phase 1 deployed — unblocked. |
+| Phase 3 — UI: Wizard + CapexTab | UI Agent | 🕒 Pending | Material Selects in wizard; editable CapexTab; sticky Save. Blocks on Phase 2 deploy. |
+| Phase 4 — Admin /admin/capex | UI Agent | 🕒 Pending | 3 tabs (Материалы / Нормативы / Надбавки) mirroring FeedReferenceAdmin. |
+| Phase 5 — Docs + verification | Architect + QA | 🕒 Pending | Dok 1/3/6/7 updates, DECISIONS_LOG ADR-CAPEX-01, QA gate. |
+
+### Phase 1 deviation — APPROVED (Architect, 2026-04-17)
+Plan §1.3 listed `unit_cost_per_m2_override` on 4 items (FAC-009, INF-008, PAD-001, PAD-007). Excel actually has bespoke per-m² prices on 10 area items (additionally FAC-015=19500, FAC-019=40000, FAC-015b=9000, FAC-012=80000, FAC-001=12500, FAC-013=83333). Seed encodes all 10 to preserve plan §2.5 acceptance target 282,465,145.54 ₸. `material_target` retained on every area item → admin can delete override to activate catalog pricing (sandwich/light_frame/steel/brick). Reconciles internal plan inconsistency: §1.3 text was under-specified; §2.5 numeric target is the authoritative acceptance criterion.
+
+### Process finding (Minor)
+File-touched-but-not-deployed pattern re-occurred (third time in week: DEF-SCHEMA-DRIFT-01 for `needs_recalc`, -02 for `role_was_overridden`, now Phase 1). **Process fix:** DB Agent MUST apply SQL via `deploy_sql.py` or targeted psycopg2, then re-verify deployed state (`information_schema.columns` or `SELECT count(*) FROM ...`) before marking a phase ✅ Done. `cross_check.sh` alone does not verify prod — it only checks SQL files.
+
+### Files touched (Phase 1)
+- `d09_consulting.sql` — +391 lines (CHECK ALTER, 3 column ALTERs, 5 RPCs, 58 seed rows). Total now 1157 lines.
+- `cross_check.sh` — +4 entries in CHECK-5 whitelist (`rpc_list_construction_materials`, `rpc_list_infrastructure_norms`, `rpc_upsert_construction_material`, `rpc_upsert_infrastructure_norm`).
+
+---
+
+## Previous Phase: ✅ Feed Cost Engine Audit — CLOSED (2026-04-17). 9 defects fixed, deployed, QA+Architect signed off.
 
 ### Gate sign-off — D-GATE-FEED-AUDIT-2026-04-17
 
