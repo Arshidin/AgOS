@@ -129,31 +129,26 @@ export function RationTab() {
   }, [rations])
 
   // DEF-RATION-COVERAGE-01 (2026-04-17): coverage считается по unique target_code
-  // (feeding_group taxonomy), а не по animal_category_code. Раньше UI показывал
-  // «5 из 8 — 3 без рациона», хотя все 5 feeding групп покрыты: COW_CULL/BULL_CULL/
+  // (feeding_group taxonomy), а не по animal_category_code. COW_CULL/BULL_CULL/
   // HEIFER_PREG/BULL_CALF — это фазы тех же животных, что ест рацион COW/BULL/
-  // HEIFER_YOUNG/STEER; feeding_model.py уже объединяет их в одну feeding group
-  // через max(cpd). Теперь UI согласован с movimentом голов в engine.
+  // HEIFER_YOUNG/STEER; feeding_model.py объединяет их в одну feeding group через
+  // max(cpd). UI согласован с движением голов в engine.
+  //
+  // ВАЖНО: не фильтруем по наличию поголовья в herd — SimpleRationEditor показывает
+  // все 5 вкладок (BULL_BREEDING, COW, HEIFER_YOUNG, STEER, SUCKLING_CALF), поэтому
+  // счётчик coverage тоже должен показывать все 5. Группы без поголовья дают 0 к
+  // total_cogs автоматически (ration × 0 = 0), но вкладка и возможность заполнить
+  // ration остаются — на случай, если позже поголовье появится (напр. отёл в году 2).
   const relevantGroups = useMemo(() => {
     if (!feedingGroupData || feedingGroupData.length === 0) {
-      // Fallback: derive groups from static CATEGORY_CODE_TO_HERD (5 default target codes)
-      const fallback = [
+      // Fallback: 5 default target codes from static CATEGORY_CODE_TO_HERD
+      return [
         { target_code: 'COW',           member_codes: ['COW', 'COW_CULL', 'MIXED'] },
         { target_code: 'SUCKLING_CALF', member_codes: ['SUCKLING_CALF', 'YOUNG_CALF'] },
         { target_code: 'HEIFER_YOUNG',  member_codes: ['HEIFER_YOUNG', 'HEIFER_PREG'] },
         { target_code: 'STEER',         member_codes: ['STEER', 'BULL_CALF', 'OX'] },
         { target_code: 'BULL_BREEDING', member_codes: ['BULL_BREEDING', 'BULL_CULL'] },
       ]
-      if (!herd) return fallback
-      return fallback.filter(g =>
-        g.member_codes.some(code => {
-          const m = CATEGORY_CODE_TO_HERD[code]
-          if (!m) return false
-          const grp = (herd as Record<string, Record<string, number[]>>)[m.group]
-          const arr = grp?.[m.metric]
-          return Array.isArray(arr) && arr.some(v => v > 0)
-        }),
-      )
     }
 
     // Group feeding_group rows by target_code → list of member animal_category_codes
@@ -164,23 +159,11 @@ export function RationTab() {
       arr.push(row.animal_category_code)
       byTarget.set(row.target_code, arr)
     }
-    const groups = [...byTarget.entries()].map(([target_code, member_codes]) => ({
+    return [...byTarget.entries()].map(([target_code, member_codes]) => ({
       target_code,
       member_codes,
     }))
-
-    // Keep only groups where at least one member has non-zero heads in the herd
-    if (!herd) return groups
-    return groups.filter(g =>
-      g.member_codes.some(code => {
-        const m = CATEGORY_CODE_TO_HERD[code]
-        if (!m) return false
-        const grp = (herd as Record<string, Record<string, number[]>>)[m.group]
-        const arr = grp?.[m.metric]
-        return Array.isArray(arr) && arr.some(v => v > 0)
-      }),
-    )
-  }, [feedingGroupData, herd])
+  }, [feedingGroupData])
 
   if (!orgId || !projectId) return null
 
