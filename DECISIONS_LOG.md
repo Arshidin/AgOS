@@ -1509,3 +1509,45 @@ QA прогоняет `rpc_resolve_category` против существующи
 
 **Files:** `consulting_engine/app/engine/feeding_model.py`
 
+
+---
+
+### 2026-04-17: Ration feed-volume tables — архитектурный fix (сессия)
+
+**What:** Комплексное исправление таблиц "Потребность в кормах" в RationTab.
+
+**Проблема 1 — Таблица не показывалась вообще (тихий null):**
+IIFE проверял `results?.feeding?.quantities?.by_group` — поле пустое для проектов до DEF-RATION-08. Клиентский fallback требовал `herd && rationsByCategory.size > 0`. Если проект не пересчитан ИЛИ рационы не сохранены — тихий `return null`.
+
+**Проблема 2 — Таблица не обновлялась при редактировании:**
+`rationsByCategory` строился из DB (через `useRpc`), но SimpleRationEditor хранил `rations` state внутри. Изменения ячеек не вызывали обновление таблицы объёмов. Требовалось сохранение + refetch.
+
+**Решение (ADR-FEED-CLIENT-01):**
+- `SimpleRationEditor`: добавлен `onRationsChange?: (rations: RationsState) => void` prop + `useEffect` на каждое изменение rations (включая mount).
+- `RationTab`: добавлен `liveRations` state, инициализируется `DEFAULT_RATIONS`, обновляется через `onRationsChange`. IIFE использует `liveRations` как единственный клиентский источник.
+- `liveRations` всегда содержит данные: DEFAULT_RATIONS при mount → live updates при редактировании.
+- Явная обработка `!herd`: "Загрузка данных проекта..." (if projectLoading) или "Запустите расчёт проекта" (if done).
+
+**Три уровня источника (приоритет по точности):**
+1. Engine data (DEF-RATION-08, после пересчёта) — без пометки
+2. liveRations, rationsByCategory.size > 0 — badge "сохранённые рационы"
+3. liveRations = DEFAULT_RATIONS — badge "нормативные значения"
+
+**Что стало проще:** Таблица видна сразу при открытии вкладки. Обновляется в реальном времени при редактировании ячеек. Нет race condition с `herd` загрузкой.
+**Что стало сложнее:** При редактировании показываются данные из liveRations (in-memory), а не из DB — после reload страницы цифры будут из DEFAULT_RATIONS, пока SimpleRationEditor не загрузит сохранённые данные из Supabase. Это design tradeoff — приемлемо.
+
+**Files:** `src/pages/admin/consulting/tabs/RationTab.tsx`, `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx`
+
+---
+
+### 2026-04-17: DEF-ROLE-01 — role_was_overridden column missing
+
+**What:** `rpc_get_conversation_state` (d07_ai_gateway.sql) читал `c.role_was_overridden` из `ai_conversations`, но колонка не была определена ни в CREATE TABLE ни в ALTER TABLE. Runtime error на каждый вызов `load_context_node` в AI Gateway.
+
+**Fix:**
+- `d01_kernel.sql`: `ALTER TABLE ai_conversations ADD COLUMN IF NOT EXISTS role_was_overridden boolean NOT NULL DEFAULT false`
+- `d07_ai_gateway.sql`: `rpc_sync_conversation_role` теперь устанавливает `role_was_overridden = true` при каждом вызове (явный override vs auto-detection)
+
+**Why:** DEFAULT false — все существующие rows трактуются как auto-detected (корректно для истории). Explicit override (вызов RPC) = true.
+
+**Files:** `d01_kernel.sql`, `d07_ai_gateway.sql`

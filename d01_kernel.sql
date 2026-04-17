@@ -2027,6 +2027,18 @@ comment on column public.ai_conversations.detected_language is
      Proactive templates: приоритет users.preferred_language → detected_language → "ru".
      Только ru/kk: English не поддерживается как язык интерфейса фермера.';
 
+-- ── DEF-ROLE-01: role_was_overridden — missing column ───────
+-- Referenced by rpc_get_conversation_state (d07_ai_gateway.sql:2822)
+-- but never defined. Caused runtime error on every load_context_node call.
+alter table public.ai_conversations
+    add column if not exists role_was_overridden boolean not null default false;
+
+comment on column public.ai_conversations.role_was_overridden is
+    'DEF-ROLE-01: TRUE when rpc_sync_conversation_role was called with an explicit
+     role override (e.g. user typed "поговори со мной как ветеринар").
+     FALSE = role was auto-detected by intent classification.
+     Read by rpc_get_conversation_state → load_context_node in AI Gateway.';
+
 -- ── C-4: Исправить CHECK constraint current_role ────────────
 -- 'veterinarian' в SQL vs 'vet' в AI Gateway Python code — несовпадение.
 -- Решение: 'vet' (короче, совпадает с Dok 5 AgentState TypedDict).

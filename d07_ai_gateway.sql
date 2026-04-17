@@ -2783,8 +2783,10 @@ begin
 
     update public.ai_conversations
     set
-        current_role  = p_role,
-        updated_at    = now()
+        current_role        = p_role,
+        -- DEF-ROLE-01: explicit call = override (auto-detection never calls this RPC directly)
+        role_was_overridden = true,
+        updated_at          = now()
     where id = p_conversation_id;
 end;
 $$;
@@ -2792,6 +2794,7 @@ $$;
 comment on function public.rpc_sync_conversation_role(uuid, uuid, text) is
     'DEF-013/P-AI-1: Syncs active role back to conversation after AI run.
      Ownership-checked. Validates role against allowed values.
+     Sets role_was_overridden=true (DEF-ROLE-01) — explicit override vs auto-detection.
      Replaces direct .table("ai_conversations").update({"current_role": ...}) in nodes.save_response_node().';
 
 grant execute on function public.rpc_sync_conversation_role(uuid, uuid, text) to service_role;
