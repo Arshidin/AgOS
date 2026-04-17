@@ -18,10 +18,10 @@ Subsidies (subsidy_switch != 2):
   Выращивание племенного молодняка — 15 тыс.тг × inflation × sold_breeding_heifers
   Содержание быков — 100 тыс.тг × bulls_eop × inflation, every month
 
-Inflation: 10.5% annual, applied from year 2 onward.
+Inflation: configurable via `enriched_input["cpi_annual"]` (default 10.5%),
+applied from year 2 onward. Same rate applies to livestock sale prices AND
+breeding subsidy (MSH KZ indexes subsidy with CPI).
 """
-
-CPI_ANNUAL = 0.105  # Annual livestock price inflation
 
 
 def calculate_revenue(
@@ -52,6 +52,9 @@ def calculate_revenue(
     # Цены — из параметров проекта (P8). price_params всегда есть в enriched_input.
     prices = enriched_input["price_params"]
 
+    # Годовая инфляция цен — параметр проекта (DEF-CPI-PARAM-01).
+    cpi_annual = enriched_input["cpi_annual"]
+
     # Веса выбракованных — статично из weight_params (коровы/быки — зрелые).
     # Fallback на STEER_WEIGHT/HEIFER_WEIGHT убран: в норме weight_model всегда
     # заполняет steer_sale_weight/heifer_transfer_weight для месяцев с продажей.
@@ -73,9 +76,9 @@ def calculate_revenue(
     sub_bulls = [0.0] * n
 
     for t in range(n):
-        # Inflation factor: year 1 = 1.0, year 2 = 1.105, year 3 = 1.105^2, ...
+        # Inflation factor: year 1 = 1.0, year 2 = 1 + cpi, year 3 = (1+cpi)^2, ...
         yr = year_idx[t]
-        inf = (1 + CPI_ANNUAL) ** (yr - 1) if yr > 1 else 1.0
+        inf = (1 + cpi_annual) ** (yr - 1) if yr > 1 else 1.0
 
         # ----- Livestock revenue (POSITIVE) -----
 
@@ -147,7 +150,7 @@ def calculate_revenue(
 
             # Breeding subsidy: 15 тыс.тг × inflation × sold_breeding_heifers
             if sold_breeding > 0:
-                val = 15.0 * (1 + CPI_ANNUAL) ** max(0, yr - 1) * sold_breeding
+                val = 15.0 * (1 + cpi_annual) ** max(0, yr - 1) * sold_breeding
                 subsidies[t] += val
                 sub_breeding[t] = val
 

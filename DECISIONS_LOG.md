@@ -2083,3 +2083,52 @@ The db-agent process fix was: «file touched + `cross_check` ≠ deployed». Sam
 - Priority chain (override → norm×material → legacy) совпадает с feed-model pattern (ADR-FEED-03) — единообразие в консалтинге.
 - 10 bespoke `unit_cost_per_m2_override` preserve Excel-парность — admin может удалить override и активировать catalog pricing через `/admin/capex/norms`.
 - Per-item depreciation заменил blanket 20y/5y heuristic — более точный P&L для финансовой модели.
+
+---
+
+### 2026-04-18: DEF-CPI-PARAM-01 — `CPI_ANNUAL` вынесен в параметры проекта
+
+**Domain:** Consulting engine — revenue + opex inflation (P8 quick-win)
+
+**WHAT:**
+Годовая инфляция цен КРС и OPEX была захардкожена как module-level `CPI_ANNUAL = 0.105` в двух местах:
+- [revenue.py:24](consulting_engine/app/engine/revenue.py) — 3 usages (бычки/тёлки/быки-культ/коровы-культ/breeding subsidy)
+- [opex.py:21](consulting_engine/app/engine/opex.py) — 1 usage (вет/RFID/бирки/страх/ФОТ/прочие)
+
+Заменено на одно поле `cpi_annual` в `ProjectInput` (default 0.105, range 0-0.5). Оба модуля читают из `enriched_input["cpi_annual"]`.
+
+**WHY:**
+Продолжение follow-up-списка из DEF-REVENUE-PRICES-01. Инвестору нужна возможность моделировать сценарии (консервативный 8%, базовый 10.5%, стрессовый 14%) без правки кода. P8 на уровне параметров проекта (не DB-справочник — это отдельный ADR).
+
+**Why ONE parameter, not two:**
+Revenue и OPEX в текущем коде используют одну и ту же ставку. Экономически это упрощение (меат vs general CPI дивергируют), но для MVP оставлено единое значение. Split на две ставки — будущий ADR, если понадобится. Feed inflation уже независима ([feeding_model.py:241](consulting_engine/app/engine/feeding_model.py)) — не затрагивается.
+
+**Alternatives considered:**
+1. Две ставки (`livestock_price_inflation`, `opex_inflation`) — отвергнуто на MVP этапе (удваивает UI-поля без доказательства, что инвестор хочет их раздельно настраивать).
+2. Справочник `cpi_reference` по годам — отвергнуто (overkill для единого глобального параметра; DB-reference нужен для MULTI-dim данных типа feed_prices/construction_materials).
+
+**Files changed:**
+- [consulting_engine/app/models/schemas.py](consulting_engine/app/models/schemas.py:103-107) — `cpi_annual: float = Field(default=0.105, ge=0, le=0.5)`
+- [consulting_engine/app/engine/revenue.py](consulting_engine/app/engine/revenue.py) — удалён module constant; читает `enriched_input["cpi_annual"]`; переменная `inf` теперь использует local `cpi_annual`
+- [consulting_engine/app/engine/opex.py](consulting_engine/app/engine/opex.py) — то же
+- [src/pages/admin/consulting/ProjectWizard.tsx](src/pages/admin/consulting/ProjectWizard.tsx) — `cpi_annual_pct: number` в `WizardParams`, default 10.5, загрузка из saved×100, передача в calculate как `cpi_annual: pct / 100`, строка в `finRows` (view-mode) + WizardField в edit-mode Step 4 (Финансирование), строка в summary (Step 5)
+
+**Consequences:**
+- ✅ Инвестор настраивает CPI через ProjectWizard → Финансирование.
+- ✅ Детерминизм сохранён: default 10.5% = прежний hardcoded rate → существующие расчёты не изменятся, если поле не трогать.
+- ✅ `validate_and_enrich_input()` автоматически пробрасывает через `params.model_dump()` — дополнительной правки `input_params.py` не потребовалось (в отличие от `price_params` которые сгруппированы в dict).
+- ⚠️ При пересчёте старых проектов: `input_params` без `cpi_annual` получает Pydantic default 0.105 → те же числа, что были раньше. Безопасно.
+
+**Verification:**
+- Python tests (herd/feeding/timeline/taxonomy): 22 passed, 3 skipped, 3 xfailed. 0 regressions.
+- TypeScript `tsc --noEmit`: clean.
+- No SQL touched — `cross_check.sh` не требуется.
+
+**Follow-ups (не блокируют sign-off):**
+- `price_reference` таблица в БД — следующий ADR (полный P8 с годовым/региональным версионированием).
+- Цена per-стратегия реализации бычков (6 vs 12 vs 18 мес) — будущий ADR.
+- Split CPI на два параметра (livestock vs OPEX) — если инвестор попросит.
+
+**QA self-check:** 0 Critical / 0 Significant / 0 Minor. `CPI_ANNUAL` grep hits: 0 (было 5 вхождений в 2 файлах, все заменены).
+**Architect sign-off:** ✅ (2026-04-18) — additive (P7), P8 улучшен, no cross-doc defects introduced. CONSULTING_MASTER_SPEC §4.8.1 упоминает «CPI_ANNUAL = 0.105» в документации формулы — актуально (default не изменился).
+

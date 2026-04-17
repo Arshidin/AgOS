@@ -16,9 +16,10 @@ Admin expenses (административные расходы):
   Land tax — 12.05 тг/га × pasture_area / 1000 / 12 per month (NEGATIVE)
 
 All monetary values in тыс. тенге (thousands).
-"""
 
-CPI_ANNUAL = 0.105
+Inflation: configurable via `enriched_input["cpi_annual"]` (default 10.5%),
+applied from year 2 onward. Same rate as revenue module (shared economic assumption).
+"""
 
 
 def calculate_opex(
@@ -78,9 +79,12 @@ def calculate_opex(
     # Pasture area for land tax
     pasture_area = enriched_input.get("pasture_area", 0)
 
+    # Годовая инфляция цен — параметр проекта (DEF-CPI-PARAM-01).
+    cpi_annual = enriched_input["cpi_annual"]
+
     for t in range(n):
         yr = year_idx[t]
-        inf = (1 + CPI_ANNUAL) ** (yr - 1) if yr > 1 else 1.0
+        inf = (1 + cpi_annual) ** (yr - 1) if yr > 1 else 1.0
 
         avg_livestock = herd["total_avg_livestock"][t]
         total_eop = sum(

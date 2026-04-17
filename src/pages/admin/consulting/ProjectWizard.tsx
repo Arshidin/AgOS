@@ -53,6 +53,8 @@ interface WizardParams {
   price_heifer_breeding_per_kg: number
   price_cow_culled_per_kg: number
   price_bull_culled_per_kg: number
+  // Макроэкономика (DEF-CPI-PARAM-01)
+  cpi_annual_pct: number            // Годовая инфляция цен КРС и OPEX (0.105 = 10.5%)
   // Финансирование
   equity_share_pct: number
   capex_loan_term_years: number
@@ -117,6 +119,7 @@ const DEFAULT_PARAMS: WizardParams = {
   price_heifer_breeding_per_kg: 2200,
   price_cow_culled_per_kg: 1800,
   price_bull_culled_per_kg: 2000,
+  cpi_annual_pct: 10.5,
   equity_share_pct: 15,
   capex_loan_term_years: 10,
   capex_grace_period_years: 2,
@@ -319,6 +322,7 @@ export function ProjectWizard() {
             price_heifer_breeding_per_kg: saved.price_heifer_breeding_per_kg ?? DEFAULT_PARAMS.price_heifer_breeding_per_kg,
             price_cow_culled_per_kg: saved.price_cow_culled_per_kg ?? DEFAULT_PARAMS.price_cow_culled_per_kg,
             price_bull_culled_per_kg: saved.price_bull_culled_per_kg ?? DEFAULT_PARAMS.price_bull_culled_per_kg,
+            cpi_annual_pct: saved.cpi_annual != null ? saved.cpi_annual * 100 : DEFAULT_PARAMS.cpi_annual_pct,
             construction_material_enclosed: saved.construction_material_enclosed ?? DEFAULT_PARAMS.construction_material_enclosed,
             construction_material_support: saved.construction_material_support ?? DEFAULT_PARAMS.construction_material_support,
           }
@@ -395,6 +399,7 @@ export function ProjectWizard() {
           price_heifer_breeding_per_kg: params.price_heifer_breeding_per_kg,
           price_cow_culled_per_kg: params.price_cow_culled_per_kg,
           price_bull_culled_per_kg: params.price_bull_culled_per_kg,
+          cpi_annual: params.cpi_annual_pct / 100,
           construction_material_enclosed: params.construction_material_enclosed,
           construction_material_support: params.construction_material_support,
           farm_type: 'beef_reproducer',
@@ -591,6 +596,7 @@ export function ProjectWizard() {
       { id: 'capex_grace_period_years', label: 'Льготный период',   Icon: Clock,      suffix: 'лет' },
       { id: 'livestock_loan_rate_pct',  label: 'Ставка скот',       Icon: Percent,    suffix: '%' },
       { id: 'wc_loan_rate_pct',         label: 'Ставка оборотная',  Icon: Percent,    suffix: '%' },
+      { id: 'cpi_annual_pct',           label: 'Инфляция цен (CPI)', Icon: Percent,   suffix: '%', step: '0.1' },
       { id: 'subsidy_switch',           label: 'Субсидии',          Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
       { id: 'wc_loan_switch',           label: 'Займы на ПОС',      Icon: ToggleLeft, options: [{ label: 'Да', value: 1 }, { label: 'Нет', value: 2 }] },
     ]
@@ -987,6 +993,10 @@ export function ProjectWizard() {
               <WizardField label="Льготный период" value={params.capex_grace_period_years} onChange={v => set('capex_grace_period_years', v)} suffix="лет" />
               <WizardField label="Ставка по закупу скота" value={params.livestock_loan_rate_pct} onChange={v => set('livestock_loan_rate_pct', v)} suffix="%" />
               <WizardField label="Ставка по оборотному" value={params.wc_loan_rate_pct} onChange={v => set('wc_loan_rate_pct', v)} suffix="%" />
+
+              <div className="h-px bg-border/50 my-2" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Макроэкономика</p>
+              <WizardField label="Годовая инфляция цен (CPI)" value={params.cpi_annual_pct} onChange={v => set('cpi_annual_pct', v)} suffix="%" hint="Индексация цен продажи КРС и OPEX с года 2. КЗ 2020-2025 средняя: 10.5%" step="0.1" />
             </>
           )}
 
@@ -1036,6 +1046,7 @@ export function ProjectWizard() {
                   { label: 'Срок кредита', value: `${params.capex_loan_term_years} лет` },
                   { label: 'Льготный период', value: `${params.capex_grace_period_years} года` },
                   { label: 'Ставка скот', value: `${params.livestock_loan_rate_pct}%` },
+                  { label: 'Инфляция цен (CPI)', value: `${params.cpi_annual_pct}%` },
                   { label: 'Приплод', value: `${params.calf_yield_pct}%` },
                   { label: 'Падёж коров', value: `${params.cow_mortality_pct}%` },
                   { label: 'Выбраковка коров', value: `${params.cow_culling_pct}%` },

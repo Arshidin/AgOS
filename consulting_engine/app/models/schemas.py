@@ -100,6 +100,12 @@ class ProjectInput(BaseModel):
     price_bull_culled_per_kg: float = Field(default=2000.0, ge=500, le=5000,
         description="Цена реализации выбракованных быков (тг/кг живого веса)")
 
+    # Годовая инфляция цен (CPI KZ) — применяется к ценам продажи КРС + OPEX с года 2.
+    # Defaults 10.5% = историческая средняя КЗ 2020-2025. Кормовая инфляция имеет
+    # собственный независимый параметр в feeding_model (feed_inflation_rate).
+    cpi_annual: float = Field(default=0.105, ge=0, le=0.5,
+        description="Годовая инфляция цен КРС и OPEX (0.105 = 10.5%)")
+
     # Стратегия реализации бычков
     steer_sale_age_months: int = Field(default=0, ge=0, le=24,
         description="Возраст реализации бычков (мес). 0=продажа в декабре (legacy)")
