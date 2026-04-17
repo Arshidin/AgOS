@@ -1551,3 +1551,59 @@ IIFE проверял `results?.feeding?.quantities?.by_group` — поле пу
 **Why:** DEFAULT false — все существующие rows трактуются как auto-detected (корректно для истории). Explicit override (вызов RPC) = true.
 
 **Files:** `d01_kernel.sql`, `d07_ai_gateway.sql`
+
+---
+
+### 2026-04-17: 5 fixes — DB ration seed, pasture params, steer mortality, milk mapping
+
+**Fix #1 (HIGH) — SimpleRationEditor doesn't load saved rations from DB**
+
+`SimpleRationEditor` always started from `DEFAULT_RATIONS`, ignoring previously saved rations. This meant every re-open of the Rations tab showed CFC defaults instead of the user's custom values.
+
+**Fix:**
+- `RationTab.tsx`: added `initialRations` useMemo that converts `ConsultingRation[]` → `RationsState` by reading `results.pasture.items` / `results.stall.items` (DEF-RATION-01 format, `feed_item_code` + `quantity_kg_per_day`)
+- `SimpleRationEditor.tsx`: added `initialRations?: RationsState` prop + `hasLoadedFromDb` ref guard + single `useEffect` that merges `DEFAULT_RATIONS` ← `initialRations` once on load
+
+**Why `hasLoadedFromDb` ref:** prevents re-seeding on every parent re-render (e.g., after `refetch()`). User edits in flight are preserved.
+
+**Files:** `src/pages/admin/consulting/tabs/RationTab.tsx`, `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx`
+
+---
+
+**Fix #2 (MEDIUM) — feeding_model.py Priority 2: pasture params ignored**
+
+`_calc_from_norms` called `_is_pasture_month(0, m)` with hardcoded `0` for `pasture_start`/`pasture_end`, ignoring project-specific `pasture_start_month` / `pasture_end_month` (ADR-RATION-01).
+
+**Fix:** Added `pasture_start: int = 5, pasture_end: int = 10` params to `_calc_from_norms` signature. Passed from `calculate_feeding` via `enriched_input.get("pasture_start_month", 5)` / `enriched_input.get("pasture_end_month", 10)`.
+
+**Files:** `consulting_engine/app/engine/feeding_model.py`
+
+---
+
+**Fix #3 (MEDIUM) — feeding_model.py Priority 3: _calc_group closure ignores project pasture params**
+
+Inner `_calc_group` function called `_is_pasture_month(0, m)` with hardcoded `0`, not project params.
+
+**Fix:** Added `pasture_start_p3` / `pasture_end_p3` variables from `enriched_input` before `_calc_group` definition. Closure captures them; `_calc_group` now calls `_is_pasture_month(0, m, pasture_start_p3, pasture_end_p3)`.
+
+**Files:** `consulting_engine/app/engine/feeding_model.py`
+
+---
+
+**Fix #4 (MEDIUM) — herd_turnover.py: steer mortality reads heifer_mortality_rate**
+
+`STEER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12` — wrong key. Steer mortality was always equal to heifer mortality regardless of `steer_mortality_rate` project param.
+
+**Fix:** `enriched_input.get("steer_mortality_rate", enriched_input.get("heifer_mortality_rate", 0.03)) / 12` — reads `steer_mortality_rate`, falls back to `heifer_mortality_rate` if not set.
+
+**Files:** `consulting_engine/app/engine/herd_turnover.py`
+
+---
+
+**Fix #5 (MEDIUM) — SimpleRationEditor: milk incorrectly mapped to HAY_MIXED_GRASS**
+
+`milk: 'HAY_MIXED_GRASS'` in `simpleMap` caused milk items to be saved with hay's `feed_item_id` (wrong FK) and priced as hay (wrong cost).
+
+**Fix:** Removed `milk` from `simpleMap`. Changed all three save filters (`pastureItems`, `stallItems`, combined `items`) to `.filter(([feed, vals]) => ... && feedCodeToId.has(feed))` — feeds with no DB entry are skipped during save. Milk (dam's milk, not purchased) has no `feed_item` DB record and is implicitly excluded.
+
+**Files:** `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx`
