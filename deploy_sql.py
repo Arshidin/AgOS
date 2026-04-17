@@ -10,7 +10,7 @@ import os
 import psycopg2
 from psycopg2 import sql as psql
 
-DB_HOST = "aws-0-ap-south-1.pooler.supabase.com"
+DB_HOST = "aws-1-ap-south-1.pooler.supabase.com"
 DB_PORT = 5432  # Session mode (not 6543 transaction mode)
 DB_NAME = "postgres"
 DB_USER = "postgres.mwtbozflyldcadypherr"
