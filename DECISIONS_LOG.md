@@ -1755,3 +1755,44 @@ backward compat. `PnlTab` now shows «Корма (репродуктор)» unde
 and «Корма (откорм)» under cogs_fattening. Math unchanged: `cogs_reproducer` /
 `cogs_fattening` / `total_cogs` values are the same as before the split.
 
+
+---
+
+### D-GATE-FEED-AUDIT-2026-04-17 — Feed Cost Engine Audit gate sign-off
+
+**Architect verdict:** ✅ APPROVED
+
+**QA verdict received:** 22/22 functional checks passed. 0 Critical. 1 Significant (DEF-DOC-SYNC-01) — resolved same session via commit `8a8e370`.
+
+**Defects closed (9):**
+DEF-RATION-SAVE-01, DEF-FEED-NORMS-01, DEF-FEED-NORMS-02, DEF-OPEX-FATTENING-01,
+DEF-SCHEMA-DRIFT-01, DEF-CONSULTING-AUTH-01, DEF-OPEX-FEED-SPLIT-01,
+DEF-RATION-COVERAGE-01, DEF-DOC-SYNC-01.
+
+**Deploy:** All three channels live — SQL (direct psycopg2 to aws-1-ap-south-1),
+Python engine (Railway `consulting-engine`), UI (Vercel from main).
+
+**Math verification (project Тест 7):** Priority 1 active (`feeding._source =
+'consulting_rations'`); `cows_12m year-1 = 11,326` тыс.тг (vs 100,906 pre-fix,
+8.9× reduction, matches manual cpd × heads × days formula to ± 0.001).
+
+**Invariants verified end-to-end:**
+- `opex.feed_cost_repro == feeding.total_reproducer`
+- `opex.feed_cost_fatt == feeding.total_fattening`
+- `opex.cogs_fattening == feed_cost_fatt`
+- `opex.total_cogs == cogs_reproducer + cogs_fattening`
+- `pnl.gross_profit == revenue.total_revenue + opex.total_cogs`
+- No RLS regression (bogus org_id → PROJECT_NOT_FOUND)
+- `rpc_get_consulting_rations` retains SECURITY DEFINER + `search_path`
+- cross_check.sh 0/0/0
+
+**Carried forward as tech debt (non-blocking):**
+- `d01_kernel.sql:900` reserved-word clash (`current_role` in `ai_conversations`)
+  blocks full `deploy_sql.py` re-apply. Selective migrations applied via psycopg2.
+- `herd_turnover.calves.avg = 0` for all 120 months in project Тест 7 — SUCKLING_CALF
+  ration stored but never applied in P&L (ration × 0 heads = 0). Needs separate
+  audit of `herd_turnover.py` calf-generation logic.
+
+**Next:** no open sprint work on this line. Next sprint per TAXONOMY plan → Slice 4
+proactive dispatch (see Previous Phase in SPRINT_STATUS.md).
+

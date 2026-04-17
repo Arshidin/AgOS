@@ -5,25 +5,54 @@
 
 ---
 
-## Current Phase: Feed Cost Engine Audit (2026-04-17) — 5 defects fixed, awaiting deploy
+## Current Phase: ✅ Feed Cost Engine Audit — CLOSED (2026-04-17). 9 defects fixed, deployed, QA+Architect signed off.
 
-### Feed Cost Engine Audit — DEF-RATION-SAVE-01 / DEF-FEED-NORMS-01/02 / DEF-OPEX-FATTENING-01 / DEF-SCHEMA-DRIFT-01
+### Gate sign-off — D-GATE-FEED-AUDIT-2026-04-17
 
-| Layer | Component | Status | Notes |
-|-------|-----------|--------|-------|
-| Architect | Root-cause audit for 100M vs 13M cows_12m year-1 | ✅ Done (2026-04-17) | Reproduced in БД: `feeding._source='feed_consumption_norms'`, 8 reproducer-норм → sum cpd applied to cows_12m+bulls. Проект da3e54d6 «Тест 7» |
-| UI | 4× `.rpc('rpc_list_animal_categories', { p_at_date: null, p_include_deprecated: false })` | ✅ Done (2026-04-17) | Calculator.tsx, FeedReferenceAdmin.tsx, SimpleRationEditor.tsx, RationTab.tsx |
-| DB | Canonical `rpc_list_animal_categories` returns `id` (d01:5237) | ✅ Done (файл) / ⏳ Deploy | Аддитивно: добавлено `'id': ac.id` в jsonb_build_object |
-| DB | Drop no-arg wrapper `rpc_list_animal_categories()` (d03) | ✅ Done (файл) / ⏳ Deploy | `drop function if exists` в d03:1625. Устраняет PGRST203 overload ambiguity |
-| Backend | `_calc_from_norms` — маппинг по `animal_categories.code` via embed-join | ✅ Done (2026-04-17) | calculate.py: `.select("*, animal_categories(code)")`; feeding_model.py: `CATEGORY_CODE_TO_HERD` + max(cpd) внутри группы |
-| Backend | `opex.py` — split `feed_cost_repro`/`feed_cost_fatt` | ✅ Done (2026-04-17) | `cogs_reproducer` получает reproducer feed; `cogs_fattening` получает fattening feed (был всегда 0) |
-| Backend | `_calc_from_norms` — transition season fallback | ✅ Done (2026-04-17) | `_lookup_cpd`: season → transition → opposite season → 0 |
-| Deploy | `d09_consulting.sql` добавлен в `deploy_sql.py` SQL_FILES | ✅ Done (2026-04-17) | Причина отсутствия `needs_recalc` в БД — d09 никогда не запускался |
-| Architect | DECISIONS_LOG обновлён | ✅ Done (2026-04-17) | 5 defects described |
-| Deploy | Deploy SQL: d01 + d03 + d09 через `python3 deploy_sql.py <DB_PASS>` | ⏳ Pending (CEO) | — |
-| Deploy | Redeploy Python engine on Railway | ⏳ Pending (CEO) | — |
-| Deploy | Redeploy UI (4 TSX files) | ⏳ Pending (CEO) | — |
-| QA | Recalculate project Тест 7 → verify cows_12m ≈ 14M (P1) или ≤40M (P2) | ⏳ Pending post-deploy | Acceptance criterion |
+**QA verdict:** 22/22 functional checks passed, 0 Critical, 1 Significant (DEF-DOC-SYNC-01 — resolved same session).
+**Architect sign-off:** APPROVED. All 9 defects closed, deployed, math verified end-to-end on project «Тест 7» (da3e54d6). See DECISIONS_LOG entries 2026-04-17.
+
+| # | Defect | Severity | Domain | Status |
+|---|--------|----------|--------|--------|
+| 1 | DEF-RATION-SAVE-01 — PGRST203 overload ambiguity → 5 groups silently skipped on save | Critical | UI + SQL | ✅ Closed |
+| 2 | DEF-FEED-NORMS-01 — Priority 2 summed all reproducer norms → 100M for cows_12m | Critical | Backend | ✅ Closed |
+| 3 | DEF-CONSULTING-AUTH-01 — `fn_my_org_ids()/fn_is_admin()` blocked service_role → Priority 1 never fired | Critical | SQL | ✅ Closed |
+| 4 | DEF-OPEX-FATTENING-01 — `total_fattening` dropped from COGS | Significant | Backend | ✅ Closed |
+| 5 | DEF-SCHEMA-DRIFT-01 — `d09_consulting.sql` not in deploy_sql.py → `needs_recalc` column absent | Significant | DB/Deploy | ✅ Closed |
+| 6 | DEF-OPEX-FEED-SPLIT-01 — P&L «Корма» indent under repro but included fatt | Significant | Backend + UI | ✅ Closed |
+| 7 | DEF-RATION-COVERAGE-01 — UI counted animal_category codes, not feeding_group target_codes (5 of 8 vs 5 of 5) | Significant | UI | ✅ Closed |
+| 8 | DEF-FEED-NORMS-02 — transition season ignored in Priority 2 | Minor | Backend | ✅ Closed |
+| 9 | DEF-DOC-SYNC-01 — Dok 3 v1.4 stale after wrapper drop | Significant | Docs | ✅ Closed (commit 8a8e370) |
+
+### Deploy summary
+
+| Slice | Channel | Status |
+|-------|---------|--------|
+| SQL (d01 canonical `id` field, d03 wrapper drop, d09 `needs_recalc` + `rpc_save_consulting_ration` + `rpc_get_consulting_rations` auth removal) | Direct via psycopg2 to aws-1-ap-south-1.pooler | ✅ Applied |
+| Python engine (`feeding_model.py` _calc_from_norms rewrite, `opex.py` feed split, `calculate.py` embed-join) | Railway `consulting-engine` service | ✅ Redeployed |
+| UI (`Calculator.tsx`, `FeedReferenceAdmin.tsx`, `SimpleRationEditor.tsx`, `RationTab.tsx`, `PnlTab.tsx`) | Vercel autodeploy from `main` push | ✅ Live |
+
+### Acceptance check — project Тест 7 (da3e54d6)
+
+After redeploy, project shows end-to-end:
+- `feeding._source = 'consulting_rations'` ✓ (Priority 1 active)
+- `cows_12m year-1 = 11,326` тыс.тг (matches manual formula 318 тг/сут × 197 cows.eop × days → 11,326; was 100,906 before fixes — 8.9× reduction)
+- `opex.feed_cost_repro == feeding.total_reproducer = 12,901` ✓
+- `opex.feed_cost_fatt == feeding.total_fattening = 223` ✓
+- `opex.total_cogs == cogs_reproducer + cogs_fattening = 47,429` ✓
+- `pnl.gross_profit == revenue + total_cogs = 25,011` ✓
+- P&L UI shows «Корма (репродуктор)» under reproducer, «Корма (откорм)» under fattening
+
+### Side effect: deploy_sql.py host migration
+
+`deploy_sql.py` DB_HOST updated from `aws-0-ap-south-1` to `aws-1-ap-south-1` (Supabase pooler migration — old host returned «Tenant or user not found»). Future SQL applies work off the new host.
+
+### Known tech debt (not blocking)
+
+| Issue | Severity | Owner |
+|-------|----------|-------|
+| `d01_kernel.sql:900` uses reserved word `current_role` in `ai_conversations` DDL — blocks full `deploy_sql.py` re-apply | Significant | DB Agent (Slice TBD) |
+| `.calves.avg = 0` for all 120 months in project Тест 7 (herd_turnover not generating calves from cows) — SUCKLING_CALF ration saved but never applied in P&L | Significant | Backend Agent (herd_turnover audit — TBD slice) |
 
 ---
 
