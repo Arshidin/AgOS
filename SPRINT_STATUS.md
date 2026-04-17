@@ -12,7 +12,7 @@ Plan: [.claude/plans/q1-rosy-lollipop.md](.claude/plans/q1-rosy-lollipop.md)
 | Phase | Owner | Status | Notes |
 |-------|-------|--------|-------|
 | Phase 1 — DB schema + seed | DB Agent | ✅ Done + Architect-signed (2026-04-17) | d09: CHECK extended (+2 cat), 3 new columns on consulting_projects, 5 RPCs, seed 4 materials + 1 surcharges + 53 infra_norms (incl. 10 bespoke overrides, deviation approved). **Applied to prod via psycopg2** during Architect audit (file changes were uncommitted, deploy step was missing). 22/22 QA invariants ✓. See DECISIONS_LOG `ADR-CAPEX-01 Phase 1 sign-off`. |
-| Phase 2 — Engine rewrite | Backend Agent | 🟢 Ready to start | `capex.py` Priority chain + legacy fallback; 8 new tests; ProjectInput fields. DB Phase 1 deployed — unblocked. |
+| Phase 2 — Engine rewrite | Backend Agent | ✅ Done — pending Railway deploy (2026-04-17) | `capex.py` Priority 2 data-driven + Priority 3 legacy fallback (158 lines → 564 lines). ProjectInput +3 fields (2 materials + infra_items_override). calculate.py fetches project-row override and injects before engine run. orchestrator.py passes herd to capex. 8/8 new `TestCapexDataDriven` tests pass; 6/6 legacy `TestCapex` tests still pass (Priority 3). Fixture `tests/fixtures/capex_seed.json` mirrors the d09 seed. **Next:** commit + `git push` → Railway autodeploy. |
 | Phase 3 — UI: Wizard + CapexTab | UI Agent | 🕒 Pending | Material Selects in wizard; editable CapexTab; sticky Save. Blocks on Phase 2 deploy. |
 | Phase 4 — Admin /admin/capex | UI Agent | 🕒 Pending | 3 tabs (Материалы / Нормативы / Надбавки) mirroring FeedReferenceAdmin. |
 | Phase 5 — Docs + verification | Architect + QA | 🕒 Pending | Dok 1/3/6/7 updates, DECISIONS_LOG ADR-CAPEX-01, QA gate. |
@@ -26,6 +26,23 @@ File-touched-but-not-deployed pattern re-occurred (third time in week: DEF-SCHEM
 ### Files touched (Phase 1)
 - `d09_consulting.sql` — +391 lines (CHECK ALTER, 3 column ALTERs, 5 RPCs, 58 seed rows). Total now 1157 lines.
 - `cross_check.sh` — +4 entries in CHECK-5 whitelist (`rpc_list_construction_materials`, `rpc_list_infrastructure_norms`, `rpc_upsert_construction_material`, `rpc_upsert_infrastructure_norm`).
+
+### Files touched (Phase 2)
+- `consulting_engine/app/engine/capex.py` — dispatcher + `_data_driven_calculate_capex` (new, ~220 lines) + 8 helpers + `_legacy_calculate_capex` (preserved verbatim). Priority chain: override → norm×material → legacy. Python 3.12 typing (`Optional[dict]` for 3.9 local compat).
+- `consulting_engine/app/engine/orchestrator.py` — passes `herd=herd` to `calculate_capex` so norms with `applies_to=cows_eop/...` resolve (additive, default param).
+- `consulting_engine/app/models/schemas.py` — `ProjectInput` +3 fields: `construction_material_enclosed` (default "sandwich"), `construction_material_support` (default "light_frame"), `infra_items_override: list[dict]` (default []).
+- `consulting_engine/app/api/calculate.py` — reads `consulting_projects` row, overrides `input_params` material fields + `infra_items_override` before `run_calculation`. DB wins because CapexTab save path bypasses wizard payload.
+- `consulting_engine/tests/fixtures/capex_seed.json` — NEW, mirrors the 58 d09 seed rows (4 materials + 1 surcharges + 53 norms).
+- `consulting_engine/tests/test_capex_staff_wacc.py` — `TestCapexDataDriven` class: 8 tests (Excel parity, capacity scaling, calving multiplier, override exclude/material/bespoke, pasture area scaling, legacy fallback).
+
+### Phase 2 test run (local Python 3.9 against isolated capex.py import)
+- `TestCapex` (legacy, Priority 3): 6/6 ✅
+- `TestCapexDataDriven` (new, Priority 2): 8/8 ✅
+- Non-Staff full suite (feeding/herd/timeline/wacc/taxonomy): 40 passed, 3 skipped (taxonomy RPC), 3 xfailed (pre-existing). 0 new failures.
+- `TestStaff` 6/6 failures — **pre-existing** (D-FEED-2: 7 staff positions vs test expectation 5 positions). Confirmed via `git stash` baseline. Out of Phase 2 scope.
+
+### Phase 2 deployment (pending)
+Railway `consulting-engine` service autodeploys from `main` push. Phase 2 changes are feature-flagged by seed presence — empty `refs['infrastructure_norms']` triggers Priority 3 legacy, giving zero-risk rollout even if seed is missing on prod.
 
 ---
 

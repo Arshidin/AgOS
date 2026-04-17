@@ -41,6 +41,17 @@ class ProjectInput(BaseModel):
     calving_scenario: str = Field(default="Летний", description="Летний / Зимний")
     farm_type: str = Field(default="beef_reproducer")
 
+    # ADR-CAPEX-01: per-project material choice for data-driven CAPEX engine.
+    # Values must match a code in consulting_reference_data[category='construction_materials'].
+    # Defaults mirror Excel rows 84-85: "Выбранная цена м²".
+    construction_material_enclosed: str = Field(default="sandwich",
+        description="Material code for enclosed structures (ангар, изолятор, крытое отёла, КПП)")
+    construction_material_support: str = Field(default="light_frame",
+        description="Material code for support structures (загоны, навесы, кормовой стол, зернохранилище)")
+    infra_items_override: list[dict] = Field(default_factory=list,
+        description="Per-item CAPEX overrides from CapexTab: "
+                    "[{code, include?, qty_override?, material_override?, unit_cost_override?}]")
+
     # Коэффициенты стада (% годовых)
     calf_yield: float = Field(default=0.85, description="Коэффициент приплода (0.85 = 85%)")
     weaning_months: int = Field(default=6, ge=1, le=12,

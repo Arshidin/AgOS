@@ -1,0 +1,77 @@
+{
+  "construction_materials": [
+    {"code": "light_frame", "data": {"name_ru": "Лёгкий каркас",        "cost_per_m2": 15000, "currency": "KZT"}},
+    {"code": "sandwich",    "data": {"name_ru": "Сэндвич-панель",       "cost_per_m2": 25000, "currency": "KZT"}},
+    {"code": "steel",       "data": {"name_ru": "Металлоконструкция",   "cost_per_m2": 35000, "currency": "KZT"}},
+    {"code": "brick",       "data": {"name_ru": "Кирпич / капитальное", "cost_per_m2": 50000, "currency": "KZT"}}
+  ],
+  "capex_surcharges": [
+    {
+      "code": "default",
+      "data": {
+        "works_rate": 0.06,
+        "contingency_rate": 0.025,
+        "applies_to_blocks": ["farm", "pasture"],
+        "contingency_base_by_block": {"farm": "items_plus_work", "pasture": "items_only"}
+      }
+    }
+  ],
+  "infrastructure_norms": [
+    {"code": "FAC-015",  "data": {"name_ru": "Навес для техники 500м²",              "block": "farm", "display_order": 1,  "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "support",  "depreciation_years": 20, "area_per_head_m2": 1.6667, "unit_cost_per_m2_override": 19500}},
+    {"code": "INF-001",  "data": {"name_ru": "Жилой дом",                             "block": "farm", "display_order": 2,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 20, "fixed_cost": 30000000}},
+    {"code": "INF-002",  "data": {"name_ru": "Резервуар для питьевой воды 2м³",       "block": "farm", "display_order": 3,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 20, "fixed_cost": 1000000}},
+    {"code": "INF-003",  "data": {"name_ru": "Скважина",                              "block": "farm", "display_order": 4,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 20, "fixed_cost": 15000000}},
+    {"code": "FAC-014",  "data": {"name_ru": "Автовесы",                              "block": "farm", "display_order": 5,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 10, "fixed_cost": 1500000}},
+    {"code": "FAC-019",  "data": {"name_ru": "КПП с санпропускником 50м²",            "block": "farm", "display_order": 6,  "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "enclosed", "depreciation_years": 20, "area_per_head_m2": 0.1667, "unit_cost_per_m2_override": 40000}},
+    {"code": "INF-004",  "data": {"name_ru": "Наружные сети электроснабжения 10 кВ",  "block": "farm", "display_order": 7,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 20, "fixed_cost": 11185000}},
+    {"code": "INF-005",  "data": {"name_ru": "Скотомогильник",                        "block": "farm", "display_order": 8,  "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 20, "fixed_cost": 4000000}},
+    {"code": "FAC-015b", "data": {"name_ru": "Зернохранилище 2000м²",                 "block": "farm", "display_order": 9,  "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "support",  "depreciation_years": 20, "area_per_head_m2": 6.6667, "unit_cost_per_m2_override": 9000}},
+    {"code": "INF-006",  "data": {"name_ru": "Трап для погрузки КРС",                 "block": "farm", "display_order": 10, "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 10, "fixed_cost": 500000}},
+    {"code": "FAC-012",  "data": {"name_ru": "Крытое помещение для отёла 200м²",      "block": "farm", "display_order": 11, "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "enclosed", "depreciation_years": 20, "area_per_head_m2": 0.6667, "unit_cost_per_m2_override": 80000, "calving_scenario_multiplier": {"Зимний": 1.0, "Летний": 0.5}}},
+    {"code": "FAC-014b", "data": {"name_ru": "Раскол-деление на 20 голов",            "block": "farm", "display_order": 12, "cost_model": "fixed_per_project", "applies_to": "always",   "material_target": null,        "depreciation_years": 10, "fixed_cost": 980000}},
+    {"code": "FAC-008",  "data": {"name_ru": "Накопитель",                            "block": "farm", "display_order": 13, "cost_model": "per_head_unit",     "applies_to": "capacity", "material_target": null,        "depreciation_years": 20, "unit_cost": 4000}},
+    {"code": "FAC-015c", "data": {"name_ru": "Открытая площадка для силоса/сена",     "block": "farm", "display_order": 14, "cost_model": "per_head_unit",     "applies_to": "capacity", "material_target": null,        "depreciation_years": 20, "unit_cost": 5000}},
+    {"code": "FAC-001",  "data": {"name_ru": "Общий ангар 8 м²/гол",                  "block": "farm", "display_order": 15, "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "enclosed", "depreciation_years": 20, "area_per_head_m2": 8,      "unit_cost_per_m2_override": 12500}},
+    {"code": "FAC-013",  "data": {"name_ru": "Изолятор 120 м² (8 м²/гол × 15 голов)", "block": "farm", "display_order": 16, "cost_model": "fixed_area",        "applies_to": "always",   "material_target": "enclosed", "depreciation_years": 20, "fixed_area_m2": 120, "unit_cost_per_m2_override": 83333}},
+    {"code": "FAC-009",  "data": {"name_ru": "Открытый загон для изолятора 300 м²",   "block": "farm", "display_order": 17, "cost_model": "fixed_area",        "applies_to": "always",   "material_target": "support",  "depreciation_years": 20, "fixed_area_m2": 300, "unit_cost_per_m2_override": 3450}},
+    {"code": "PAD-001",  "data": {"name_ru": "Загон для 30 коров 600 м²",             "block": "farm", "display_order": 18, "cost_model": "fixed_area",        "applies_to": "always",   "material_target": "support",  "depreciation_years": 20, "fixed_area_m2": 600, "unit_cost_per_m2_override": 4140}},
+    {"code": "PAD-007",  "data": {"name_ru": "Загон для быков-производителей 500 м²", "block": "farm", "display_order": 19, "cost_model": "fixed_area",        "applies_to": "always",   "material_target": "support",  "depreciation_years": 20, "fixed_area_m2": 500, "unit_cost_per_m2_override": 4968}},
+    {"code": "INF-007",  "data": {"name_ru": "Ветрозащита",                           "block": "farm", "display_order": 20, "cost_model": "per_head_unit",     "applies_to": "capacity", "material_target": null,        "depreciation_years": 20, "unit_cost": 8280}},
+    {"code": "INF-008",  "data": {"name_ru": "Кормовой стол 0.5 м²/гол",              "block": "farm", "display_order": 21, "cost_model": "area_per_head",     "applies_to": "capacity", "material_target": "support",  "depreciation_years": 20, "area_per_head_m2": 0.5,    "unit_cost_per_m2_override": 6900}},
+    {"code": "FAC-017",  "data": {"name_ru": "Тёплая поилка",                         "block": "farm", "display_order": 22, "cost_model": "per_head_unit",     "applies_to": "capacity", "material_target": null,        "depreciation_years": 10, "unit_cost": 4830}},
+
+    {"code": "PST-001",  "data": {"name_ru": "Мобильный жилой дом (вагончик)",         "block": "pasture",   "display_order": 1, "cost_model": "fixed_qty",    "applies_to": "always",          "material_target": null, "depreciation_years": 10, "fixed_qty": 1, "unit_cost": 4000000}},
+    {"code": "PST-002",  "data": {"name_ru": "Поилки от скважин с ветряными насосами", "block": "pasture",   "display_order": 2, "cost_model": "per_area_ha",  "applies_to": "pasture_area_ha", "material_target": null, "depreciation_years": 10, "area_divisor_ha": 1500, "unit_cost": 8800000}},
+    {"code": "PST-003",  "data": {"name_ru": "Скважина (пастбищная)",                  "block": "pasture",   "display_order": 3, "cost_model": "per_area_ha",  "applies_to": "pasture_area_ha", "material_target": null, "depreciation_years": 20, "area_divisor_ha": 3000, "unit_cost": 3000000}},
+    {"code": "PST-004",  "data": {"name_ru": "Ограждение пастбищ",                     "block": "pasture",   "display_order": 4, "cost_model": "fixed_qty",    "applies_to": "always",          "material_target": null, "depreciation_years": 15, "fixed_qty": 1, "unit_cost": 18800000}},
+
+    {"code": "EQP-001",  "data": {"name_ru": "Колёсный трактор 100–150 л.с.", "block": "equipment", "display_order": 1, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 20000000}},
+    {"code": "EQP-002",  "data": {"name_ru": "Кун с ковшом и стогометом",     "block": "equipment", "display_order": 2, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 3500000}},
+    {"code": "EQP-003",  "data": {"name_ru": "Кормораздатчик (миксер) 8–12 м³", "block": "equipment", "display_order": 3, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 10000000}},
+    {"code": "EQP-004",  "data": {"name_ru": "Зернодробилка",                 "block": "equipment", "display_order": 4, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 3000000}},
+    {"code": "EQP-005",  "data": {"name_ru": "Прицеп самосвальный 10-15 т",   "block": "equipment", "display_order": 5, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 10000000}},
+    {"code": "EQP-006",  "data": {"name_ru": "Прицеп для перевозки скота",    "block": "equipment", "display_order": 6, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 5000000}},
+    {"code": "EQP-007",  "data": {"name_ru": "Прицеп с ёмкостью для воды",    "block": "equipment", "display_order": 7, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 1500000}},
+    {"code": "EQP-008",  "data": {"name_ru": "Бензиновые генераторы 3-5 кВт", "block": "equipment", "display_order": 8, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1, "unit_cost": 400000}},
+
+    {"code": "TOL-001",  "data": {"name_ru": "Считыватель чипов",                     "block": "tools", "display_order": 1,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 1,  "unit_cost": 50000}},
+    {"code": "TOL-002",  "data": {"name_ru": "Электрический погонщик",                "block": "tools", "display_order": 2,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 1,  "unit_cost": 30000}},
+    {"code": "TOL-003",  "data": {"name_ru": "Станок для фиксации КРС",               "block": "tools", "display_order": 3,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1,  "unit_cost": 2000000}},
+    {"code": "TOL-004",  "data": {"name_ru": "Электронные весы",                      "block": "tools", "display_order": 4,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1,  "unit_cost": 150000}},
+    {"code": "TOL-005",  "data": {"name_ru": "Вакцинаторы",                           "block": "tools", "display_order": 5,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 5,  "unit_cost": 35000}},
+    {"code": "TOL-006",  "data": {"name_ru": "Дренчер",                               "block": "tools", "display_order": 6,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 1,  "unit_cost": 10000}},
+    {"code": "TOL-007",  "data": {"name_ru": "Копытные ножи",                         "block": "tools", "display_order": 7,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 2,  "unit_cost": 15000}},
+    {"code": "TOL-008",  "data": {"name_ru": "Молокоотсос",                           "block": "tools", "display_order": 8,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 2,  "unit_cost": 60000}},
+    {"code": "TOL-009",  "data": {"name_ru": "Поилки для молока",                     "block": "tools", "display_order": 9,  "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 20, "unit_cost": 5000}},
+    {"code": "TOL-010",  "data": {"name_ru": "Термо чемодан",                         "block": "tools", "display_order": 10, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 1,  "unit_cost": 50000}},
+    {"code": "TOL-011",  "data": {"name_ru": "Огнетушитель",                          "block": "tools", "display_order": 11, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 5,  "unit_cost": 15000}},
+    {"code": "TOL-012",  "data": {"name_ru": "Набор лопат и вил",                     "block": "tools", "display_order": 12, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 5,  "unit_cost": 30000}},
+    {"code": "TOL-013",  "data": {"name_ru": "Набор инструментов (электро)",          "block": "tools", "display_order": 13, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 3,  "unit_cost": 100000}},
+    {"code": "TOL-014",  "data": {"name_ru": "Набор инструментов (строительные)",     "block": "tools", "display_order": 14, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 2,  "unit_cost": 50000}},
+    {"code": "TOL-015",  "data": {"name_ru": "Тачка",                                 "block": "tools", "display_order": 15, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 5,  "unit_cost": 50000}},
+    {"code": "TOL-016",  "data": {"name_ru": "Ручные рации",                          "block": "tools", "display_order": 16, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 2,  "unit_cost": 25000}},
+    {"code": "TOL-017",  "data": {"name_ru": "Спецодежда",                            "block": "tools", "display_order": 17, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 2, "fixed_qty": 4,  "unit_cost": 50000}},
+    {"code": "TOL-018",  "data": {"name_ru": "Набор инструментов для трактористов",   "block": "tools", "display_order": 18, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 3, "fixed_qty": 1,  "unit_cost": 50000}},
+    {"code": "TOL-019",  "data": {"name_ru": "Спутниковые антенны",                   "block": "tools", "display_order": 19, "cost_model": "fixed_qty", "applies_to": "always", "material_target": null, "depreciation_years": 5, "fixed_qty": 1,  "unit_cost": 350000}}
+  ]
+}

@@ -134,11 +134,25 @@ VALUES ('rpc_example', 'RPC-XX', 'tool_name_or_null', 'dNN_domain.sql', 'descrip
 ON CONFLICT (sql_name) DO NOTHING;
 ```
 
-### Principle: After writing — verify
+### Principle: After writing — verify AND deploy AND re-verify
 After completing any SQL changes:
 1. Grep for duplicate definitions of every function you touched
-2. Run `cross_check.sh` if it exists
-3. Report results to Architect Agent for SPRINT_STATUS.md update
+2. Run `cross_check.sh` if it exists — **catches file-level issues, NOT prod state**
+3. **Apply SQL to prod** via `python3 deploy_sql.py dNN` OR targeted psycopg2 call
+   with `SUPABASE_DB_URL` / `DEPLOY_DB_URL`. Do NOT mark a phase ✅ Done until
+   this step succeeds.
+4. **Re-verify deployed state** with `information_schema` queries — at minimum:
+   - `SELECT count(*) FROM <new_table>` or `SELECT count(*) FROM consulting_reference_data WHERE category='<new_cat>'`
+   - `SELECT column_name FROM information_schema.columns WHERE table_name='<table>' AND column_name='<new_col>'`
+   - `SELECT 1 FROM rpc_name_registry WHERE sql_name='<new_rpc>'`
+5. Report results to Architect Agent for SPRINT_STATUS.md update.
+
+**Why step 3-4 exist:** "File touched, deploy forgotten" happened 3× in one week
+(DEF-SCHEMA-DRIFT-01 `needs_recalc`, DEF-SCHEMA-DRIFT-02 `role_was_overridden`,
+ADR-CAPEX-01 Phase 1). `cross_check.sh` only verifies files, not prod. A ✅ Done
+without a deployed change is worse than honest failure — downstream agents
+(Backend, UI) build against phantom schema and their tests pass locally but fail
+in prod.
 
 ## Session Structure
 
@@ -215,7 +229,7 @@ Read ONLY the listed sections for your current session. Do NOT read entire Dok f
 - Don't modify Dok files — that's Architect Agent's job
 - Don't write Python or TypeScript — that's Backend Agent's job
 - Don't make architecture decisions — flag them to Architect with options and tradeoffs
-- Don't deploy to Supabase — you produce SQL files, deployment is separate
+- You MUST deploy to Supabase yourself (via `deploy_sql.py` or psycopg2) after writing — see «Principle: After writing — verify AND deploy AND re-verify». A phase is not ✅ Done until prod schema reflects the file.
 - Don't create new tables — schema is FINAL
 - Don't create patch files — all changes go into the canonical domain SQL file
 - Don't skip the duplicate check — this is the #1 source of bugs in this project

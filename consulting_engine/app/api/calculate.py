@@ -86,6 +86,29 @@ async def calculate(request: CalculateRequest):
     # Загрузка кормовых справочников (d03_feed + consulting rations)
     feed_refs = _load_feed_reference(sb, request.organization_id, request.project_id)
 
+    # ADR-CAPEX-01: pull project-level CAPEX settings (material choice + overrides).
+    # DB wins over request.input_params because UI CapexTab writes via
+    # rpc_save_project_infra_override WITHOUT going through the wizard payload.
+    if sb:
+        try:
+            proj_resp = (
+                sb.table("consulting_projects")
+                .select("construction_material_enclosed, construction_material_support, infra_items_override")
+                .eq("id", request.project_id)
+                .eq("organization_id", request.organization_id)
+                .single()
+                .execute()
+            )
+            proj_row = proj_resp.data or {}
+            if proj_row.get("construction_material_enclosed"):
+                request.input_params.construction_material_enclosed = proj_row["construction_material_enclosed"]
+            if proj_row.get("construction_material_support"):
+                request.input_params.construction_material_support = proj_row["construction_material_support"]
+            if proj_row.get("infra_items_override") is not None:
+                request.input_params.infra_items_override = proj_row["infra_items_override"] or []
+        except Exception:
+            pass  # Fall back to request.input_params defaults
+
     # Расчёт
     try:
         results = run_calculation(

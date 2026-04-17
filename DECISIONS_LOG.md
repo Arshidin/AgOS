@@ -87,6 +87,7 @@
 | DEF-SCHEMA-DRIFT-01 | 2026-04-17 | DB/Deploy | `consulting_projects.needs_recalc` определён в `d09_consulting.sql:54` (ADD COLUMN IF NOT EXISTS), но отсутствует в deployed БД. Причина: `d09_consulting.sql` не был в `SQL_FILES` списке `deploy_sql.py`. Fix: d09 добавлен в deploy pipeline; `rpc_save_consulting_ration` и `rpc_recalculate_consulting_project` после применения начнут корректно управлять `needs_recalc`. |
 | ADR-CAPEX-01 | 2026-04-17 | Architecture | CAPEX модуль: переход с hardcoded `capex.py` на data-driven архитектуру. Priority chain (override → norm×material → legacy fallback). 2 новые категории в `consulting_reference_data` (construction_materials, capex_surcharges), 3 новые колонки в `consulting_projects`, 5 RPC, 58 seed-строк. 4 типа материалов × norm_m²_per_head × capacity → area cost. 10 bespoke unit_cost_per_m2_override сохраняют Excel-парность 282.4M ₸. |
 | D-GATE-CAPEX-01-PHASE1 | 2026-04-17 | Gate | Phase 1 (DB) sign-off: `cross_check.sh` 0/0/0. 58 seed rows. Математика Excel-парности проверена вручную (delta +1,614 ₸ от 282,465,145.54 = 0.00057%). Отклонение DB Agent от плана (10 overrides вместо 4) одобрено — реконциляция внутреннего противоречия плана §1.3 vs §2.5. Phase 2 (Backend) разблокирован после SQL deploy. |
+| D-GATE-CAPEX-01-PHASE2 | 2026-04-17 | Gate | Phase 2 (Backend) code sign-off: `capex.py` Priority chain (2→3→fallback), `ProjectInput`+3 fields, `calculate.py` project-row injection, `orchestrator.py` herd→capex. 14/14 tests pass (6 legacy Priority 3 + 8 new Priority 2). `grand_total` / `depreciation_*_monthly` invariants preserved for `loans.py`/`cashflow.py`/`pnl.py`. **Pending Railway deploy** (commit+push). Не marked prod-ready до успешного deploy + re-verify (process fix from Phase 1). |
 
 ---
 
@@ -1948,4 +1949,47 @@ as part of phase completion**, then re-verify with `cross_check.sh` + a targeted
 information_schema query.
 
 **Next:** Phase 2 (Backend Agent) unblocked. See plan §2.
+
+---
+
+### ADR-CAPEX-01 — Phase 2 sign-off (2026-04-17)
+
+**Architect verdict:** ✅ APPROVED — code quality pass. Prod deploy pending.
+
+**Scope delivered (Backend Agent, 7 files, +613/-29 lines):**
+- `consulting_engine/app/engine/capex.py` (+448) — dispatcher `calculate_capex(enriched, refs, herd=None)` routes to Priority 2 data-driven path when `refs['infrastructure_norms']` is populated, else Priority 3 legacy. `_data_driven_calculate_capex` implements the 6 cost_model cases (area_per_head / fixed_area / per_head_unit / fixed_qty / fixed_per_project / per_area_ha), full override chain (include / qty_override / material_override / unit_cost_override), calving_scenario_multiplier, and per-item depreciation aggregation. `_legacy_calculate_capex` preserves the pre-ADR body verbatim for Тест 7 and pre-seed projects.
+- `consulting_engine/app/models/schemas.py` (+11) — `ProjectInput` +3 fields: `construction_material_enclosed` (default "sandwich"), `construction_material_support` (default "light_frame"), `infra_items_override: list[dict]` (default []).
+- `consulting_engine/app/api/calculate.py` (+23) — after loading feed refs, SELECT the 3 new columns from `consulting_projects` row and override `input_params` before `run_calculation`. DB wins because `rpc_save_project_infra_override` writes to the table without going through the wizard payload.
+- `consulting_engine/app/engine/orchestrator.py` (+2 lines delta) — `calculate_capex(enriched, refs, herd=herd)`. Additive with default — legacy callers unaffected.
+- `consulting_engine/tests/fixtures/capex_seed.json` (NEW) — mirrors the d09 seed (4 materials + 1 surcharges + 53 infra_norms) so tests don't depend on a live DB connection.
+- `consulting_engine/tests/test_capex_staff_wacc.py` (+144) — `TestCapexDataDriven` class with 8 coverage points: Excel parity, capacity scaling (×10 for area items), calving multiplier (FAC-012 Летний 0.5×), include=false override, material_override (brick → 120M), pasture area scaling (6000 ha → 4 поилки + 2 скважины), legacy fallback path, bespoke unit_cost_per_m2_override (FAC-009 stays at 3450).
+
+**Invariants preserved (verified via grep):**
+- `cashflow.py:52` reads `capex["grand_total"]` → present in both paths.
+- `loans.py:45` reads `capex["grand_total"]` → present.
+- `pnl.py:55-56` reads `capex["depreciation_buildings_monthly"]` / `capex["depreciation_equipment_monthly"]` → present in both paths (data-driven computes from per-item `depreciation_years`; legacy uses 20-year-buildings / 5-year-equipment blanket).
+
+**Additive new keys (Priority 2 only):** `depreciation_per_block`, `priority_used`, `materials_used`. Legacy path does not emit them — UI must treat them as optional (banner for pre-recalc projects, plan §3.2).
+
+**Tests (local Python 3.9 isolated import):**
+- `TestCapex` legacy: 6/6 ✅ (empty refs → Priority 3 → unchanged Excel hardcode)
+- `TestCapexDataDriven`: 8/8 ✅
+- Non-Staff full suite (feeding/herd/timeline/wacc/taxonomy): 40 passed, 3 skipped (taxonomy RPC), 3 xfailed (pre-existing). 0 new failures.
+- `TestStaff` 6/6 failures — **pre-existing** (D-FEED-2 drift: 7 default positions vs test expects 5 → total_fte 5.3 vs 3.3). Out of Phase 2 scope; flagged as tech debt.
+
+**Deviations from plan §2 — none critical:**
+1. `Optional[dict]` used instead of `dict | None` for local Python 3.9 test compat. Railway runs 3.12 (`runtime.txt`) where both forms are equivalent. `revenue.py` already uses `dict | None` → pre-existing inconsistency, not in Phase 2 scope.
+2. Float precision 4-decimal on area norms (1.6667, 6.6667, ...) yields +~1,600 ₸ drift on 282.4M grand_total = 0.00057%. Inside plan §2.5 tolerance (±1%) by 3 orders of magnitude.
+3. `calculate.py` project-row fetch wraps in try/except to silently fall back to request defaults if SELECT fails. Matches Feed Cost Engine Audit pattern (lenient on read, strict on write).
+
+**Deploy plan (process fix from Phase 1 applies):**
+
+The db-agent process fix was: «file touched + `cross_check` ≠ deployed». Same rule extends to Backend Agent. Phase 2 will be ✅ Done **in prod** only after:
+
+1. Commit current diff: `consulting_engine/**` + `SPRINT_STATUS.md` + `DECISIONS_LOG.md` + `.claude/skills/db-agent/SKILL.md`.
+2. Push to `main` → Railway `consulting-engine` service autodeploys.
+3. Verify deploy: hit `/health` or re-trigger calc on project Тест 7, confirm version results include `priority_used=2` (not 3), confirm `grand_total` within 1% of 282.4M.
+4. Only then update SPRINT_STATUS Phase 2 status to "✅ Done + deployed".
+
+**Next:** Phase 3 (UI Agent) unblocked **after deploy + verification**, not before. Phase 4 (admin page) can run in parallel with Phase 3 since it only consumes Phase 1 RPCs (already deployed).
 

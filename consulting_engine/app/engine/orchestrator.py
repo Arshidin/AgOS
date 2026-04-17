@@ -65,8 +65,8 @@ def run_calculation(
     # 3.5. Расчёт веса реализации (needs herd — birth/sale events)
     weight = calculate_weight_model(timeline, enriched, herd)
 
-    # 4. CAPEX
-    capex = calculate_capex(enriched, refs)
+    # 4. CAPEX (ADR-CAPEX-01: herd passed so norms with applies_to='cows_eop' etc. resolve)
+    capex = calculate_capex(enriched, refs, herd=herd)
 
     # 5. ФОТ
     staff = calculate_staff(timeline, enriched, refs)
