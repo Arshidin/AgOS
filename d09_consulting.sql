@@ -958,7 +958,7 @@ create or replace function public.rpc_save_project_infra_override(
     p_project_id      uuid,
     p_enclosed        text    default null,
     p_support         text    default null,
-    p_overrides       jsonb   default '[]'::jsonb
+    p_overrides       jsonb   default null
 )
 returns boolean
 language plpgsql volatile security definer
@@ -996,7 +996,10 @@ begin
         raise exception 'MATERIAL_NOT_FOUND: support=%', p_support using errcode = 'P0001';
     end if;
 
-    if jsonb_typeof(p_overrides) <> 'array' then
+    -- ADR-CAPEX-02: p_overrides is NULL-preserve (wizard can change materials
+    -- without touching CapexTab's overrides). NULL bypasses validation + keeps
+    -- existing column value via coalesce() below.
+    if p_overrides is not null and jsonb_typeof(p_overrides) <> 'array' then
         raise exception 'INVALID_OVERRIDES: must be a JSON array' using errcode = 'P0001';
     end if;
 
@@ -1007,7 +1010,7 @@ begin
     update public.consulting_projects
     set construction_material_enclosed = coalesce(p_enclosed, construction_material_enclosed),
         construction_material_support  = coalesce(p_support,  construction_material_support),
-        infra_items_override           = p_overrides,
+        infra_items_override           = coalesce(p_overrides, infra_items_override),
         needs_recalc                   = true,
         updated_at                     = now()
     where id = p_project_id;
@@ -1027,7 +1030,8 @@ begin
             'project_id',     p_project_id,
             'enclosed',       p_enclosed,
             'support',        p_support,
-            'override_count', jsonb_array_length(p_overrides)
+            -- ADR-CAPEX-02: override_count is null when overrides weren't touched
+            'override_count', case when p_overrides is null then null else jsonb_array_length(p_overrides) end
         ),
         false
     );
@@ -1037,8 +1041,12 @@ end;
 $$;
 
 comment on function public.rpc_save_project_infra_override(uuid, uuid, text, text, jsonb) is
-    'RPC-CAPEX-5 | ADR-CAPEX-01 | Phase 1
+    'RPC-CAPEX-5 | ADR-CAPEX-01 + ADR-CAPEX-02 NULL-preserve
      Saves project-level CAPEX override: material choice + per-item override array.
+     p_overrides=null   → preserves existing overrides (wizard changes materials without reset).
+     p_overrides=[]     → resets overrides to empty.
+     p_overrides=[...]  → replaces overrides with new array.
+     p_enclosed / p_support follow same coalesce pattern (null=preserve).
      Sets needs_recalc=true. Emits consulting.capex_override.saved.
      Override shape: [{code, include?, qty_override?, material_override?, unit_cost_override?}]';
 
@@ -1149,6 +1157,54 @@ on conflict (category, code, valid_from) do update
 
 -- ============================================================
 -- END ADR-CAPEX-01 Phase 1
+-- ============================================================
+
+
+-- ============================================================
+-- ADR-CAPEX-02 (2026-04-18): tech debt fixes from ADR-CAPEX-01
+--   L-P3-WIZARD: rpc_save_project_infra_override.p_overrides → NULL-preserve
+--                (inline edits above, see RPC-CAPEX-5 comment for semantics)
+--   L-P4-1:      + rpc_list_capex_surcharges (new lookup RPC, below)
+-- ============================================================
+
+-- RPC-CAPEX-6: list active capex_surcharges (replaces direct .from() read in UI)
+create or replace function public.rpc_list_capex_surcharges()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+begin
+    return coalesce((
+        select jsonb_agg(
+            jsonb_build_object(
+                'id',         crd.id,
+                'code',       crd.code,
+                'data',       crd.data,
+                'valid_from', crd.valid_from,
+                'valid_to',   crd.valid_to
+            ) order by crd.valid_from desc
+        )
+        from public.consulting_reference_data crd
+        where crd.category = 'capex_surcharges'
+          and (crd.valid_to is null or crd.valid_to > current_date)
+    ), '[]'::jsonb);
+end;
+$$;
+
+comment on function public.rpc_list_capex_surcharges() is
+    'RPC-CAPEX-6 | ADR-CAPEX-02 | 2026-04-18
+     Lists active capex_surcharges rows (normally 1 row, code="default").
+     STABLE, readable to authenticated. Replaces direct .from() read in
+     CapexSurchargesTab (L-P4-1 tech debt fix).';
+
+-- Register RPC-CAPEX-6
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_list_capex_surcharges', 'rpc_list_capex_surcharges', null, 'd09_consulting.sql (ADR-CAPEX-02)', 'RPC-CAPEX-6: List active capex_surcharges rows (L-P4-1 fix)')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+-- ============================================================
+-- END ADR-CAPEX-02
 -- ============================================================
 
 
