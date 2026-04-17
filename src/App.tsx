@@ -54,6 +54,7 @@ import { OrgManagement } from '@/pages/admin/orgs/OrgManagement'
 import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
 import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
 import { FeedReferenceAdmin, CatalogTab as FeedCatalogTab, PricesTab as FeedPricesTab, NormsTab as FeedNormsTab } from '@/pages/admin/feeds/FeedReferenceAdmin'
+import { CapexReferenceAdmin, CapexMaterialsTab, CapexNormsTab, CapexSurchargesTab } from '@/pages/admin/capex/CapexReferenceAdmin'
 import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
 import { ProjectPage } from '@/pages/admin/consulting/ProjectPage'
 import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
@@ -149,6 +150,12 @@ function App() {
                       <Route path="catalog" element={<FeedCatalogTab />} />
                       <Route path="prices" element={<FeedPricesTab />} />
                       <Route path="norms" element={<FeedNormsTab />} />
+                    </Route>
+                    {/* ADR-CAPEX-01 Phase 4: admin CAPEX reference (materials / norms / surcharges) */}
+                    <Route path="capex" element={<CapexReferenceAdmin />}>
+                      <Route path="materials" element={<CapexMaterialsTab />} />
+                      <Route path="norms" element={<CapexNormsTab />} />
+                      <Route path="surcharges" element={<CapexSurchargesTab />} />
                     </Route>
                     <Route path="consulting" element={<ConsultingDashboard />} />
                     <Route path="consulting/:projectId" element={<ProjectPage />}>

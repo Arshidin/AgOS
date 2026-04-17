@@ -1994,3 +1994,55 @@ The db-agent process fix was: «file touched + `cross_check` ≠ deployed». Sam
 
 **Next:** Phase 3 (UI Agent) unblocked **after deploy + verification**, not before. Phase 4 (admin page) can run in parallel with Phase 3 since it only consumes Phase 1 RPCs (already deployed).
 
+---
+
+### 2026-04-18: DEF-REVENUE-PRICES-01 — Sale prices moved from hardcode to project parameters
+
+**Domain:** Consulting engine — revenue module (P8 compliance)
+
+**WHAT:**
+Выручка от продажи КРС больше не использует захардкоженный словарь `BASE_PRICES` в коде [`consulting_engine/app/engine/revenue.py`](consulting_engine/app/engine/revenue.py). Цены вынесены в 4 поля `ProjectInput`:
+- `price_steer_own_per_kg` (default **1800** тг/кг) — было 2200
+- `price_heifer_breeding_per_kg` (default **2200** тг/кг) — без изменений
+- `price_cow_culled_per_kg` (default **1800** тг/кг) — без изменений
+- `price_bull_culled_per_kg` (default **2000** тг/кг) — было 2200
+
+Пробрасываются через `enriched_input["price_params"]` по аналогии с `weight_params`.
+
+Заодно убран тихий fallback на константы `STEER_WEIGHT=331` / `HEIFER_WEIGHT=267`: если `weight_model` не заполнил вес для месяца продажи — теперь `ValueError` вместо скрытого завышения выручки.
+
+**WHY:**
+Обнаружено при аудите по запросу Арши «ощущение, что выручка от собственных бычков завышена». Три источника завышения:
+1. Плоская цена 2200 тг/кг ЖВ на все категории — на молодняк 10-11 мес. рыночная цена КЗ 1600-1800 тг/кг (стокер для откормочника, не готовый на убой). Систематическое завышение 22-37%.
+2. Fallback `STEER_WEIGHT=331` кг маскировал возможные баги `weight_model` (реальный расчётный вес зимнего отёла к декабрю года 1 = ~295 кг, летнего = ~175 кг; 331 завышал на 12-89%).
+3. Нарушение P8 «Standards as Data, Not Code» — изменение цены требовало релиза кода.
+
+**Alternatives considered:**
+1. Справочник `price_reference` в БД (версионирование по годам/регионам) — правильное решение, но требует ADR + миграцию + RPC + админку. Отложено как отдельный ADR.
+2. Калибровать defaults под 2200 «для обратной совместимости» — отвергнуто (повторяет ошибку D-WEIGHT-1, подгонка под неточные данные).
+3. Оставить fallback со «смягчённым» warning-логом — отвергнуто: молча проглоченный баг = немая ошибка в финмодели инвестора (HS-5 spirit).
+
+**Files changed:**
+- [consulting_engine/app/models/schemas.py](consulting_engine/app/models/schemas.py:88-103) — 4 новых Field с валидацией 500-5000 тг/кг
+- [consulting_engine/app/engine/input_params.py](consulting_engine/app/engine/input_params.py:54-60) — `price_params` dict
+- [consulting_engine/app/engine/revenue.py](consulting_engine/app/engine/revenue.py) — убран `BASE_PRICES`/`STEER_WEIGHT`/`HEIFER_WEIGHT`/`COW_CULLED_WEIGHT`/`BULL_CULLED_WEIGHT`, чтение из `prices["..."]` + `wp["..."]`, `ValueError` при отсутствии веса молодняка
+- [src/pages/admin/consulting/ProjectWizard.tsx](src/pages/admin/consulting/ProjectWizard.tsx) — 4 поля в `WizardParams`, defaults, загрузка из saved params, передача в `calculateProject`, новая секция «Цены реализации» в view-mode + 4 `WizardField` в edit-mode Step 3 (Технология)
+
+**Consequences:**
+- ✅ Investor может откалибровать цены под конкретный рынок/регион/сценарий без релиза.
+- ✅ Вес молодняка гарантированно из динамического расчёта — любой баг `weight_model` упадёт громко.
+- ✅ P8 соблюдён на уровне параметров проекта (не на уровне глобального справочника — это следующий шаг).
+- ⚠️ Ретроспективный сравнительный анализ: existing versions с saved params без `price_*` полей подхватят defaults (1800/2200/1800/2000) — это НЕ те же цифры, что были раньше (2200/2200/1800/2200). Пересчёт старых проектов даст **меньшую** выручку бычков (-18%) и быков-культ (-9%). Ожидаемо и правильно.
+
+**Verification:**
+- Python tests (herd/feeding/timeline/taxonomy): 22 passed, 3 skipped, 3 xfailed. 0 новых падений.
+- `TypeError` от `dict | None` на локальном Python 3.9 — pre-existing, Railway runs 3.12.
+- TypeScript `tsc --noEmit`: clean.
+- Vite HMR: 0 errors в консоли preview после правок.
+- Pre-existing payroll test failure (`TestStaff::test_total_monthly_payroll_month1`) подтверждено сломано ДО моих правок (git stash проверка).
+
+**Known tech debt:**
+- `price_reference` таблица в БД (D-WEIGHT-2 style) — следующий ADR.
+- Inflation 10.5%/год всё ещё захардкожен в `CPI_ANNUAL` (revenue.py:24). Следующий шаг: вынести как параметр проекта (отдельная правка).
+- Цена зависит от возраста продажи (6-мес. стокер ≠ 11-мес. отъёмыш ≠ 18-мес. откорм). Сейчас одна цена. Будущее: цена per-strategy.
+

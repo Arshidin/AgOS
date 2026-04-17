@@ -603,28 +603,42 @@ cogs_fattening[t] = sum(
 ### 4.8.1 Выручка (строки 172–198)
 
 ```python
-# Вес = головы × средний_вес_кг
-weight_heifers[t]  = CFC.heifer_weight  * sold_heifers[t]   # из CFC!AI106
-weight_cows[t]     = CFC.cow_weight     * sold_cows[t]      # из CFC!AI103 = 600 кг
-weight_bulls[t]    = 750                * sold_bulls[t]      # константа
-weight_steers[t]   = CFC.steer_weight   * sold_steers[t]    # из CFC!AI107
+# Вес молодняка — динамически из weight_model (D-WEIGHT-1, 2026-04-09):
+# W_sale = birth_weight + Σ(daily_gain[season] × days_in_month)
+weight_heifers[t]  = weight_model.heifer_transfer_weight[t] * sold_heifers[t]
+weight_steers[t]   = weight_model.steer_sale_weight[t]      * sold_steers[t]
 
-# Цены (тг/кг), индексация раз в год через ИПЦ
-base_prices = {heifer: 2200, cow_culled: 1800, bull_culled: 2200, steer: 2200, purchased_sell: 2200, purchased_buy: 1800}
+# Вес выбракованных — статично из ProjectInput.weight_params:
+weight_cows[t]     = weight_params.cow_culled_weight_kg  * sold_cows[t]     # default 600 кг
+weight_bulls[t]    = weight_params.bull_culled_weight_kg * sold_bulls[t]    # default 750 кг
 
-# Выручка = цена × вес / 1000 + субсидии
+# Цены (тг/кг ЖВ) — из ProjectInput.price_params (DEF-REVENUE-PRICES-01, 2026-04-18).
+# Defaults откалиброваны под рынок КЗ 2026 (было 2200 везде):
+base_prices = {
+    "steer_own":       1800,  # молодняк 10-12 мес, стокер для откормочника
+    "heifer_breeding": 2200,  # племенные тёлки (премия за разведение)
+    "cow_culled":      1800,  # выбракованные коровы (мясо низкой категории)
+    "bull_culled":     2000,  # выбракованные быки (тяжёлая туша)
+}
+
+# Выручка = цена × вес × (1 + ИПЦ)^(год-1) / 1000 + субсидии
+# CPI_ANNUAL = 0.105 (применяется с года 2)
 revenue[t] = sum(
     price_heifer[t] * weight_heifers[t] / 1000,
     price_cow[t] * weight_cows[t] / 1000,
     price_bull[t] * weight_bulls[t] / 1000,
     price_steer[t] * weight_steers[t] / 1000,
-    price_purchased[t] * weight_purchased[t] / 1000,
     subsidy_purchase[t] if subsidy_switch == 1 else 0,
     subsidy_breeding[t] if subsidy_switch == 1 else 0,
     subsidy_bulls[t] if subsidy_switch == 1 else 0,
     subsidy_capex[t] if subsidy_switch == 1 else 0,
 )
 ```
+
+> **P8 — Standards as Data:** цены и веса выбракованных — параметры проекта в `ProjectInput`,
+> а не хардкод в коде. Цены молодняка, тёлок плем., коров-культ, быков-культ настраиваются
+> инвестором через ProjectWizard (view-mode: секция «Цены реализации»; edit-mode: Step 3).
+> Следующий шаг P8: `price_reference` таблица в БД с версионированием по годам/регионам (ADR TBD).
 
 ### 4.8.2 Субсидии (строки 478–483)
 
