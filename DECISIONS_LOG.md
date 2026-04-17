@@ -1669,3 +1669,40 @@ Inner `_calc_group` function called `_is_pasture_month(0, m)` with hardcoded `0`
 
 Вместо 100 906 — ожидается 14k–40k в зависимости от источника.
 
+
+---
+
+### 2026-04-17: DEF-RATION-COVERAGE-01 — RationTab coverage counts by target_code
+
+**Trigger (CEO):** «что значит 5 из 8 категорий? А что за ещё 3 категории?»
+
+**Root cause:** `relevantCategories` considered every `animal_category_code` from
+`feeding_group` taxonomy as a separate slot. For project with 200 cows + 14 bulls
+the UI reported 8 «relevant» codes (COW, COW_CULL, BULL_BREEDING, BULL_CULL,
+HEIFER_YOUNG, HEIFER_PREG, STEER, BULL_CALF) and counted 5 saved rations
+(COW, SUCKLING_CALF, HEIFER_YOUNG, STEER, BULL_BREEDING), warning that 3 are
+«without ration». In reality these are lifecycle phases of the same animals:
+COW_CULL == COW before culling, HEIFER_PREG == HEIFER_YOUNG pre-calving, etc.
+`feeding_model.py` already collapses them via `max(cpd)` in Priority 1 — the UI
+was out of sync.
+
+**Fix:** RationTab now groups feeding_group rows by `target_code` (5 canonical
+groups: COW, SUCKLING_CALF, HEIFER_YOUNG, STEER, BULL_BREEDING) and checks
+coverage by "any member code has a saved ration". Hardcoded fallback mirrors
+the 5 groups when taxonomy RPC is unreachable.
+
+**Files:** `src/pages/admin/consulting/tabs/RationTab.tsx`
+- Replaced `relevantCategories: AnimalCategory[]` with `relevantGroups: {target_code, member_codes}[]`
+- Replaced `rationsByCategory` (keyed by id) with `rationByCode` (keyed by animal_category_code)
+- `coveredGroups` = groups where ANY member has a saved ration
+- `totalCogsMontly` = per-group ration cost × headcount of that group (no double-count)
+- Removed dead `{false && …}` NASEM listing block (100 LOC) + unused imports
+  (`getRelevantCategories`, `getDefaultWeight`, `getDefaultObjective`, `AnimalCategory` type,
+  `CheckCircle`, `Circle`, `Calculator`, `ChevronDown`, `ChevronUp`, `NUTRIENT_LABELS`,
+  `expandedId` state, `weight` hook, `allCategories` hook). CalcDialog component preserved
+  for potential future revival (entry point still closed per ADR-FEED-05).
+
+**Acceptance:** project "Тест 7" (da3e54d6): UI now shows «4 из 4 — все категории»
+(was «5 из 8»). Saved SUCKLING_CALF ration correctly ignored because herd has
+zero calves in all 120 months → SUCKLING_CALF target_code not in relevantGroups.
+

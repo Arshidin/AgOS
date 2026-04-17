@@ -14,10 +14,7 @@ import { useRpc } from '@/hooks/useRpc'
 import { useAnimalCategoryMappings } from '@/hooks/useAnimalCategoryMappings'
 import { useProjectData } from './usProjectData'
 import {
-  getRelevantCategories,
   getHeadCount,
-  getDefaultWeight,
-  getDefaultObjective,
   CATEGORY_CODE_TO_HERD,
 } from './herdCategoryMapping'
 import { SimpleRationEditor, DEFAULT_RATIONS, FEED_NAMES, RationsState } from './SimpleRationEditor'
@@ -28,19 +25,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-// Skeleton import removed (was used only in NASEM CalcDialog mode — DEF-RATION-07)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { CheckCircle, Circle, Calculator, ChevronDown, ChevronUp, TrendingDown } from 'lucide-react'
+import { TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface AnimalCategory {
-  id: string
-  code: string
-  name_ru: string
-  sort_order: number
-}
 
 interface FeedItem {
   id: string
@@ -72,10 +61,6 @@ interface ConsultingRation {
   created_at: string
 }
 
-const NUTRIENT_LABELS: Record<string, string> = {
-  dm_kg: 'СВ', me_mj: 'ОЭ', cp_g: 'СП', ndf_pct: 'НДК', ca_g: 'Ca', p_g: 'P',
-}
-
 const OBJECTIVES = [
   { value: 'growth', label: 'Рост' },
   { value: 'maintenance', label: 'Поддержание' },
@@ -90,7 +75,7 @@ export function RationTab() {
   const { projectId } = useParams<{ projectId: string }>()
   const { organization } = useAuth()
   // ADR-FEED-05: Simple is the only writer. NASEM is advisory via 🧮 in SimpleRationEditor.
-  // DEF-RATION-07: NASEM toggle removed — CalcDialog code preserved below but entry point closed.
+  // DEF-RATION-07: NASEM toggle removed — CalcDialog component still imported for 🧮 path.
   const [calcDialog, setCalcDialog] = useState<{
     categoryId: string
     categoryName: string
@@ -99,7 +84,6 @@ export function RationTab() {
     defaultHeadCount: number
     defaultObjective: string
   } | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   // Live rations state — initialised to DEFAULT_RATIONS, updated by SimpleRationEditor
   // via onRationsChange on every cell edit. Used for the feed-volume preview tables.
   const [liveRations, setLiveRations] = useState<RationsState>(
@@ -110,12 +94,7 @@ export function RationTab() {
 
   const { results, loading: projectLoading } = useProjectData()
   const herd = results?.herd
-  const weight = results?.weight
 
-  const { data: allCategories } = useRpc<AnimalCategory[]>(
-    'rpc_list_animal_categories',
-    { p_at_date: null, p_include_deprecated: false },
-  )
   const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
   const { data: rations, isLoading, refetch } = useRpc<ConsultingRation[]>(
     'rpc_get_consulting_rations',
@@ -149,37 +128,83 @@ export function RationTab() {
     return result
   }, [rations])
 
-  // DEF-RATION-05: derive relevant categories from feeding_group taxonomy (single source)
-  const relevantCategories = useMemo(() => {
-    if (!allCategories) return []
+  // DEF-RATION-COVERAGE-01 (2026-04-17): coverage считается по unique target_code
+  // (feeding_group taxonomy), а не по animal_category_code. Раньше UI показывал
+  // «5 из 8 — 3 без рациона», хотя все 5 feeding групп покрыты: COW_CULL/BULL_CULL/
+  // HEIFER_PREG/BULL_CALF — это фазы тех же животных, что ест рацион COW/BULL/
+  // HEIFER_YOUNG/STEER; feeding_model.py уже объединяет их в одну feeding group
+  // через max(cpd). Теперь UI согласован с movimentом голов в engine.
+  const relevantGroups = useMemo(() => {
     if (!feedingGroupData || feedingGroupData.length === 0) {
-      // fallback: use old static-mapping logic
-      return getRelevantCategories(herd, allCategories)
+      // Fallback: derive groups from static CATEGORY_CODE_TO_HERD (5 default target codes)
+      const fallback = [
+        { target_code: 'COW',           member_codes: ['COW', 'COW_CULL', 'MIXED'] },
+        { target_code: 'SUCKLING_CALF', member_codes: ['SUCKLING_CALF', 'YOUNG_CALF'] },
+        { target_code: 'HEIFER_YOUNG',  member_codes: ['HEIFER_YOUNG', 'HEIFER_PREG'] },
+        { target_code: 'STEER',         member_codes: ['STEER', 'BULL_CALF', 'OX'] },
+        { target_code: 'BULL_BREEDING', member_codes: ['BULL_BREEDING', 'BULL_CULL'] },
+      ]
+      if (!herd) return fallback
+      return fallback.filter(g =>
+        g.member_codes.some(code => {
+          const m = CATEGORY_CODE_TO_HERD[code]
+          if (!m) return false
+          const grp = (herd as Record<string, Record<string, number[]>>)[m.group]
+          const arr = grp?.[m.metric]
+          return Array.isArray(arr) && arr.some(v => v > 0)
+        }),
+      )
     }
-    // feeding_group taxonomy defines which categories are feeding groups
-    const feedingCodes = new Set(
-      feedingGroupData.filter(r => r.is_primary).map(r => r.animal_category_code)
+
+    // Group feeding_group rows by target_code → list of member animal_category_codes
+    const byTarget = new Map<string, string[]>()
+    for (const row of feedingGroupData) {
+      if (!row.is_primary) continue
+      const arr = byTarget.get(row.target_code) ?? []
+      arr.push(row.animal_category_code)
+      byTarget.set(row.target_code, arr)
+    }
+    const groups = [...byTarget.entries()].map(([target_code, member_codes]) => ({
+      target_code,
+      member_codes,
+    }))
+
+    // Keep only groups where at least one member has non-zero heads in the herd
+    if (!herd) return groups
+    return groups.filter(g =>
+      g.member_codes.some(code => {
+        const m = CATEGORY_CODE_TO_HERD[code]
+        if (!m) return false
+        const grp = (herd as Record<string, Record<string, number[]>>)[m.group]
+        const arr = grp?.[m.metric]
+        return Array.isArray(arr) && arr.some(v => v > 0)
+      }),
     )
-    const feedingCategories = allCategories.filter(c => feedingCodes.has(c.code))
-    // Further filter by herd data if available
-    return getRelevantCategories(herd, feedingCategories)
-  }, [allCategories, feedingGroupData, herd])
+  }, [feedingGroupData, herd])
 
   if (!orgId || !projectId) return null
 
-  const rationsByCategory = new Map<string, ConsultingRation>(
-    (rations || []).map(r => [r.animal_category_id, r])
+  const rationByCode = new Map<string, ConsultingRation>(
+    (rations || []).map(r => [r.animal_category_code, r])
   )
 
-  const totalCategories = relevantCategories.length
-  const rationCount = rationsByCategory.size
-  const totalCogsMontly = [...rationsByCategory.entries()].reduce(
-    (sum, [catId, r]) => {
-      const cat = relevantCategories.find(c => c.id === catId)
-      const headCount = cat ? Math.round(getHeadCount(herd, cat.code)) : 1
-      return sum + r.results.total_cost_per_month * headCount
-    }, 0
+  // A feeding group is "covered" if ANY of its member codes has a saved ration.
+  const coveredGroups = relevantGroups.filter(g =>
+    g.member_codes.some(c => rationByCode.has(c))
   )
+  const totalCategories = relevantGroups.length
+  const rationCount = coveredGroups.length
+
+  // COGS per feeding group = ration × head count of the target group (taken once).
+  // Prefer ration saved for target_code itself; fallback to any member's ration.
+  const totalCogsMontly = coveredGroups.reduce((sum, g) => {
+    const ration =
+      rationByCode.get(g.target_code) ??
+      g.member_codes.map(c => rationByCode.get(c)).find(Boolean)
+    if (!ration) return sum
+    const headCount = Math.round(getHeadCount(herd, g.target_code))
+    return sum + ration.results.total_cost_per_month * headCount
+  }, 0)
 
   return (
     <div className="page space-y-4">
@@ -353,7 +378,7 @@ export function RationTab() {
 
         const sourceLabel = hasEngineGroups || hasEngineAnnual
           ? null
-          : rationsByCategory.size > 0
+          : rationByCode.size > 0
             ? 'сохранённые рационы'
             : 'нормативные значения'
 
@@ -443,121 +468,8 @@ export function RationTab() {
         )
       })()}
 
-      {/* NASEM CalcDialog mode (preserved, entry point closed per ADR-FEED-05 / DEF-RATION-07) */}
-      {false && !isLoading && (
-        <div className="space-y-3">
-          {relevantCategories.map(cat => {
-            const existing = rationsByCategory.get(cat.id)
-            const isExpanded = expandedId === cat.id
-
-            return (
-              <Card key={cat.id} className="overflow-hidden">
-                <CardHeader className="py-3 px-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {existing
-                        ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-                        : <Circle className="w-4 h-4 text-muted-foreground shrink-0" />}
-                      <div>
-                        <span className="font-medium text-sm">{cat.name_ru}</span>
-                        <span className="ml-2 font-mono text-xs text-muted-foreground">{cat.code}</span>
-                        {existing && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            v{existing.version_number} · {new Date(existing.created_at).toLocaleDateString('ru-RU')}
-                          </span>
-                        )}
-                        {herd && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            · {Math.round(getHeadCount(herd, cat.code))} гол. (среднегод.)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {existing && (
-                        <>
-                          <Badge
-                            variant={existing.results.solver_status === 'optimal' ? 'default' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {existing.results.solver_status === 'optimal' ? 'Оптимально' :
-                             existing.results.solver_status === 'feasible' ? 'Допустимо' : 'Дефицит'}
-                          </Badge>
-                          <span className="text-sm font-medium">
-                            {existing.results.total_cost_per_day.toLocaleString('ru-RU')} ₸/гол/день
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => setExpandedId(isExpanded ? null : cat.id)}
-                          >
-                            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </Button>
-                        </>
-                      )}
-                      <Button
-                        size="sm"
-                        variant={existing ? 'outline' : 'default'}
-                        onClick={() => setCalcDialog({
-                          categoryId: cat.id,
-                          categoryName: cat.name_ru,
-                          categoryCode: cat.code,
-                          defaultWeight: getDefaultWeight(weight, cat.code),
-                          defaultHeadCount: Math.round(getHeadCount(herd, cat.code)) || 50,
-                          defaultObjective: getDefaultObjective(cat.code),
-                        })}
-                      >
-                        <Calculator className="w-3 h-3 mr-1" />
-                        {existing ? 'Пересчитать' : 'Рассчитать'}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {isExpanded && existing && (
-                  <CardContent className="pt-0 pb-3 px-4">
-                    <div className="border-t border-border/50 pt-3 space-y-3">
-                      {/* Nutrients */}
-                      <div className="flex gap-2 flex-wrap">
-                        {Object.entries(existing.results.nutrients_met).map(([key, met]) => (
-                          <Badge
-                            key={key}
-                            variant={met ? 'default' : 'destructive'}
-                            className="text-xs"
-                          >
-                            {NUTRIENT_LABELS[key] ?? key} {met ? '✓' : '✗'}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      {/* Feed items */}
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-muted-foreground">Состав рациона</p>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                          {existing.items.map((item, i) => (
-                            <div key={i} className="flex items-center justify-between text-xs">
-                              <span className="font-mono text-muted-foreground">{item.feed_item_code}</span>
-                              <span>{item.quantity_kg_per_day} кг/день</span>
-                              <span className="text-muted-foreground">{item.cost_per_day.toLocaleString('ru-RU')} ₸</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        Месячный COGS на голову: <strong>
-                          {existing.results.total_cost_per_month.toLocaleString('ru-RU')} ₸
-                        </strong>
-                      </div>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            )
-          })}
-        </div>
-      )}
+      {/* NASEM CalcDialog entry point closed per ADR-FEED-05 / DEF-RATION-07;
+          dialog component still mounted for the 🧮 "Подобрать" button inside SimpleRationEditor. */}
 
       {calcDialog && (
         <CalcDialog
