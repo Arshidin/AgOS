@@ -53,7 +53,9 @@ def calculate_opex(
     cogs_reproducer = [0.0] * n
     cogs_fattening = [0.0] * n
     admin_expenses = [0.0] * n
-    feed_cost_monthly = [0.0] * n  # Separate feed cost line for P&L breakdown
+    feed_cost_monthly = [0.0] * n       # total feed: repro + fatt (backward compat)
+    feed_cost_repro_monthly = [0.0] * n # reproducer feed (shown under cogs_reproducer in P&L)
+    feed_cost_fatt_monthly = [0.0] * n  # fattening feed (shown under cogs_fattening in P&L)
     admin_payroll_monthly = [0.0] * n  # Admin staff payroll for P&L detail
     land_tax_monthly = [0.0] * n  # Land tax for P&L detail
 
@@ -97,6 +99,8 @@ def calculate_opex(
         feed_cost_fatt = feeding.get("total_fattening", [0.0] * n)[t]
         feed_cost = feed_cost_repro + feed_cost_fatt
         feed_cost_monthly[t] = feed_cost
+        feed_cost_repro_monthly[t] = feed_cost_repro
+        feed_cost_fatt_monthly[t] = feed_cost_fatt
 
         # 206: Вет препараты (6500 тг/гол/год)
         vet_cost = -(6500 * avg_livestock * inf) / 1000 / 12
@@ -156,6 +160,8 @@ def calculate_opex(
         "total_cogs": total_cogs,
         "admin_expenses": admin_expenses,
         "feed_cost": feed_cost_monthly,
+        "feed_cost_repro": feed_cost_repro_monthly,
+        "feed_cost_fatt": feed_cost_fatt_monthly,
         "admin_payroll": admin_payroll_monthly,
         "land_tax": land_tax_monthly,
         "detail": {

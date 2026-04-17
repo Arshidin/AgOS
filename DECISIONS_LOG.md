@@ -1706,3 +1706,52 @@ the 5 groups when taxonomy RPC is unreachable.
 (was «5 из 8»). Saved SUCKLING_CALF ration correctly ignored because herd has
 zero calves in all 120 months → SUCKLING_CALF target_code not in relevantGroups.
 
+
+---
+
+### 2026-04-17: DEF-CONSULTING-AUTH-01 — Priority 1 silently skipped due to UNAUTHORIZED
+
+**Trigger (CEO):** «Теперь очень тщательно проверь стоимость кормов, которая считается в P&L. Сейчас данные, откуда берутся для расчета расходов в P&L по кормам, мне не ясны.»
+
+**Root cause:** `rpc_get_consulting_rations` guarded entry with `fn_my_org_ids()/fn_is_admin()`.
+When Python engine calls this RPC via service_role key, `auth.uid()` returns null →
+`fn_my_org_ids()` returns `[]`, `fn_is_admin()` returns false → RPC raises
+`UNAUTHORIZED`. In `calculate.py` the call is wrapped in bare `except Exception: pass`
+(so nothing crashes), `consulting_rations` stays empty, and `calculate_feeding()`
+silently falls back to Priority 2 / Priority 3 — **user rations are never used**.
+
+Engine reported `_source='feed_consumption_norms'` even though 5 valid
+`ration_versions` rows with `is_current=true` existed for the project.
+
+**Why `rpc_save_consulting_ration` worked:** the same `fn_my_org_ids()` guard was
+already removed from the save RPC in an earlier commit (comment says «fn_my_org_ids()
+check removed — called from SECURITY DEFINER edge function via service role; project
+ownership check is sufficient and more reliable across all call contexts»). The
+read RPC was just overlooked.
+
+**Fix:** Removed `fn_my_org_ids()/fn_is_admin()` check from
+`rpc_get_consulting_rations`. Project ownership check `consulting_projects.id =
+p_consulting_project_id AND organization_id = p_organization_id` stays — it works
+uniformly from JWT web context (user gets only their org's projects via RLS on
+consulting_projects) and from service_role engine context (explicit
+`p_organization_id` parameter filters results). No security regression.
+
+**Files:**
+- `d09_consulting.sql` (line ~700): dropped auth helpers from `rpc_get_consulting_rations`
+- DB: `create or replace function` applied directly via psycopg2
+
+**Acceptance (project Тест 7):** engine output after recalc:
+- `feeding._source = 'consulting_rations'` (was `'feed_consumption_norms'`)
+- `cows_12m year 1 = 11,326` тыс.тг (was 100,906 before DEF-FEED-NORMS-01; then 38,763 with P2 post-fix; now 11,326 with user's actual 318 тг/сут ration)
+- `feeding.total_reproducer = 12,901` тыс.тг y1
+- `feeding.total_fattening = 223` тыс.тг y1
+- `opex.feed_cost = 13,124` тыс.тг y1 (repro + fatt)
+
+**Follow-up: DEF-OPEX-FEED-SPLIT-01 (same session)** — `opex.feed_cost` included both
+reproducer and fattening feed but P&L displayed it as a single line indented under
+«Себестоимость репродуктора», understating the relation. Split `opex` return into
+`feed_cost_repro` and `feed_cost_fatt` (separate arrays), `feed_cost` kept for
+backward compat. `PnlTab` now shows «Корма (репродуктор)» under cogs_reproducer
+and «Корма (откорм)» under cogs_fattening. Math unchanged: `cogs_reproducer` /
+`cogs_fattening` / `total_cogs` values are the same as before the split.
+

@@ -94,7 +94,8 @@ interface PnlData {
   total_revenue: number[]
   // COGS
   cogs_reproducer: number[]
-  feed_cost: number[]
+  feed_cost_repro: number[]
+  feed_cost_fatt: number[]
   cost_vet: number[]
   cost_rfid: number[]
   cost_tags: number[]
@@ -147,7 +148,7 @@ function buildRows(d: PnlData): TableRow[] {
     sep,
     sec('СЕБЕСТОИМОСТЬ'),
     tot('Себестоимость репродуктора', d.cogs_reproducer),
-    row('Корма', d.feed_cost, true),
+    row('Корма (репродуктор)', d.feed_cost_repro, true),
     row('Вет препараты', d.cost_vet, true),
     row('RFID-чипы', d.cost_rfid, true),
     row('Ушные бирки', d.cost_tags, true),
@@ -156,7 +157,8 @@ function buildRows(d: PnlData): TableRow[] {
     row('Текущие расходы', d.cost_current, true),
     row('Прочие расходы', d.cost_other, true),
     sep,
-    row('Себестоимость доращивания', d.cogs_fattening),
+    tot('Себестоимость доращивания', d.cogs_fattening),
+    row('Корма (откорм)', d.feed_cost_fatt, true),
     tot('Итого себестоимость', d.total_cogs),
 
     // P&L calculation
@@ -201,7 +203,8 @@ function resolveMonthly(
     total_revenue: safeArr(revenue.total_revenue),
 
     cogs_reproducer: safeArr(opex.cogs_reproducer),
-    feed_cost: safeArr(opex.feed_cost),
+    feed_cost_repro: safeArr(opex.feed_cost_repro ?? opex.feed_cost),
+    feed_cost_fatt: safeArr(opex.feed_cost_fatt ?? opex.cogs_fattening),
     cost_vet: safeArr(opexDetail.cost_vet),
     cost_rfid: safeArr(opexDetail.cost_rfid),
     cost_tags: safeArr(opexDetail.cost_tags),
@@ -251,7 +254,8 @@ function resolveAnnual(
     total_revenue: a(revenue.total_revenue),
 
     cogs_reproducer: a(opex.cogs_reproducer),
-    feed_cost: a(opex.feed_cost),
+    feed_cost_repro: a(opex.feed_cost_repro ?? opex.feed_cost),
+    feed_cost_fatt: a(opex.feed_cost_fatt ?? opex.cogs_fattening),
     cost_vet: a(opexDetail.cost_vet),
     cost_rfid: a(opexDetail.cost_rfid),
     cost_tags: a(opexDetail.cost_tags),

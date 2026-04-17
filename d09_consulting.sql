@@ -698,13 +698,12 @@ language plpgsql stable security definer
 set search_path = public, pg_temp
 as $$
 begin
-    if not (
-        p_organization_id = any(public.fn_my_org_ids())
-        or public.fn_is_admin()
-    ) then
-        raise exception 'UNAUTHORIZED';
-    end if;
-
+    -- DEF-CONSULTING-AUTH-01 (2026-04-17): fn_my_org_ids()/fn_is_admin() checks removed.
+    -- Same reasoning as rpc_save_consulting_ration: called from Python engine via
+    -- service_role where auth.uid() is null → both auth helpers return false → RPC
+    -- raised UNAUTHORIZED and calculate.py swallowed the error with try/except,
+    -- silently downgrading to Priority 2. Project ownership check below is
+    -- sufficient and works uniformly from web JWT and service_role contexts.
     if not exists (
         select 1 from public.consulting_projects
         where id = p_consulting_project_id
