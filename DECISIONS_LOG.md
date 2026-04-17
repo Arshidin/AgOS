@@ -1796,3 +1796,101 @@ Python engine (Railway `consulting-engine`), UI (Vercel from main).
 **Next:** no open sprint work on this line. Next sprint per TAXONOMY plan → Slice 4
 proactive dispatch (see Previous Phase in SPRINT_STATUS.md).
 
+
+---
+
+### 2026-04-17: DEF-WEANING-01 + DEF-SQL-RESERVED-01 — tech debt payback
+
+**Trigger (CEO):** Tech debt discussion после Feed Cost Engine Audit sign-off.
+Two items worth fixing: (1) `calves.avg = 0` never — SUCKLING_CALF ration
+ignored, (2) `current_role` reserved-word blocks full deploy_sql.py re-apply.
+
+---
+
+**DEF-WEANING-01 (Significant) — suckling period feed cost**
+
+Model in `herd_turnover.py` distributes newborn calves 50/50 into heifers
+and steers at birth (`calves_eop = 0` always). Without cohort-aware feeding,
+the SUCKLING_CALF ration user saves in UI was multiplied by 0 and dropped,
+while newborn animals were charged HEIFER_YOUNG/STEER rations from day 1
+(~3× the price of suckling).
+
+**Estimated overstatement (project Тест 7, stable year 10):**
+- ~160 calves/year × 6 months suckling = ~80 head-years at the «wrong» rate
+- (HEIFER_YOUNG 250 тг − SUCKLING 83 тг) × 80 × 365 ≈ **4.9M тг/year overstated**
+
+**Fix:** `_calc_from_consulting_rations` and `_calc_from_norms` now split
+`heifers.avg` / `steers.avg` into two populations based on `weaning_months`
+(default 6, configurable input param):
+
+- `suckling_heifers[t] = Σ herd.heifers.from_calves[t-weaning+1..t]`
+- `suckling_steers[t]  = Σ herd.steers.from_calves[t-weaning+1..t]`
+- `weaned_heifers[t] = max(0, heifers.avg[t] - suckling_heifers[t])`
+- `weaned_steers[t]  = max(0, steers.avg[t]  - suckling_steers[t])`
+
+Apply:
+- `group_costs["molodnyak"] = SUCKLING_CALF ration × (suckling_heifers + suckling_steers)`
+- `group_costs["heifers_prev"] = HEIFER_YOUNG ration × weaned_heifers`
+- `group_costs["fattening_commercial"] = STEER ration × weaned_steers`
+
+**Invariants preserved:** total heifer-years × ration ≈ prior total minus the
+suckling-vs-weaned price delta. No double-count: suckling + weaned = avg.
+
+**Priority 3 untouched:** `test_feeding.py` compares against Excel CFC reference
+which uses CFC's own simplification. Modifying P3 would break reference tests
+with no practical benefit — projects always have norms or user rations.
+
+**Schema addition:** `ProjectInput.weaning_months: int (default=6, range 1..12)`
+in `consulting_engine/app/models/schemas.py`.
+
+**Measured effect (project Тест 7, 200 cows):**
+
+| Year | molodnyak (было / стало) | total_reproducer (было / стало) | total_fattening (было / стало) |
+|------|-------------------------|---------------------------------|--------------------------------|
+| Y1   | 0 → 427                 | 12,901 → 12,684                 | 223 → 0                        |
+| Y5   | 0 → 1,939               | 34,971 → 30,790                 | 2,870 → 1,411                  |
+| Y10  | 0 → 3,194               | 57,517 → 50,973                 | 4,728 → 2,325                  |
+
+**Files:**
+- `consulting_engine/app/models/schemas.py` — +`weaning_months` field
+- `consulting_engine/app/engine/feeding_model.py` — +`_suckling_heads()`; rewrite of
+  group_specs in P1 and P2; `calculate_feeding` forwards `weaning_months`
+
+---
+
+**DEF-SQL-RESERVED-01 (Significant) — `current_role` reserved-word**
+
+PostgreSQL's `current_role` is a reserved word (pg_catalog.current_role()
+returns the current session role). Un-quoted in `CREATE TABLE ai_conversations`
+(d01:900) and two d07 RPCs (`rpc_sync_conversation_role` UPDATE,
+`rpc_get_conversation_state` SELECT), it raised `syntax error at or near
+"current_role"` on any re-apply. Targeted psycopg2 migrations worked around it
+but full `deploy_sql.py` re-apply was blocked — a disaster-recovery risk.
+
+**Fix:** Quote as `"current_role"` everywhere it appears as an identifier:
+- d01:900 column definition + CHECK constraint
+- d01:2073 CHECK recreation after constraint drop
+- d01:2076 comment on column
+- d07:2786 UPDATE statement in rpc_sync_conversation_role
+- d07:2824 SELECT expression in rpc_get_conversation_state
+
+Column name in DB remains `current_role` (no migration needed — quoting only
+changes parser treatment, not stored name).
+
+**Acceptance:** `deploy_sql.py 5TzjEbAt7orN9Zdh` now passes d01:900. Full
+re-apply stops at a different pre-existing issue (`memberships_level_valid_for_type
+already exists` — constraint without IF NOT EXISTS). That's separate tech debt
+not in scope of this session.
+
+**Files:**
+- `d01_kernel.sql` — 4 occurrences quoted
+- `d07_ai_gateway.sql` — 2 occurrences quoted
+
+**Applied to prod:** 2026-04-17 via direct psycopg2 to aws-1-ap-south-1.
+
+---
+
+**Remaining tech debt (next session):**
+- `memberships_level_valid_for_type already exists` — CHECK constraint in d01
+  without IF NOT EXISTS idempotency. Full `deploy_sql.py` re-apply blocked.
+

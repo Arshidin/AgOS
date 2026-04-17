@@ -47,12 +47,20 @@ After redeploy, project shows end-to-end:
 
 `deploy_sql.py` DB_HOST updated from `aws-0-ap-south-1` to `aws-1-ap-south-1` (Supabase pooler migration — old host returned «Tenant or user not found»). Future SQL applies work off the new host.
 
-### Known tech debt (not blocking)
+### Tech debt payback (2026-04-17, same day)
+
+| Debt | Resolution | Commit |
+|------|-----------|--------|
+| DEF-SQL-RESERVED-01 — `current_role` reserved-word blocked full `deploy_sql.py` re-apply | Quoted as `"current_role"` in d01 (4 places) + d07 (2 places). Column name unchanged → no data migration. `deploy_sql.py` now passes d01:900. | `3e26181` |
+| DEF-WEANING-01 — `calves.avg = 0` → SUCKLING_CALF ration silently ignored, HEIFER/STEER ration overcharged for newborns (~4.9M тг/year overstated) | `_calc_from_consulting_rations` + `_calc_from_norms` split heifers/steers into suckling (first `weaning_months`=6) vs weaned. Suckling → molodnyak group with SUCKLING_CALF ration. New `ProjectInput.weaning_months`. Priority 3 untouched (CFC test parity). | `3e26181` |
+
+Acceptance (project Тест 7): `molodnyak` year-1 = 427 тыс.тг (was 0), year-10 = 3,194. `total_reproducer` year-10 reduced from 57,517 → 50,973 (-11%). `total_fattening` year-10 reduced from 4,728 → 2,325 (-51%). All money previously overcharged on newborn animals now correctly attributed to SUCKLING_CALF line.
+
+### Remaining tech debt (next session)
 
 | Issue | Severity | Owner |
 |-------|----------|-------|
-| `d01_kernel.sql:900` uses reserved word `current_role` in `ai_conversations` DDL — blocks full `deploy_sql.py` re-apply | Significant | DB Agent (Slice TBD) |
-| `.calves.avg = 0` for all 120 months in project Тест 7 (herd_turnover not generating calves from cows) — SUCKLING_CALF ration saved but never applied in P&L | Significant | Backend Agent (herd_turnover audit — TBD slice) |
+| d01 `memberships_level_valid_for_type` CHECK constraint lacks IF NOT EXISTS → full `deploy_sql.py` re-apply blocked on 2nd-attempt | Minor | DB Agent |
 
 ---
 
