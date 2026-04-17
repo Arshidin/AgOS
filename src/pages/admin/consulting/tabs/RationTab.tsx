@@ -120,6 +120,32 @@ export function RationTab() {
     { enabled: !!orgId && !!projectId }
   )
 
+  // Fix #1 (ADR-FEED-CLIENT-01): Convert saved rations from DB → RationsState so
+  // SimpleRationEditor seeds its state from DB values instead of DEFAULT_RATIONS.
+  // Reads pasture.items / stall.items written by DEF-RATION-01 save format.
+  const initialRations = useMemo<RationsState>(() => {
+    if (!rations || rations.length === 0) return {}
+    const result: RationsState = {}
+    for (const ration of rations) {
+      const code = ration.animal_category_code
+      const group: Record<string, { pasture: number; stall: number }> = {}
+      const pastureItems = (ration.results as any)?.pasture?.items ?? []
+      const stallItems   = (ration.results as any)?.stall?.items   ?? []
+      for (const item of pastureItems) {
+        const fc = item.feed_item_code as string
+        if (!group[fc]) group[fc] = { pasture: 0, stall: 0 }
+        group[fc]!.pasture = item.quantity_kg_per_day
+      }
+      for (const item of stallItems) {
+        const fc = item.feed_item_code as string
+        if (!group[fc]) group[fc] = { pasture: 0, stall: 0 }
+        group[fc]!.stall = item.quantity_kg_per_day
+      }
+      if (Object.keys(group).length > 0) result[code] = group
+    }
+    return result
+  }, [rations])
+
   // DEF-RATION-05: derive relevant categories from feeding_group taxonomy (single source)
   const relevantCategories = useMemo(() => {
     if (!allCategories) return []
@@ -168,6 +194,7 @@ export function RationTab() {
         orgId={orgId}
         onSaved={() => refetch()}
         onRationsChange={setLiveRations}
+        initialRations={initialRations}
       />
 
       {/* COGS Summary — visible in both modes (DEF-RATION-06) */}

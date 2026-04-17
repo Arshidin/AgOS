@@ -42,7 +42,7 @@ def calculate_herd_turnover(
     BULL_CULLING_ANNUAL = enriched_input.get("bull_culling_rate", 0.25)
     BULL_MORTALITY_MONTHLY = enriched_input.get("bull_mortality_rate", 0.03) / 12
     HEIFER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
-    STEER_MORTALITY_MONTHLY = enriched_input.get("heifer_mortality_rate", 0.03) / 12
+    STEER_MORTALITY_MONTHLY = enriched_input.get("steer_mortality_rate", enriched_input.get("heifer_mortality_rate", 0.03)) / 12
 
     # Стратегия реализации бычков (0=декабрь legacy, 7/12/18=возраст в мес.)
     steer_sale_age = enriched_input.get("steer_sale_age_months", 0)

@@ -146,18 +146,32 @@ export function SimpleRationEditor({
   orgId,
   onSaved,
   onRationsChange,
+  initialRations,
 }: {
   projectId: string
   orgId: string
   onSaved: () => void
   /** Called on every rations change (including initial mount) so parent can show live volumes. */
   onRationsChange?: (rations: RationsState) => void
+  /** Saved rations from DB — seeded once on mount when available. */
+  initialRations?: RationsState
 }) {
   const [activeGroup, setActiveGroup] = useState<string>(RATION_GROUPS[0]?.key ?? 'COW')
   const [rations, setRations] = useState<RationsState>(
     () => JSON.parse(JSON.stringify(DEFAULT_RATIONS))
   )
   const [saving, setSaving] = useState(false)
+
+  // One-time seed from DB rations (ADR-FEED-CLIENT-01 Fix #1).
+  // hasLoadedFromDb prevents re-seeding when parent re-renders.
+  const hasLoadedFromDb = useRef(false)
+  useEffect(() => {
+    if (!hasLoadedFromDb.current && initialRations && Object.keys(initialRations).length > 0) {
+      hasLoadedFromDb.current = true
+      // Merge over DEFAULT_RATIONS so groups with no saved ration keep defaults
+      setRations({ ...JSON.parse(JSON.stringify(DEFAULT_RATIONS)), ...initialRations })
+    }
+  }, [initialRations])
 
   // Notify parent of rations state on every change (including initial mount).
   // Parent (RationTab) uses this for live feed-volume preview.
@@ -231,7 +245,7 @@ export function SimpleRationEditor({
       concentrates: 'GRAIN_BARLEY',
       salt: 'SALT_NaCl',
       bran_meal: 'MEAL_SUNFLOWER',
-      milk: 'HAY_MIXED_GRASS', // placeholder
+      // milk has no DB feed_item entry (dam's milk, not purchased) — excluded from ID map
       barley_meal: 'GRAIN_BARLEY',
       feed_phosphate: 'PREMIX_BEEF',
     }
@@ -428,8 +442,9 @@ export function SimpleRationEditor({
         if (!groupRation) continue
 
         // Build separate pasture and stall item arrays (DEF-RATION-01)
+        // Skip feeds with no DB ID (e.g. milk — dam's feed, not purchased)
         const pastureItems = Object.entries(groupRation)
-          .filter(([, vals]) => vals.pasture > 0)
+          .filter(([feed, vals]) => vals.pasture > 0 && feedCodeToId.has(feed))
           .map(([feed, vals]) => {
             const price = feedCodeToPrice.get(feed) ?? BASE_PRICES[feed] ?? 0
             return {
@@ -442,7 +457,7 @@ export function SimpleRationEditor({
           })
 
         const stallItems = Object.entries(groupRation)
-          .filter(([, vals]) => vals.stall > 0)
+          .filter(([feed, vals]) => vals.stall > 0 && feedCodeToId.has(feed))
           .map(([feed, vals]) => {
             const price = feedCodeToPrice.get(feed) ?? BASE_PRICES[feed] ?? 0
             return {
@@ -456,7 +471,7 @@ export function SimpleRationEditor({
 
         // p_items: year-average for RPC backward compatibility
         const items = Object.entries(groupRation)
-          .filter(([, vals]) => vals.stall > 0 || vals.pasture > 0)
+          .filter(([feed, vals]) => (vals.stall > 0 || vals.pasture > 0) && feedCodeToId.has(feed))
           .map(([feed, vals]) => {
             const price = feedCodeToPrice.get(feed) ?? BASE_PRICES[feed] ?? 0
             const avgKg = (vals.pasture * 183 + vals.stall * 182) / 365

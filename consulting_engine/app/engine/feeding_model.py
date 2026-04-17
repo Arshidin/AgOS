@@ -389,7 +389,8 @@ def _calc_from_consulting_rations(
 
 
 def _calc_from_norms(
-    timeline: dict, herd: dict, norms: list, feed_prices: list, refs: dict
+    timeline: dict, herd: dict, norms: list, feed_prices: list, refs: dict,
+    pasture_start: int = 5, pasture_end: int = 10,
 ) -> dict:
     """Priority 2: Compute feeding costs from feed_consumption_norms + feed_prices_d03.
 
@@ -466,7 +467,7 @@ def _calc_from_norms(
 
     for t in range(n):
         m = _get_month_in_year(dates[t])
-        is_pasture = _is_pasture_month(0, m)
+        is_pasture = _is_pasture_month(0, m, pasture_start, pasture_end)
         season = "summer" if is_pasture else "winter"
 
         for norm in norms:
@@ -565,7 +566,11 @@ def calculate_feeding(
     feed_norms = refs.get("feed_consumption_norms", [])
     feed_prices_d03 = refs.get("feed_prices_d03", [])
     if feed_norms and feed_prices_d03:
-        return _calc_from_norms(timeline, herd, feed_norms, feed_prices_d03, refs)
+        return _calc_from_norms(
+            timeline, herd, feed_norms, feed_prices_d03, refs,
+            pasture_start=enriched_input.get("pasture_start_month", 5),
+            pasture_end=enriched_input.get("pasture_end_month", 10),
+        )
 
     # Priority 3: hardcoded CFC-verified defaults
     n = timeline["horizon_months"]
@@ -625,6 +630,10 @@ def calculate_feeding(
     # Inflation factor per month (annual CPI applied from year 2)
     year_indices = timeline["year_index"]
 
+    # ADR-RATION-01: project-specific pasture season (Fix #3)
+    pasture_start_p3 = enriched_input.get("pasture_start_month", 5)
+    pasture_end_p3   = enriched_input.get("pasture_end_month", 10)
+
     def _inflation(t: int) -> float:
         """Price inflation factor for month t. Year 1 = 1.0, Year 2 = 1+rate, etc."""
         yi = year_indices[t]
@@ -641,7 +650,7 @@ def calculate_feeding(
         for t in range(n):
             if heads[t] > 0:
                 m = _get_month_in_year(dates[t])
-                pasture = _is_pasture_month(0, m)
+                pasture = _is_pasture_month(0, m, pasture_start_p3, pasture_end_p3)
                 ration = get_ration_fn(pasture)
                 inf = _inflation(t)
                 cost = sum(
