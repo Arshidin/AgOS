@@ -1,11 +1,30 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-17
+> Last updated: 2026-04-18
 
 ---
 
-## Current Phase: 🟡 ADR-CAPEX-01 — CAPEX Module (Consulting)
+## Current Phase: ✅ ADR-CAPEX-01 — CAPEX Module (Consulting) — CLOSED (2026-04-18)
+
+**Gate sign-off:** D-GATE-CAPEX-01-FINAL. All 5 phases shipped. `cross_check.sh` 0/0/0. CAPEX test suite 14/14 (6 legacy + 8 new) green. Тест 7 prod verification confirmed Priority 2 math (drift 0.00057% from Excel 282,465,145.54). Known tech debt tracked for future ADR-CAPEX-02.
+
+### Commits
+| Phase | Commit | Scope |
+|-------|--------|-------|
+| Phase 1 (DB) | `cfce152` | schema + seed + 5 RPCs |
+| Phase 2 (Backend) | `259fe49` | engine Priority chain + 14 tests |
+| Phase 3 (UI + P8) | `92dfbb5` | editable CapexTab + wizard materials + price-params refactor |
+| Phase 5 partial (Dok 1/3/4/7) | `eb88bea` | architecture docs |
+| Phase 4 (Admin UI) | `560829c` | /admin/capex 3-tab page + Phase 3 docs followup |
+| Phase 5 closeout (Dok 6) | *(pending)* | 5 screen contracts |
+
+### Architect sign-off
+0 unresolved Critical findings. Significant finding acknowledged (per-item depreciation delta +6% buildings / +2% equipment on recalc — intended per plan §2.3 step 5). Known tech debt: L-P3-WIZARD (override race on wizard save), L-P4-1 (Surcharges tab direct .from() read). Fix track: ADR-CAPEX-02 or dedicated session.
+
+---
+
+## Previous Phase: 🕒 ADR-CAPEX-01 — CAPEX Module (historical detail)
 
 Plan: [.claude/plans/q1-rosy-lollipop.md](.claude/plans/q1-rosy-lollipop.md)
 

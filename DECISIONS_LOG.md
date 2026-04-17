@@ -2046,3 +2046,40 @@ The db-agent process fix was: «file touched + `cross_check` ≠ deployed». Sam
 - Inflation 10.5%/год всё ещё захардкожен в `CPI_ANNUAL` (revenue.py:24). Следующий шаг: вынести как параметр проекта (отдельная правка).
 - Цена зависит от возраста продажи (6-мес. стокер ≠ 11-мес. отъёмыш ≠ 18-мес. откорм). Сейчас одна цена. Будущее: цена per-strategy.
 
+
+---
+
+### 2026-04-18: D-GATE-CAPEX-01-FINAL — ADR-CAPEX-01 slice closed
+
+**Domain:** Consulting / CAPEX module
+**Status:** ✅ Slice CLOSED
+
+**Summary:** All 5 phases of ADR-CAPEX-01 shipped to `main` and verified.
+- Phase 1 (DB, `cfce152`): schema + 58 seed + 5 RPCs — applied to prod, 22/22 QA invariants verified.
+- Phase 2 (Backend, `259fe49`): data-driven `capex.py` + 14/14 tests — Railway autodeploy, Тест 7 recalc confirmed Priority 2 math with 1,613 ₸ delta (0.00057%) from Excel 282,465,145.54.
+- Phase 3 (UI + P8, `92dfbb5`): editable CapexTab + wizard material selectors + revenue-prices P8 refactor — Vercel autodeploy.
+- Phase 5 partial (docs, `eb88bea`): Dok 1 §6 ADR entry, Dok 3 §1.9/§13c RPC catalog, Dok 4 §3.10 event registry, Dok 7 §11 full architecture.
+- Phase 4 (admin UI, `560829c`): `/admin/capex` with 3 tabs (Материалы / Нормативы / Надбавки) via FeedReferenceAdmin pattern — Vercel autodeploy.
+- Phase 5 closeout (docs): new `Docs/AGOS-Dok6-Slice-CAPEX.md` with 5 screen contracts (CAPEX-ADMIN-01..03, CONSULTING-CAPEX-EDIT-01, CONSULTING-WIZARD-MATERIAL-01).
+
+**Final QA sign-off:**
+- `cross_check.sh`: 0 Critical, 0 Significant, 0 Minor
+- CAPEX test suite: 14/14 pass (6 legacy Priority 3 + 8 new Priority 2)
+- 0 unresolved Critical findings
+- All 5 RPCs SECURITY DEFINER + registered + unique across d0*.sql
+- Output-shape invariants preserved for `loans.py`/`cashflow.py`/`pnl.py`
+- Pre-existing 6 TestStaff failures (D-FEED-2) remain out of scope — documented
+
+**Architect sign-off:** ✅ APPROVED (2026-04-18). Slice moves to «Done» in SPRINT_STATUS.
+
+**Known tech debt (tracked for future ADR-CAPEX-02 or dedicated session):**
+1. **L-P3-WIZARD** — `rpc_save_project_infra_override` не имеет NULL-preserve semantic для `p_overrides`. Wizard при сохранении материалов передаёт `lastVersionOverrides` из версии. Race window: пользователь saved CapexTab override → `/calculate` failed → jumped в Wizard → saved materials → CapexTab edits overwritten. Fix option: DB Agent расширяет `rpc_update_consulting_project` с materials-only параметрами (plan §3.1 original intent).
+2. **L-P4-1** — `CapexSurchargesTab` читает `consulting_reference_data` через прямой `.from()` — нарушение UI «always via supabase.rpc()» principle. RLS `crd_read_all` разрешает. Fix option: DB Agent добавляет `rpc_list_capex_surcharges()` (простой read).
+3. **Depreciation delta** (informational, intended) — Priority 2 при recalc legacy проектов даёт +6.4% buildings / +2.2% equipment monthly depreciation (per-item `depreciation_years` vs blanket 20y/5y в Priority 3). Финансовый импакт ≤1% на NPV/IRR. Документировано в Dok 7 §11.7.
+
+**Что достигнуто архитектурно:**
+- P8 (Standards as Data) восстановлен для CAPEX: 53 норматива + 4 материала + surcharges живут в `consulting_reference_data`, admin меняет цены без deploy.
+- P5 (Design for Physical World) восстановлен: CAPEX масштабируется по capacity (area items ×N), calving scenario влияет на seasonal structures, pasture items scale по гектарам.
+- Priority chain (override → norm×material → legacy) совпадает с feed-model pattern (ADR-FEED-03) — единообразие в консалтинге.
+- 10 bespoke `unit_cost_per_m2_override` preserve Excel-парность — admin может удалить override и активировать catalog pricing через `/admin/capex/norms`.
+- Per-item depreciation заменил blanket 20y/5y heuristic — более точный P&L для финансовой модели.
