@@ -1517,6 +1517,9 @@ The following text MUST be displayed wherever reference prices are shown (PriceG
 | D85 | 7 Operations event types in Event Bus | Each has real consumer |
 | D86 | SOPDocument indexed in KnowledgeChunk | AI finds SOPs via semantic search |
 | D87 | Three-tier logic placement: RPC (data+FSM), Edge/FastAPI (computation), AI Gateway (extraction) | Gemini review: NASEM ration calc untestable in plpgsql. FSM must stay in PostgreSQL for atomicity |
+| ADR-CAPEX-01 | Data-driven CAPEX engine для Consulting: 4 материала + 53 норматива + per-item overrides + Priority chain (1 project override → 2 norm×material → 3 legacy fallback). Replaces hardcoded `capex.py`. 10 bespoke `unit_cost_per_m2_override` preserve Excel-парность. (2026-04-17) | P8 Standards-as-Data + P5 Design for Physical World. Excel showed бspoke prices for 10 area items + 4-material catalog — system now honours both. См. Dok 7 §11 для полного спека. |
+
+**Консультационные таблицы (Dok 7 scope):** `consulting_projects`, `consulting_project_versions`, `consulting_reference_data` определены в `d09_consulting.sql` (добавлены после Dok 1 v1.8 freeze в рамках ADR-CONSULT-1). ADR-CAPEX-01 расширяет `consulting_reference_data` двумя категориями (`construction_materials`, `capex_surcharges`) и добавляет 3 колонки на `consulting_projects` (`construction_material_enclosed`, `construction_material_support`, `infra_items_override`). Полная схема + ERD — см. Dok 7 §11.8.
 
 ---
 

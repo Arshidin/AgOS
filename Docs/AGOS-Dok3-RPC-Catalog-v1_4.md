@@ -174,6 +174,18 @@
 
 > ⚠️ **Nota bene для vibecoding:** AI-02 = RPC-06, AI-05 = RPC-34, AI-07 = RPC-25, AI-20 = RPC-09, AI-21 = RPC-10. Одна и та же SQL функция — разные контексты вызова. Для AI Gateway используйте AI-XX, для Web-кабинета — RPC-XX.
 
+### 1.9. Consulting CAPEX RPCs (d09_consulting.sql, ADR-CAPEX-01) — ✅ Все реализованы
+
+5 RPC для data-driven CAPEX engine. Подробности — §13c.
+
+| ID | SQL-функция | Caller | Returns |
+|----|-------------|--------|---------|
+| RPC-CAPEX-1 | `rpc_list_construction_materials()` | UI ProjectWizard, CapexTab, /admin/capex | jsonb [{code, name_ru, cost_per_m2, currency}] |
+| RPC-CAPEX-2 | `rpc_list_infrastructure_norms()` | /admin/capex | jsonb {farm:[...], pasture:[...], equipment:[...], tools:[...]} |
+| RPC-CAPEX-3 | `rpc_upsert_construction_material(code, name_ru, cost_per_m2)` | /admin/capex (admin) | int (id) |
+| RPC-CAPEX-4 | `rpc_upsert_infrastructure_norm(code, data, block?)` | /admin/capex (admin) | int (id) |
+| RPC-CAPEX-5 | `rpc_save_project_infra_override(org_id, project_id, enclosed?, support?, overrides?)` | ProjectWizard + CapexTab | boolean (needs_recalc=true) |
+
 ---
 
 ## 2. Identity — Идентификация и членство
@@ -904,6 +916,107 @@ rpc_get_consulting_rations(
 -- [{animal_category_id, animal_category_name, ration_version_id, version_number, items, results, created_at}]
 -- Последняя версия per animal_category
 ```
+
+---
+
+## 13c. CAPEX Module RPCs — ADR-CAPEX-01 (2026-04-17)
+
+5 RPCs добавлены в `d09_consulting.sql` для data-driven CAPEX engine. См.
+Dok 7 §11 для полного архитектурного контекста.
+
+### Lookup RPCs (public read)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-CAPEX-1 | `rpc_list_construction_materials` | d09_consulting.sql | UI ProjectWizard + CapexTab material selectors, `/admin/capex` | ✅ Implemented (2026-04-17) |
+| RPC-CAPEX-2 | `rpc_list_infrastructure_norms` | d09_consulting.sql | UI `/admin/capex` | ✅ Implemented (2026-04-17) |
+
+**`rpc_list_construction_materials` signature:**
+```sql
+rpc_list_construction_materials() RETURNS jsonb
+-- [{code, name_ru, cost_per_m2, currency, valid_from, valid_to}, ...] ordered by price asc
+-- Reads category='construction_materials' from consulting_reference_data
+-- STABLE, readable to authenticated
+```
+
+**`rpc_list_infrastructure_norms` signature:**
+```sql
+rpc_list_infrastructure_norms() RETURNS jsonb
+-- {farm: [...], pasture: [...], equipment: [...], tools: [...]}
+-- Grouped by data.block, each item: {code, data, valid_from, valid_to}, sorted by display_order
+-- STABLE, readable to authenticated
+```
+
+### Admin CRUD RPCs (fn_is_admin guard)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-CAPEX-3 | `rpc_upsert_construction_material` | d09_consulting.sql | UI `/admin/capex` | ✅ Implemented (2026-04-17) |
+| RPC-CAPEX-4 | `rpc_upsert_infrastructure_norm` | d09_consulting.sql | UI `/admin/capex` | ✅ Implemented (2026-04-17) |
+
+**`rpc_upsert_construction_material` signature:**
+```sql
+rpc_upsert_construction_material(
+    p_code        text,     -- e.g., 'sandwich', 'brick'
+    p_name_ru     text,
+    p_cost_per_m2 numeric   -- тг/м²
+) RETURNS int  -- consulting_reference_data.id
+-- Raises ADMIN_REQUIRED if not fn_is_admin()
+-- Raises INVALID_COST if p_cost_per_m2 < 0
+```
+
+**`rpc_upsert_infrastructure_norm` signature:**
+```sql
+rpc_upsert_infrastructure_norm(
+    p_code  text,    -- e.g., 'FAC-001', 'PST-002'
+    p_data  jsonb,   -- see Dok 7 §11.3-§11.5 for JSONB shape
+    p_block text     -- optional: farm|pasture|equipment|tools; can also be inside p_data.block
+) RETURNS int
+-- Raises ADMIN_REQUIRED, BLOCK_REQUIRED, INVALID_BLOCK
+```
+
+### Project-scoped override save (ownership guard)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-CAPEX-5 | `rpc_save_project_infra_override` | d09_consulting.sql | UI ProjectWizard (save materials) + CapexTab (save overrides) | ✅ Implemented (2026-04-17) |
+
+**`rpc_save_project_infra_override` signature:**
+```sql
+rpc_save_project_infra_override(
+    p_organization_id uuid,
+    p_project_id      uuid,
+    p_enclosed        text   default null,       -- nullable: preserves existing on null
+    p_support         text   default null,       -- nullable: preserves existing on null
+    p_overrides       jsonb  default '[]'::jsonb -- array: ALWAYS replaces (no null-preserve)
+) RETURNS boolean
+-- UPDATE consulting_projects SET
+--   construction_material_enclosed = COALESCE(p_enclosed, ...),
+--   construction_material_support  = COALESCE(p_support, ...),
+--   infra_items_override           = p_overrides,
+--   needs_recalc                   = true;
+-- Emits Dok4 event: consulting.capex_override.saved
+-- Raises PROJECT_NOT_FOUND, MATERIAL_NOT_FOUND, INVALID_OVERRIDES
+```
+
+**Override array shape** (per-item, всё опционально кроме code):
+```json
+[
+  {
+    "code": "FAC-015",
+    "include": false,                  // optional
+    "qty_override": 8,                 // optional
+    "material_override": "brick",      // optional — must be a valid material code
+    "unit_cost_override": 25000        // optional — overrides unit_cost / fixed_cost
+  }
+]
+```
+
+**Known limitation (flagged):** `p_overrides` всегда перезаписывает столбец
+(нет null-preserve). Wizard, который хочет обновить только материалы,
+должен читать последний snapshot overrides (из `version.input_params
+.infra_items_override`) и передавать его обратно. Cross-edit race возможен
+— см. Dok 7 §11.10.
 
 ---
 

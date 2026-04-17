@@ -524,6 +524,151 @@ for t in range(horizon_months):
 
 ---
 
+## 11. CAPEX модель (v1.2, ADR-CAPEX-01)
+
+### 11.1 Проблема и принцип решения
+Предыдущая версия `capex.py` хардкодила 53 позиции инфраструктуры с финальными
+₸-числами. `reproducer_capacity` и `calving_scenario` читались, но в формулах
+не использовались — 300 голов и 3000 голов давали одинаковый CAPEX. Это
+нарушало P8 (Standards as Data) и P5 (Design for Physical World).
+
+Excel-шаблон [Zengi.Farm_Model](../Docs/Zengi.Farm_Model%20farm_020426_v10_WintSumm.xlsx)
+показывает правильную формулу для area-based items:
+`норма_м²/гол × capacity × цена_м²`. Каталог из 4 материалов (Лёгкий каркас
+15k, Сэндвич 25k, Металлоконструкция 35k, Кирпич 50k ₸/м²) — 2 выбора на
+проект: enclosed (ангар/изолятор/крытое отёла/КПП) и support (загоны/навесы/
+кормовой стол/зернохранилище).
+
+### 11.2 Priority chain (mirrors ADR-FEED-03)
+
+```
+Priority 1: project.infra_items_override[code]   — expert per-project edit
+Priority 2: norm.data × project material choice  — data-driven from
+            consulting_reference_data (infrastructure_norms +
+            construction_materials + capex_surcharges)
+Priority 3: capex.py _legacy_calculate_capex()   — hardcoded Excel numbers
+            (fires only when refs['infrastructure_norms'] is empty,
+            preserves Тест 7 parity and pre-seed project results)
+```
+
+### 11.3 cost_model enum (6 случаев)
+
+| Value | Формула | Примеры позиций |
+|---|---|---|
+| `area_per_head` | `area_per_head_m2 × heads × price_per_m2` | FAC-001 ангар (8 м²/гол × 300 × 12500) |
+| `fixed_area` | `fixed_area_m2 × price_per_m2` | FAC-013 изолятор (120 м² × 83333, subgroup "15 голов") |
+| `per_head_unit` | `heads × unit_cost` | FAC-017 тёплая поилка (300 × 4830) |
+| `fixed_qty` | `qty × unit_cost` | EQP-001 трактор (1 × 20M) |
+| `fixed_per_project` | `fixed_cost` | INF-001 жилой дом (30M) |
+| `per_area_ha` | `ceil(pasture_area_ha / area_divisor_ha) × unit_cost` | PST-003 пастбищная скважина (1 на 3000 га × 3M) |
+
+### 11.4 applies_to enum — resolve head_count
+
+| Value | Источник числа голов |
+|---|---|
+| `capacity` | `reproducer_capacity` (default) |
+| `always` | 1 (marker for fixed_* models) |
+| `pasture_area_ha` | `capacity × pasture_norm_ha` |
+| `cows_eop` / `bulls_eop` | `herd.cows.eop[0]` / `herd.bulls.eop[0]` (month 0) |
+| `calves_avg` / `heifers_avg` / `steers_avg` | year-1 average of `herd.<group>.avg[0:12]` |
+
+Herd-dependent values require `herd` dict passed to `calculate_capex(enriched,
+refs, herd=herd)`. Orchestrator передаёт `herd` после модуля herd_turnover.
+
+### 11.5 material_target + bespoke prices
+
+Площадные позиции (`area_per_head`, `fixed_area`) требуют цену за м². Resolve:
+```
+if override.material_override:           material_prices[override.material_override]
+elif norm.unit_cost_per_m2_override:     use it  # bespoke (Excel parity)
+elif material_target == 'enclosed':      project.construction_material_enclosed price
+elif material_target == 'support':       project.construction_material_support price
+```
+
+**10 позиций Excel имеют bespoke prices** (preserve parity 282.4M):
+FAC-015 (19500), FAC-019 (40000), FAC-015b (9000), FAC-012 (80000), FAC-001
+(12500), FAC-013 (83333), FAC-009 (3450), INF-008 (6900), PAD-001 (4140),
+PAD-007 (4968). Admin может удалить override в `/admin/capex` — активируется
+catalog pricing (sandwich 25k для enclosed / light_frame 15k для support).
+
+### 11.6 Surcharges + Excel quirk
+`capex_surcharges` seed (one row, `code='default'`):
+```json
+{
+  "works_rate": 0.06,
+  "contingency_rate": 0.025,
+  "applies_to_blocks": ["farm", "pasture"],
+  "contingency_base_by_block": {"farm": "items_plus_work", "pasture": "items_only"}
+}
+```
+
+Excel row 28 visually показывает 0.03, но computed cost (4,335,027.94 ₸) даёт
+rate = 2.5% от (subtotal+works). Farm contingency base = items+works, pasture
+base = items only (Excel row 37 = 43.4M × 0.025 = 1.085M).
+
+### 11.7 Per-item depreciation
+Заменяет blanket 20y-buildings / 5y-equipment (Priority 3 fallback). Каждая
+норма несёт `depreciation_years` в seed:
+- Здания (ангар, загоны, кормовой стол): 20 лет
+- Временные / быстро-изнашиваемые (раскол, трап, тёплая поилка): 10 лет
+- Ограждения пастбищ: 15 лет
+- Техника (EQP-*): 5 лет
+- Инструменты (TOL-*): 3 года
+- Спецодежда: 2 года
+
+**Поведенческий эффект:** при recalc legacy проекта после Phase 1 deploy
+`depreciation_buildings_monthly` +6.4% (936.77 → 997.01 тыс.тг), 
+`depreciation_equipment_monthly` +2.2% (960.67 → 981.94 тыс.тг). NPV/IRR
+движение ≤1%. Задокументировано в D-GATE-CAPEX-01-PHASE2-QA.
+
+### 11.8 Project fields + override shape
+Новые колонки на `consulting_projects` (Phase 1 DDL):
+- `construction_material_enclosed text NOT NULL DEFAULT 'sandwich'`
+- `construction_material_support  text NOT NULL DEFAULT 'light_frame'`
+- `infra_items_override           jsonb NOT NULL DEFAULT '[]'::jsonb`
+
+Override shape:
+```json
+[
+  {
+    "code": "FAC-015",
+    "include": false,                     // optional — omit item from sum
+    "qty_override": 8,                    // optional — override computed qty
+    "material_override": "brick",         // optional — override material_target
+    "unit_cost_override": 25000           // optional — override unit price
+  }
+]
+```
+
+Пустой объект `{code: "FAC-015"}` эквивалентен отсутствию override — default
+behavior. UI CapexTab нормализует: когда все опциональные поля сброшены,
+запись удаляется из массива.
+
+### 11.9 Write paths + staleness
+| Источник | RPC | Эффект |
+|---|---|---|
+| ProjectWizard → Материал enclosed/support | `rpc_save_project_infra_override(p_enclosed, p_support, p_overrides=existing)` | materials обновляются, `needs_recalc=true` |
+| CapexTab → toggle / qty / material_override | `rpc_save_project_infra_override(p_enclosed=null, p_support=null, p_overrides)` | overrides перезаписываются, `needs_recalc=true` |
+| Admin `/admin/capex` → Материалы cost_per_m2 | `rpc_upsert_construction_material` | новая цена, все проекты при recalc подхватят |
+| Admin `/admin/capex` → Нормативы | `rpc_upsert_infrastructure_norm` | новые параметры, все проекты при recalc подхватят |
+
+После любого write → `consulting_projects.needs_recalc = true` → UI badge →
+expert triggers `/calculate` → calculate.py читает проектную строку →
+инжектирует в `input_params` → engine выполняет Priority 2 → сохраняет версию.
+
+### 11.10 Known race (flagged, acceptable MVP)
+`rpc_save_project_infra_override` всегда перезаписывает `infra_items_override`
+(нет NULL-preserve семантики). Wizard передаёт последние известные overrides
+из `version.input_params.infra_items_override`. Если CapexTab саvнул overrides
+→ recalc failed → пользователь идёт в Wizard → wizard передаст stale
+`lastVersionOverrides` и перезапишет CapexTab-изменения.
+
+Fix option: DB Agent расширяет `rpc_update_consulting_project` с
+materials-only semantic (план §3.1 original intent). Отложено до
+ADR-CAPEX-02 или отдельной сессии.
+
+---
+
 *Документ создан: 08.04.2026*  
 *Версия 1.1: 14.04.2026 — добавлены ADR-FEED-05 (Simple=writer) и ADR-FEED-06 (сезонная модель)*  
-*Следующий шаг: вопрос CEO «5 vs 10 групп» → уточнение §9.3 + §10 scope*
+*Версия 1.2: 2026-04-18 — добавлен §11 CAPEX модель (ADR-CAPEX-01: data-driven Priority chain, 4 материала, per-item depreciation, 10 bespoke overrides для Excel parity)*

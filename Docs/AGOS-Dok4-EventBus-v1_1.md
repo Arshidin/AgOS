@@ -400,6 +400,34 @@ INSERT INTO public.user_notification_preferences (user_id, channel)
 
 ---
 
+### 3.10. Consulting Domain (ADR-CAPEX-01, 2026-04-17)
+
+Дополняет существующие Consulting events (`consulting.project.created`,
+`consulting.version.created` — уже эмитятся из RPC-C01/C05).
+
+| canonical_event_type | Producer | Consumers | Описание |
+|----------------------|----------|-----------|----------|
+| **consulting.capex_override.saved** | RPC-CAPEX-5 (`rpc_save_project_infra_override`) [WEB / ADMIN] | UI React Query (invalidate project cache), QA audit log | project_id, enclosed?, support?, override_count (jsonb_array_length) |
+
+**Продюсер:** UI ProjectWizard (после изменения материалов в Мастере) или UI
+CapexTab (после toggle/qty_override/material_override изменений). RPC пишет
+в `consulting_projects` (materials + infra_items_override), ставит
+`needs_recalc=true`, публикует event.
+
+**Потребители:**
+1. **UI React Query** — invalidate `['consulting_project', project_id]` →
+   повторное чтение проекта → CapexTab badge «Требуется пересчёт» → expert
+   triggers `/calculate`.
+2. **QA audit log** — платформенный event collector для отслеживания, кто
+   и когда поменял CAPEX настройки.
+3. **(Future)** — Dashboard проекта может показывать историю изменений CAPEX.
+
+**Почему отдельный event, а не `consulting.version.created`:** save override
+≠ recalc. Expert может сохранить много мелких правок, затем один раз
+пересчитать. Event `version.created` emits только при /calculate success.
+
+---
+
 ## 4. Схемы payload (ключевые события)
 
 ### 4.1. market.batch.matched
