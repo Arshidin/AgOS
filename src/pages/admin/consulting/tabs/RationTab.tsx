@@ -7,7 +7,7 @@
  * Saves results via rpc_save_consulting_ration (C-RPC-09).
  * Reads existing rations via rpc_get_consulting_rations (C-RPC-10).
  */
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useRpc } from '@/hooks/useRpc'
@@ -19,6 +19,7 @@ import {
 } from './herdCategoryMapping'
 import { SimpleRationEditor, DEFAULT_RATIONS, FEED_NAMES, RationsState } from './SimpleRationEditor'
 import { supabase } from '@/lib/supabase'
+import { calculateProject } from '@/lib/consulting-api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -92,7 +93,7 @@ export function RationTab() {
 
   const orgId = organization?.id
 
-  const { results, loading: projectLoading } = useProjectData()
+  const { version, results, loading: projectLoading, refetch: refetchProject } = useProjectData()
   const herd = results?.herd
 
   const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
@@ -101,6 +102,33 @@ export function RationTab() {
     { p_organization_id: orgId, p_consulting_project_id: projectId },
     { enabled: !!orgId && !!projectId }
   )
+
+  // DEF-AUTO-RECALC-01 (2026-04-17): auto-run /calculate after ration save so the
+  // financial model (SummaryTab, PnlTab, CashFlow) reflects new feed costs without
+  // the user having to press "Рассчитать весь проект". Called from SimpleRationEditor
+  // onSaved after the ration RPCs complete.
+  const [recalcLoading, setRecalcLoading] = useState(false)
+  const handleRationSaved = useCallback(async () => {
+    // 1. Refresh rations list (affects RationTab COGS and volume tables).
+    await refetch()
+    // 2. Re-run engine if we have input_params from the last version.
+    const inputParams = version?.input_params
+    if (!orgId || !projectId || !inputParams) return
+    setRecalcLoading(true)
+    try {
+      await calculateProject({
+        project_id: projectId,
+        organization_id: orgId,
+        input_params: inputParams,
+      })
+      await refetchProject()
+      toast.success('Проект пересчитан')
+    } catch (e: any) {
+      toast.error('Пересчёт не удался: ' + (e?.message || 'неизвестная ошибка'))
+    } finally {
+      setRecalcLoading(false)
+    }
+  }, [orgId, projectId, version?.input_params, refetch, refetchProject])
 
   // Fix #1 (ADR-FEED-CLIENT-01): Convert saved rations from DB → RationsState so
   // SimpleRationEditor seeds its state from DB values instead of DEFAULT_RATIONS.
@@ -257,7 +285,7 @@ export function RationTab() {
       <SimpleRationEditor
         projectId={projectId}
         orgId={orgId}
-        onSaved={() => refetch()}
+        onSaved={handleRationSaved}
         onRationsChange={setLiveRations}
         initialRations={initialRations}
       />
@@ -279,7 +307,9 @@ export function RationTab() {
                   {totalCogsMontly.toLocaleString('ru-RU')} ₸/мес
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Применяется в P&L при следующем пересчёте
+                  {recalcLoading
+                    ? 'Пересчёт P&L...'
+                    : 'Применяется в P&L автоматически после сохранения'}
                 </div>
               </div>
             </div>

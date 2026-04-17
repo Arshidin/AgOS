@@ -6,7 +6,7 @@
  * 1. sessionStorage cache (set by Wizard after calculation) — instant
  * 2. Supabase RPC (rpc_get_consulting_version) — persistent
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -41,40 +41,41 @@ export function useProjectData() {
 
   const orgId = organization?.id
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!orgId || !projectId) return
-    const load = async () => {
-      setLoading(true)
+    setLoading(true)
 
-      // 1. Check sessionStorage cache first
-      const cached = getCachedResults(projectId)
-      if (cached) {
-        setVersion({ results: cached.results, input_params: cached.inputParams, version_number: 1 })
-      }
-
-      // 2. Load project from Supabase
-      const { data: proj } = await supabase.rpc('rpc_get_consulting_project', {
-        p_organization_id: orgId,
-        p_project_id: projectId,
-      })
-      setProject(proj)
-
-      // 3. Load latest version from Supabase (overwrites cache if available)
-      if (proj?.versions?.length > 0) {
-        const { data: ver } = await supabase.rpc('rpc_get_consulting_version', {
-          p_organization_id: orgId,
-          p_version_id: proj.versions[0].id,
-        })
-        if (ver?.results) {
-          setVersion(ver)
-        }
-      }
-      setLoading(false)
+    // 1. Check sessionStorage cache first
+    const cached = getCachedResults(projectId)
+    if (cached) {
+      setVersion({ results: cached.results, input_params: cached.inputParams, version_number: 1 })
     }
-    load()
+
+    // 2. Load project from Supabase
+    const { data: proj } = await supabase.rpc('rpc_get_consulting_project', {
+      p_organization_id: orgId,
+      p_project_id: projectId,
+    })
+    setProject(proj)
+
+    // 3. Load latest version from Supabase (overwrites cache if available)
+    if (proj?.versions?.length > 0) {
+      const { data: ver } = await supabase.rpc('rpc_get_consulting_version', {
+        p_organization_id: orgId,
+        p_version_id: proj.versions[0].id,
+      })
+      if (ver?.results) {
+        setVersion(ver)
+      }
+    }
+    setLoading(false)
   }, [orgId, projectId])
 
-  return { project, version, results: version?.results || {}, loading }
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { project, version, results: version?.results || {}, loading, refetch: load }
 }
 
 export function fmt(n: number | null | undefined, decimals = 0): string {
