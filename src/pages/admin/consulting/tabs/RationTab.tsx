@@ -178,14 +178,68 @@ export function RationTab() {
   const totalCategories = relevantGroups.length
   const rationCount = coveredGroups.length
 
-  // COGS per feeding group = ration × head count of the target group (taken once).
-  // Prefer ration saved for target_code itself; fallback to any member's ration.
+  // DEF-UI-WEANING-01 (2026-04-17): COGS must mirror engine weaning split.
+  // Engine applies SUCKLING_CALF ration to (suckling_heifers + suckling_steers) and
+  // HEIFER_YOUNG/STEER rations only to weaned portion. Previous UI used raw
+  // heifers.avg / steers.avg, overstating COGS by the price delta × suckling-heads.
+  //
+  // heads_for_target(target, t) =
+  //   SUCKLING_CALF  → Σ(heifers.from_calves + steers.from_calves)[t-w+1 .. t]
+  //   HEIFER_YOUNG   → max(0, heifers.avg[t] − suckling_heifers[t])
+  //   STEER          → max(0, steers.avg[t]  − suckling_steers[t])
+  //   COW / BULL_BREEDING / ... → getHeadCount fallback
+  const weaningMonths = ((results?.input as { weaning_months?: number } | undefined)
+    ?.weaning_months) ?? 6
+
+  const getCogsHeadCountY1 = (targetCode: string): number => {
+    if (!herd) return 0
+    const WINDOW = 12  // Y1 avg
+    const sumWindow = (arr: number[] | undefined, start: number, end: number) =>
+      (arr ?? []).slice(start, end + 1).reduce((a, b) => a + (b ?? 0), 0)
+
+    if (targetCode === 'SUCKLING_CALF') {
+      const hfc = herd.heifers?.from_calves as number[] | undefined
+      const sfc = herd.steers?.from_calves  as number[] | undefined
+      let total = 0
+      for (let t = 0; t < WINDOW; t++) {
+        const start = Math.max(0, t - weaningMonths + 1)
+        total += sumWindow(hfc, start, t) + sumWindow(sfc, start, t)
+      }
+      return total / WINDOW
+    }
+    if (targetCode === 'HEIFER_YOUNG') {
+      const hfc = herd.heifers?.from_calves as number[] | undefined
+      const havg = herd.heifers?.avg ?? []
+      let total = 0
+      for (let t = 0; t < WINDOW; t++) {
+        const start = Math.max(0, t - weaningMonths + 1)
+        const suckling = sumWindow(hfc, start, t)
+        total += Math.max(0, (havg[t] ?? 0) - suckling)
+      }
+      return total / WINDOW
+    }
+    if (targetCode === 'STEER') {
+      const sfc = herd.steers?.from_calves as number[] | undefined
+      const savg = herd.steers?.avg ?? []
+      let total = 0
+      for (let t = 0; t < WINDOW; t++) {
+        const start = Math.max(0, t - weaningMonths + 1)
+        const suckling = sumWindow(sfc, start, t)
+        total += Math.max(0, (savg[t] ?? 0) - suckling)
+      }
+      return total / WINDOW
+    }
+    // COW, BULL_BREEDING etc. — unchanged behaviour
+    return getHeadCount(herd, targetCode)
+  }
+
+  // COGS per feeding group = ration × head count (weaning-aware).
   const totalCogsMontly = coveredGroups.reduce((sum, g) => {
     const ration =
       rationByCode.get(g.target_code) ??
       g.member_codes.map(c => rationByCode.get(c)).find(Boolean)
     if (!ration) return sum
-    const headCount = Math.round(getHeadCount(herd, g.target_code))
+    const headCount = Math.round(getCogsHeadCountY1(g.target_code))
     return sum + ration.results.total_cost_per_month * headCount
   }, 0)
 
