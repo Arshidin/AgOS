@@ -43,6 +43,9 @@ class ProjectInput(BaseModel):
 
     # Коэффициенты стада (% годовых)
     calf_yield: float = Field(default=0.85, description="Коэффициент приплода (0.85 = 85%)")
+    weaning_months: int = Field(default=6, ge=1, le=12,
+        description="Длительность молочного периода (мес). Телята первые N мес после рождения "
+                    "получают рацион SUCKLING_CALF, затем — рацион тёлки/бычка. Default 6 мес.")
     cow_mortality_rate: float = Field(default=0.03, description="Падёж коров годовой (0.03 = 3%)")
     cow_culling_rate: float = Field(default=0.15, description="Выбраковка коров годовая (0.15 = 15%)")
     bull_mortality_rate: float = Field(default=0.03, description="Падёж быков годовой")

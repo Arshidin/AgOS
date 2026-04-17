@@ -199,9 +199,21 @@ def _build_annual_cost_summary(total_reproducer: list, total_fattening: list, n:
     return result
 
 
+def _suckling_heads(from_calves: list, t: int, weaning_months: int) -> float:
+    """Heads still in the suckling window (0..weaning_months) at month t.
+
+    A calf born in month k is "suckling" during months [k, k+weaning_months-1].
+    So at month t the suckling population = Σ from_calves[t-weaning_months+1 .. t].
+    Mortality inside the window is ignored (~1.5% over 6 months — negligible).
+    """
+    start = max(0, t - weaning_months + 1)
+    return sum(from_calves[start:t + 1])
+
+
 def _calc_from_consulting_rations(
     timeline: dict, herd: dict, rations: list, refs: dict,
     pasture_start: int = 5, pasture_end: int = 10,
+    weaning_months: int = 6,
 ) -> dict:
     """Priority 1: Compute feeding costs from attached NASEM ration_versions.
 
@@ -211,6 +223,14 @@ def _calc_from_consulting_rations(
 
     Cost formula: cost_per_day × inflation × heads × days / 1000 (→ тыс. тг)
     Inflation (10.5% annual) applied from year 2, same as hardcoded defaults.
+
+    DEF-WEANING-01 (2026-04-17): `herd_turnover.py` distributes calves into
+    heifers/steers at birth (`calves.avg = 0` always). Without cohort-aware
+    feeding, the SUCKLING_CALF ration was ignored and the HEIFER_YOUNG/STEER
+    ration was applied from day 1 → overstated feed COGS by ~4-5M тг/year.
+    Fix: split heifers/steers into suckling (first `weaning_months` = 6) and
+    weaned portions. Suckling → group_costs["molodnyak"] with SUCKLING_CALF
+    ration; weaned → heifers_prev / fattening_commercial as before.
     """
     n = timeline["horizon_months"]
     dates = timeline["dates"]
@@ -318,18 +338,35 @@ def _calc_from_consulting_rations(
                 result[fc].append(tons)
         return result
 
+    # DEF-WEANING-01: split heifers/steers into suckling vs weaned.
+    # Suckling heads = inflow in last `weaning_months` months (tracked via
+    # herd.heifers.from_calves / herd.steers.from_calves).
+    heifers_from_calves = herd["heifers"].get("from_calves", [0.0] * n)
+    steers_from_calves  = herd["steers"].get("from_calves",  [0.0] * n)
+    heifers_avg_all = herd["heifers"]["avg"]
+    steers_avg_all  = herd["steers"]["avg"]
+
+    suckling_heifers = [_suckling_heads(heifers_from_calves, t, weaning_months) for t in range(n)]
+    suckling_steers  = [_suckling_heads(steers_from_calves,  t, weaning_months) for t in range(n)]
+    # Weaned = total avg − suckling portion; clamp at 0 for safety.
+    weaned_heifers = [max(0.0, heifers_avg_all[t] - suckling_heifers[t]) for t in range(n)]
+    weaned_steers  = [max(0.0, steers_avg_all[t]  - suckling_steers[t])  for t in range(n)]
+    # Combined suckling population = young stock fed with SUCKLING_CALF ration.
+    molodnyak_heads = [suckling_heifers[t] + suckling_steers[t] for t in range(n)]
+
     group_costs: dict[str, list] = {}
-    group_costs["molodnyak"]          = _group_cost(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
-    # Heifers: both HEIFER_PREG and HEIFER_YOUNG share herd["heifers"]["avg"].
-    # Combine into one group to avoid double-counting the same head count.
-    # This matches Priority 3 (hardcoded) where heifers_curr is always [0]*n.
-    group_costs["heifers_prev"]       = _group_cost(["HEIFER_PREG", "HEIFER_YOUNG"], herd["heifers"]["avg"])
+    # molodnyak: suckling portion of young stock (NEW — uses heifers+steers inflow,
+    # not the always-zero herd.calves.avg).
+    group_costs["molodnyak"]          = _group_cost(["SUCKLING_CALF", "YOUNG_CALF"], molodnyak_heads)
+    # heifers_prev: weaned heifers only (HEIFER_PREG+HEIFER_YOUNG share heifers pool).
+    group_costs["heifers_prev"]       = _group_cost(["HEIFER_PREG", "HEIFER_YOUNG"], weaned_heifers)
     group_costs["heifers_curr"]       = [0.0] * n
     group_costs["cows_12m"]           = _group_cost(["COW"],           herd["cows"]["eop"])
     group_costs["cows_9m"]            = [0.0] * n
     group_costs["bulls"]              = _group_cost(["BULL_BREEDING"],  herd["bulls"]["eop"])
-    group_costs["fattening_breeding"] = _group_cost(["BULL_CALF"],     herd["steers"]["avg"])
-    group_costs["fattening_commercial"] = _group_cost(["STEER"],       herd["steers"]["avg"])
+    # fattening_*: weaned steers only (BULL_CALF/STEER share steers pool).
+    group_costs["fattening_breeding"] = _group_cost(["BULL_CALF"],     weaned_steers)
+    group_costs["fattening_commercial"] = _group_cost(["STEER"],       weaned_steers)
 
     total_reproducer = [
         group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]
@@ -342,16 +379,16 @@ def _calc_from_consulting_rations(
         for t in range(n)
     ]
 
-    # DEF-RATION-08: compute physical quantities (тонны) from ration items
+    # DEF-RATION-08 + DEF-WEANING-01: physical quantities by suckling/weaned split.
     qty_by_group: dict[str, dict[str, list]] = {}
-    qty_by_group["molodnyak"]            = _group_quantity(["SUCKLING_CALF", "YOUNG_CALF"], herd["calves"]["avg"])
-    qty_by_group["heifers_prev"]         = _group_quantity(["HEIFER_PREG", "HEIFER_YOUNG"], herd["heifers"]["avg"])
+    qty_by_group["molodnyak"]            = _group_quantity(["SUCKLING_CALF", "YOUNG_CALF"], molodnyak_heads)
+    qty_by_group["heifers_prev"]         = _group_quantity(["HEIFER_PREG", "HEIFER_YOUNG"], weaned_heifers)
     qty_by_group["heifers_curr"]         = {}
     qty_by_group["cows_12m"]             = _group_quantity(["COW"],           herd["cows"]["eop"])
     qty_by_group["cows_9m"]              = {}
     qty_by_group["bulls"]                = _group_quantity(["BULL_BREEDING"],  herd["bulls"]["eop"])
-    qty_by_group["fattening_breeding"]   = _group_quantity(["BULL_CALF"],     herd["steers"]["avg"])
-    qty_by_group["fattening_commercial"] = _group_quantity(["STEER"],         herd["steers"]["avg"])
+    qty_by_group["fattening_breeding"]   = _group_quantity(["BULL_CALF"],     weaned_steers)
+    qty_by_group["fattening_commercial"] = _group_quantity(["STEER"],         weaned_steers)
 
     # Aggregate totals_by_feed across all groups
     all_feed_codes: set[str] = set()
@@ -391,6 +428,7 @@ def _calc_from_consulting_rations(
 def _calc_from_norms(
     timeline: dict, herd: dict, norms: list, feed_prices: list, refs: dict,
     pasture_start: int = 5, pasture_end: int = 10,
+    weaning_months: int = 6,
 ) -> dict:
     """Priority 2: Compute feeding costs from feed_consumption_norms + feed_prices_d03.
 
@@ -472,16 +510,28 @@ def _calc_from_norms(
             cpd = cpd_by_code_season.get((code, alt))
         return cpd or 0.0
 
+    # DEF-WEANING-01: split heifers/steers into suckling vs weaned, mirror Priority 1.
+    n_ = n  # alias for list-comprehension readability
+    heifers_from_calves = herd["heifers"].get("from_calves", [0.0] * n_)
+    steers_from_calves  = herd["steers"].get("from_calves",  [0.0] * n_)
+    heifers_avg_all = herd["heifers"]["avg"]
+    steers_avg_all  = herd["steers"]["avg"]
+    suckling_heifers = [_suckling_heads(heifers_from_calves, t, weaning_months) for t in range(n_)]
+    suckling_steers  = [_suckling_heads(steers_from_calves,  t, weaning_months) for t in range(n_)]
+    weaned_heifers = [max(0.0, heifers_avg_all[t] - suckling_heifers[t]) for t in range(n_)]
+    weaned_steers  = [max(0.0, steers_avg_all[t]  - suckling_steers[t])  for t in range(n_)]
+    molodnyak_heads = [suckling_heifers[t] + suckling_steers[t] for t in range(n_)]
+
     # Group → [codes, heads_array]. Mirrors _calc_from_consulting_rations.
     group_specs: list[tuple[str, list[str], list]] = [
-        ("molodnyak",            ["SUCKLING_CALF", "YOUNG_CALF"],     herd["calves"]["avg"]),
-        ("heifers_prev",         ["HEIFER_PREG", "HEIFER_YOUNG"],     herd["heifers"]["avg"]),
-        ("heifers_curr",         [],                                   herd["heifers"]["avg"]),
+        ("molodnyak",            ["SUCKLING_CALF", "YOUNG_CALF"],     molodnyak_heads),
+        ("heifers_prev",         ["HEIFER_PREG", "HEIFER_YOUNG"],     weaned_heifers),
+        ("heifers_curr",         [],                                   weaned_heifers),
         ("cows_12m",             ["COW"],                              herd["cows"]["eop"]),
         ("cows_9m",              [],                                   herd["cows"]["eop"]),
         ("bulls",                ["BULL_BREEDING"],                    herd["bulls"]["eop"]),
-        ("fattening_breeding",   ["BULL_CALF"],                        herd["steers"]["avg"]),
-        ("fattening_commercial", ["STEER"],                            herd["steers"]["avg"]),
+        ("fattening_breeding",   ["BULL_CALF"],                        weaned_steers),
+        ("fattening_commercial", ["STEER"],                            weaned_steers),
     ]
 
     group_costs: dict[str, list] = {g: [0.0] * n for g, _, _ in group_specs}
@@ -549,6 +599,8 @@ def calculate_feeding(
     Returns:
         dict with group costs and total_reproducer array
     """
+    weaning = int(enriched_input.get("weaning_months", 6) or 6)
+
     # Priority 1: consulting_rations — NASEM-computed costs per head per day
     consulting_rations = refs.get("consulting_rations", [])
     if consulting_rations:
@@ -556,6 +608,7 @@ def calculate_feeding(
             timeline, herd, consulting_rations, refs,
             pasture_start=enriched_input.get("pasture_start_month", 5),
             pasture_end=enriched_input.get("pasture_end_month", 10),
+            weaning_months=weaning,
         )
 
     # Priority 2: feed_consumption_norms from d03_feed
@@ -566,6 +619,7 @@ def calculate_feeding(
             timeline, herd, feed_norms, feed_prices_d03, refs,
             pasture_start=enriched_input.get("pasture_start_month", 5),
             pasture_end=enriched_input.get("pasture_end_month", 10),
+            weaning_months=weaning,
         )
 
     # Priority 3: hardcoded CFC-verified defaults

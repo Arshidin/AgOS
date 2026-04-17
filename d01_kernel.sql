@@ -897,8 +897,13 @@ create table if not exists public.ai_conversations (
     user_id                 uuid    not null references public.users(id),
     channel                 text    not null default 'whatsapp'
                                         check (channel in ('whatsapp','web','mobile')),
-    current_role            text    not null default 'consultant'
-                                        check (current_role in (
+    -- DEF-SQL-RESERVED-01 (2026-04-17): `current_role` is a reserved word (refers to
+     -- pg_catalog.current_role()). Un-quoted it breaks `CREATE TABLE` re-apply with
+     -- `syntax error at or near "current_role"`. Quoted as an identifier everywhere
+     -- so the file can be re-applied idempotently. Column name in DB is unchanged,
+     -- so no data migration required.
+    "current_role"          text    not null default 'consultant'
+                                        check ("current_role" in (
                                             'zootechnician',    -- feed/ration queries
                                             'veterinarian',     -- health/disease queries
                                             'consultant',       -- general association queries
@@ -2066,14 +2071,14 @@ end $$;
 
 alter table public.ai_conversations
     add constraint ai_conversations_current_role_check
-    check (current_role in (
+    check ("current_role" in (
         'zootechnician',   -- управление стадом, кормление, план
         'vet',             -- C-4: было 'veterinarian' — исправлено
         'consultant',      -- субсидии, документы, членство
         'trading_agent'    -- TSP, батчи, цены
     ));
 
-comment on column public.ai_conversations.current_role is
+comment on column public.ai_conversations."current_role" is
     'C-4: Роль AI агента в текущем разговоре. Совпадает с AgentState.current_role в Python.
      ИСПРАВЛЕНИЕ: было ''veterinarian'' (001_kernel.sql) → стало ''vet'' (Dok 5 standard).
      Изменяется через sync_role_to_db node при каждом route_role.

@@ -2783,7 +2783,7 @@ begin
 
     update public.ai_conversations
     set
-        current_role        = p_role,
+        "current_role"      = p_role,
         -- DEF-ROLE-01: explicit call = override (auto-detection never calls this RPC directly)
         role_was_overridden = true,
         updated_at          = now()
@@ -2821,7 +2821,7 @@ begin
     select jsonb_build_object(
         'confirmation_pending',    c.confirmation_pending,
         'confirmation_payload',    c.confirmation_payload,
-        'current_role',            c.current_role,
+        'current_role',            c."current_role",
         'role_was_overridden',     c.role_was_overridden,
         'message_history_summary', c.message_history_summary,
         'detected_language',       c.detected_language
