@@ -394,17 +394,25 @@ def _calc_from_norms(
 ) -> dict:
     """Priority 2: Compute feeding costs from feed_consumption_norms + feed_prices_d03.
 
-    Norm items: [{feed_item_id, kg_per_day}]
-    Cost formula: sum(price_per_kg × inflation × kg_per_day × heads × days) / 1000
-    Season: pasture (May-Oct) or stall (Nov-Apr)
-    Inflation (10.5% annual) applied from year 2, same as hardcoded defaults.
+    DEF-FEED-NORMS-01 (2026-04-17): norms are mapped to herd groups via
+    animal_categories.code (embedded from calculate.py select join) and
+    CATEGORY_CODE_TO_HERD. The previous heuristic ("reproducer" substring in
+    farm_type → sum into cows_12m+bulls) double-counted: for project with 8
+    reproducer norms it inflated cows_12m year-1 cost ~7× (100M vs ~14M).
+
+    Norm record shape (post-fix, see calculate.py):
+      { animal_category_id, animal_categories: {code}, season, farm_type,
+        items: [{feed_item_id, kg_per_day}] }
+
+    Cost formula: Σ(price_per_kg × inflation × kg_per_day × heads × days) / 1000
+    Season: 'summer' (pasture May-Oct) / 'winter' (stall Nov-Apr) /
+    'transition' used as fallback when season-specific norm missing.
     """
     n = timeline["horizon_months"]
     dates = timeline["dates"]
     days = list(timeline["days_in_month"])
     year_indices = timeline["year_index"]
 
-    # Feed inflation rate (same logic as Priority 3)
     feed_inflation_rate = FEED_INFLATION_DEFAULT
     economic_params = refs.get("economic_parameters", [])
     if isinstance(economic_params, list):
@@ -419,7 +427,7 @@ def _calc_from_norms(
         yi = year_indices[t]
         return (1 + feed_inflation_rate) ** (yi - 1) if yi > 1 else 1.0
 
-    # Build price lookup: feed_item_id → price_per_kg
+    # feed_item_id → price_per_kg (first price wins)
     price_map: dict[str, float] = {}
     for fp in feed_prices:
         fid = fp.get("feed_item_id") or ""
@@ -427,86 +435,74 @@ def _calc_from_norms(
         if fid and price and fid not in price_map:
             price_map[fid] = float(price)
 
-    # Build norms lookup: (animal_category_id, season) → items list
-    norms_map: dict[tuple, list] = {}
+    # Map: (category_code, season) → cpd (тг/голова/сут)
+    # Uses embedded animal_categories.code from PostgREST select.
+    cpd_by_code_season: dict[tuple[str, str], float] = {}
     for norm in norms:
-        cat_id = norm.get("animal_category_id", "")
-        season = norm.get("season", "")
-        if cat_id and season:
-            norms_map[(cat_id, season)] = norm.get("items", [])
-
-    # Also build category_id lookup from rations for code→id resolution
-    # (norms use animal_category_id, not code; we resolve via the norm records themselves)
-    # Since we only have id-based norms here, we compute cost_per_head_per_day for each norm
-    def _norm_cost_per_head(animal_category_id: str, is_pasture: bool) -> float:
-        season = "summer" if is_pasture else "winter"
-        items = norms_map.get((animal_category_id, season), [])
-        if not items:
-            # Try 'transition' season as fallback
-            items = norms_map.get((animal_category_id, "transition"), [])
-        if not items:
-            return 0.0
-        return sum(
-            price_map.get(item.get("feed_item_id", ""), 0.0) * float(item.get("kg_per_day", 0))
+        ac = norm.get("animal_categories") or {}
+        code = ac.get("code") if isinstance(ac, dict) else ""
+        if not code:
+            continue
+        season = norm.get("season") or ""
+        if not season:
+            continue
+        items = norm.get("items") or []
+        if isinstance(items, str):
+            # Some drivers return JSON as string
+            import json as _json
+            try:
+                items = _json.loads(items)
+            except Exception:
+                items = []
+        cpd = sum(
+            price_map.get(item.get("feed_item_id", ""), 0.0) * float(item.get("kg_per_day", 0) or 0)
             for item in items
         )
+        if cpd > 0:
+            cpd_by_code_season[(code, season)] = cpd
 
-    # We need category IDs for each herd group — extract from norm records by matching
-    # against known codes. Build code→id map from norms' animal_category references.
-    # Norms don't carry code directly; skip full ID resolution — use cost_per_head averaged
-    # across all norms for the group. This is a best-effort fallback.
-    # If no matching norm exists for a category, cost = 0 (falls back within group).
+    def _lookup_cpd(code: str, is_pasture: bool) -> float:
+        """Pick cpd for (code, season). Fallback: transition → opposite season → 0."""
+        season = "summer" if is_pasture else "winter"
+        cpd = cpd_by_code_season.get((code, season))
+        if cpd is None or cpd == 0.0:
+            cpd = cpd_by_code_season.get((code, "transition"))
+        if cpd is None or cpd == 0.0:
+            alt = "winter" if is_pasture else "summer"
+            cpd = cpd_by_code_season.get((code, alt))
+        return cpd or 0.0
 
-    # Aggregate cost-per-head for each month using all available norms
-    # by iterating over norms and summing applicable ones per herd group.
-    # Group costs default to 0 if no norms found for that category.
-    group_costs: dict[str, list] = {k: [0.0] * n for k in [
-        "molodnyak", "heifers_prev", "heifers_curr", "cows_12m", "cows_9m",
-        "bulls", "fattening_breeding", "fattening_commercial",
-    ]}
+    # Group → [codes, heads_array]. Mirrors _calc_from_consulting_rations.
+    group_specs: list[tuple[str, list[str], list]] = [
+        ("molodnyak",            ["SUCKLING_CALF", "YOUNG_CALF"],     herd["calves"]["avg"]),
+        ("heifers_prev",         ["HEIFER_PREG", "HEIFER_YOUNG"],     herd["heifers"]["avg"]),
+        ("heifers_curr",         [],                                   herd["heifers"]["avg"]),
+        ("cows_12m",             ["COW"],                              herd["cows"]["eop"]),
+        ("cows_9m",              [],                                   herd["cows"]["eop"]),
+        ("bulls",                ["BULL_BREEDING"],                    herd["bulls"]["eop"]),
+        ("fattening_breeding",   ["BULL_CALF"],                        herd["steers"]["avg"]),
+        ("fattening_commercial", ["STEER"],                            herd["steers"]["avg"]),
+    ]
+
+    group_costs: dict[str, list] = {g: [0.0] * n for g, _, _ in group_specs}
 
     for t in range(n):
         m = _get_month_in_year(dates[t])
         is_pasture = _is_pasture_month(0, m, pasture_start, pasture_end)
-        season = "summer" if is_pasture else "winter"
-
-        for norm in norms:
-            cat_id = norm.get("animal_category_id", "")
-            if norm.get("season", "") != season:
+        inf = _inflation(t)
+        for gkey, codes, heads_arr in group_specs:
+            if not codes:
                 continue
-            items = norm.get("items", [])
-            if not items:
+            heads = heads_arr[t] if t < len(heads_arr) else 0.0
+            if heads <= 0:
                 continue
-
-            # cost per head per day (тг)
-            cpd = sum(
-                price_map.get(item.get("feed_item_id", ""), 0.0) * float(item.get("kg_per_day", 0))
-                for item in items
-            )
-            if cpd == 0.0:
+            # Sum cpd across all codes in the group (e.g. HEIFER_PREG+HEIFER_YOUNG share heifers pool —
+            # picking the bigger of the two avoids double-counting one head across two categories).
+            # For robustness: take max cpd, not sum — mirrors "one animal eats one ration per season".
+            cpd = max((_lookup_cpd(c, is_pasture) for c in codes), default=0.0)
+            if cpd <= 0:
                 continue
-
-            # Match norm to herd group via CATEGORY_CODE_TO_HERD
-            # norms carry animal_category_id but not code; match by id across all groups
-            # We accumulate costs keyed by category_id and apply to matching groups below
-            # This requires knowing which herd group each category_id belongs to.
-            # Since we don't have code here, we skip — Priority 2 is best-effort.
-            # The norm's farm_type field can hint: beef_reproducer→cows/bulls, feedlot→fattening
-            farm_type = norm.get("farm_type", "")
-            inf = _inflation(t)
-            if "reproducer" in farm_type:
-                # Apply proportionally to cows and bulls (major groups)
-                for group_key, heads_arr in [
-                    ("cows_12m", herd["cows"]["eop"]),
-                    ("bulls", herd["bulls"]["eop"]),
-                ]:
-                    heads = heads_arr[t] if t < len(heads_arr) else 0.0
-                    if heads > 0:
-                        group_costs[group_key][t] += -(cpd * inf * heads * days[t]) / 1000
-            elif "feedlot" in farm_type or "fattening" in farm_type:
-                heads = herd["steers"]["avg"][t] if t < len(herd["steers"]["avg"]) else 0.0
-                if heads > 0:
-                    group_costs["fattening_commercial"][t] += -(cpd * inf * heads * days[t]) / 1000
+            group_costs[gkey][t] += -(cpd * inf * heads * days[t]) / 1000
 
     total_reproducer = [
         group_costs["molodnyak"][t] + group_costs["heifers_prev"][t]

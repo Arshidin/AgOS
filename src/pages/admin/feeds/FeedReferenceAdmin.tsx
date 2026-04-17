@@ -574,7 +574,10 @@ export function NormsTab() {
   const { data: norms, isLoading, refetch } = useRpc<FeedConsumptionNorm[]>(
     'rpc_list_feed_consumption_norms', { p_farm_type: filterFarmType }
   )
-  const { data: categories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
+  const { data: categories } = useRpc<AnimalCategory[]>(
+    'rpc_list_animal_categories',
+    { p_at_date: null, p_include_deprecated: false },
+  )
   const { data: feedItems } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
 
   const getCategoryName = (id: string) =>

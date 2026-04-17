@@ -90,7 +90,12 @@ def calculate_opex(
         # --- 10 COGS lines (all negative) ---
 
         # 205: Корма (already negative from feeding module)
-        feed_cost = feeding["total_reproducer"][t]
+        # DEF-OPEX-FATTENING-01 (2026-04-17): split feed between cogs_reproducer
+        # (groups 1-6) and cogs_fattening (groups 7-8). Previously total_fattening
+        # was silently dropped — STEER/BULL_CALF rations never reached P&L.
+        feed_cost_repro = feeding["total_reproducer"][t]
+        feed_cost_fatt = feeding.get("total_fattening", [0.0] * n)[t]
+        feed_cost = feed_cost_repro + feed_cost_fatt
         feed_cost_monthly[t] = feed_cost
 
         # 206: Вет препараты (6500 тг/гол/год)
@@ -124,9 +129,10 @@ def calculate_opex(
         cost_other[t] = other
 
         cogs_reproducer[t] = (
-            feed_cost + vet_cost + rfid_cost + tags_cost + insurance
+            feed_cost_repro + vet_cost + rfid_cost + tags_cost + insurance
             + payroll + current_expenses + other
         )
+        cogs_fattening[t] = feed_cost_fatt
 
         # --- Admin expenses (NEGATIVE) ---
         # Land tax: 12.05 тг/га × pasture_area / 1000 (тыс.тг/год) / 12 (monthly)

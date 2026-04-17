@@ -112,7 +112,10 @@ export function RationTab() {
   const herd = results?.herd
   const weight = results?.weight
 
-  const { data: allCategories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
+  const { data: allCategories } = useRpc<AnimalCategory[]>(
+    'rpc_list_animal_categories',
+    { p_at_date: null, p_include_deprecated: false },
+  )
   const { data: feedingGroupData } = useAnimalCategoryMappings('feeding_group')
   const { data: rations, isLoading, refetch } = useRpc<ConsultingRation[]>(
     'rpc_get_consulting_rations',

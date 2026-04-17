@@ -80,6 +80,11 @@
 | DEF-036 | 2026-04-11 | UI | Все 7 вкладок: skeleton = h-48 w-full без padding = прямоугольник от края до края. Фикс: .page + table-like rows. |
 | DEF-037 | 2026-04-11 | TS | nameLoading state объявлен но не читается после удаления titleLoading — TS6133 build error. Фикс: удалить state. |
 | DEF-RATION-08 | 2026-04-16 | Backend | Priority 1 `_calc_from_consulting_rations` теперь вычисляет `quantities.by_group`, `totals_by_feed`, `annual_feed_summary` из ration items (feed_item_code / quantity_kg_per_day). |
+| DEF-RATION-SAVE-01 | 2026-04-17 | UI/SQL | `.rpc('rpc_list_animal_categories', {})` падал PGRST203 (ambiguous overload). SimpleRationEditor.handleSave тихо пропускал все группы (categoryId=undefined), но показывал тост "сохранено". Fix: 4 UI-вызова получают `{p_at_date:null, p_include_deprecated:false}`; canonical RPC в d01 теперь возвращает `id`; no-arg wrapper в d03 удалён. |
+| DEF-FEED-NORMS-01 | 2026-04-17 | Backend | `_calc_from_norms` (Priority 2) суммировал cpd всех reproducer-норм в cows_12m+bulls по эвристике farm_type. Для 8 reproducer-норм это дало cows_12m year-1 = 100,906 тыс.тг вместо ~14,000. Fix: норма мапится на группу по `animal_categories.code` (embed-join в calculate.py) через `CATEGORY_CODE_TO_HERD`; в группе из нескольких кодов берётся max cpd (не sum) — одно животное ест один рацион. |
+| DEF-OPEX-FATTENING-01 | 2026-04-17 | Backend | `opex.py:93` использовал только `feeding["total_reproducer"]` — рацион для STEER/BULL_CALF (откорм) не попадал в COGS P&L. Fix: split на `feed_cost_repro` → `cogs_reproducer` и `feed_cost_fatt` → `cogs_fattening`. Total_cogs теперь включает оба. |
+| DEF-FEED-NORMS-02 | 2026-04-17 | Backend | `_calc_from_norms` игнорировал `season='transition'` (COW имеет такую норму в БД). Fix: в `_lookup_cpd` fallback цепочка: season → transition → opposite season → 0. |
+| DEF-SCHEMA-DRIFT-01 | 2026-04-17 | DB/Deploy | `consulting_projects.needs_recalc` определён в `d09_consulting.sql:54` (ADD COLUMN IF NOT EXISTS), но отсутствует в deployed БД. Причина: `d09_consulting.sql` не был в `SQL_FILES` списке `deploy_sql.py`. Fix: d09 добавлен в deploy pipeline; `rpc_save_consulting_ration` и `rpc_recalculate_consulting_project` после применения начнут корректно управлять `needs_recalc`. |
 
 ---
 
@@ -1607,3 +1612,60 @@ Inner `_calc_group` function called `_is_pasture_month(0, m)` with hardcoded `0`
 **Fix:** Removed `milk` from `simpleMap`. Changed all three save filters (`pastureItems`, `stallItems`, combined `items`) to `.filter(([feed, vals]) => ... && feedCodeToId.has(feed))` — feeds with no DB entry are skipped during save. Milk (dam's milk, not purchased) has no `feed_item` DB record and is implicitly excluded.
 
 **Files:** `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx`
+
+---
+
+### 2026-04-17: Feed Cost Engine Audit — 5 defects closed (DEF-RATION-SAVE-01, DEF-FEED-NORMS-01/02, DEF-OPEX-FATTENING-01, DEF-SCHEMA-DRIFT-01)
+
+**Триггер (CEO):** «в сводной таблице расходы на корма не из рационов. 200 голов × 6 мес × 378 тг/сут = ~13 млн. В расчётах 100 млн. Плюс: ввожу рационы, сохраняю — возвращаются к дефолтным значениям.»
+
+**Что проверено (БД, проект da3e54d6 "Тест 7"):**
+- `ration_versions` где `consulting_project_id=da3e54d6 AND is_current=true`: **0 записей** (UI «сохраняет» но записи не появляются)
+- последняя `consulting_project_versions` содержит `feeding._source = 'feed_consumption_norms'` (Priority 2, потому что Priority 1 пуст)
+- `cows_12m` year 1 = **100 906 тыс.тг** ≈ прогноз от формулы "все 4 reproducer-категории складываются и применяются к 200 коров" = 102 696 тыс.тг ✓ (подтверждено арифметически)
+
+**5 дефектов найдено:**
+
+1. **DEF-RATION-SAVE-01 (Critical) — рационы не сохраняются.** `rpc_list_animal_categories` имеет 2 overload'а в БД (canonical в d01 с 2 аргументами, wrapper в d03 без аргументов). Postgrest на `.rpc('rpc_list_animal_categories', {})` возвращает PGRST203 "Could not choose the best candidate function". В UI: `animalCategories=undefined` → `animalCategoryToId` пустая Map → в `handleSave` `categoryId=undefined` для всех 5 групп → `continue` пропускает всё → toast "Рационы сохранены" показывается, но в БД пусто. Затронуты 4 файла UI.
+
+2. **DEF-FEED-NORMS-01 (Critical) — Priority 2 дублирует расходы.** `_calc_from_norms` использовал эвристику `if "reproducer" in farm_type:` и суммировал `cpd` **всех** reproducer-норм в `cows_12m` И `bulls` одновременно. Для 8 норм в БД (COW×3, HEIFER_YOUNG×2, BULL_BREEDING×1, BULL_CALF×2) сумма winter cpd = 2396 тг/сут. 2396 × 200 cows × 182 дня / 1000 ≈ 87 233 тыс.тг (stall) + ~15 464 тыс.тг (pasture) = **~102 697 тыс.тг** — точно совпало с 100 906 в engine.
+
+3. **DEF-OPEX-FATTENING-01 (Significant) — откорм не попадает в P&L.** `opex.py:93` использовал только `feeding["total_reproducer"]`. Расход `total_fattening` (STEER + BULL_CALF) **молча отбрасывался** — рацион для бычков на откорме не отражался в COGS / EBITDA / NPV.
+
+4. **DEF-FEED-NORMS-02 (Minor) — transition season игнорировалась.** `_calc_from_norms` читал только `season='summer'` и `'winter'`, но в БД для COW есть `season='transition'` (cpd=526). Норма существовала, но не использовалась.
+
+5. **DEF-SCHEMA-DRIFT-01 (Significant) — d09_consulting.sql не применялся.** Колонка `consulting_projects.needs_recalc` (d09:54) отсутствует в deployed БД. Причина: файл `d09_consulting.sql` **отсутствовал в `SQL_FILES`** списке `deploy_sql.py` — только d01..d08 применялись. Deployed `rpc_save_consulting_ration` — более старая версия без `update ... needs_recalc` (поэтому save не падал).
+
+**Что сделано (все правки в canonical-файлах, HS-1 Edit а не Write):**
+
+| Файл | Правка |
+|------|--------|
+| `src/pages/cabinet/ration/tabs/Calculator.tsx:113` | `useRpc('rpc_list_animal_categories', { p_at_date: null, p_include_deprecated: false })` |
+| `src/pages/admin/feeds/FeedReferenceAdmin.tsx:577` | То же |
+| `src/pages/admin/consulting/tabs/SimpleRationEditor.tsx:228` | То же |
+| `src/pages/admin/consulting/tabs/RationTab.tsx:115` | То же |
+| `d01_kernel.sql:5237` | Добавлен `'id': ac.id` в `jsonb_build_object` canonical RPC (аддитивно — P7) |
+| `d03_feed.sql:1625-1658` | Удалён no-arg wrapper + `drop function if exists public.rpc_list_animal_categories()` |
+| `consulting_engine/app/api/calculate.py:42-48` | Embed-join: `.select("*, animal_categories(code)")` при fetch `feed_consumption_norms` |
+| `consulting_engine/app/engine/feeding_model.py:391-522` | `_calc_from_norms` переписан: mapping по `animal_categories.code` → `CATEGORY_CODE_TO_HERD`; `max(cpd)` внутри группы из нескольких категорий (не sum); fallback season → transition → opposite |
+| `consulting_engine/app/engine/opex.py:90-135` | `feed_cost_repro` → `cogs_reproducer`; `feed_cost_fatt` → `cogs_fattening` |
+| `deploy_sql.py:18-27` | Добавлен `"d09_consulting.sql"` в `SQL_FILES` |
+
+**Инварианты сохранены:**
+- Additive: wrapper drop'нут только потому что canonical теперь возвращает `id` (P7 соблюдён — UI-контракт не сломан)
+- Priority 1 (consulting_rations) не тронут — единственное что правильно работало
+- Priority 3 (hardcoded defaults) не тронут — проверенный fallback
+- Opex — семантически правильный split reproducer/fattening (а не «всё в reproducer»)
+
+**Следующие шаги (на CEO):**
+1. Запустить `python3 deploy_sql.py <DB_PASSWORD>` — применит d01 (id в RPC), d03 (drop wrapper), d09 (needs_recalc + текущая версия rpc_save_consulting_ration).
+2. Передеплоить Python engine на Railway (изменения в consulting_engine/).
+3. Передеплоить UI (4 TSX-файла).
+4. Пересчитать проект "Тест 7" → проверить: `feeding._source` должен быть `'consulting_rations'` (если рационы теперь сохраняются) или `'feed_consumption_norms'` с разумными cpd по группам.
+
+**Ожидаемая проверка:** для 200 коров при пользовательском рационе 378 тг/сут (стойл.) + ~10 тг/сут (паст.):
+- Priority 1: cows_12m year-1 ≈ `378 × 200 × 182 / 1000 + 10 × 200 × 183 / 1000 = 14 125` тыс.тг
+- Priority 2 (если рацион не сохранён): cows_12m year-1 ≈ `925 × 200 × 182 / 1000 + 161 × 200 × 183 / 1000 ≈ 39 568` тыс.тг (только COW-норма, без дублирования)
+
+Вместо 100 906 — ожидается 14k–40k в зависимости от источника.
+

@@ -23,6 +23,7 @@ SQL_FILES = [
     "d05_ops_edu.sql",
     "d07_ai_gateway.sql",
     "d08_epidemic.sql",
+    "d09_consulting.sql",
 ]
 
 def deploy(password: str):

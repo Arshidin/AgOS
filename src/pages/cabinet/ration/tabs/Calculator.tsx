@@ -110,8 +110,11 @@ export function Calculator() {
   const [isSaving, setIsSaving] = useState(false)
   const [result, setResult] = useState<CalcResult | null>(null)
 
-  // Load animal categories
-  const { data: categories } = useRpc<AnimalCategory[]>('rpc_list_animal_categories', {})
+  // Load animal categories (DEF-RATION-SAVE-01: explicit params disambiguate overload)
+  const { data: categories } = useRpc<AnimalCategory[]>(
+    'rpc_list_animal_categories',
+    { p_at_date: null, p_include_deprecated: false },
+  )
   // Load feed items from inventory
   const { data: feedItems } = useRpc<FeedItem[]>(
     'rpc_list_feed_items', {},

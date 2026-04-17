@@ -5235,6 +5235,7 @@ security definer
 set search_path = public, pg_temp
 as $$
     select jsonb_build_object(
+        'id',                    ac.id,
         'code',                  ac.code,
         'name_ru',               ac.name_ru,
         'name_kk',               ac.name_kk,

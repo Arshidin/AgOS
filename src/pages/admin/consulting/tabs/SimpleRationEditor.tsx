@@ -225,7 +225,10 @@ export function SimpleRationEditor({
   // Load feed items, prices and animal categories for ID resolution
   const { data: feedItems } = useRpc<FeedItem[]>('rpc_list_feed_items', { p_active_only: true })
   const { data: feedPrices } = useRpc<FeedPrice[]>('rpc_list_feed_prices', {})
-  const { data: animalCategories } = useRpc<{ id: string; code: string }[]>('rpc_list_animal_categories', {})
+  const { data: animalCategories } = useRpc<{ id: string; code: string }[]>(
+    'rpc_list_animal_categories',
+    { p_at_date: null, p_include_deprecated: false },
+  )
 
   // Build animal category code → UUID map
   const animalCategoryToId = new Map<string, string>()

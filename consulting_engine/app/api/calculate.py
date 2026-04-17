@@ -40,7 +40,12 @@ def _load_feed_reference(sb, organization_id: str, project_id: str) -> dict:
         pass
 
     try:
-        fn = sb.table("feed_consumption_norms").select("*").execute()
+        # DEF-FEED-NORMS-01: embed animal_category.code so _calc_from_norms can
+        # map norms to herd groups via CATEGORY_CODE_TO_HERD instead of the
+        # broken "reproducer"-substring heuristic.
+        fn = sb.table("feed_consumption_norms") \
+            .select("*, animal_categories(code)") \
+            .execute()
         result["feed_consumption_norms"] = fn.data or []
     except Exception:
         pass

@@ -1,11 +1,33 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-16
+> Last updated: 2026-04-17
 
 ---
 
-## Current Phase: TAXONOMY slice — FULLY CLOSED (2026-04-16). All post-tasks done. TAXONOMY_RPC_READ=true. Realtime wired. Next: Slice 4 proactive dispatch.
+## Current Phase: Feed Cost Engine Audit (2026-04-17) — 5 defects fixed, awaiting deploy
+
+### Feed Cost Engine Audit — DEF-RATION-SAVE-01 / DEF-FEED-NORMS-01/02 / DEF-OPEX-FATTENING-01 / DEF-SCHEMA-DRIFT-01
+
+| Layer | Component | Status | Notes |
+|-------|-----------|--------|-------|
+| Architect | Root-cause audit for 100M vs 13M cows_12m year-1 | ✅ Done (2026-04-17) | Reproduced in БД: `feeding._source='feed_consumption_norms'`, 8 reproducer-норм → sum cpd applied to cows_12m+bulls. Проект da3e54d6 «Тест 7» |
+| UI | 4× `.rpc('rpc_list_animal_categories', { p_at_date: null, p_include_deprecated: false })` | ✅ Done (2026-04-17) | Calculator.tsx, FeedReferenceAdmin.tsx, SimpleRationEditor.tsx, RationTab.tsx |
+| DB | Canonical `rpc_list_animal_categories` returns `id` (d01:5237) | ✅ Done (файл) / ⏳ Deploy | Аддитивно: добавлено `'id': ac.id` в jsonb_build_object |
+| DB | Drop no-arg wrapper `rpc_list_animal_categories()` (d03) | ✅ Done (файл) / ⏳ Deploy | `drop function if exists` в d03:1625. Устраняет PGRST203 overload ambiguity |
+| Backend | `_calc_from_norms` — маппинг по `animal_categories.code` via embed-join | ✅ Done (2026-04-17) | calculate.py: `.select("*, animal_categories(code)")`; feeding_model.py: `CATEGORY_CODE_TO_HERD` + max(cpd) внутри группы |
+| Backend | `opex.py` — split `feed_cost_repro`/`feed_cost_fatt` | ✅ Done (2026-04-17) | `cogs_reproducer` получает reproducer feed; `cogs_fattening` получает fattening feed (был всегда 0) |
+| Backend | `_calc_from_norms` — transition season fallback | ✅ Done (2026-04-17) | `_lookup_cpd`: season → transition → opposite season → 0 |
+| Deploy | `d09_consulting.sql` добавлен в `deploy_sql.py` SQL_FILES | ✅ Done (2026-04-17) | Причина отсутствия `needs_recalc` в БД — d09 никогда не запускался |
+| Architect | DECISIONS_LOG обновлён | ✅ Done (2026-04-17) | 5 defects described |
+| Deploy | Deploy SQL: d01 + d03 + d09 через `python3 deploy_sql.py <DB_PASS>` | ⏳ Pending (CEO) | — |
+| Deploy | Redeploy Python engine on Railway | ⏳ Pending (CEO) | — |
+| Deploy | Redeploy UI (4 TSX files) | ⏳ Pending (CEO) | — |
+| QA | Recalculate project Тест 7 → verify cows_12m ≈ 14M (P1) или ≤40M (P2) | ⏳ Pending post-deploy | Acceptance criterion |
+
+---
+
+## Previous Phase: TAXONOMY slice — FULLY CLOSED (2026-04-16). All post-tasks done. TAXONOMY_RPC_READ=true. Realtime wired. Next: Slice 4 proactive dispatch.
 
 ### TAXONOMY slice — Animal Ontology (ADR-ANIMAL-01)
 
