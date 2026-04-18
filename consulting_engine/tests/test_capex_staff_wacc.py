@@ -9,9 +9,25 @@ from app.engine.input_params import validate_and_enrich_input
 from app.engine.capex import calculate_capex
 from app.engine.staff import calculate_staff
 from app.engine.wacc import calculate_wacc_rates
-from app.models.schemas import ProjectInput
+from app.models.schemas import ProjectInput, StaffPosition
 
 FIXTURES = Path(__file__).parent / "fixtures" / "excel_reference.json"
+
+# Excel reference baseline (5 positions, 3.3 FTE, payroll 1940.34 тыс.тг/мес)
+# matches Staff sheet rows 46-50 FTE + rows 60-64 net_salary from the source
+# .xlsx (see tests/fixtures/excel_reference.json → staff.positions).
+# The live DEFAULT_STAFF_POSITIONS in schemas.py has 7 positions (5.3 FTE,
+# D-FEED-2 expert recommendation including 2 herders); tests override so
+# Excel parity is preserved and concerns stay separated (test = engine math,
+# not defaults). No herder in Excel baseline — herd management comes via
+# tractor driver + director in the 5-position sizing.
+EXCEL_BASELINE_STAFF = [
+    StaffPosition(code="director",   name="Директор фермы", category="production", fte=1.0, net_salary=600),
+    StaffPosition(code="vet",        name="Ветеринар",      category="production", fte=0.5, net_salary=400),
+    StaffPosition(code="cook",       name="Повар",          category="production", fte=0.5, net_salary=300),
+    StaffPosition(code="tractor",    name="Тракторист",     category="production", fte=1.0, net_salary=400),
+    StaffPosition(code="accountant", name="Бухгалтер",      category="admin",      fte=0.3, net_salary=300),
+]
 
 
 def load_reference():
@@ -25,6 +41,7 @@ def make_input():
         initial_cows=200,
         reproducer_capacity=300,
         calving_scenario="Зимний",
+        staff_positions=list(EXCEL_BASELINE_STAFF),
     )
 
 
