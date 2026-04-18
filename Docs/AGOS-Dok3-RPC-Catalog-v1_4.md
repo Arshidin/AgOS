@@ -981,23 +981,28 @@ rpc_upsert_infrastructure_norm(
 |--------|---------|------|--------|--------|
 | RPC-CAPEX-5 | `rpc_save_project_infra_override` | d09_consulting.sql | UI ProjectWizard (save materials) + CapexTab (save overrides) | ✅ Implemented (2026-04-17) |
 
-**`rpc_save_project_infra_override` signature:**
+**`rpc_save_project_infra_override` signature (ADR-CAPEX-02, 2026-04-18):**
 ```sql
 rpc_save_project_infra_override(
     p_organization_id uuid,
     p_project_id      uuid,
     p_enclosed        text   default null,       -- nullable: preserves existing on null
     p_support         text   default null,       -- nullable: preserves existing on null
-    p_overrides       jsonb  default '[]'::jsonb -- array: ALWAYS replaces (no null-preserve)
+    p_overrides       jsonb  default null        -- nullable: preserves existing on null (ADR-CAPEX-02)
 ) RETURNS boolean
 -- UPDATE consulting_projects SET
 --   construction_material_enclosed = COALESCE(p_enclosed, ...),
 --   construction_material_support  = COALESCE(p_support, ...),
---   infra_items_override           = p_overrides,
+--   infra_items_override           = COALESCE(p_overrides, ...),   -- null-preserve
 --   needs_recalc                   = true;
 -- Emits Dok4 event: consulting.capex_override.saved
--- Raises PROJECT_NOT_FOUND, MATERIAL_NOT_FOUND, INVALID_OVERRIDES
+-- Raises PROJECT_NOT_FOUND, MATERIAL_NOT_FOUND, INVALID_OVERRIDES (non-null non-array only)
 ```
+
+**NULL-preserve semantics:**
+- `p_overrides=null`   → preserves existing array (wizard changes materials without touching CapexTab edits)
+- `p_overrides=[]`     → resets overrides to empty array
+- `p_overrides=[...]`  → replaces overrides (CapexTab save path)
 
 **Override array shape** (per-item, всё опционально кроме code):
 ```json
@@ -1012,11 +1017,31 @@ rpc_save_project_infra_override(
 ]
 ```
 
-**Known limitation (flagged):** `p_overrides` всегда перезаписывает столбец
-(нет null-preserve). Wizard, который хочет обновить только материалы,
-должен читать последний snapshot overrides (из `version.input_params
-.infra_items_override`) и передавать его обратно. Cross-edit race возможен
-— см. Dok 7 §11.10.
+**Legacy limitation (resolved in ADR-CAPEX-02):** Phase 1 (commit `cfce152`) shipped
+with `p_overrides default '[]'::jsonb`, which forced wizard to pass a stale overrides
+snapshot to avoid wiping CapexTab edits (L-P3-WIZARD race). Phase 2 fix (commit
+`174485f`) changed the default to `null` + added COALESCE preserve logic. Wizard now
+passes `p_overrides: null` (commit `8bf5339`). L-P3-WIZARD closed.
+
+---
+
+### RPC-CAPEX-6 — list capex surcharges (ADR-CAPEX-02, 2026-04-18)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-CAPEX-6 | `rpc_list_capex_surcharges()` | d09_consulting.sql | UI `/admin/capex/surcharges` (CapexSurchargesTab) | ✅ Implemented (2026-04-18) |
+
+**Signature:**
+```sql
+rpc_list_capex_surcharges() RETURNS jsonb
+-- [{id, code, data, valid_from, valid_to}] ordered by valid_from desc
+-- Reads category='capex_surcharges' from consulting_reference_data
+-- STABLE, readable to authenticated. No org scoping (reference data).
+```
+
+**Rationale:** replaces direct `.from('consulting_reference_data').select()` fallback
+used in CapexSurchargesTab (L-P4-1 tech debt from ADR-CAPEX-01 shipping). UI now
+follows the «every data fetch = one RPC call» principle consistently.
 
 ---
 

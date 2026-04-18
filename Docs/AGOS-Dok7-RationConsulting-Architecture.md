@@ -656,19 +656,44 @@ behavior. UI CapexTab нормализует: когда все опционал
 expert triggers `/calculate` → calculate.py читает проектную строку →
 инжектирует в `input_params` → engine выполняет Priority 2 → сохраняет версию.
 
-### 11.10 Known race (flagged, acceptable MVP)
-`rpc_save_project_infra_override` всегда перезаписывает `infra_items_override`
-(нет NULL-preserve семантики). Wizard передаёт последние известные overrides
-из `version.input_params.infra_items_override`. Если CapexTab саvнул overrides
-→ recalc failed → пользователь идёт в Wizard → wizard передаст stale
-`lastVersionOverrides` и перезапишет CapexTab-изменения.
+### 11.10 Cross-edit race — RESOLVED в ADR-CAPEX-02 (2026-04-18)
+**Историческая проблема (L-P3-WIZARD, ADR-CAPEX-01 MVP):**
+`rpc_save_project_infra_override` версии Phase 1 всегда перезаписывал
+`infra_items_override` (default `'[]'::jsonb`). Wizard вынужденно передавал
+stale snapshot `lastVersionOverrides` из `version.input_params` — race:
+если CapexTab сохранил override → /calculate failed → пользователь идёт в
+Wizard → wizard перезаписывает CapexTab-изменения stale snapshot'ом.
 
-Fix option: DB Agent расширяет `rpc_update_consulting_project` с
-materials-only semantic (план §3.1 original intent). Отложено до
-ADR-CAPEX-02 или отдельной сессии.
+**Решение (ADR-CAPEX-02, deploy commits `174485f` + `8bf5339`):**
+1. DB: default p_overrides изменён с `'[]'::jsonb` на `null`. UPDATE использует
+   `coalesce(p_overrides, infra_items_override)` — null значение preserves
+   existing column. Validation обновлена: non-null non-array → INVALID_OVERRIDES;
+   null проходит validation silently. Event payload `override_count = null`
+   когда overrides не тронуты.
+2. UI: `ProjectWizard.handleCalculate` передаёт `p_overrides: null`. Dead code
+   `lastVersionOverrides` state удалён. CapexTab остаётся строгим owner
+   `infra_items_override` массива.
+
+**Семантика после ADR-CAPEX-02:**
+| p_overrides | effect |
+|---|---|
+| `null` | preserves existing array (wizard write path) |
+| `[]` | resets to empty |
+| `[...]` | replaces (CapexTab write path) |
+
+### 11.11 CapexSurchargesTab lookup — RESOLVED в ADR-CAPEX-02
+**Историческая проблема (L-P4-1):** Phase 4 shipped с admin-only прямым
+`.from('consulting_reference_data').select().eq('category', 'capex_surcharges')`
+в CapexSurchargesTab — нарушение UI principle «every data fetch = one RPC call».
+
+**Решение (ADR-CAPEX-02):** новый `rpc_list_capex_surcharges()` (RPC-CAPEX-6),
+STABLE SECURITY DEFINER, возвращает jsonb array активных строк
+`capex_surcharges` (нормально 1 строка, code='default'), sorted by valid_from desc.
+CapexSurchargesTab переключён на RPC (commit `8bf5339`). UI теперь консистентен.
 
 ---
 
 *Документ создан: 08.04.2026*  
 *Версия 1.1: 14.04.2026 — добавлены ADR-FEED-05 (Simple=writer) и ADR-FEED-06 (сезонная модель)*  
-*Версия 1.2: 2026-04-18 — добавлен §11 CAPEX модель (ADR-CAPEX-01: data-driven Priority chain, 4 материала, per-item depreciation, 10 bespoke overrides для Excel parity)*
+*Версия 1.2: 2026-04-18 — добавлен §11 CAPEX модель (ADR-CAPEX-01: data-driven Priority chain, 4 материала, per-item depreciation, 10 bespoke overrides для Excel parity)*  
+*Версия 1.3: 2026-04-18 — §11.10 + §11.11 обновлены с ADR-CAPEX-02 resolutions (L-P3-WIZARD + L-P4-1 closed)*

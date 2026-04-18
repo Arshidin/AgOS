@@ -2132,3 +2132,39 @@ Revenue и OPEX в текущем коде используют одну и ту
 **QA self-check:** 0 Critical / 0 Significant / 0 Minor. `CPI_ANNUAL` grep hits: 0 (было 5 вхождений в 2 файлах, все заменены).
 **Architect sign-off:** ✅ (2026-04-18) — additive (P7), P8 улучшен, no cross-doc defects introduced. CONSULTING_MASTER_SPEC §4.8.1 упоминает «CPI_ANNUAL = 0.105» в документации формулы — актуально (default не изменился).
 
+
+---
+
+### 2026-04-18: D-GATE-CAPEX-02-FINAL — ADR-CAPEX-02 closed
+
+**Domain:** Consulting / CAPEX module (tech debt cleanup)
+**Status:** ✅ CLOSED
+
+**Summary:** Two legacy tech debts from ADR-CAPEX-01 eliminated.
+
+- **L-P3-WIZARD (wizard/CapexTab override race)** — resolved via `rpc_save_project_infra_override`
+  NULL-preserve semantic. DB: commit `174485f` (applied to prod via Supabase MCP
+  `apply_migration`). UI: commit `8bf5339` — wizard passes `p_overrides:null`,
+  dead `lastVersionOverrides` state removed. CapexTab is now the strict owner of
+  `infra_items_override` column. No cross-write race possible.
+
+- **L-P4-1 (CapexSurchargesTab direct `.from()` read)** — resolved via new
+  `rpc_list_capex_surcharges()` (RPC-CAPEX-6). DB: commit `174485f`. UI: commit
+  `8bf5339` — `.from()` replaced with `supabase.rpc('rpc_list_capex_surcharges')`.
+  UI now follows «every data fetch = one RPC call» principle consistently.
+
+**Verification in prod:**
+- Registry: `rpc_list_capex_surcharges` present in `rpc_name_registry`
+- New RPC returns `[{code:'default', contingency_rate:0.025}]` (1 row)
+- `rpc_save_project_infra_override.p_overrides` signature: `DEFAULT NULL::jsonb`
+- TSC clean, production build ok (8.29s)
+- Bundle size unchanged (net −12 lines after dead-code removal)
+
+**Doc updates (commit pending):**
+- Dok 3 §13c — RPC-CAPEX-5 signature updated (null-preserve), RPC-CAPEX-6 added
+- Dok 7 §11.10 rewritten (race RESOLVED), §11.11 added (surcharges RPC note)
+
+**Architect sign-off:** ✅ APPROVED (2026-04-18).
+
+**Related ADRs:** ADR-CAPEX-01 (D-GATE-CAPEX-01-FINAL) — parent slice; ADR-CAPEX-02
+resolves the only two tech debts left open at its gate. No remaining CAPEX tech debt.
