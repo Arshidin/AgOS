@@ -231,11 +231,8 @@ export function ProjectWizard() {
   const [paramsLoading, setParamsLoading] = useState(true)
   const [savedParamsStr, setSavedParamsStr] = useState('')
   const [results, setResults] = useState<any>({})
-  // ADR-CAPEX-01: preserve CapexTab per-item overrides when wizard saves
-  // materials to consulting_projects via rpc_save_project_infra_override.
-  // Source of truth is the last-saved version.input_params.infra_items_override
-  // (calculate.py injects project-row override into input_params before save).
-  const [lastVersionOverrides, setLastVersionOverrides] = useState<any[]>([])
+  // ADR-CAPEX-02: wizard no longer reads overrides. `rpc_save_project_infra_override`
+  // with p_overrides=null preserves CapexTab's array server-side (NULL-preserve).
   // 4 materials from consulting_reference_data (admin-managed).
   const [materials, setMaterials] = useState<Array<{ code: string; name_ru: string; cost_per_m2: number }>>([])
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
@@ -328,10 +325,6 @@ export function ProjectWizard() {
           }
           setParams(merged)
           setSavedParamsStr(JSON.stringify(merged))
-          // Preserve CapexTab overrides when wizard later saves materials.
-          if (Array.isArray(saved.infra_items_override)) {
-            setLastVersionOverrides(saved.infra_items_override)
-          }
         }
       }
       setParamsLoading(false)
@@ -352,16 +345,15 @@ export function ProjectWizard() {
       // ADR-CAPEX-01: persist material choice to consulting_projects row BEFORE
       // triggering /calculate. calculate.py reads the project row and injects
       // into input_params (DB wins) — so the wizard must write first.
-      // `p_overrides` is passed as the last-known overrides to preserve CapexTab
-      // edits. Known MVP race: if CapexTab saved overrides but recalc failed
-      // and user jumps here, those unsynced overrides can be lost. Ship-fix
-      // later via a dedicated materials-only RPC.
+      // ADR-CAPEX-02: p_overrides=null preserves CapexTab's override array on the
+      // project row (NULL-preserve semantic, see d09:956). Wizard only owns
+      // materials; CapexTab owns per-item overrides — no cross-write race.
       const { error: saveError } = await supabase.rpc('rpc_save_project_infra_override', {
         p_organization_id: orgId,
         p_project_id: projectId,
         p_enclosed: params.construction_material_enclosed,
         p_support: params.construction_material_support,
-        p_overrides: lastVersionOverrides,
+        p_overrides: null,
       })
       if (saveError) {
         // Swallow — engine still runs off input_params as fallback. Toast for

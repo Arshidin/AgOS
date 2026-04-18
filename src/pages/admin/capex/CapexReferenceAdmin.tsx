@@ -746,23 +746,19 @@ export function CapexSurchargesTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // ADR-CAPEX-01 tech debt: no dedicated rpc_list_capex_surcharges yet.
-  // Direct table read is admin-only (RLS: crd_read_all) — documented exception
-  // to the «always via supabase.rpc()» rule. Flagged for future DB Agent work.
+  // ADR-CAPEX-02 (L-P4-1 fix): dedicated lookup RPC instead of direct table read.
+  // rpc_list_capex_surcharges() returns jsonb array of active rows (normally 1),
+  // sorted by valid_from desc — first element is latest.
   const load = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('consulting_reference_data')
-      .select('id, code, data, valid_from')
-      .eq('category', 'capex_surcharges')
-      .order('valid_from', { ascending: false })
-      .limit(1)
+    const { data, error } = await supabase.rpc('rpc_list_capex_surcharges')
     setLoading(false)
     if (error) {
       toast.error(`Ошибка загрузки: ${error.message}`)
       return
     }
-    const first = (data as SurchargesRow[])[0]
+    const rows = (data as SurchargesRow[] | null) || []
+    const first = rows[0]
     if (first) setCurrent(first.data)
   }
 
