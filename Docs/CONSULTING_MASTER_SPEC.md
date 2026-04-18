@@ -622,7 +622,9 @@ base_prices = {
 }
 
 # Выручка = цена × вес × (1 + ИПЦ)^(год-1) / 1000 + субсидии
-# CPI_ANNUAL = 0.105 (применяется с года 2)
+# cpi_annual — из ProjectInput (default 0.105, range 0-0.5), применяется с года 2.
+# DEF-CPI-PARAM-01 (2026-04-18): вынесен из module-level hardcode. Тот же параметр
+# используется модулем OPEX (opex.py). feed_inflation_rate — независимый параметр.
 revenue[t] = sum(
     price_heifer[t] * weight_heifers[t] / 1000,
     price_cow[t] * weight_cows[t] / 1000,
