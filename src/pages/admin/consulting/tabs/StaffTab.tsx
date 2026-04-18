@@ -207,8 +207,9 @@ export function StaffTab() {
     return (
       <div className="page">
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            Сначала запустите расчёт из вкладки «Параметры», чтобы настроить штатное расписание.
+          <CardContent className="flex flex-col items-center py-12">
+            <Calculator className="mb-4 h-10 w-10 text-muted-foreground" />
+            <p className="text-muted-foreground">Сначала запустите расчёт из вкладки «Параметры», чтобы настроить штатное расписание.</p>
           </CardContent>
         </Card>
       </div>
@@ -233,13 +234,13 @@ export function StaffTab() {
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-muted-foreground">
-                <th className="text-left px-2 py-2 min-w-[200px]">Позиция</th>
-                <th className="text-center px-2 py-2 w-[100px]">Категория</th>
-                <th className="text-right px-2 py-2 w-[80px]">Единиц</th>
-                <th className="text-right px-2 py-2 w-[120px]">ЗП нетто</th>
-                <th className="text-right px-2 py-2 w-[120px]">ЗП брутто</th>
-                <th className="text-right px-2 py-2 w-[120px]" title="Год 1, без инфляции">Итого с налогами *</th>
+              <tr className="border-b border-border/40 bg-muted/40">
+                <th className="text-left px-2 py-2 min-w-[200px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Позиция</th>
+                <th className="text-center px-2 py-2 w-[100px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Категория</th>
+                <th className="text-right px-2 py-2 w-[80px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Единиц</th>
+                <th className="text-right px-2 py-2 w-[120px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide">ЗП нетто</th>
+                <th className="text-right px-2 py-2 w-[120px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide">ЗП брутто</th>
+                <th className="text-right px-2 py-2 w-[120px] text-[11px] font-medium text-muted-foreground uppercase tracking-wide" title="Год 1, без инфляции">Итого с налогами *</th>
                 <th className="text-center px-2 py-2 w-[50px]"></th>
               </tr>
             </thead>

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { useParams } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { AlertCircle, ChevronDown, ChevronRight, Loader2, Package } from 'lucide-react'
 import { useRpc } from '@/hooks/useRpc'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
@@ -85,7 +86,16 @@ export function CapexTab() {
       ))}
     </div>
   )
-  if (!version) return <p className="page text-muted-foreground">Нет данных. Запустите расчёт.</p>
+  if (!version) return (
+    <div className="page">
+      <Card className="w-full">
+        <CardContent className="flex flex-col items-center py-12">
+          <Package className="mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground">Нет данных. Запустите расчёт.</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
 
   const materials: Material[] = materialsData || []
   const priority = results.capex?.priority_used

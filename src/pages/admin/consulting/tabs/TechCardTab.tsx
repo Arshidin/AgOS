@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ClipboardList } from 'lucide-react'
 import { useProjectData } from './usProjectData'
 
 const PHASE_COLORS: Record<string, string> = {
@@ -43,12 +44,30 @@ export function TechCardTab() {
       ))}
     </div>
   )
-  if (!version) return <p className="page text-muted-foreground">Нет данных. Запустите расчёт.</p>
+  if (!version) return (
+    <div className="page">
+      <Card>
+        <CardContent className="flex flex-col items-center py-12">
+          <ClipboardList className="mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground">Нет данных. Запустите расчёт.</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
 
   const tc = results.tech_card
   const timeline = results.timeline
   if (!tc?.phases || !timeline) {
-    return <p className="page text-muted-foreground">Технологическая карта не рассчитана.</p>
+    return (
+      <div className="page">
+        <Card>
+          <CardContent className="flex flex-col items-center py-12">
+            <ClipboardList className="mb-4 h-10 w-10 text-muted-foreground" />
+            <p className="text-muted-foreground">Технологическая карта не рассчитана.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   interface Phase {
