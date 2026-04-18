@@ -1,26 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import { useRpc } from '@/hooks/useRpc'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { calculateProject } from '@/lib/consulting-api'
 import { toast } from 'sonner'
 import { useProjectData, fmt, cacheResults } from './usProjectData'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
 
 /** ADR-CAPEX-01: shape of per-item override row saved to consulting_projects.infra_items_override. */
 interface OverrideRow {
@@ -53,39 +44,13 @@ interface Material {
   cost_per_m2: number
 }
 
-const COLORS = [
-  'var(--chart-1)',
-  'var(--chart-2)',
-  'var(--chart-3)',
-  'var(--chart-4)',
+const BLOCK_CONFIG = [
+  { key: 'farm',      title: 'Основная ферма', color: '#2563eb' },
+  { key: 'pasture',   title: 'Пастбища',        color: '#16a34a' },
+  { key: 'equipment', title: 'Техника',          color: '#d97706' },
+  { key: 'tools',     title: 'Инструменты',      color: '#7c3aed' },
 ]
 
-const RADIAN = Math.PI / 180
-function renderLabel({
-  cx,
-  cy,
-  midAngle,
-  innerRadius,
-  outerRadius,
-  percent,
-}: {
-  cx: number
-  cy: number
-  midAngle: number
-  innerRadius: number
-  outerRadius: number
-  percent: number
-}) {
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
-  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-  if (percent < 0.03) return null
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={600}>
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  )
-}
 
 export function CapexTab() {
   const { organization } = useAuth()
@@ -96,6 +61,7 @@ export function CapexTab() {
 
   const [overrides, setOverrides] = useState<OverrideRow[]>([])
   const [saving, setSaving] = useState(false)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const initialOverridesRef = useRef<string>('[]')
 
   // Seed local overrides from the last saved version (calculate.py injects
@@ -197,270 +163,301 @@ export function CapexTab() {
     }
   }
 
-  const BLOCKS: { key: string; title: string }[] = [
-    { key: 'farm', title: 'Основная ферма' },
-    { key: 'pasture', title: 'Пастбища' },
-    { key: 'equipment', title: 'Техника' },
-    { key: 'tools', title: 'Инструменты' },
-  ]
-
-  const pieData = [
-    { name: 'Ферма', value: results.capex?.farm?.total || 0, fill: COLORS[0] },
-    { name: 'Пастбища', value: results.capex?.pasture?.total || 0, fill: COLORS[1] },
-    { name: 'Техника', value: results.capex?.equipment?.total || 0, fill: COLORS[2] },
-    { name: 'Инструменты', value: results.capex?.tools?.total || 0, fill: COLORS[3] },
-  ].filter((d) => d.value > 0)
-
   const materialsUsed = results.capex?.materials_used
+
+  // Live preview grand total — recomputes whenever overrides change (bug fix)
+  const previewGrandTotal = BLOCK_CONFIG.reduce((acc, { key }) => {
+    const data = results.capex?.[key] as { items?: CapexItem[]; subtotal?: number; work_surcharge?: number; contingency?: number } | undefined
+    const items: CapexItem[] = data?.items || []
+    const sub = items.reduce((s, item) => {
+      const ov = overrideByCode.get(item.code) || { code: item.code }
+      return s + computePreviewCost(item, ov, materials)
+    }, 0)
+    const sRate = data?.subtotal && data.subtotal > 0 && data.work_surcharge != null ? data.work_surcharge / data.subtotal : 0
+    const cRate = data?.subtotal && data.subtotal > 0 && data.contingency != null ? data.contingency / data.subtotal : 0
+    return acc + sub * (1 + sRate + cRate)
+  }, 0)
   const enclosedName = materialsUsed ? getMaterialName(materials, materialsUsed.enclosed) : null
   const supportName = materialsUsed ? getMaterialName(materials, materialsUsed.support) : null
 
   return (
-    <div className={`page space-y-4 ${isDirty ? 'pb-28' : ''}`}>
+    <div className={`page ${isDirty ? 'pb-28' : 'pb-6'}`}>
 
-      {/* Legacy banner — Priority 3 result or unrecalced post-seed project */}
+      {/* Legacy banner */}
       {isLegacy && (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardContent className="flex items-start gap-3 py-4">
-            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
-            <div className="flex-1 text-sm">
-              <p className="font-medium">Старая модель CAPEX</p>
-              <p className="text-muted-foreground mt-1">
-                Проект был рассчитан до обновления методики ADR-CAPEX-01.
-                Редактирование позиций и материалов появится после пересчёта.
-                Откройте вкладку «Параметры» и нажмите «Рассчитать».
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">Старая модель CAPEX</p>
+            <p className="text-amber-700/80 mt-0.5">
+              Проект рассчитан до обновления методики. Редактирование появится после пересчёта во вкладке «Параметры».
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Pie chart — works in both Priority 2 and Priority 3 */}
-      {pieData.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Распределение капитальных затрат</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="45%"
-                  outerRadius={110}
-                  dataKey="value"
-                  labelLine={false}
-                  label={renderLabel}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => [`${fmt(value, 0)} тг`, '']}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: 13 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+      {/* ── Summary strip ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
+        {BLOCK_CONFIG.map(({ key, title, color }) => {
+          const data = results.capex?.[key] as { items?: CapexItem[]; subtotal?: number; work_surcharge?: number; contingency?: number } | undefined
+          const items: CapexItem[] = data?.items || []
+          const sub = items.reduce((s, item) => {
+            const ov = overrideByCode.get(item.code) || { code: item.code }
+            return s + computePreviewCost(item, ov, materials)
+          }, 0)
+          const sRate = data?.subtotal && data.subtotal > 0 && data.work_surcharge != null ? data.work_surcharge / data.subtotal : 0
+          const cRate = data?.subtotal && data.subtotal > 0 && data.contingency != null ? data.contingency / data.subtotal : 0
+          const blockTotal = sub * (1 + sRate + cRate)
+          const pct = previewGrandTotal > 0 ? (blockTotal / previewGrandTotal * 100) : 0
+          return (
+            <button
+              key={key}
+              onClick={() => document.getElementById(`capex-block-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="rounded-lg border border-border/60 bg-card px-3 py-2.5 text-left hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-[11px] text-muted-foreground truncate">{title}</span>
+              </div>
+              <p className="font-mono text-sm font-semibold tabular-nums">{items.length ? fmt(blockTotal) : '—'}</p>
+              {pct > 0 && <p className="text-[10px] text-muted-foreground mt-0.5">{pct.toFixed(0)}% от итого</p>}
+            </button>
+          )
+        })}
+        {/* Grand total tile */}
+        <div className="rounded-lg border-2 border-foreground/15 bg-foreground/[0.03] px-3 py-2.5 col-span-2 md:col-span-1">
+          <p className="text-[11px] text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Итого</p>
+          <p className="font-mono text-sm font-bold tabular-nums">{fmt(previewGrandTotal)}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">тенге</p>
+        </div>
+      </div>
 
-      {/* Per-block editable tables */}
-      {BLOCKS.map(({ key, title }) => {
+      {/* ── Per-block collapsible sections ──────────────────────────── */}
+      {BLOCK_CONFIG.map(({ key, title, color }) => {
         const data = results.capex?.[key] as
           | { items: CapexItem[]; subtotal?: number; work_surcharge?: number; contingency?: number; total: number }
           | undefined
         if (!data?.items?.length) return null
 
-        return (
-          <Card key={key}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{title}</span>
-                <span className="text-xs text-muted-foreground font-normal">{data.items.length} позиций</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b">
-                    <th className="w-8 py-1.5 font-normal"></th>
-                    <th className="text-left py-1.5 font-normal">Позиция</th>
-                    <th className="text-left py-1.5 font-normal hidden md:table-cell">Модель</th>
-                    <th className="text-right py-1.5 font-normal w-28">Кол-во/Площадь</th>
-                    <th className="text-left py-1.5 font-normal w-40">Материал</th>
-                    <th className="text-right py-1.5 font-normal w-32">Стоимость</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((item: CapexItem) => {
-                    const ov = overrideByCode.get(item.code) || { code: item.code }
-                    const included = ov.include !== false
-                    const modelLabel = formatModelLabel(item)
-                    const qtyDisplay = formatQty(item, ov)
-                    const materialSelectable =
-                      !isLegacy && item.material_target !== null && item.material_target !== undefined
-                    const materialValue = ov.material_override || 'DEFAULT'
+        const isCollapsed = collapsed.has(key)
+        const previewSub = data.items.reduce((s, item) => {
+          const ov = overrideByCode.get(item.code) || { code: item.code }
+          return s + computePreviewCost(item, ov, materials)
+        }, 0)
+        const sRate = data.subtotal && data.subtotal > 0 && data.work_surcharge != null ? data.work_surcharge / data.subtotal : 0
+        const cRate = data.subtotal && data.subtotal > 0 && data.contingency != null ? data.contingency / data.subtotal : 0
+        const previewWork = previewSub * sRate
+        const previewCont = previewSub * cRate
+        const previewTotal = previewSub + previewWork + previewCont
+        const modifiedCount = data.items.filter(i => overrideByCode.has(i.code)).length
 
-                    return (
-                      <tr key={item.code} className={`border-b border-border/20 ${!included ? 'opacity-40' : ''}`}>
-                        <td className="py-1.5">
-                          <Checkbox
-                            checked={included}
-                            disabled={editingDisabled}
-                            onCheckedChange={(checked) => {
-                              // checked === true → remove include=false override
-                              // checked === false → persist include: false
-                              upsertOverride(item.code, { include: checked === false ? false : undefined })
-                            }}
-                            aria-label={`Включить ${item.name}`}
-                          />
-                        </td>
-                        <td className="py-1.5 max-w-[320px]">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-[10px] text-muted-foreground font-mono">{item.code}</span>
-                            <span className="truncate">{item.name || item.code}</span>
-                          </div>
-                          {/* Model badge on mobile (fallback when column hidden) */}
-                          <span className="md:hidden inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground mt-0.5">
-                            {modelLabel}
-                          </span>
-                        </td>
-                        <td className="py-1.5 hidden md:table-cell">
-                          <span className="inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                            {modelLabel}
-                          </span>
-                        </td>
-                        <td className="py-1.5 text-right font-mono text-xs">
-                          {qtyDisplay.editable ? (
-                            <Input
-                              type="number"
-                              min={0}
-                              step={qtyDisplay.step || 1}
-                              className="w-20 h-7 ml-auto text-right font-mono text-xs"
-                              value={ov.qty_override ?? qtyDisplay.defaultValue ?? 0}
-                              disabled={editingDisabled || !included}
-                              onChange={e => {
-                                const raw = e.target.value
-                                if (raw === '') {
-                                  upsertOverride(item.code, { qty_override: undefined })
-                                  return
-                                }
-                                const n = Number(raw)
-                                if (Number.isNaN(n)) return
-                                const same = n === qtyDisplay.defaultValue
-                                upsertOverride(item.code, { qty_override: same ? undefined : n })
+        return (
+          <div key={key} id={`capex-block-${key}`} className="mb-3">
+            {/* Section header */}
+            <button
+              className="w-full flex items-center gap-2.5 py-2.5 hover:opacity-75 transition-opacity text-left"
+              onClick={() => setCollapsed(prev => {
+                const next = new Set(prev)
+                if (next.has(key)) next.delete(key); else next.add(key)
+                return next
+              })}
+            >
+              <span className="w-0.5 self-stretch rounded-full shrink-0" style={{ backgroundColor: color, minHeight: 18 }} />
+              {isCollapsed
+                ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              }
+              <span className="font-semibold text-sm">{title}</span>
+              <span className="text-xs text-muted-foreground">· {data.items.length} позиций</span>
+              {modifiedCount > 0 && (
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                  style={{ backgroundColor: `${color}20`, color }}
+                >
+                  {modifiedCount} изм.
+                </span>
+              )}
+              <span className="ml-auto font-mono text-sm font-semibold tabular-nums">{fmt(previewTotal)}</span>
+            </button>
+
+            {!isCollapsed && (
+              <div className="rounded-lg border border-border/50 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/40 bg-muted/40">
+                      <th className="w-9 py-2 pl-3" />
+                      <th className="text-left py-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide">Позиция</th>
+                      <th className="text-left py-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide hidden md:table-cell w-28">Модель</th>
+                      <th className="text-right py-2 pr-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide w-32">Кол-во / Пл.</th>
+                      <th className="text-left py-2 font-medium text-[11px] text-muted-foreground uppercase tracking-wide w-44">Материал</th>
+                      <th className="text-right py-2 pr-3 font-medium text-[11px] text-muted-foreground uppercase tracking-wide w-32">Стоимость</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.items.map((item: CapexItem) => {
+                      const ov = overrideByCode.get(item.code) || { code: item.code }
+                      const included = ov.include !== false
+                      const isModified = overrideByCode.has(item.code)
+                      const modelLabel = formatModelLabel(item)
+                      const qtyDisplay = formatQty(item, ov)
+                      const materialSelectable = !isLegacy && item.material_target !== null && item.material_target !== undefined
+                      const materialValue = ov.material_override || 'DEFAULT'
+                      const previewCost = computePreviewCost(item, ov, materials)
+
+                      return (
+                        <tr
+                          key={item.code}
+                          className={`border-b border-border/20 transition-colors hover:bg-muted/20
+                            ${!included ? 'opacity-35' : ''}
+                            ${isModified && included ? 'bg-blue-50/30' : ''}`}
+                        >
+                          <td className="py-1.5 pl-3">
+                            <Checkbox
+                              checked={included}
+                              disabled={editingDisabled}
+                              onCheckedChange={(checked) => {
+                                upsertOverride(item.code, { include: checked === false ? false : undefined })
                               }}
                             />
-                          ) : (
-                            <span className="text-muted-foreground">{qtyDisplay.label}</span>
-                          )}
-                        </td>
-                        <td className="py-1.5">
-                          {materialSelectable ? (
-                            <Select
-                              value={materialValue}
-                              disabled={editingDisabled || !included}
-                              onValueChange={(v: string) => {
-                                upsertOverride(item.code, {
-                                  material_override: v === 'DEFAULT' ? undefined : v,
-                                })
-                              }}
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="DEFAULT">
-                                  По умолчанию ({materialTargetLabel(item.material_target)})
-                                </SelectItem>
-                                {materials.map(m => (
-                                  <SelectItem key={m.code} value={m.code}>
-                                    {m.name_ru} · {m.cost_per_m2.toLocaleString('ru-RU')} ₸/м²
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <div className="flex items-baseline gap-2">
+                              <code className="text-[10px] text-muted-foreground/50 font-mono shrink-0">{item.code}</code>
+                              <span>{item.name || item.code}</span>
+                            </div>
+                            <span className="md:hidden inline-block rounded bg-muted/70 px-1.5 py-0.5 text-[10px] text-muted-foreground mt-0.5">
+                              {modelLabel}
+                            </span>
+                          </td>
+                          <td className="py-1.5 hidden md:table-cell pr-2">
+                            <span className="inline-flex items-center rounded bg-muted/70 px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
+                              {modelLabel}
+                            </span>
+                          </td>
+                          <td className="py-1.5 text-right pr-2">
+                            {qtyDisplay.editable ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={qtyDisplay.step || 1}
+                                className="w-20 h-6 ml-auto text-right font-mono text-xs"
+                                value={ov.qty_override ?? qtyDisplay.defaultValue ?? 0}
+                                disabled={editingDisabled || !included}
+                                onChange={e => {
+                                  const raw = e.target.value
+                                  if (raw === '') { upsertOverride(item.code, { qty_override: undefined }); return }
+                                  const n = Number(raw)
+                                  if (Number.isNaN(n)) return
+                                  upsertOverride(item.code, { qty_override: n === qtyDisplay.defaultValue ? undefined : n })
+                                }}
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground font-mono">{qtyDisplay.label}</span>
+                            )}
+                          </td>
+                          <td className="py-1.5">
+                            {materialSelectable ? (
+                              <Select
+                                value={materialValue}
+                                disabled={editingDisabled || !included}
+                                onValueChange={(v: string) => {
+                                  upsertOverride(item.code, { material_override: v === 'DEFAULT' ? undefined : v })
+                                }}
+                              >
+                                <SelectTrigger className="h-6 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="DEFAULT">
+                                    По умолчанию ({materialTargetLabel(item.material_target)})
                                   </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="py-1.5 text-right font-mono">
-                          {included ? fmt(item.cost) : <span className="text-muted-foreground">0</span>}
-                        </td>
+                                  {materials.map(m => (
+                                    <SelectItem key={m.code} value={m.code}>
+                                      {m.name_ru} · {m.cost_per_m2.toLocaleString('ru-RU')} ₸/м²
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 text-right pr-3">
+                            <span className={`font-mono text-sm tabular-nums ${
+                              !included
+                                ? 'text-muted-foreground line-through'
+                                : isModified
+                                  ? 'text-blue-600 font-medium'
+                                  : ''
+                            }`}>
+                              {fmt(previewCost)}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    {sRate > 0 && (
+                      <>
+                        <tr className="text-xs text-muted-foreground bg-muted/20">
+                          <td colSpan={5} className="py-1 text-right pr-2">Subtotal</td>
+                          <td className="py-1 text-right pr-3 font-mono tabular-nums">{fmt(previewSub)}</td>
+                        </tr>
+                        <tr className="text-xs text-muted-foreground bg-muted/20">
+                          <td colSpan={5} className="py-1 text-right pr-2">Работы 6%</td>
+                          <td className="py-1 text-right pr-3 font-mono tabular-nums">{fmt(previewWork)}</td>
+                        </tr>
+                      </>
+                    )}
+                    {cRate > 0 && (
+                      <tr className="text-xs text-muted-foreground bg-muted/20">
+                        <td colSpan={5} className="py-1 text-right pr-2">Непредвиденные 2.5%</td>
+                        <td className="py-1 text-right pr-3 font-mono tabular-nums">{fmt(previewCont)}</td>
                       </tr>
-                    )
-                  })}
-                  {data.subtotal !== undefined && (
-                    <tr className="text-xs text-muted-foreground">
-                      <td colSpan={5} className="py-1 text-right">Subtotal</td>
-                      <td className="py-1 text-right font-mono">{fmt(data.subtotal)}</td>
+                    )}
+                    <tr className="border-t border-border/40 bg-muted/30">
+                      <td colSpan={5} className="py-2 text-right pr-2 text-sm font-semibold">Итого блока</td>
+                      <td className="py-2 text-right pr-3 font-mono text-sm font-semibold tabular-nums">{fmt(previewTotal)}</td>
                     </tr>
-                  )}
-                  {data.work_surcharge ? (
-                    <tr className="text-xs text-muted-foreground">
-                      <td colSpan={5} className="py-1 text-right">Работы 6%</td>
-                      <td className="py-1 text-right font-mono">{fmt(data.work_surcharge)}</td>
-                    </tr>
-                  ) : null}
-                  {data.contingency ? (
-                    <tr className="text-xs text-muted-foreground">
-                      <td colSpan={5} className="py-1 text-right">Непредвиденные 2.5%</td>
-                      <td className="py-1 text-right font-mono">{fmt(data.contingency)}</td>
-                    </tr>
-                  ) : null}
-                  <tr className="font-medium border-t">
-                    <td colSpan={5} className="py-2 text-right">Итого блока</td>
-                    <td className="py-2 text-right font-mono">
-                      {fmt(data.total || data.items.reduce((s: number, i: CapexItem) => s + (i.cost || 0), 0))}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
         )
       })}
 
-      <Card>
-        <CardContent className="py-4">
-          <p className="text-sm text-muted-foreground">CAPEX Итого</p>
-          <p className="mt-1 font-mono text-xl font-semibold">{fmt(results.capex?.grand_total)} тг</p>
+      {/* ── Grand total bar ─────────────────────────────────────────── */}
+      <div className="flex items-end justify-between pt-4 border-t-2 border-foreground/10 mt-2">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-1">CAPEX — Итого</p>
           {materialsUsed && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Материалы: закрытые — <strong>{enclosedName}</strong>, вспомогательные — <strong>{supportName}</strong>
-              <span className="ml-2 opacity-60">(изменяется в Мастере параметров)</span>
+            <p className="text-xs text-muted-foreground">
+              Закрытое: <strong>{enclosedName}</strong> · Вспомогательное: <strong>{supportName}</strong>
+              <span className="ml-1 opacity-50">(изменить в Параметрах)</span>
             </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+        <p className="font-mono text-2xl font-bold tabular-nums">
+          {fmt(previewGrandTotal)} <span className="text-base font-normal text-muted-foreground">тг</span>
+        </p>
+      </div>
 
-      {/* Sticky save bar — shown when there are unsaved edits (Priority 2 only) */}
+      {/* ── Sticky save bar ─────────────────────────────────────────── */}
       {isDirty && !isLegacy && (
-        <div className="fixed bottom-0 inset-x-0 bg-card border-t shadow-lg z-50">
-          <div className="mx-auto max-w-6xl flex items-center justify-between gap-4 p-3">
+        <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-sm shadow-xl">
+          <div className="mx-auto max-w-6xl flex items-center justify-between gap-4 px-4 py-3">
             <div className="text-sm">
-              <span className="font-medium">Несохранённых изменений: {overrides.length}</span>
-              <span className="text-muted-foreground ml-2">
-                Сохраните — проект пересчитается.
-              </span>
+              <span className="font-semibold">{overrides.length} {overrides.length === 1 ? 'изменение' : 'изменений'}</span>
+              <span className="text-muted-foreground ml-2">· сохраните для пересчёта проекта</span>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
-                Отмена
+                Сбросить
               </Button>
-              <Button size="sm" onClick={handleSave} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {saving ? 'Сохраняю…' : 'Сохранить и пересчитать'}
               </Button>
             </div>
@@ -527,4 +524,28 @@ function getMaterialName(materials: Material[], code: string | null | undefined)
   if (!code) return '—'
   const m = materials.find(x => x.code === code)
   return m?.name_ru || code
+}
+
+/**
+ * Compute the preview cost of a single item based on local overrides,
+ * without waiting for a server recalculation (fixes price-not-updating bug).
+ */
+function computePreviewCost(item: CapexItem, ov: OverrideRow, materials: Material[]): number {
+  if (ov.include === false) return 0
+  // Explicit unit-cost override
+  if (ov.unit_cost_override !== undefined) {
+    const qty = ov.qty_override ?? item.qty ?? item.area_m2 ?? 1
+    return ov.unit_cost_override * qty
+  }
+  // Material switch: re-derive cost from new cost_per_m2 × area
+  if (ov.material_override && item.area_m2 != null) {
+    const mat = materials.find(m => m.code === ov.material_override)
+    if (mat) return mat.cost_per_m2 * item.area_m2
+  }
+  // Qty override: scale proportionally from original unit cost
+  if (ov.qty_override !== undefined && item.qty != null && item.qty > 0) {
+    const unitCost = item.cost / item.qty
+    return unitCost * ov.qty_override
+  }
+  return item.cost
 }

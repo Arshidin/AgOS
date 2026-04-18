@@ -668,8 +668,15 @@ def calculate_feeding(
         for t in range(n)
     ]
 
-    # Group 1: Молодняк (calves after birth — avg from herd)
-    calves_heads = herd["calves"]["avg"]
+    # Group 1: Молодняк — DEF-WEANING-01: herd["calves"]["avg"] is always 0 because
+    # herd_turnover.py distributes calves to heifers/steers at birth. Mirror P1/P2:
+    # suckling = inflow into heifers+steers in last `weaning` months.
+    _hf_fc = herd["heifers"].get("from_calves", [0.0] * n)
+    _st_fc = herd["steers"].get("from_calves",  [0.0] * n)
+    calves_heads = [
+        _suckling_heads(_hf_fc, t, weaning) + _suckling_heads(_st_fc, t, weaning)
+        for t in range(n)
+    ]
 
     # Group 3: Тёлки текущего периода — not used until calves split
     heifers_curr_heads = herd["heifers"]["avg"]

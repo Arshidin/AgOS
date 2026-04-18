@@ -1415,8 +1415,25 @@ insert into public.consulting_reference_data (category, code, data, valid_from) 
 on conflict (category, code, valid_from) do update
     set data = excluded.data, updated_at = now();
 
+
+-- ~~ 7. Seed: ADR-PRICES-02 — per-strategy steer_own prices (age-specific) ~~
+-- Resolver матчит age_months == steer_sale_age_months проекта;
+-- fallback — baseline row steer_own:2026 (age_months=NULL, 1800 тг/кг).
+insert into public.consulting_reference_data (category, code, data, valid_from) values
+    ('livestock_prices', 'steer_own:2026:6mo',
+     '{"livestock_category":"steer_own","year":2026,"region_id":null,"age_months":6,"price_per_kg":1400,"currency":"KZT","source":"AgOS default 2026 (6mo steer)"}'::jsonb,
+     '2026-01-01'),
+    ('livestock_prices', 'steer_own:2026:12mo',
+     '{"livestock_category":"steer_own","year":2026,"region_id":null,"age_months":12,"price_per_kg":1800,"currency":"KZT","source":"AgOS default 2026 (12mo steer)"}'::jsonb,
+     '2026-01-01'),
+    ('livestock_prices', 'steer_own:2026:18mo',
+     '{"livestock_category":"steer_own","year":2026,"region_id":null,"age_months":18,"price_per_kg":2000,"currency":"KZT","source":"AgOS default 2026 (18mo steer)"}'::jsonb,
+     '2026-01-01')
+on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now();
+
 -- ============================================================
--- END ADR-PRICES-01
+-- END ADR-PRICES-01 / ADR-PRICES-02
 -- ============================================================
 
 

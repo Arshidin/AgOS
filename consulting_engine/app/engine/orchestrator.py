@@ -63,6 +63,7 @@ def run_calculation(
     project_year = timeline["calendar_year"][0]
     resolved_prices, price_priority = resolve_price_params(
         enriched["price_params"], refs, project_year,
+        steer_sale_age_months=enriched.get("steer_sale_age_months", 0),
     )
     enriched["price_params"] = resolved_prices
     enriched["_price_priority_used"] = price_priority
