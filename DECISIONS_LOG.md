@@ -2168,3 +2168,65 @@ Revenue и OPEX в текущем коде используют одну и ту
 
 **Related ADRs:** ADR-CAPEX-01 (D-GATE-CAPEX-01-FINAL) — parent slice; ADR-CAPEX-02
 resolves the only two tech debts left open at its gate. No remaining CAPEX tech debt.
+
+---
+
+### 2026-04-18: ADR-PRICES-01 — Livestock sale prices DB reference (full P8 catalog)
+
+**Domain:** Consulting engine — revenue module · Reference data
+
+**WHAT:**
+Tech debt follow-up #2 из DEF-REVENUE-PRICES-01 закрыт. Цены продажи КРС
+переехали из Pydantic hardcoded defaults в таблицу `consulting_reference_data`
+с категорией `livestock_prices` и temporal versioning.
+
+**Priority chain** (mirrors ADR-FEED-03):
+- **P1** — `ProjectInput.price_*_per_kg` not null → project override
+- **P2** — DB reference (match по `livestock_category + year`; MVP: `region_id=NULL`, `age_months=NULL`)
+- **P3** — hardcoded safety defaults (1800/2200/1800/2000) — только если DB пусто
+
+**WHY:**
+- Полный P8 (Standards as Data) — admin меняет цены без передеплоя.
+- `valid_from/valid_to` позволяют seed 2027/2028 без удаления 2026 (audit).
+- Готовит почву для ADR-PRICES-02 (per-strategy) — `age_months` уже в схеме.
+
+**Alternatives considered:**
+1. Отдельная таблица `livestock_prices` — отвергнуто: нарушит pattern `consulting_reference_data`, усложнит admin UI, нет выгоды.
+2. Per-org overrides на MVP — отложено: `p_organization_id` зарезервирован в RPC.
+3. Region dimension — отложено: `ProjectInput.region_id` не существует.
+
+**Files changed:**
+- [d09_consulting.sql](d09_consulting.sql) — `livestock_prices` в CHECK, 3 RPC (list/upsert/retire), 4 seed 2026, registry.
+- [consulting_engine/app/models/schemas.py](consulting_engine/app/models/schemas.py) — 4 price fields → `Optional[float]` default=None.
+- [consulting_engine/app/engine/price_resolver.py](consulting_engine/app/engine/price_resolver.py) — NEW, Priority chain implementation.
+- [consulting_engine/app/engine/orchestrator.py](consulting_engine/app/engine/orchestrator.py) — resolver вызов после enrichment.
+- [src/pages/admin/consulting/ProjectWizard.tsx](src/pages/admin/consulting/ProjectWizard.tsx) — nullable fields + catalog placeholder + useEffect fetch.
+- [src/pages/admin/livestock-prices/LivestockPricesAdmin.tsx](src/pages/admin/livestock-prices/LivestockPricesAdmin.tsx) — NEW, CRUD admin.
+- [src/App.tsx](src/App.tsx) + [Sidebar.tsx](src/components/layout/Sidebar.tsx) — route + navigation.
+- [cross_check.sh](cross_check.sh) — 3 новые RPC в whitelist.
+- [Docs/AGOS-Dok3-RPC-Catalog-v1_4.md](Docs/AGOS-Dok3-RPC-Catalog-v1_4.md) — новая секция RPCs.
+- [Docs/AGOS-Dok7-RationConsulting-Architecture.md](Docs/AGOS-Dok7-RationConsulting-Architecture.md) — §12 Prices модель.
+
+**Consequences:**
+- ✅ Полный P8 compliance для livestock sale prices.
+- ✅ Backward compat: existing saved projects с числами → resolver трактует как P1 override → те же числа.
+- ✅ Новые проекты (DEFAULT_PARAMS теперь null) → catalog P2.
+- ✅ cross_check.sh: 0/0/0 · Python tests: 22 passed · TSC clean.
+- ⚠️ SQL migration на prod — **ДЕЛАЕТСЯ ОТДЕЛЬНО** (Арши run) перед UI deploy, иначе `/admin/livestock-prices` упадёт с «category not in CHECK».
+- ⚠️ Deploy order: SQL → Railway (backend) → Vercel (UI). Railway/Vercel push параллельно; в окне 30-60s если UI деплоится быстрее чем Railway — UI шлёт `null`, Railway старой версии примет 1800 (pre-null default). Safe window.
+
+**Deploy checklist:**
+1. Применить SQL migration на prod Supabase.
+2. `git push main` — Railway + Vercel autodeploy.
+3. `/admin/livestock-prices` открывается, 4 seed-строки видны.
+4. ProjectWizard Step 3 — placeholder «1800 (из справочника)».
+5. Recalc existing project → выручка без изменений (P1 override по сохранённым числам).
+6. Новый проект → выручка использует catalog (P2).
+
+**QA self-check:** cross_check.sh 0/0/0, Python tests pass, TSC clean.
+**Architect sign-off:** pending QA agent verdict.
+
+**Remaining tech debt queue (последняя:**
+- **ADR-PRICES-02** — цена per-стратегия реализации бычков (age_months dimension в seed).
+- Region dimension в `ProjectInput` — если инвестор попросит.
+- Per-org price overrides — если понадобится.

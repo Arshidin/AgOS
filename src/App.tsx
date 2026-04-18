@@ -55,6 +55,7 @@ import { RegionDirectory } from '@/pages/admin/regions/RegionDirectory'
 import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
 import { FeedReferenceAdmin, CatalogTab as FeedCatalogTab, PricesTab as FeedPricesTab, NormsTab as FeedNormsTab } from '@/pages/admin/feeds/FeedReferenceAdmin'
 import { CapexReferenceAdmin, CapexMaterialsTab, CapexNormsTab, CapexSurchargesTab } from '@/pages/admin/capex/CapexReferenceAdmin'
+import { LivestockPricesAdmin } from '@/pages/admin/livestock-prices/LivestockPricesAdmin'
 import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
 import { ProjectPage } from '@/pages/admin/consulting/ProjectPage'
 import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
@@ -157,6 +158,8 @@ function App() {
                       <Route path="norms" element={<CapexNormsTab />} />
                       <Route path="surcharges" element={<CapexSurchargesTab />} />
                     </Route>
+                    {/* ADR-PRICES-01: livestock sale prices reference */}
+                    <Route path="livestock-prices" element={<LivestockPricesAdmin />} />
                     <Route path="consulting" element={<ConsultingDashboard />} />
                     <Route path="consulting/:projectId" element={<ProjectPage />}>
                       <Route path="edit" element={<ProjectWizard />} />

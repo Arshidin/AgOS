@@ -1045,6 +1045,56 @@ follows the «every data fetch = one RPC call» principle consistently.
 
 ---
 
+### Consulting Livestock Prices RPCs (ADR-PRICES-01, 2026-04-18)
+
+| RPC ID | Функция | File | Caller | Status |
+|--------|---------|------|--------|--------|
+| RPC-PRICES-1 | `rpc_list_livestock_prices(p_organization_id, p_as_of_date)` | d09_consulting.sql | engine (Priority 2), ProjectWizard (placeholder hint), LivestockPricesAdmin | ✅ Implemented (2026-04-18) |
+| RPC-PRICES-2 | `rpc_upsert_livestock_price(p_code, p_livestock_category, p_year, p_price_per_kg, p_region_id, p_age_months, p_source, p_valid_from)` | d09_consulting.sql | LivestockPricesAdmin (admin UI) | ✅ Implemented (2026-04-18) |
+| RPC-PRICES-3 | `rpc_retire_livestock_price(p_code)` | d09_consulting.sql | LivestockPricesAdmin (admin UI) | ✅ Implemented (2026-04-18) |
+
+**Signatures:**
+```sql
+-- RPC-PRICES-1 (public read, STABLE, SECURITY DEFINER, no org scoping)
+rpc_list_livestock_prices(
+    p_organization_id uuid DEFAULT NULL,  -- reserved for future per-org overrides
+    p_as_of_date      date DEFAULT current_date
+) RETURNS jsonb
+-- [{code, livestock_category, year, region_id, age_months, price_per_kg, currency, source, valid_from, valid_to}]
+-- Reads category='livestock_prices' from consulting_reference_data
+-- Temporal filter: valid_from <= p_as_of_date AND (valid_to IS NULL OR valid_to > p_as_of_date)
+
+-- RPC-PRICES-2 (admin write, fn_is_admin() guard)
+rpc_upsert_livestock_price(
+    p_code               text,
+    p_livestock_category text,       -- {steer_own | heifer_breeding | cow_culled | bull_culled}
+    p_year               int,
+    p_price_per_kg       numeric,    -- > 0
+    p_region_id          uuid DEFAULT NULL,  -- MVP always NULL
+    p_age_months         int  DEFAULT NULL,  -- reserved for ADR-PRICES-02 per-strategy
+    p_source             text DEFAULT NULL,
+    p_valid_from         date DEFAULT current_date
+) RETURNS int  -- row id
+
+-- RPC-PRICES-3 (admin write, fn_is_admin() guard)
+rpc_retire_livestock_price(p_code text) RETURNS int  -- soft-delete: sets valid_to = yesterday
+```
+
+**Engine Priority chain** (mirrors ADR-FEED-03):
+1. **P1** — project override: `ProjectInput.price_*_per_kg` not null
+2. **P2** — DB reference: row with matching `livestock_category + year` (MVP: region_id + age_months must be NULL)
+3. **P3** — safety default: hardcoded `{steer_own: 1800, heifer_breeding: 2200, cow_culled: 1800, bull_culled: 2000}`
+
+**Resolver:** [consulting_engine/app/engine/price_resolver.py](consulting_engine/app/engine/price_resolver.py) invoked from `orchestrator.py` after `validate_and_enrich_input`.
+
+**UI:**
+- `/admin/livestock-prices` — CRUD admin page ([LivestockPricesAdmin.tsx](src/pages/admin/livestock-prices/LivestockPricesAdmin.tsx))
+- ProjectWizard Step 3 (Технология) — price fields are nullable; placeholder shows catalog value
+
+**Seed:** 4 rows for year 2026, KZ-national (no region, no age) — matches prior DEF-REVENUE-PRICES-01 defaults.
+
+---
+
 ## 14. Decisions Log (Dok 3)
 
 | # | Решение | Почему |

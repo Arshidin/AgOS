@@ -48,11 +48,13 @@ interface WizardParams {
   daily_gain_heifer_stall: number
   cow_culled_weight_kg: number
   bull_culled_weight_kg: number
-  // Цены реализации (тг/кг живого веса) — P8: параметр проекта, не hardcode
-  price_steer_own_per_kg: number
-  price_heifer_breeding_per_kg: number
-  price_cow_culled_per_kg: number
-  price_bull_culled_per_kg: number
+  // Цены реализации (тг/кг ЖВ) — ADR-PRICES-01 (2026-04-18):
+  //   null  = P2 → engine берёт из справочника livestock_prices
+  //   number = P1 → project override
+  price_steer_own_per_kg: number | null
+  price_heifer_breeding_per_kg: number | null
+  price_cow_culled_per_kg: number | null
+  price_bull_culled_per_kg: number | null
   // Макроэкономика (DEF-CPI-PARAM-01)
   cpi_annual_pct: number            // Годовая инфляция цен КРС и OPEX (0.105 = 10.5%)
   // Финансирование
@@ -115,10 +117,11 @@ const DEFAULT_PARAMS: WizardParams = {
   daily_gain_heifer_stall: 0.600,
   cow_culled_weight_kg: 600,
   bull_culled_weight_kg: 750,
-  price_steer_own_per_kg: 1800,
-  price_heifer_breeding_per_kg: 2200,
-  price_cow_culled_per_kg: 1800,
-  price_bull_culled_per_kg: 2000,
+  // null → engine берёт из справочника livestock_prices (MVP default path)
+  price_steer_own_per_kg: null,
+  price_heifer_breeding_per_kg: null,
+  price_cow_culled_per_kg: null,
+  price_bull_culled_per_kg: null,
   cpi_annual_pct: 10.5,
   equity_share_pct: 15,
   capex_loan_term_years: 10,
@@ -178,25 +181,29 @@ function MonthSelect({ value, onChange, rangeStart, rangeEnd }: {
 }
 
 /** Field component defined OUTSIDE to prevent re-mount on every render */
-function WizardField({ label, value, onChange, type = 'number', suffix, hint, step }: {
+function WizardField({ label, value, onChange, type = 'number', suffix, hint, step, placeholder }: {
   label: string
-  value: string | number
+  value: string | number | null
   onChange: (v: string) => void
   type?: string
   suffix?: string
   hint?: string
   step?: string
+  placeholder?: string
 }) {
+  // null → empty input; placeholder shows catalog fallback value.
+  const displayValue = value == null ? '' : String(value)
   return (
     <div className="space-y-1.5">
       <Label className="text-sm">{label}</Label>
       <div className="flex items-center gap-2">
         <Input
           type={type}
-          value={value}
+          value={displayValue}
           onChange={e => onChange(e.target.value)}
           className="font-mono"
           step={step}
+          placeholder={placeholder}
         />
         {suffix && <span className="text-sm text-muted-foreground whitespace-nowrap">{suffix}</span>}
       </div>
@@ -235,6 +242,9 @@ export function ProjectWizard() {
   // with p_overrides=null preserves CapexTab's array server-side (NULL-preserve).
   // 4 materials from consulting_reference_data (admin-managed).
   const [materials, setMaterials] = useState<Array<{ code: string; name_ru: string; cost_per_m2: number }>>([])
+  // ADR-PRICES-01: catalog prices for placeholder/hint UX. Fetched on mount.
+  // Map from livestock_category → price_per_kg (for year of project start).
+  const [catalogPrices, setCatalogPrices] = useState<Record<string, number>>({})
   const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1024)
 
 
@@ -252,6 +262,24 @@ export function ProjectWizard() {
   useEffect(() => {
     supabase.rpc('rpc_list_construction_materials', {}).then(({ data }) => {
       if (Array.isArray(data)) setMaterials(data)
+    })
+  }, [])
+
+  // ADR-PRICES-01: load livestock price catalog. Used as placeholder/hint for
+  // nullable price fields in Step 3. Only MVP filter: region=null, age=null.
+  useEffect(() => {
+    supabase.rpc('rpc_list_livestock_prices', {}).then(({ data }) => {
+      if (!Array.isArray(data)) return
+      const map: Record<string, number> = {}
+      for (const row of data as Array<{ livestock_category: string; price_per_kg: number; region_id: string | null; age_months: number | null; year: number }>) {
+        if (row.region_id != null || row.age_months != null) continue
+        // Prefer latest year for each category (same logic as engine resolver)
+        const existing = map[row.livestock_category]
+        if (existing === undefined || row.price_per_kg > 0) {
+          map[row.livestock_category] = row.price_per_kg
+        }
+      }
+      setCatalogPrices(map)
     })
   }, [])
 
@@ -315,10 +343,11 @@ export function ProjectWizard() {
             daily_gain_heifer_stall: saved.daily_gain_heifer_stall ?? DEFAULT_PARAMS.daily_gain_heifer_stall,
             cow_culled_weight_kg: saved.cow_culled_weight_kg ?? DEFAULT_PARAMS.cow_culled_weight_kg,
             bull_culled_weight_kg: saved.bull_culled_weight_kg ?? DEFAULT_PARAMS.bull_culled_weight_kg,
-            price_steer_own_per_kg: saved.price_steer_own_per_kg ?? DEFAULT_PARAMS.price_steer_own_per_kg,
-            price_heifer_breeding_per_kg: saved.price_heifer_breeding_per_kg ?? DEFAULT_PARAMS.price_heifer_breeding_per_kg,
-            price_cow_culled_per_kg: saved.price_cow_culled_per_kg ?? DEFAULT_PARAMS.price_cow_culled_per_kg,
-            price_bull_culled_per_kg: saved.price_bull_culled_per_kg ?? DEFAULT_PARAMS.price_bull_culled_per_kg,
+            // Load as-is: if saved has number → override; if saved is null/missing → null (catalog)
+            price_steer_own_per_kg:       saved.price_steer_own_per_kg ?? null,
+            price_heifer_breeding_per_kg: saved.price_heifer_breeding_per_kg ?? null,
+            price_cow_culled_per_kg:      saved.price_cow_culled_per_kg ?? null,
+            price_bull_culled_per_kg:     saved.price_bull_culled_per_kg ?? null,
             cpi_annual_pct: saved.cpi_annual != null ? saved.cpi_annual * 100 : DEFAULT_PARAMS.cpi_annual_pct,
             construction_material_enclosed: saved.construction_material_enclosed ?? DEFAULT_PARAMS.construction_material_enclosed,
             construction_material_support: saved.construction_material_support ?? DEFAULT_PARAMS.construction_material_support,
@@ -331,11 +360,29 @@ export function ProjectWizard() {
     })
   }, [orgId, projectId])
 
+  // ADR-PRICES-01: nullable price fields — empty input resets to catalog (null).
+  const NULLABLE_FIELDS = new Set<keyof WizardParams>([
+    'price_steer_own_per_kg',
+    'price_heifer_breeding_per_kg',
+    'price_cow_culled_per_kg',
+    'price_bull_culled_per_kg',
+  ])
+
   const set = useCallback((key: keyof WizardParams, raw: string) => {
-    setParams(p => ({
-      ...p,
-      [key]: typeof p[key] === 'number' ? (Number(raw) || 0) : raw,
-    }))
+    setParams(p => {
+      const current = p[key]
+      let next: any
+      if (NULLABLE_FIELDS.has(key)) {
+        // Empty string → null (= use catalog). Non-empty → Number.
+        next = raw === '' ? null : Number(raw)
+        if (next !== null && Number.isNaN(next)) next = null
+      } else if (typeof current === 'number') {
+        next = Number(raw) || 0
+      } else {
+        next = raw
+      }
+      return { ...p, [key]: next }
+    })
   }, [])
 
   const handleCalculate = async () => {
@@ -495,10 +542,28 @@ export function ProjectWizard() {
       </p>
     )
 
+    // Map price row id → catalog livestock_category key (for placeholder hint)
+    const PRICE_ID_TO_CAT: Partial<Record<keyof WizardParams, string>> = {
+      price_steer_own_per_kg:       'steer_own',
+      price_heifer_breeding_per_kg: 'heifer_breeding',
+      price_cow_culled_per_kg:      'cow_culled',
+      price_bull_culled_per_kg:     'bull_culled',
+    }
+
     // Standard param row inside a card
     const Row = (row: PR) => {
       const { Icon } = row
       const val = params[row.id]
+      // ADR-PRICES-01: null price fields → empty input + catalog placeholder.
+      const isNullable = NULLABLE_FIELDS.has(row.id)
+      const catalogCat = PRICE_ID_TO_CAT[row.id]
+      const catalogValue = catalogCat ? catalogPrices[catalogCat] : undefined
+      const displayValue = isNullable
+        ? (val == null ? '' : String(val))
+        : String(val)
+      const placeholder = isNullable && catalogValue != null
+        ? `${catalogValue} (из справочника)`
+        : undefined
       return (
         <div key={row.id} className="param-row" style={{ display: 'flex', alignItems: 'center', minHeight: 40, gap: 10, padding: '0 16px', borderBottom: '1px solid var(--bd)' }}>
           <Icon size={13} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
@@ -511,7 +576,7 @@ export function ProjectWizard() {
                 {row.options.map(o => <option key={String(o.value)} value={String(o.value)}>{o.label}</option>)}
               </select>
             ) : (
-              <input className="param-input" type={row.type || 'number'} step={row.step} value={String(val)} onChange={e => set(row.id, e.target.value)} />
+              <input className="param-input" type={row.type || 'number'} step={row.step} value={displayValue} placeholder={placeholder} onChange={e => set(row.id, e.target.value)} />
             )}
             {row.suffix && !row.options && (
               <span style={{ fontSize: 10, color: 'var(--fg3)', minWidth: 36 }}>{row.suffix}</span>
@@ -948,10 +1013,16 @@ export function ProjectWizard() {
 
               <div className="h-px bg-border/50 my-2" />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Цены реализации (тг/кг живого веса)</p>
-              <WizardField label="Цена бычков (молодняк)" value={params.price_steer_own_per_kg} onChange={v => set('price_steer_own_per_kg', v)} suffix="тг/кг" hint="Рынок КЗ 2026: 1600-1800 (стокер 10-12 мес.)" />
-              <WizardField label="Цена племенных тёлок" value={params.price_heifer_breeding_per_kg} onChange={v => set('price_heifer_breeding_per_kg', v)} suffix="тг/кг" hint="Премия за разведение: 2200-2500" />
-              <WizardField label="Цена выбракованных коров" value={params.price_cow_culled_per_kg} onChange={v => set('price_cow_culled_per_kg', v)} suffix="тг/кг" hint="Мясо низкой категории: 1500-1800" />
-              <WizardField label="Цена выбракованных быков" value={params.price_bull_culled_per_kg} onChange={v => set('price_bull_culled_per_kg', v)} suffix="тг/кг" hint="Тяжёлая туша: 1800-2200" />
+              <p className="text-xs text-muted-foreground">
+                Оставьте поле пустым — будет использована цена из справочника{' '}
+                <a href="/admin/livestock-prices" className="underline" target="_blank" rel="noreferrer">
+                  /admin/livestock-prices
+                </a>. Введите число — переопределить для этого проекта.
+              </p>
+              <WizardField label="Цена бычков (молодняк)"       value={params.price_steer_own_per_kg}       onChange={v => set('price_steer_own_per_kg', v)}       suffix="тг/кг" hint="Рынок КЗ 2026: 1600-1800 (стокер 10-12 мес.)" placeholder={catalogPrices.steer_own != null ? `${catalogPrices.steer_own} (из справочника)` : 'из справочника'} />
+              <WizardField label="Цена племенных тёлок"         value={params.price_heifer_breeding_per_kg} onChange={v => set('price_heifer_breeding_per_kg', v)} suffix="тг/кг" hint="Премия за разведение: 2200-2500" placeholder={catalogPrices.heifer_breeding != null ? `${catalogPrices.heifer_breeding} (из справочника)` : 'из справочника'} />
+              <WizardField label="Цена выбракованных коров"     value={params.price_cow_culled_per_kg}      onChange={v => set('price_cow_culled_per_kg', v)}      suffix="тг/кг" hint="Мясо низкой категории: 1500-1800" placeholder={catalogPrices.cow_culled != null ? `${catalogPrices.cow_culled} (из справочника)` : 'из справочника'} />
+              <WizardField label="Цена выбракованных быков"     value={params.price_bull_culled_per_kg}     onChange={v => set('price_bull_culled_per_kg', v)}     suffix="тг/кг" hint="Тяжёлая туша: 1800-2200" placeholder={catalogPrices.bull_culled != null ? `${catalogPrices.bull_culled} (из справочника)` : 'из справочника'} />
 
               {/* Task B: client-side sale weight estimator */}
               <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 p-3 space-y-1">

@@ -85,20 +85,21 @@ class ProjectInput(BaseModel):
     bull_culled_weight_kg: float = Field(default=750.0, ge=500, le=1100,
         description="Вес выбракованного быка, кг")
 
-    # Цены реализации (тг/кг живого веса). P8 — справочник как параметр проекта.
-    # Defaults откалиброваны под рынок КЗ 2026:
-    # - молодняк (стокер 10-11 мес) 1600-1800 тг/кг
-    # - племенные тёлки 2200-2500 тг/кг (премия за разведение)
-    # - выбракованные коровы 1500-1800 тг/кг (мясо низкой категории)
-    # - выбракованные быки 1800-2200 тг/кг (тяжёлая туша)
-    price_steer_own_per_kg: float = Field(default=1800.0, ge=500, le=5000,
-        description="Цена реализации бычков (тг/кг живого веса)")
-    price_heifer_breeding_per_kg: float = Field(default=2200.0, ge=500, le=5000,
-        description="Цена реализации племенных тёлок (тг/кг живого веса)")
-    price_cow_culled_per_kg: float = Field(default=1800.0, ge=500, le=5000,
-        description="Цена реализации выбракованных коров (тг/кг живого веса)")
-    price_bull_culled_per_kg: float = Field(default=2000.0, ge=500, le=5000,
-        description="Цена реализации выбракованных быков (тг/кг живого веса)")
+    # Цены реализации (тг/кг живого веса). ADR-PRICES-01 (2026-04-18):
+    # Priority chain:
+    #   P1: explicit value here → project override
+    #   P2: None → engine reads consulting_reference_data (livestock_prices)
+    #   P3: if DB empty → Pydantic safety defaults (1800/2200/1800/2000)
+    # Leaving None is the recommended UX — forces admin catalog compliance and
+    # allows central price updates without per-project edits.
+    price_steer_own_per_kg: Optional[float] = Field(default=None, ge=500, le=5000,
+        description="Цена бычков (тг/кг ЖВ). None = из справочника livestock_prices")
+    price_heifer_breeding_per_kg: Optional[float] = Field(default=None, ge=500, le=5000,
+        description="Цена плем. тёлок (тг/кг ЖВ). None = из справочника livestock_prices")
+    price_cow_culled_per_kg: Optional[float] = Field(default=None, ge=500, le=5000,
+        description="Цена выбр. коров (тг/кг ЖВ). None = из справочника livestock_prices")
+    price_bull_culled_per_kg: Optional[float] = Field(default=None, ge=500, le=5000,
+        description="Цена выбр. быков (тг/кг ЖВ). None = из справочника livestock_prices")
 
     # Годовая инфляция цен (CPI KZ) — применяется к ценам продажи КРС + OPEX с года 2.
     # Defaults 10.5% = историческая средняя КЗ 2020-2025. Кормовая инфляция имеет

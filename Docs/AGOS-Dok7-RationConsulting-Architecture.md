@@ -693,7 +693,82 @@ CapexSurchargesTab переключён на RPC (commit `8bf5339`). UI тепе
 
 ---
 
+## 12. Livestock Sale Prices модель (v1.4, ADR-PRICES-01)
+
+### 12.1 Проблема
+
+Цены продажи КРС (бычки, тёлки плем., коровы-культ, быки-культ) жили в
+`ProjectInput` как required float с hardcoded defaults (DEF-REVENUE-PRICES-01,
+2026-04-17). Минусы:
+- Рыночные цены меняются чаще, чем релизы кода — каждое обновление требовало
+  изменения Pydantic defaults и передеплоя.
+- Разные проекты инвесторов не могли использовать общий откалиброванный
+  catalog — каждый стартовал с кодовых defaults.
+- Нарушен P8 (Standards as Data) — цены = данные, не код.
+
+### 12.2 Архитектурное решение — Priority chain (mirrors ADR-FEED-03)
+
+```
+P1  Project override  (ProjectInput.price_*_per_kg not null)  → инвестор задал явно
+ ↓
+P2  DB reference       (consulting_reference_data, category='livestock_prices')
+ ↓
+P3  Safety default     (hardcoded 1800/2200/1800/2000 — pre-seed/recovery safety)
+```
+
+Все 4 поля `ProjectInput` стали `Optional[float]`. null = «использовать catalog».
+Resolver [price_resolver.py](consulting_engine/app/engine/price_resolver.py) вызывается
+из `orchestrator.py` после `validate_and_enrich_input`. Revenue module получает
+уже resolved `enriched_input["price_params"]` — формула не изменилась.
+
+### 12.3 Data model
+
+Таблица: `consulting_reference_data` (уже существующая, категория `livestock_prices` добавлена в CHECK).
+
+```json
+// code format: {livestock_category}:{year}[:{age_months}mo]
+// code example: "steer_own:2026"  |  "steer_own:2026:12mo" (future ADR-PRICES-02)
+{
+  "livestock_category": "steer_own",    // steer_own | heifer_breeding | cow_culled | bull_culled
+  "year":               2026,
+  "region_id":          null,           // MVP always null (reserved)
+  "age_months":         null,           // MVP always null (reserved for ADR-PRICES-02 per-strategy)
+  "price_per_kg":       1800,
+  "currency":           "KZT",
+  "source":             "AgOS default 2026"
+}
+```
+
+**Temporal versioning** через `valid_from` / `valid_to`:
+- Новая цена для года 2027 → `INSERT` с `valid_from = 2027-01-01`.
+- Ретрограда → `rpc_retire_livestock_price(code)` устанавливает `valid_to = yesterday`.
+- Engine выбирает рядок с max(year ≤ project_year) среди active на `project_start_date`.
+
+### 12.4 RPCs (3)
+
+| ID | Функция | Caller | Guard |
+|----|---------|--------|-------|
+| RPC-PRICES-1 | `rpc_list_livestock_prices(p_organization_id, p_as_of_date)` | engine, ProjectWizard, LivestockPricesAdmin | — (public read) |
+| RPC-PRICES-2 | `rpc_upsert_livestock_price(...)` | LivestockPricesAdmin | `fn_is_admin()` |
+| RPC-PRICES-3 | `rpc_retire_livestock_price(code)` | LivestockPricesAdmin | `fn_is_admin()` |
+
+Полные сигнатуры: Dok 3 §«Consulting Livestock Prices RPCs».
+
+### 12.5 UI
+
+- **`/admin/livestock-prices`** — CRUD справочника, паттерн от `FeedReferenceAdmin` / `CapexReferenceAdmin`. Dialog-based editor: категория (disabled при edit), год, цена, age_months (опц.), источник. Кнопка «Архивировать» = soft-delete.
+- **ProjectWizard Step 3** — поля цен стали nullable. Пустое поле → placeholder показывает catalog-значение («1800 (из справочника)»). Явно введённое число → override (P1).
+
+### 12.6 Open follow-ups
+
+- **ADR-PRICES-02** — цена per-стратегия (age_months = 6/12/18 для steer_own). Резолвер уже читает `age_months`, seed добавит строки.
+- **Region dimension** — `ProjectInput.region_id` не существует; если появится, resolver начнёт матчить по region (код уже ignores NULL-region при match).
+- **Per-org price overrides** — сейчас catalog глобален. `p_organization_id` в RPC-PRICES-1 зарезервирован.
+
+---
+
 *Документ создан: 08.04.2026*  
 *Версия 1.1: 14.04.2026 — добавлены ADR-FEED-05 (Simple=writer) и ADR-FEED-06 (сезонная модель)*  
 *Версия 1.2: 2026-04-18 — добавлен §11 CAPEX модель (ADR-CAPEX-01: data-driven Priority chain, 4 материала, per-item depreciation, 10 bespoke overrides для Excel parity)*  
-*Версия 1.3: 2026-04-18 — §11.10 + §11.11 обновлены с ADR-CAPEX-02 resolutions (L-P3-WIZARD + L-P4-1 closed)*
+*Версия 1.3: 2026-04-18 — §11.10 + §11.11 обновлены с ADR-CAPEX-02 resolutions (L-P3-WIZARD + L-P4-1 closed)*  
+*Версия 1.4: 2026-04-18 — добавлен §12 Livestock Sale Prices модель (ADR-PRICES-01: 3-level Priority chain, `livestock_prices` category в consulting_reference_data, 3 RPC, `/admin/livestock-prices` страница)*

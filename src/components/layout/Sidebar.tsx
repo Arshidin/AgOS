@@ -155,6 +155,7 @@ const ADMIN_GROUPS: NavGroup[] = [
       { id: 'settings', icon: Settings, label: 'Настройки', route: '/admin/settings' },
       { id: 'feeds', icon: FlaskConical, label: 'Кормовая база', route: '/admin/feeds' },
       { id: 'capex', icon: Building2, label: 'Инфраструктура', route: '/admin/capex' },
+      { id: 'livestock-prices', icon: DollarSign, label: 'Цены КРС', route: '/admin/livestock-prices' },
       { id: 'consulting', icon: Briefcase, label: 'Консалтинг', route: '/admin/consulting' },
     ],
   },

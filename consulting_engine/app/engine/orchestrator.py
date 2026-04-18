@@ -31,6 +31,7 @@ from app.engine.opex import calculate_opex
 from app.engine.pnl import calculate_pnl
 from app.engine.loans import calculate_loans
 from app.engine.cashflow import calculate_cashflow
+from app.engine.price_resolver import resolve_price_params
 
 
 def run_calculation(
@@ -55,6 +56,16 @@ def run_calculation(
 
     # 2. Обогащённый Input
     enriched = validate_and_enrich_input(input_params)
+
+    # 2.2. ADR-PRICES-01: resolve livestock sale prices via Priority chain
+    # (project override → DB reference → safety default). `priority_used` returned
+    # for telemetry/UI debugging but not consumed by other modules.
+    project_year = timeline["calendar_year"][0]
+    resolved_prices, price_priority = resolve_price_params(
+        enriched["price_params"], refs, project_year,
+    )
+    enriched["price_params"] = resolved_prices
+    enriched["_price_priority_used"] = price_priority
 
     # 2.5. Технологическая карта
     tech_card = calculate_tech_card(enriched, timeline)

@@ -1209,5 +1209,217 @@ on conflict (sql_name) do update
 
 
 -- ============================================================
+-- ADR-PRICES-01 (2026-04-18) — Livestock sale prices reference data
+-- ============================================================
+-- DEF-REVENUE-PRICES-01 follow-up #2: moves livestock sale prices from
+-- ProjectInput hardcoded defaults to DB-managed reference catalog with
+-- temporal versioning. Engine Priority chain (mirrors ADR-FEED-03):
+--   P1: project override (ProjectInput.price_*_per_kg not null)
+--   P2: DB reference (consulting_reference_data, category='livestock_prices')
+--   P3: Pydantic defaults (1800/2200/1800/2000 — safety net)
+-- Dimensions: livestock_category + year. region_id + age_months reserved
+-- as JSONB fields but NULL in MVP (deferred to future ADRs).
+-- ============================================================
+
+-- ~~ 1. CHECK constraint — additive, adds 'livestock_prices' category ~~
+-- The category 'regional_prices' stays reserved for future multi-region
+-- price multipliers (MSH regional subsidies etc).
+alter table public.consulting_reference_data
+    drop constraint if exists consulting_reference_data_category_check;
+alter table public.consulting_reference_data
+    add constraint consulting_reference_data_category_check check (category in (
+        'infrastructure_norms',
+        'equipment_norms',
+        'tax_rates',
+        'wacc_parameters',
+        'subsidy_programs',
+        'livestock_norms',
+        'regional_prices',
+        'economic_parameters',
+        'construction_materials',
+        'capex_surcharges',
+        'livestock_prices'
+    ));
+
+
+-- ~~ 2. RPC — public reader ~~
+
+create or replace function public.rpc_list_livestock_prices(
+    p_organization_id uuid default null,  -- reserved for future org-scoped overrides
+    p_as_of_date      date default current_date
+)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public, pg_temp
+as $$
+begin
+    -- p_organization_id currently unused (catalog is global). Kept in signature
+    -- for P-AI-2 compliance pattern and future per-org pricing (next ADR).
+    return coalesce((
+        select jsonb_agg(
+            jsonb_build_object(
+                'code',               crd.code,
+                'livestock_category', crd.data->>'livestock_category',
+                'year',               (crd.data->>'year')::int,
+                'region_id',          crd.data->>'region_id',
+                'age_months',         (crd.data->>'age_months')::int,
+                'price_per_kg',       (crd.data->>'price_per_kg')::numeric,
+                'currency',           coalesce(crd.data->>'currency', 'KZT'),
+                'source',             crd.data->>'source',
+                'valid_from',         crd.valid_from,
+                'valid_to',           crd.valid_to
+            ) order by
+                (crd.data->>'year')::int desc,
+                crd.data->>'livestock_category'
+        )
+        from public.consulting_reference_data crd
+        where crd.category = 'livestock_prices'
+          and crd.valid_from <= p_as_of_date
+          and (crd.valid_to is null or crd.valid_to > p_as_of_date)
+    ), '[]'::jsonb);
+end;
+$$;
+
+comment on function public.rpc_list_livestock_prices(uuid, date) is
+    'RPC-PRICES-1 | ADR-PRICES-01 | 2026-04-18
+     Lists active livestock sale prices valid on p_as_of_date.
+     Engine Priority 2 fallback after project override (P1).
+     p_organization_id reserved for future org-scoped overrides (currently unused).
+     STABLE, readable to authenticated.';
+
+
+-- ~~ 3. RPC — admin upsert ~~
+
+create or replace function public.rpc_upsert_livestock_price(
+    p_code               text,
+    p_livestock_category text,       -- steer_own | heifer_breeding | cow_culled | bull_culled
+    p_year               int,
+    p_price_per_kg       numeric,
+    p_region_id          uuid    default null,  -- reserved, MVP always null
+    p_age_months         int     default null,  -- reserved for #3 per-strategy pricing
+    p_source             text    default null,
+    p_valid_from         date    default current_date
+)
+returns int
+language plpgsql volatile security definer
+set search_path = public, pg_temp
+as $$
+declare v_id int;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'ADMIN_REQUIRED' using errcode = 'P0001';
+    end if;
+    if p_price_per_kg is null or p_price_per_kg <= 0 then
+        raise exception 'INVALID_PRICE: price_per_kg must be > 0' using errcode = 'P0001';
+    end if;
+    if p_livestock_category not in ('steer_own', 'heifer_breeding', 'cow_culled', 'bull_culled') then
+        raise exception 'INVALID_CATEGORY: %', p_livestock_category using errcode = 'P0001';
+    end if;
+    if p_year < 2020 or p_year > 2100 then
+        raise exception 'INVALID_YEAR: % out of range', p_year using errcode = 'P0001';
+    end if;
+
+    insert into public.consulting_reference_data (category, code, data, valid_from)
+    values (
+        'livestock_prices',
+        p_code,
+        jsonb_build_object(
+            'livestock_category', p_livestock_category,
+            'year',               p_year,
+            'region_id',          p_region_id,
+            'age_months',         p_age_months,
+            'price_per_kg',       p_price_per_kg,
+            'currency',           'KZT',
+            'source',             p_source
+        ),
+        p_valid_from
+    )
+    on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now()
+    returning id into v_id;
+
+    return v_id;
+end;
+$$;
+
+comment on function public.rpc_upsert_livestock_price(text, text, int, numeric, uuid, int, text, date) is
+    'RPC-PRICES-2 | ADR-PRICES-01 | 2026-04-18
+     Admin-only upsert of a livestock sale price row.
+     livestock_category must be one of: steer_own, heifer_breeding, cow_culled, bull_culled.
+     region_id + age_months reserved (MVP always null).';
+
+
+-- ~~ 4. RPC — admin soft-delete (set valid_to = yesterday) ~~
+
+create or replace function public.rpc_retire_livestock_price(
+    p_code text
+)
+returns int
+language plpgsql volatile security definer
+set search_path = public, pg_temp
+as $$
+declare v_count int;
+begin
+    if not public.fn_is_admin() then
+        raise exception 'ADMIN_REQUIRED' using errcode = 'P0001';
+    end if;
+
+    update public.consulting_reference_data
+    set valid_to = current_date - interval '1 day',
+        updated_at = now()
+    where category = 'livestock_prices'
+      and code = p_code
+      and (valid_to is null or valid_to > current_date);
+
+    get diagnostics v_count = row_count;
+    return v_count;
+end;
+$$;
+
+comment on function public.rpc_retire_livestock_price(text) is
+    'RPC-PRICES-3 | ADR-PRICES-01 | 2026-04-18
+     Admin-only soft-delete: sets valid_to = yesterday on all active rows with given code.
+     Preserves historical records for audit.';
+
+
+-- ~~ 5. RPC Registry ~~
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes) values
+    ('rpc_list_livestock_prices',   'rpc_list_livestock_prices',   null, 'd09_consulting.sql (ADR-PRICES-01)', 'RPC-PRICES-1: List active livestock sale prices (engine Priority 2)'),
+    ('rpc_upsert_livestock_price',  'rpc_upsert_livestock_price',  null, 'd09_consulting.sql (ADR-PRICES-01)', 'RPC-PRICES-2: Admin upsert livestock sale price'),
+    ('rpc_retire_livestock_price',  'rpc_retire_livestock_price',  null, 'd09_consulting.sql (ADR-PRICES-01)', 'RPC-PRICES-3: Admin soft-delete livestock sale price')
+on conflict (sql_name) do update
+    set dok3_name = excluded.dok3_name, notes = excluded.notes, created_in = excluded.created_in;
+
+
+-- ~~ 6. Seed: livestock_prices (4 rows for year 2026, KZ-national) ~~
+-- Defaults match Pydantic defaults from DEF-REVENUE-PRICES-01 (2026-04-17):
+--   steer_own       : 1800 тг/кг (young steers 10-12mo, stocker market)
+--   heifer_breeding : 2200 тг/кг (breeding premium)
+--   cow_culled      : 1800 тг/кг (low-grade meat)
+--   bull_culled     : 2000 тг/кг (heavy carcass)
+-- age_months = NULL (legacy/default). For ADR-PRICES-02 (per-strategy), age-specific
+-- rows will be added (e.g. steer_own:2026:6mo, steer_own:2026:12mo).
+insert into public.consulting_reference_data (category, code, data, valid_from) values
+    ('livestock_prices', 'steer_own:2026',
+     '{"livestock_category":"steer_own",       "year":2026, "region_id":null, "age_months":null, "price_per_kg":1800, "currency":"KZT", "source":"AgOS default 2026"}'::jsonb,
+     '2026-01-01'),
+    ('livestock_prices', 'heifer_breeding:2026',
+     '{"livestock_category":"heifer_breeding", "year":2026, "region_id":null, "age_months":null, "price_per_kg":2200, "currency":"KZT", "source":"AgOS default 2026"}'::jsonb,
+     '2026-01-01'),
+    ('livestock_prices', 'cow_culled:2026',
+     '{"livestock_category":"cow_culled",      "year":2026, "region_id":null, "age_months":null, "price_per_kg":1800, "currency":"KZT", "source":"AgOS default 2026"}'::jsonb,
+     '2026-01-01'),
+    ('livestock_prices', 'bull_culled:2026',
+     '{"livestock_category":"bull_culled",     "year":2026, "region_id":null, "age_months":null, "price_per_kg":2000, "currency":"KZT", "source":"AgOS default 2026"}'::jsonb,
+     '2026-01-01')
+on conflict (category, code, valid_from) do update
+    set data = excluded.data, updated_at = now();
+
+-- ============================================================
+-- END ADR-PRICES-01
+-- ============================================================
+
+
+-- ============================================================
 -- END Slice 8 d09_consulting.sql
 -- ============================================================

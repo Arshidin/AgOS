@@ -163,7 +163,8 @@ rpc_resolve_category|rpc_get_category_mappings|\
 rpc_add_animal_category|rpc_deprecate_animal_category|rpc_migrate_animal_category|\
 rpc_list_construction_materials|rpc_list_infrastructure_norms|\
 rpc_upsert_construction_material|rpc_upsert_infrastructure_norm|\
-rpc_list_capex_surcharges"
+rpc_list_capex_surcharges|\
+rpc_list_livestock_prices|rpc_upsert_livestock_price|rpc_retire_livestock_price"
 sig_count_before=$SIGNIFICANT
 
 for f in "${SQL_FILES[@]}"; do
