@@ -181,7 +181,7 @@ export function CapexTab() {
   const supportName = materialsUsed ? getMaterialName(materials, materialsUsed.support) : null
 
   return (
-    <div className={`page ${isDirty ? 'pb-28' : 'pb-6'}`}>
+    <div className="page pb-6">
 
       {/* Legacy banner */}
       {isLegacy && (
@@ -196,8 +196,11 @@ export function CapexTab() {
         </div>
       )}
 
-      {/* ── Summary strip ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
+      {/* ── Summary strip — sticky under tabs ──────────────────────── */}
+      <div
+        className="sticky top-0 z-10 -mx-7 px-7 py-4 grid grid-cols-2 md:grid-cols-5 gap-2"
+        style={{ background: 'var(--bg)', borderBottom: '1px solid var(--bd)' }}
+      >
         {BLOCK_CONFIG.map(({ key, title, color }) => {
           const data = results.capex?.[key] as { items?: CapexItem[]; subtotal?: number; work_surcharge?: number; contingency?: number } | undefined
           const items: CapexItem[] = data?.items || []
@@ -446,8 +449,8 @@ export function CapexTab() {
 
       {/* ── Sticky save bar ─────────────────────────────────────────── */}
       {isDirty && !isLegacy && (
-        <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-sm shadow-xl">
-          <div className="mx-auto max-w-6xl flex items-center justify-between gap-4 px-4 py-3">
+        <div className="sticky bottom-0 -mx-7 z-20 mt-4 border-t border-border/50 bg-background/95 backdrop-blur-sm shadow-xl">
+          <div className="flex items-center justify-between gap-4 px-7 py-3">
             <div className="text-sm">
               <span className="font-semibold">{overrides.length} {overrides.length === 1 ? 'изменение' : 'изменений'}</span>
               <span className="text-muted-foreground ml-2">· сохраните для пересчёта проекта</span>
