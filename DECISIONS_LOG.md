@@ -1895,8 +1895,7 @@ not in scope of this session.
 ---
 
 **Remaining tech debt (next session):**
-- `memberships_level_valid_for_type already exists` — CHECK constraint in d01
-  without IF NOT EXISTS idempotency. Full `deploy_sql.py` re-apply blocked.
+- ~~`memberships_level_valid_for_type already exists`~~ — **✅ Fixed 2026-04-18**: wrapped in `do $$ begin if not exists ... end $$` block in d01_kernel.sql. Applied to prod via Supabase MCP. `deploy_sql.py` full re-apply unblocked.
 
 
 ---
@@ -2273,3 +2272,43 @@ Tech debt follow-up #2 из DEF-REVENUE-PRICES-01 закрыт. Цены про�
 - `tests/test_price_resolver.py` — 11 тестов для ADR-PRICES-01/02: P1/P2/P3 chain, age-specific matching, fallback, region/future-year filter
 
 **Files:** `consulting_engine/app/engine/feeding_model.py`, `consulting_engine/tests/test_feeding.py`, `consulting_engine/tests/test_price_resolver.py`
+
+---
+
+### 2026-04-18: Tech Debt Audit — TD-1 closed, TD-2/TD-3 invalidated
+
+**Domain:** Infrastructure / Consulting / AI Gateway
+
+**TD-1 — memberships_level_valid_for_type (✅ Closed)**
+
+`d01_kernel.sql:325` had bare `ADD CONSTRAINT` without idempotency guard. PostgreSQL does not support `ADD CONSTRAINT IF NOT EXISTS` for CHECK constraints (only for UNIQUE/FK). Fix: wrapped in `do $$ begin if not exists (...) then ... end if; end $$`. Prod migration applied via Supabase MCP. `deploy_sql.py` full re-apply now passes this block cleanly. Disaster-recovery risk eliminated.
+
+**Files:** `d01_kernel.sql`
+
+**TD-2 — CAPEX wizard/CapexTab race (✅ Already resolved by ADR-CAPEX-02)**
+
+Re-examined code: wizard calls `rpc_save_project_infra_override(p_overrides=null)`. ADR-CAPEX-02 added NULL-preserve semantics: `infra_items_override = coalesce(p_overrides, infra_items_override)`. Wizard cannot overwrite CapexTab override array. Remaining "race" is standard unsaved-UI-state problem (no DB corruption possible). Tech debt note was stale — no code change needed.
+
+**TD-3 — rpc_create_proactive_alert direct .table() write (✅ Does not exist)**
+
+Audit of `ai_gateway/` found zero writes to `proactive_alerts` table. The SPRINT_STATUS entry (Slice 4 scope) described planned-but-not-yet-implemented code. No defect to fix. Entry removed from active tech debt queue.
+
+---
+
+### 2026-04-18: Full System Audit — SIG-1/2/3 + MIN-2 fixed
+
+**Domain:** Backend Python / SQL / Infrastructure
+
+**SIG-1 — staff.py CPI inconsistency (✅ Fixed)**
+`staff.py:41` hardcoded `annual_cpi = 0.11` (11% from Excel) while all other modules use `enriched["cpi_annual"]` (10.5%). Fix: `annual_cpi = enriched_input.get("cpi_annual", 0.105)`. Staff costs now use the same shared economic parameter as revenue/feed/opex.
+
+**SIG-2 — cashflow.py IRR=0.0 misleading fallback (✅ Fixed)**
+NaN/Inf/Exception from `npf.irr()` returned `0.0` — UI read as "breakeven". Fix: `irr = None`; UI already handles `null` → displays "—" in SummaryTab/CashFlowTab/ProjectWizard.
+
+**SIG-3 — rpc_name_registry coverage 42/101 (✅ Fixed)**
+60 RPCs from Slices 2-9 (TSP, Feed, Vet, Ops, AI Gateway, Consulting) never formally INSERTed into `rpc_name_registry`. Bulk INSERT added at end of `d01_kernel.sql` with `on conflict do update` idempotency. `cross_check.sh` CHECK 7 confirms all clean.
+
+**MIN-2 — Tests only ran from `consulting_engine/` directory (✅ Fixed)**
+Added `consulting_engine/conftest.py` (sys.path) + `pytest.ini` (pythonpath=.). Tests now run from repo root: `python3 -m pytest consulting_engine/tests/` → 59 passed, 3 skipped, 3 xfailed.
+
+**Files:** `consulting_engine/app/engine/staff.py`, `consulting_engine/app/engine/cashflow.py`, `d01_kernel.sql`, `consulting_engine/conftest.py`, `consulting_engine/pytest.ini`

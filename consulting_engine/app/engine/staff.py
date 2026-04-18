@@ -37,8 +37,8 @@ def calculate_staff(timeline: dict, enriched_input: dict, refs: dict) -> dict:
     max_so_base = 7 * min_wage
     max_osms_base = 10 * min_wage
 
-    # Inflation (11% from Excel Staff!F6)
-    annual_cpi = 0.11
+    # Inflation — use shared cpi_annual parameter (consulting_reference_data)
+    annual_cpi = enriched_input.get("cpi_annual", 0.105)
 
     # Positions from project input (configurable)
     positions_raw = enriched_input.get("staff_positions", [])

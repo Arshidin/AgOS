@@ -321,9 +321,13 @@ begin
 end;
 $$;
 
-alter table public.memberships
-    add constraint memberships_level_valid_for_type
-    check (public.fn_membership_level_valid(org_type, level));
+do $$ begin
+    if not exists (select 1 from pg_constraint where conname = 'memberships_level_valid_for_type') then
+        alter table public.memberships
+            add constraint memberships_level_valid_for_type
+            check (public.fn_membership_level_valid(org_type, level));
+    end if;
+end $$;
 
 -- -------------------------------------------------------
 -- membership_applications
@@ -5800,3 +5804,86 @@ on conflict do nothing;
 -- ============================================================
 -- END ADR-ANIMAL-01 SECTION
 -- ============================================================
+
+-- ============================================================
+-- AUDIT-2026-04-18: rpc_name_registry — bulk registration
+-- 60 RPCs implemented in Slices 2-9 but never formally INSERTed.
+-- Organized by source SQL file / domain.
+-- ============================================================
+
+insert into public.rpc_name_registry (sql_name, dok3_name, dok5_tool_name, created_in, notes)
+values
+    -- d02_tsp.sql — Market / TSP domain
+    ('rpc_activate_pool_request',     null, null,                           'd02_tsp.sql',        'TSP: activate pool request'),
+    ('rpc_advance_pool_status',       null, null,                           'd02_tsp.sql',        'TSP: FSM transition for pool status'),
+    ('rpc_cancel_batch',              null, null,                           'd02_tsp.sql',        'TSP: cancel a published batch'),
+    ('rpc_create_pool_request',       null, null,                           'd02_tsp.sql',        'TSP: create pool aggregation request'),
+    ('rpc_get_market_summary',        null, 'get_market_summary',           'd02_tsp.sql',        'TSP: aggregated supply/demand summary'),
+    ('rpc_get_price_for_sku',         null, 'get_price_for_sku',            'd02_tsp.sql',        'TSP: current price for SKU'),
+    ('rpc_match_batch_to_pool',       null, null,                           'd02_tsp.sql',        'TSP: match batch to pool request'),
+    ('rpc_publish_price_index_value', null, null,                           'd02_tsp.sql',        'TSP: publish reference price index'),
+    ('rpc_rollback_batch_match',      null, null,                           'd02_tsp.sql',        'TSP: rollback batch↔pool match'),
+    ('rpc_set_price_grid',            null, null,                           'd02_tsp.sql',        'TSP: admin set price grid'),
+
+    -- d03_feed.sql — Feed domain
+    ('rpc_archive_ration',            null, null,                           'd03_feed.sql',       'Feed: archive a ration version'),
+    ('rpc_get_current_ration',        null, 'get_current_ration',          'd03_feed.sql',       'Feed: current active ration for farm'),
+    ('rpc_list_feed_categories',      null, 'list_feed_categories',        'd03_feed.sql',       'Feed: list feed categories'),
+    ('rpc_list_feed_consumption_norms', null, 'list_feed_consumption_norms', 'd03_feed.sql',     'Feed: admin list consumption norms'),
+    ('rpc_list_feed_items',           null, 'list_feed_items',             'd03_feed.sql',       'Feed: list feed items catalog'),
+    ('rpc_list_feed_prices',          null, 'list_feed_prices',            'd03_feed.sql',       'Feed: price catalog with Art.171 disclaimer'),
+    ('rpc_save_ration',               null, null,                           'd03_feed.sql',       'Feed: save ration version for farm'),
+    ('rpc_upsert_feed_consumption_norm', null, null,                        'd03_feed.sql',       'Feed: admin upsert consumption norm'),
+    ('rpc_upsert_feed_inventory',     null, null,                           'd03_feed.sql',       'Feed: upsert farm feed inventory'),
+    ('rpc_upsert_feed_item',          null, null,                           'd03_feed.sql',       'Feed: admin upsert feed catalog item'),
+    ('rpc_upsert_feed_price',         null, null,                           'd03_feed.sql',       'Feed: admin upsert feed price'),
+
+    -- d04_vet.sql — Vet domain
+    ('rpc_activate_vaccination_plan', null, null,                           'd04_vet.sql',        'Vet: activate vaccination plan'),
+    ('rpc_add_vet_diagnosis',         null, 'add_vet_diagnosis',           'd04_vet.sql',        'Vet: add diagnosis to vet case'),
+    ('rpc_add_vet_recommendation',    null, 'add_vet_recommendation',      'd04_vet.sql',        'Vet: add expert recommendation'),
+    ('rpc_close_vet_case',            null, 'close_vet_case',              'd04_vet.sql',        'Vet: FSM close vet case'),
+    ('rpc_create_vaccination_plan',   null, null,                           'd04_vet.sql',        'Vet: create vaccination plan'),
+    ('rpc_get_expert_kpi',            null, 'get_expert_kpi',              'd04_vet.sql',        'Vet: expert dashboard KPI'),
+    ('rpc_get_vet_case_detail',       null, 'get_vet_case_detail',         'd04_vet.sql',        'Vet: full case detail (D-F11-1 JWT-compatible)'),
+    ('rpc_link_vet_case_conversation',null, null,                           'd04_vet.sql',        'Vet: link AI conversation to vet case'),
+    ('rpc_list_epidemic_signals',     null, 'list_epidemic_signals',       'd04_vet.sql',        'Vet: list epidemic signals for region'),
+    ('rpc_list_vaccination_plan_items', null, 'list_vaccination_plan_items', 'd04_vet.sql',      'Vet: list items within a vaccination plan'),
+    ('rpc_list_vaccination_plans',    null, 'list_vaccination_plans',      'd04_vet.sql',        'Vet: list all vaccination plans'),
+    ('rpc_list_vaccines',             null, 'list_vaccines',               'd04_vet.sql',        'Vet: list vaccine catalog'),
+    ('rpc_record_vaccination',        null, 'record_vaccination',          'd04_vet.sql',        'Vet: record vaccination event'),
+    ('rpc_report_epidemic_signal',    null, 'report_epidemic_signal',      'd04_vet.sql',        'Vet/Epidemic: report epidemic signal'),
+
+    -- d05_ops_edu.sql — Ops / Edu domain
+    ('rpc_add_knowledge_chunk',       null, null,                           'd05_ops_edu.sql',    'Edu: admin add knowledge chunk'),
+    ('rpc_get_active_plan',           null, 'get_active_plan',             'd05_ops_edu.sql',    'Ops: active production plan (D-S4-3)'),
+
+    -- d07_ai_gateway.sql — AI Gateway domain
+    ('rpc_clear_confirmation',        null, 'clear_confirmation',          'd07_ai_gateway.sql', 'AI: clear pending confirmation state'),
+    ('rpc_get_conversation_state',    null, 'get_conversation_state',      'd07_ai_gateway.sql', 'AI: get full conversation FSM state'),
+    ('rpc_get_user_phone',            null, null,                           'd07_ai_gateway.sql', 'AI: resolve user phone for notifications'),
+    ('rpc_sync_conversation_role',    null, null,                           'd07_ai_gateway.sql', 'AI: sync conversation role after member update'),
+
+    -- d09_consulting.sql — Consulting domain
+    ('rpc_create_consulting_project', null, null,                           'd09_consulting.sql', 'Consulting: create new project'),
+    ('rpc_get_consulting_project',    null, null,                           'd09_consulting.sql', 'Consulting: get project with latest version'),
+    ('rpc_get_consulting_rations',    null, null,                           'd09_consulting.sql', 'Consulting: get saved rations for project'),
+    ('rpc_get_consulting_version',    null, null,                           'd09_consulting.sql', 'Consulting: get specific version by id'),
+    ('rpc_list_capex_surcharges',     null, null,                           'd09_consulting.sql', 'Consulting/CAPEX: list surcharges (ADR-CAPEX-02)'),
+    ('rpc_list_construction_materials', null, null,                         'd09_consulting.sql', 'Consulting/CAPEX: list materials catalog'),
+    ('rpc_list_consulting_projects',  null, null,                           'd09_consulting.sql', 'Consulting: list all projects for org'),
+    ('rpc_list_consulting_versions',  null, null,                           'd09_consulting.sql', 'Consulting: list all versions for project'),
+    ('rpc_list_infrastructure_norms', null, null,                           'd09_consulting.sql', 'Consulting/CAPEX: list infra norms'),
+    ('rpc_list_livestock_prices',     null, null,                           'd09_consulting.sql', 'Consulting: list livestock sale prices (ADR-PRICES-01)'),
+    ('rpc_retire_livestock_price',    null, null,                           'd09_consulting.sql', 'Consulting: retire a livestock price entry'),
+    ('rpc_save_consulting_ration',    null, null,                           'd09_consulting.sql', 'Consulting: save NASEM/Simple ration (D-S8-3)'),
+    ('rpc_save_consulting_version',   null, null,                           'd09_consulting.sql', 'Consulting: save calculation version'),
+    ('rpc_save_project_infra_override', null, null,                         'd09_consulting.sql', 'Consulting/CAPEX: save infra override (ADR-CAPEX-02)'),
+    ('rpc_update_consulting_project', null, null,                           'd09_consulting.sql', 'Consulting: update project metadata'),
+    ('rpc_upsert_construction_material', null, null,                        'd09_consulting.sql', 'Consulting/CAPEX: admin upsert material'),
+    ('rpc_upsert_consulting_reference', null, null,                         'd09_consulting.sql', 'Consulting: upsert reference data row'),
+    ('rpc_upsert_infrastructure_norm', null, null,                          'd09_consulting.sql', 'Consulting/CAPEX: admin upsert infra norm'),
+    ('rpc_upsert_livestock_price',    null, null,                           'd09_consulting.sql', 'Consulting: admin upsert livestock price')
+on conflict (sql_name) do update
+    set notes      = excluded.notes,
+        created_in = excluded.created_in;

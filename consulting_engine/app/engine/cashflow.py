@@ -117,17 +117,17 @@ def calculate_cashflow(
         npv += annual_fcff[yr] / (1 + wacc_annual) ** yr
 
     # --- IRR ---
-    irr = 0.0
+    # None means "не вычислимо" (отрицательные потоки / нет сходимости).
+    # UI отображает None как "—" вместо вводящего в заблуждение "0.0%".
+    irr = None
     try:
         import numpy_financial as npf
         import math
         raw_irr = float(npf.irr(annual_fcff))
-        if math.isnan(raw_irr) or math.isinf(raw_irr):
-            irr = 0.0
-        else:
+        if not (math.isnan(raw_irr) or math.isinf(raw_irr)):
             irr = raw_irr
     except Exception:
-        irr = 0.0
+        pass
 
     # --- Payback period ---
     cumulative = 0.0
