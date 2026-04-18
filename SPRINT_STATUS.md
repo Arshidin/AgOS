@@ -17,10 +17,11 @@
 | Phase 3 (UI + P8) | `92dfbb5` | editable CapexTab + wizard materials + price-params refactor |
 | Phase 5 partial (Dok 1/3/4/7) | `eb88bea` | architecture docs |
 | Phase 4 (Admin UI) | `560829c` | /admin/capex 3-tab page + Phase 3 docs followup |
-| Phase 5 closeout (Dok 6) | *(pending)* | 5 screen contracts |
+| Phase 5 closeout (Dok 6) | `2d43c5a` | 5 screen contracts + D-GATE-CAPEX-01-FINAL |
+| ADR-CAPEX-02 DB (tech debt fixes) | `174485f` | `rpc_save_project_infra_override` NULL-preserve + `rpc_list_capex_surcharges`. **Applied to prod via Supabase MCP `apply_migration` (2026-04-18).** Verified: registry entry present, new RPC returns `[{code:'default', contingency_rate:0.025}]`, `p_overrides` signature now `DEFAULT NULL::jsonb`. |
 
 ### Architect sign-off
-0 unresolved Critical findings. Significant finding acknowledged (per-item depreciation delta +6% buildings / +2% equipment on recalc — intended per plan §2.3 step 5). Known tech debt: L-P3-WIZARD (override race on wizard save), L-P4-1 (Surcharges tab direct .from() read). Fix track: ADR-CAPEX-02 or dedicated session.
+0 unresolved Critical findings. Significant finding acknowledged (per-item depreciation delta +6% buildings / +2% equipment on recalc — intended per plan §2.3 step 5). Tech debt L-P3-WIZARD + L-P4-1 — **fixed via ADR-CAPEX-02 (2026-04-18)**. Remaining follow-up: UI Agent patches (ProjectWizard pass `p_overrides:null` + CapexSurchargesTab use new RPC) + Dok 3 §13c update (NULL-preserve semantic note).
 
 ---
 
