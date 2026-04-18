@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProjectData, fmt, cacheResults } from './usProjectData'
@@ -340,8 +340,9 @@ export function StaffTab() {
 
       {/* Summary */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Итого ФОТ (тыс. тг/мес)</CardTitle>
+          <CardDescription>Суммарный фонд оплаты труда без учёта ежегодной индексации</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -369,8 +370,9 @@ export function StaffTab() {
 
       {/* Tax breakdown info */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Справка: налоговые ставки РК</CardTitle>
+          <CardDescription>Ставки налогов и отчислений, применяемые в расчёте ФОТ</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-muted-foreground">

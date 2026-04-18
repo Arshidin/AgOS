@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Calculator } from 'lucide-react'
 import { useProjectData, fmt, fmtPct } from './usProjectData'
@@ -202,6 +202,7 @@ export function SummaryTab() {
             <CardTitle className="text-sm font-medium">
               Денежный баланс (помесячно)
             </CardTitle>
+            <CardDescription>Помесячная динамика денежного баланса проекта</CardDescription>
           </CardHeader>
           <CardContent>
             <div style={{ width: '100%', height: 280 }}>
@@ -264,6 +265,7 @@ export function SummaryTab() {
             <CardTitle className="text-sm font-medium">
               Выручка и чистая прибыль (по годам)
             </CardTitle>
+            <CardDescription>Годовая выручка и чистая прибыль за период проекта</CardDescription>
           </CardHeader>
           <CardContent>
             <div style={{ width: '100%', height: 280 }}>
@@ -348,8 +350,9 @@ export function SummaryTab() {
 
       {/* ========== Parameters card ========== */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Параметры проекта</CardTitle>
+          <CardDescription>Основные входные параметры расчёта</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
           <div>
@@ -412,8 +415,9 @@ export function SummaryTab() {
 
         return (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm">Расходы на корма по группам, тыс. тг</CardTitle>
+              <CardDescription>Годовые расходы на корма в разрезе групп животных</CardDescription>
             </CardHeader>
             <CardContent className="px-0 pb-2 overflow-x-auto">
               <table className="w-full text-xs">
@@ -490,8 +494,9 @@ export function SummaryTab() {
 
         return (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm">Объём кормов по группам, тн</CardTitle>
+              <CardDescription>Годовой объём потребляемых кормов в тоннах по группам животных</CardDescription>
             </CardHeader>
             <CardContent className="px-0 pb-2 overflow-x-auto">
               <table className="w-full text-xs">

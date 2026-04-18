@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TrendingUp } from 'lucide-react'
 import { useProjectData, fmt } from './usProjectData'
 import {
   ComposedChart,
@@ -289,12 +290,12 @@ function renderTable(rows: TableRow[], headers: string[], fontSize: string) {
   return (
     <table className={`w-full ${fontSize} font-mono`}>
       <thead>
-        <tr className="border-b">
-          <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium text-muted-foreground min-w-[260px]">
+        <tr className="border-b border-border/40 bg-muted/40">
+          <th className="sticky left-0 z-10 bg-muted/40 px-3 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wide min-w-[260px]">
             Показатель
           </th>
           {headers.map((h, i) => (
-            <th key={i} className="px-2 py-2 text-right font-medium text-muted-foreground whitespace-nowrap min-w-[80px]">
+            <th key={i} className="px-2 py-2 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap min-w-[80px]">
               {h}
             </th>
           ))}
@@ -375,7 +376,14 @@ export function PnlTab() {
       ))}
     </div>
   )
-  if (!version) return <p className="page text-muted-foreground">Нет данных. Запустите расчёт.</p>
+  if (!version) return (
+    <div className="page">
+      <Card><CardContent className="flex flex-col items-center py-12">
+        <TrendingUp className="mb-4 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Нет данных. Запустите расчёт.</p>
+      </CardContent></Card>
+    </div>
+  )
 
   const pnl = results.pnl || {}
   const revenue = results.revenue || {}
@@ -387,7 +395,14 @@ export function PnlTab() {
   const dates: string[] | undefined = timeline.dates
   const totalMonths = pnl.net_profit?.length || 0
 
-  if (totalMonths === 0) return <p className="page text-muted-foreground">Нет данных P&L.</p>
+  if (totalMonths === 0) return (
+    <div className="page">
+      <Card><CardContent className="flex flex-col items-center py-12">
+        <TrendingUp className="mb-4 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Нет данных P&L.</p>
+      </CardContent></Card>
+    </div>
+  )
 
   const years = getYearLabels(calYears)
 
@@ -443,8 +458,9 @@ export function PnlTab() {
     <div className="page space-y-4">
       {/* Revenue / Costs / Profit chart */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Выручка, расходы и прибыль</CardTitle>
+          <CardDescription>Годовая динамика выручки, себестоимости и чистой прибыли</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
@@ -488,12 +504,13 @@ export function PnlTab() {
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>
             {view === 'annual'
               ? 'Отчёт о прибылях и убытках (тыс. тг, по годам)'
               : 'Отчёт о прибылях и убытках (тыс. тг, помесячно)'}
           </CardTitle>
+          <CardDescription>Детализация выручки, себестоимости и P&L по строкам</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {view === 'annual' ? renderAnnual() : renderMonthly()}

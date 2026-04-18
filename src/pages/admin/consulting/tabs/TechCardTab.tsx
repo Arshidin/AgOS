@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ClipboardList } from 'lucide-react'
 import { useProjectData } from './usProjectData'
@@ -108,7 +108,10 @@ export function TechCardTab() {
     <div className="page space-y-4">
       {/* Params */}
       <Card>
-        <CardHeader><CardTitle>Параметры производственного цикла</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle>Параметры производственного цикла</CardTitle>
+          <CardDescription>Ключевые сроки и режимы производственного процесса</CardDescription>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-4">
             <div><span className="text-muted-foreground">Отёл:</span> {params.calving_scenario}</div>
@@ -122,7 +125,10 @@ export function TechCardTab() {
 
       {/* Gantt chart */}
       <Card>
-        <CardHeader><CardTitle>Технологическая карта (первые {yearBounds.length} года)</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle>Технологическая карта (первые {yearBounds.length} года)</CardTitle>
+          <CardDescription>Гант-диаграмма производственных этапов по месяцам</CardDescription>
+        </CardHeader>
         <CardContent className="overflow-x-auto pb-2">
           <div className="min-w-[700px]">
             {/* Year + month headers */}
@@ -220,7 +226,10 @@ export function TechCardTab() {
 
       {/* Key events */}
       <Card>
-        <CardHeader><CardTitle>Ключевые даты</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle>Ключевые даты</CardTitle>
+          <CardDescription>Месяцы отёлов, случки и реализации в рамках проекта</CardDescription>
+        </CardHeader>
         <CardContent className="space-y-2 text-sm">
           {[
             { label: 'Отёлы', months: tc.calving_months },

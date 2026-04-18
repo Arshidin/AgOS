@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Activity } from 'lucide-react'
 import { useProjectData, fmt } from './usProjectData'
 import {
   AreaChart,
@@ -49,11 +50,25 @@ export function CashFlowTab() {
       ))}
     </div>
   )
-  if (!version) return <p className="page text-muted-foreground">Нет данных. Запустите расчёт.</p>
+  if (!version) return (
+    <div className="page">
+      <Card><CardContent className="flex flex-col items-center py-12">
+        <Activity className="mb-4 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Нет данных. Запустите расчёт.</p>
+      </CardContent></Card>
+    </div>
+  )
 
   const cf = results.cashflow || {}
   const years = Math.min(10, Math.ceil((cf.cash_balance?.length || 0) / 12))
-  if (years === 0) return <p className="page text-muted-foreground">Нет данных Cash Flow.</p>
+  if (years === 0) return (
+    <div className="page">
+      <Card><CardContent className="flex flex-col items-center py-12">
+        <Activity className="mb-4 h-10 w-10 text-muted-foreground" />
+        <p className="text-muted-foreground">Нет данных Cash Flow.</p>
+      </CardContent></Card>
+    </div>
+  )
 
   const chartData = (cf.cash_balance || []).map((v: number, i: number) => ({
     month: i + 1,
@@ -73,7 +88,10 @@ export function CashFlowTab() {
     <div className="page space-y-4">
       {/* Cash balance area chart */}
       <Card>
-        <CardHeader><CardTitle>Динамика денежных средств</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle>Динамика денежных средств</CardTitle>
+          <CardDescription>Помесячный денежный баланс за период проекта</CardDescription>
+        </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -126,14 +144,17 @@ export function CashFlowTab() {
 
       {/* Existing cash flow table */}
       <Card>
-        <CardHeader><CardTitle>Движение денежных средств (тыс. тг)</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle>Движение денежных средств (тыс. тг)</CardTitle>
+          <CardDescription>Операционная, инвестиционная и финансовая деятельность по годам</CardDescription>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm font-mono">
             <thead>
-              <tr className="border-b">
-                <th className="sticky left-0 bg-card px-3 py-2 text-left font-medium text-muted-foreground min-w-[250px]">Показатель</th>
+              <tr className="border-b border-border/40 bg-muted/40">
+                <th className="sticky left-0 bg-muted/40 px-3 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wide min-w-[250px]">Показатель</th>
                 {Array.from({ length: years }, (_, i) => (
-                  <th key={i} className="px-3 py-2 text-right font-medium text-muted-foreground min-w-[100px]">Год {i + 1}</th>
+                  <th key={i} className="px-3 py-2 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-wide min-w-[100px]">Год {i + 1}</th>
                 ))}
               </tr>
             </thead>
