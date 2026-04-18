@@ -83,3 +83,22 @@ class TestFeedingTotal:
         assert 0.8 < ratio < 1.2, (
             f"24-month sum: excel={excel_sum:.0f}, calc={calc_sum:.0f}, ratio={ratio:.2f}"
         )
+
+    def test_molodnyak_nonzero_in_calving_months(self):
+        """DEF-WEANING-01 P3: group_costs['molodnyak'] must be non-zero in suckling window.
+
+        Winter calving (calving_mi=18) → first calving at month_index=18 (t=17).
+        Suckling window = 6 months → molodnyak non-zero during months 17..22 (t=17..22).
+        Priority 3 previously used herd['calves']['avg'] = 0 always → 0 costs.
+        """
+        feeding, tl = calculate()
+        molodnyak = feeding["groups"]["molodnyak"]
+        # Winter calving_mi=18 → project starts Aug 31 → mi=18 is month index 18 → t=17
+        mi = tl["month_index"]
+        calving_t = next(t for t, m in enumerate(mi) if m == 18)
+        # At least one month in the suckling window [calving_t, calving_t+5] must be non-zero
+        suckling_window = molodnyak[calving_t: calving_t + 6]
+        assert any(v != 0.0 for v in suckling_window), (
+            f"molodnyak group all-zero in 6-month suckling window after first calving (t={calving_t}). "
+            "DEF-WEANING-01 P3 fix not applied."
+        )
