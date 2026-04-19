@@ -173,11 +173,14 @@ function IconBtn({
   ariaLabel?: string
   children: React.ReactNode
 }) {
+  const [focused, setFocused] = useState(false)
   return (
     <button
       onClick={onClick}
       title={title}
       aria-label={ariaLabel || title}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={{
         width: 28,
         height: 28,
@@ -186,9 +189,11 @@ function IconBtn({
         placeItems: 'center',
         background: 'none',
         border: 'none',
+        outline: 'none',
         color: 'var(--fg3)',
         cursor: 'pointer',
-        transition: 'all 80ms',
+        transition: 'background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1)',
+        boxShadow: focused ? '0 0 0 2px var(--bd-h)' : 'none',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = 'var(--bg-m)'
@@ -309,14 +314,14 @@ export function Sidebar() {
       {/* Workspace header */}
       <div
         style={{
-          padding: isExpanded ? '14px 14px 10px' : '14px 10px 10px',
+          padding: isExpanded ? '12px 10px 8px' : '12px 8px 8px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           justifyContent: isCollapsed ? 'center' : 'flex-start',
         }}
       >
-        <TuranStar size={isExpanded ? 28 : 24} />
+        <TuranStar size={24} />
         {isExpanded && (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -332,7 +337,7 @@ export function Sidebar() {
               >
                 AgOS
               </div>
-              <div style={{ fontSize: 10, color: 'var(--fg3)', marginTop: -1 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: -1 }}>
                 TURAN
               </div>
             </div>
@@ -352,24 +357,27 @@ export function Sidebar() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '7px 10px',
+              padding: '6px 10px',
               borderRadius: 6,
               background: 'var(--bg-c)',
               border: '1px solid var(--bd)',
+              outline: 'none',
               color: 'var(--fg3)',
-              fontSize: 12,
+              fontSize: 13,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              transition: 'all 100ms',
+              transition: 'background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1)',
             }}
+            onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--bd-h)' }}
+            onBlur={(e) => { e.currentTarget.style.boxShadow = 'none' }}
           >
             <Search size={13} strokeWidth={2} />
             <span style={{ flex: 1, textAlign: 'left' }}>Search...</span>
             <span
               style={{
-                fontSize: 10,
-                padding: '1px 5px',
-                borderRadius: 3,
+                fontSize: 11,
+                padding: '2px 6px',
+                borderRadius: 4,
                 background: 'var(--bg)',
                 border: '1px solid var(--bd)',
                 color: 'var(--fg3)',
@@ -392,34 +400,23 @@ export function Sidebar() {
       {/* Navigation — grouped */}
       <nav
         style={{
-          padding: isExpanded ? '4px 8px' : '4px 6px',
+          padding: isExpanded ? '8px' : '8px 4px',
           flex: 1,
           overflowY: 'auto',
         }}
       >
         {navGroups.map((group, gi) => (
           <div key={gi}>
-            {/* Separator between groups (expanded only) */}
-            {gi > 0 && isExpanded && (
-              <div
-                style={{
-                  height: 1,
-                  background: 'var(--bd-s)',
-                  margin: '6px 2px',
-                }}
-              />
-            )}
-
             {/* Group label (expanded only) */}
             {group.label && isExpanded && (
               <div
                 style={{
-                  fontSize: 10,
-                  fontWeight: 500,
+                  fontSize: 11,
+                  fontWeight: 600,
                   color: 'var(--fg3)',
-                  letterSpacing: '0.06em',
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  padding: '8px 10px 4px',
+                  padding: gi === 0 ? '8px 10px 6px' : '16px 10px 6px',
                   userSelect: 'none',
                 }}
               >
@@ -437,24 +434,25 @@ export function Sidebar() {
                   key={item.id}
                   onClick={() => navigate(item.route)}
                   title={isCollapsed ? item.label : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                   style={{
-                    position: 'relative',
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 9,
+                    gap: 10,
                     borderRadius: 6,
-                    background: isActive ? 'rgba(255,255,255,0.04)' : 'none',
-                    border: isActive ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
+                    background: isActive ? 'var(--bg-m)' : 'transparent',
+                    border: 'none',
+                    outline: 'none',
                     color: isActive ? 'var(--fg)' : 'var(--fg2)',
                     fontSize: 13,
                     fontWeight: isActive ? 500 : 400,
                     cursor: 'pointer',
                     fontFamily: 'inherit',
-                    transition: 'all 80ms',
-                    marginBottom: 1,
+                    transition: 'background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1)',
+                    marginBottom: 2,
                     justifyContent: isCollapsed ? 'center' : 'flex-start',
-                    padding: isCollapsed ? '7px' : '7px 10px',
+                    padding: isCollapsed ? '6px' : '6px 10px',
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
@@ -464,30 +462,16 @@ export function Sidebar() {
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = 'none'
+                      e.currentTarget.style.background = 'transparent'
                       e.currentTarget.style.color = 'var(--fg2)'
                     }
                   }}
+                  onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--bd-h)' }}
+                  onBlur={(e) => { e.currentTarget.style.boxShadow = 'none' }}
                 >
-                  {/* Left accent bar for active item */}
-                  {isActive && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '18%',
-                        height: '64%',
-                        width: 3,
-                        borderRadius: '0 2px 2px 0',
-                        background: 'var(--brand)',
-                        transition: 'opacity 60ms',
-                      }}
-                    />
-                  )}
-
                   <Icon
                     size={16}
-                    strokeWidth={isActive ? 1.8 : 1.5}
+                    strokeWidth={1.5}
                     style={{ color: isActive ? 'var(--fg)' : 'var(--fg3)' }}
                   />
                   {isExpanded && (
@@ -525,10 +509,10 @@ export function Sidebar() {
             gap: 8,
             flex: isExpanded ? 1 : 'none',
             minWidth: 0,
-            padding: '5px 6px',
-            borderRadius: 8,
+            padding: '4px 6px',
+            borderRadius: 6,
             cursor: 'pointer',
-            transition: 'background 60ms',
+            transition: 'background-color 150ms cubic-bezier(0.16,1,0.3,1)',
             background: footerOpen ? 'var(--bg-m)' : 'none',
           }}
           onMouseEnter={(e) => {
@@ -558,7 +542,7 @@ export function Sidebar() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 500,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -567,7 +551,7 @@ export function Sidebar() {
               >
                 {displayName}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--fg3)', marginTop: -1 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: -1 }}>
                 {displayRole}
               </div>
             </div>
@@ -616,16 +600,17 @@ export function Sidebar() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
-                      padding: '8px 14px',
+                      padding: '8px 12px',
                       background: 'none',
                       border: 'none',
+                      outline: 'none',
                       color: action.destructive ? 'var(--red)' : 'var(--fg2)',
                       fontSize: 13,
                       fontWeight: 400,
                       cursor: 'pointer',
                       fontFamily: 'inherit',
                       textAlign: 'left',
-                      transition: 'background 60ms, color 60ms',
+                      transition: 'background-color 150ms cubic-bezier(0.16,1,0.3,1), color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1)',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = 'var(--bg-m)'
@@ -635,6 +620,8 @@ export function Sidebar() {
                       e.currentTarget.style.background = 'none'
                       e.currentTarget.style.color = action.destructive ? 'var(--red)' : 'var(--fg2)'
                     }}
+                    onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 2px var(--bd-h)' }}
+                    onBlur={(e) => { e.currentTarget.style.boxShadow = 'none' }}
                   >
                     <Icon size={14} strokeWidth={1.5} />
                     {action.label}
