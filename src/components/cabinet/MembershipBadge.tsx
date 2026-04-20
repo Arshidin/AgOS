@@ -4,7 +4,6 @@ import type { MembershipStatus } from '@/types/membership';
 
 // DS-token-based styles — no Tailwind opacity syntax
 const BADGE_STYLES: Record<MembershipStatus, { bg: string; fg: string }> = {
-  registered: { bg: 'rgba(122,107,93,0.08)',  fg: 'var(--fg2, #7a6b5d)' },
   applicant:  { bg: 'rgba(179,122,16,0.08)',  fg: 'var(--amber)' },
   observer:   { bg: 'rgba(69,113,184,0.08)',  fg: 'var(--blue)' },
   active:     { bg: 'rgba(58,138,82,0.08)',   fg: 'var(--green)' },
@@ -20,7 +19,7 @@ interface Props {
 
 export function MembershipBadge({ status, className }: Props) {
   const { t } = useTranslation();
-  const style = BADGE_STYLES[status] ?? BADGE_STYLES.registered;
+  const style = BADGE_STYLES[status] ?? BADGE_STYLES.applicant;
 
   return (
     <span

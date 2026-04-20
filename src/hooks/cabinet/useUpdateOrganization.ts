@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 export function useUpdateOrganization() {
-  const { organization, refreshProfile } = useAuth();
+  const { organization, refreshContext } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const orgId = organization?.id;
@@ -22,7 +22,7 @@ export function useUpdateOrganization() {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['organization', orgId] });
-      await refreshProfile();
+      await refreshContext();
       toast.success(t('cabinet.profile.saved'));
     },
     onError: () => {

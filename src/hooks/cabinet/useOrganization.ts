@@ -20,6 +20,5 @@ export function useOrganization() {
       return data as any as Organization;
     },
     enabled: !!orgId,
-    initialData: organization ?? undefined,
   });
 }
