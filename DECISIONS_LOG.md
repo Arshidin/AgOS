@@ -2312,3 +2312,28 @@ NaN/Inf/Exception from `npf.irr()` returned `0.0` — UI read as "breakeven". Fi
 Added `consulting_engine/conftest.py` (sys.path) + `pytest.ini` (pythonpath=.). Tests now run from repo root: `python3 -m pytest consulting_engine/tests/` → 59 passed, 3 skipped, 3 xfailed.
 
 **Files:** `consulting_engine/app/engine/staff.py`, `consulting_engine/app/engine/cashflow.py`, `d01_kernel.sql`, `consulting_engine/conftest.py`, `consulting_engine/pytest.ini`
+
+---
+
+### 2026-04-20: ADR-MIGRATION-01 — Repo merge: turan-industry-catalyst → AgOS
+
+**What:** Merged the old Lovable-built production site (`turan-industry-catalyst`) into AgOS as the single platform. AgOS is now the sole codebase for `turanstandard.kz`.
+
+**Scope migrated:**
+- DB: `d10_public_site.sql` — 18 tables (registration_applications, app_counters, news_articles, startups, startup_team_members, startup_use_of_funds, finance_programs, finance_program_deps, finance_projects, finance_project_stages, finance_wizard_rules, subsidy_programs, subsidy_rates, subsidy_investment_passports, subsidy_investment_items, subsidy_project_matches, subsidy_glossary, subsidy_cross_conditions), 5 admin RPCs, 3 storage buckets
+- UI: all public routes (/join, /card, /news/*, /startups/*, /finance/*, /subsidies/*) + admin routes (/admin/applications, /admin/news/*, /admin/startups/*, /admin/finance/*, /admin/subsidies/*)
+- Edge functions: parse-article-url, parse-pitch-deck, backfill-covers, create-bitrix-lead, sitemap
+
+**Scope NOT migrated (used AgOS versions):**
+- ration_builder → AgOS `/cabinet/ration/*` + NASEM consulting engine
+- TSP (batches/pools) → AgOS `d02_tsp.sql`
+- Auth/users → AgOS `d01_kernel.sql` RBAC
+
+**Branding decision (ADR-MIGRATION-01b):** Public zone retains old palette (#E8730C, #fdf6ee) for now. Design System v11 rebrand of public zone is a separate sprint. Rationale: ship fast, avoid breaking visual identity before DNS cutover.
+
+**Auth unification:** Old `RequireAdminAuth` → replaced with AgOS `RequireExpert` (fn_is_admin() || fn_is_expert()). Single auth context for entire platform.
+
+**Consequences:**
+- Easy: one codebase, one Supabase project, one deployment
+- Hard: public zone colors are temporarily inconsistent with cabinet v11 DS — requires rebrand sprint
+- Tech debt: migrated components have hardcoded Russian strings (no i18n); acceptable start state

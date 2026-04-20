@@ -1,11 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import Index from '@/pages/landing/Index'
+import Landing from '@/pages/public/Landing'
 
-/**
- * Shows the landing page for unauthenticated visitors.
- * Redirects authenticated users to /cabinet.
- */
 export function PublicLanding() {
   const { session, loading } = useAuth()
 
@@ -17,5 +13,5 @@ export function PublicLanding() {
     return <Navigate to="/cabinet" replace />
   }
 
-  return <Index />
+  return <Landing />
 }

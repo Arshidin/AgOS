@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { RequireAuth } from '@/components/guards/RequireAuth'
@@ -9,6 +10,44 @@ import { RequireExpert } from '@/components/guards/RequireExpert'
 import { PublicLanding } from '@/components/guards/PublicLanding'
 import { Login } from '@/pages/auth/Login'
 import { Registration } from '@/pages/registration/Registration'
+
+// ── Public site (migrated from turan-industry-catalyst) ──────────────────────
+const PublicRegistration = lazy(() => import('@/pages/public/Registration'))
+const BusinessCard = lazy(() => import('@/pages/public/BusinessCard'))
+const NewsPage = lazy(() => import('@/pages/public/news/NewsPage'))
+const ArticlePage = lazy(() => import('@/pages/public/news/ArticlePage'))
+const ArticleDrawer = lazy(() => import('@/pages/public/news/components/ArticleDrawer'))
+const StartupsListing = lazy(() => import('@/pages/public/startups/StartupsListing'))
+const StartupDetail = lazy(() => import('@/pages/public/startups/StartupDetail'))
+const FinanceLayout = lazy(() => import('@/layouts/public/FinanceLayout'))
+const FinanceLanding = lazy(() => import('@/pages/public/finance/FinanceLanding'))
+const ProjectBuilder = lazy(() => import('@/pages/public/finance/ProjectBuilder'))
+const ProgramsPage = lazy(() => import('@/pages/public/finance/ProgramsPage'))
+const ProgramDetailPage = lazy(() => import('@/pages/public/finance/ProgramDetailPage'))
+const SubsidiesLanding = lazy(() => import('@/pages/public/subsidies/SubsidiesLanding'))
+const SubsidiesCatalog = lazy(() => import('@/pages/public/subsidies/SubsidiesCatalog'))
+const SubsidyDetail = lazy(() => import('@/pages/public/subsidies/SubsidyDetail'))
+const PassportDetail = lazy(() => import('@/pages/public/subsidies/PassportDetail'))
+const SubsidyMatch = lazy(() => import('@/pages/public/subsidies/SubsidyMatch'))
+const GlossaryPage = lazy(() => import('@/pages/public/subsidies/GlossaryPage'))
+const SubsidyComparison = lazy(() => import('@/pages/public/subsidies/SubsidyComparison'))
+const PublicMembershipPolicy = lazy(() => import('@/pages/public/MembershipPolicy'))
+
+// ── Admin: news, startups, finance, subsidies, applications ──────────────────
+const AdminNewsPage = lazy(() => import('@/pages/admin/news/AdminNewsPage'))
+const CreateArticlePage = lazy(() => import('@/pages/admin/news/CreateArticlePage'))
+const CreateMediaPage = lazy(() => import('@/pages/admin/news/CreateMediaPage'))
+const EditNewsPage = lazy(() => import('@/pages/admin/news/EditNewsPage'))
+const BackfillCoversPage = lazy(() => import('@/pages/admin/news/BackfillCovers'))
+const AdminStartupList = lazy(() => import('@/pages/admin/startups/StartupList'))
+const AdminStartupDetail = lazy(() => import('@/pages/admin/startups/StartupDetail'))
+const AdminProgramsPage = lazy(() => import('@/pages/admin/finance/AdminProgramsPage'))
+const AdminProgramDepsPage = lazy(() => import('@/pages/admin/finance/AdminProgramDepsPage'))
+const AdminFinanceRequestsPage = lazy(() => import('@/pages/admin/finance/AdminFinanceRequestsPage'))
+const AdminSubsidiesPage = lazy(() => import('@/pages/admin/subsidies/AdminSubsidiesPage'))
+const AdminPassportsPage = lazy(() => import('@/pages/admin/subsidies/AdminPassportsPage'))
+const ApplicationList = lazy(() => import('@/pages/admin/membership/ApplicationList'))
+const ApplicationDetail = lazy(() => import('@/pages/admin/membership/ApplicationDetail'))
 import { AppLayout } from '@/components/layout/AppLayout'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
@@ -70,8 +109,6 @@ import { StaffTab } from '@/pages/admin/consulting/tabs/StaffTab'
 import NotFound from '@/pages/public/NotFound'
 import '@/i18n'
 
-const MembershipPolicy = lazy(() => import('@/pages/public/MembershipPolicy'))
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -84,6 +121,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
+    <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
@@ -91,7 +129,32 @@ function App() {
             <Route path="/" element={<PublicLanding />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Registration />} />
-            <Route path="/membership-policy" element={<Suspense fallback={null}><MembershipPolicy /></Suspense>} />
+            <Route path="/membership-policy" element={<Suspense fallback={null}><PublicMembershipPolicy /></Suspense>} />
+
+            {/* ── Public site (migrated from turan-industry-catalyst) ─── */}
+            <Route path="/join" element={<Suspense fallback={null}><PublicRegistration /></Suspense>} />
+            <Route path="/registration" element={<Navigate to="/join" replace />} />
+            <Route path="/card" element={<Suspense fallback={null}><BusinessCard /></Suspense>} />
+            <Route path="/news" element={<Suspense fallback={null}><NewsPage /></Suspense>}>
+              <Route path=":slug" element={<Suspense fallback={null}><ArticleDrawer /></Suspense>} />
+            </Route>
+            <Route path="/article/:slug" element={<Suspense fallback={null}><ArticlePage /></Suspense>} />
+            <Route path="/startups" element={<Suspense fallback={null}><StartupsListing /></Suspense>} />
+            <Route path="/startups/:slug" element={<Suspense fallback={null}><StartupDetail /></Suspense>} />
+            <Route element={<Suspense fallback={null}><FinanceLayout /></Suspense>}>
+              <Route path="/finance" element={<Suspense fallback={null}><FinanceLanding /></Suspense>} />
+              <Route path="/finance/build" element={<Suspense fallback={null}><ProjectBuilder /></Suspense>} />
+              <Route path="/finance/programs" element={<Suspense fallback={null}><ProgramsPage /></Suspense>} />
+              <Route path="/finance/programs/:id" element={<Suspense fallback={null}><ProgramDetailPage /></Suspense>} />
+              <Route path="/subsidies" element={<Suspense fallback={null}><SubsidiesLanding /></Suspense>} />
+              <Route path="/subsidies/catalog" element={<Suspense fallback={null}><SubsidiesCatalog /></Suspense>} />
+              <Route path="/subsidies/match" element={<Suspense fallback={null}><SubsidyMatch /></Suspense>} />
+              <Route path="/subsidies/passports" element={<Suspense fallback={null}><PassportDetail /></Suspense>} />
+              <Route path="/subsidies/passports/:id" element={<Suspense fallback={null}><PassportDetail /></Suspense>} />
+              <Route path="/subsidies/glossary" element={<Suspense fallback={null}><GlossaryPage /></Suspense>} />
+              <Route path="/subsidies/compare" element={<Suspense fallback={null}><SubsidyComparison /></Suspense>} />
+              <Route path="/subsidies/:id" element={<Suspense fallback={null}><SubsidyDetail /></Suspense>} />
+            </Route>
 
             <Route element={<RequireAuth />}>
               <Route element={<AppLayout />}>
@@ -172,6 +235,22 @@ function App() {
                       <Route path="staff" element={<StaffTab />} />
                       <Route path="ration" element={<RationTab />} />
                     </Route>
+
+                    {/* ── Public site admin: applications, news, startups, finance, subsidies ── */}
+                    <Route path="applications" element={<Suspense fallback={null}><ApplicationList /></Suspense>} />
+                    <Route path="applications/:id" element={<Suspense fallback={null}><ApplicationDetail /></Suspense>} />
+                    <Route path="news" element={<Suspense fallback={null}><AdminNewsPage /></Suspense>} />
+                    <Route path="news/create-article" element={<Suspense fallback={null}><CreateArticlePage /></Suspense>} />
+                    <Route path="news/create-media" element={<Suspense fallback={null}><CreateMediaPage /></Suspense>} />
+                    <Route path="news/:id/edit" element={<Suspense fallback={null}><EditNewsPage /></Suspense>} />
+                    <Route path="news/backfill-covers" element={<Suspense fallback={null}><BackfillCoversPage /></Suspense>} />
+                    <Route path="startups" element={<Suspense fallback={null}><AdminStartupList /></Suspense>} />
+                    <Route path="startups/:id" element={<Suspense fallback={null}><AdminStartupDetail /></Suspense>} />
+                    <Route path="finance/programs" element={<Suspense fallback={null}><AdminProgramsPage /></Suspense>} />
+                    <Route path="finance/deps" element={<Suspense fallback={null}><AdminProgramDepsPage /></Suspense>} />
+                    <Route path="finance/requests" element={<Suspense fallback={null}><AdminFinanceRequestsPage /></Suspense>} />
+                    <Route path="subsidies" element={<Suspense fallback={null}><AdminSubsidiesPage /></Suspense>} />
+                    <Route path="subsidies/passports" element={<Suspense fallback={null}><AdminPassportsPage /></Suspense>} />
                   </Route>
                 </Route>
               </Route>
@@ -183,6 +262,7 @@ function App() {
         <Toaster position="top-center" richColors />
       </AuthProvider>
     </QueryClientProvider>
+    </HelmetProvider>
   )
 }
 

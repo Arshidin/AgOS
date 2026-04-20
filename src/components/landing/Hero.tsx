@@ -5,7 +5,7 @@ import Reveal from "./Reveal";
 import ProjectOverlay, { type ProjectPopupData } from "./ProjectOverlay";
 import turanIcon from "@/assets/turan-icon.svg";
 // TODO: replace with AgOS supabase client when available
-// import { supabase } from "@/integrations/supabase/client";
+// import { supabase } from "@/lib/supabase";
 
 /** Tumar ornament — Kazakh traditional amulet shape, used as subtle decorative detail */
 function TumarOrnament({ className = "" }: { className?: string }) {

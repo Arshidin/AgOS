@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Концепция развития рынка говядины Казахстана — Turan Standard</title>
+  <meta name="description" content="Аналитический отчёт: Концепция Комплексного плана развития рынка говядины Казахстана. Turan Standard.">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════
+       1. DESIGN TOKENS
+    ═══════════════════════════════════════════ */
+    :root {
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'Source Sans 3', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --ink: #0a0f1a;
+      --paper: #f7f5f0;
+      --cream: #faf8f3;
+      --warm: #e8e2d6;
+      --terracotta: #c4572a;
+      --terracotta-light: #d4734e;
+      --navy: #1a2744;
+      --navy-light: #243456;
+      --slate: #4a5568;
+      --muted: #8a919c;
+      --border: #d4cfc4;
+      --accent-green: #2d6a4f;
+      --accent-blue: #1e3a5f;
+      --accent-amber: #b45309;
+      --container: 1200px;
+      --section-py: 100px;
+    }
+
+    /* ═══════════════════════════════════════════
+       2. RESET + BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.7;
+      font-size: 16px;
+      overflow-x: hidden;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    table { border-collapse: collapse; width: 100%; }
+
+    /* ═══════════════════════════════════════════
+       3. TYPOGRAPHY
+    ═══════════════════════════════════════════ */
+    h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; line-height: 1.2; }
+    h1 { font-size: clamp(2rem, 4vw, 3.2rem); }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); margin-bottom: 12px; }
+    h3 { font-size: clamp(1.1rem, 2vw, 1.5rem); margin-bottom: 8px; }
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--terracotta);
+      margin-bottom: 12px;
+      display: block;
+    }
+    .section-subtitle {
+      font-size: clamp(1rem, 1.5vw, 1.15rem);
+      color: var(--slate);
+      max-width: 800px;
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+
+    /* ═══════════════════════════════════════════
+       4. LAYOUT
+    ═══════════════════════════════════════════ */
+    .container { max-width: var(--container); margin: 0 auto; padding: 0 24px; }
+    .section { padding: var(--section-py) 0; position: relative; }
+    .bg-paper { background: var(--paper); }
+    .bg-cream { background: var(--cream); }
+    .bg-warm { background: var(--warm); }
+    .bg-navy { background: var(--navy); color: #e2e8f0; }
+    .bg-navy .section-label { color: var(--terracotta-light); }
+    .bg-navy .section-subtitle { color: #94a3b8; }
+    .bg-navy h2 { color: #f1f5f9; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+    /* ═══════════════════════════════════════════
+       5. STICKY NAV + PROGRESS
+    ═══════════════════════════════════════════ */
+    .sticky-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(26, 39, 68, 0.97);
+      backdrop-filter: blur(12px);
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .sticky-nav.visible { transform: translateY(0); }
+    .sticky-nav-inner {
+      max-width: var(--container);
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 52px;
+      gap: 4px;
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sticky-nav-inner::-webkit-scrollbar { display: none; }
+    .nav-link {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.5);
+      padding: 6px 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: all 0.3s;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+    .nav-link:hover { color: rgba(255,255,255,0.8); }
+    .nav-link.active { color: #fff; background: rgba(196, 87, 42, 0.3); }
+    .nav-back {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      padding: 6px 14px;
+      border-radius: 6px;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: none;
+      cursor: pointer;
+      margin-right: 12px;
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+    .nav-back:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+    .progress-bar {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: var(--terracotta);
+      transition: width 0.15s linear;
+    }
+
+    /* ═══════════════════════════════════════════
+       6. HERO
+    ═══════════════════════════════════════════ */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 120px 0 80px;
+      background: linear-gradient(170deg, #0f1829 0%, var(--navy) 40%, #1e3050 100%);
+      color: #e2e8f0;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -30%;
+      width: 80%;
+      height: 200%;
+      background: radial-gradient(ellipse, rgba(196, 87, 42, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 {
+      color: #f8fafc;
+      font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+      max-width: 900px;
+      margin-bottom: 20px;
+    }
+    .hero-subtitle {
+      font-size: clamp(1rem, 1.5vw, 1.2rem);
+      color: #94a3b8;
+      max-width: 720px;
+      line-height: 1.8;
+      margin-bottom: 56px;
+    }
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 56px;
+      flex-wrap: wrap;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #cbd5e1;
+      transition: background 0.3s;
+    }
+    .pipeline-step:hover { background: rgba(255,255,255,0.08); }
+    .pipeline-step .step-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(196, 87, 42, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pipeline-step .step-icon svg { width: 18px; height: 18px; stroke: var(--terracotta-light); fill: none; stroke-width: 1.5; }
+    .pipeline-arrow {
+      color: rgba(255,255,255,0.2);
+      font-size: 20px;
+      padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .kpi-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 28px 24px;
+      backdrop-filter: blur(8px);
+      transition: transform 0.3s, background 0.3s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.07); }
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 500;
+      color: #f8fafc;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .kpi-label {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    /* ═══════════════════════════════════════════
+       7. TABLES
+    ═══════════════════════════════════════════ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .data-table thead th {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 16px;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .data-table tbody td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      vertical-align: middle;
+    }
+    .data-table tbody tr:nth-child(even) { background: rgba(0,0,0,0.02); }
+    .data-table tbody tr:hover { background: rgba(196, 87, 42, 0.04); }
+    .data-table tbody tr.highlight {
+      background: rgba(196, 87, 42, 0.06);
+      border-left: 3px solid var(--terracotta);
+      font-weight: 600;
+    }
+    .data-table tbody tr.total-row {
+      font-weight: 700;
+      border-top: 2px solid var(--border);
+      background: rgba(0,0,0,0.03);
+    }
+    .data-table .num { font-family: var(--font-mono); font-size: 13px; text-align: right; }
+    .table-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--ink);
+    }
+    .table-wrapper {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .table-source {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      font-style: italic;
+    }
+    /* Dark section tables */
+    .bg-navy .table-wrapper {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .bg-navy .data-table thead th { color: #64748b; border-bottom-color: rgba(255,255,255,0.1); }
+    .bg-navy .data-table tbody td { border-bottom-color: rgba(255,255,255,0.05); color: #cbd5e1; }
+    .bg-navy .data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .bg-navy .data-table tbody tr:hover { background: rgba(196, 87, 42, 0.08); }
+    .bg-navy .data-table tbody tr.highlight { background: rgba(196, 87, 42, 0.1); }
+    .bg-navy .table-title { color: #e2e8f0; }
+
+    /* ═══════════════════════════════════════════
+       8. CALLOUT
+    ═══════════════════════════════════════════ */
+    .callout {
+      border-left: 4px solid var(--terracotta);
+      background: var(--cream);
+      padding: 24px 28px;
+      border-radius: 0 12px 12px 0;
+      margin: 32px 0;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--slate);
+    }
+    .callout strong { color: var(--ink); }
+    .bg-navy .callout {
+      background: rgba(196, 87, 42, 0.08);
+      border-left-color: var(--terracotta-light);
+      color: #94a3b8;
+    }
+    .bg-navy .callout strong { color: #e2e8f0; }
+    .bg-warm .callout { background: rgba(255,255,255,0.5); }
+
+    /* ═══════════════════════════════════════════
+       9. CARDS
+    ═══════════════════════════════════════════ */
+    .metric-card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .metric-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.06); }
+    .metric-card-value {
+      font-family: var(--font-mono);
+      font-size: 2rem;
+      font-weight: 500;
+      color: var(--terracotta);
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+    .metric-card-label {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .metric-card-desc {
+      font-size: 14px;
+      color: var(--slate);
+      line-height: 1.5;
+    }
+    /* Action cards for section 17 */
+    .action-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px 28px;
+      transition: transform 0.3s, background 0.3s;
+    }
+    .action-card:hover { transform: translateY(-3px); background: rgba(255,255,255,0.1); }
+    .action-card-number {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--terracotta-light);
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .action-card h3 { color: #f1f5f9; font-size: 18px; margin-bottom: 16px; }
+    .action-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .action-card ul li {
+      font-size: 14px;
+      color: #94a3b8;
+      padding: 6px 0;
+      padding-left: 16px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .action-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--terracotta-light);
+      opacity: 0.6;
+    }
+
+    /* ═══════════════════════════════════════════
+       10. BAR CHARTS (CSS)
+    ═══════════════════════════════════════════ */
+    .bar-chart { margin: 32px 0; }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    .bar-label {
+      min-width: 140px;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: right;
+      flex-shrink: 0;
+      color: var(--ink);
+    }
+    .bar-track {
+      flex: 1;
+      height: 28px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #fff;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .bar-fill.frozen { background: var(--accent-blue); }
+    .bar-fill.chilled { background: var(--terracotta); }
+    .bar-value {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--slate);
+      min-width: 50px;
+      text-align: left;
+      flex-shrink: 0;
+    }
+    /* Paired bars (frozen + chilled side by side) */
+    .paired-bar-group { margin-bottom: 16px; }
+    .paired-bar-group .bar-label { min-width: 120px; }
+    .paired-bar-pair {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .paired-bar-pair .bar-track { height: 22px; }
+
+    /* ═══════════════════════════════════════════
+       11. SVG LINE CHARTS
+    ═══════════════════════════════════════════ */
+    .chart-container {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 32px 28px;
+      margin-bottom: 24px;
+    }
+    .chart-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .bg-navy .chart-title { color: #e2e8f0; }
+    .chart-svg { width: 100%; height: auto; overflow: visible; }
+    .chart-line {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .chart-line.draw-in {
+      stroke-dasharray: var(--line-length);
+      stroke-dashoffset: var(--line-length);
+      transition: stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .chart-line.draw-in.revealed { stroke-dashoffset: 0; }
+    .chart-dot {
+      fill: var(--navy);
+      stroke: #fff;
+      stroke-width: 2;
+      transition: r 0.2s;
+    }
+    .chart-dot:hover { r: 6; }
+    .chart-grid-line { stroke: rgba(255,255,255,0.06); stroke-width: 1; }
+    .chart-axis-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: #64748b;
+    }
+    .chart-value-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      fill: #94a3b8;
+      text-anchor: middle;
+    }
+
+    /* ═══════════════════════════════════════════
+       12. STACKED BAR CHART
+    ═══════════════════════════════════════════ */
+    .stacked-bar-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      gap: 16px;
+    }
+    .stacked-bar-label {
+      min-width: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .stacked-bar-track {
+      flex: 1;
+      height: 36px;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+    }
+    .stacked-segment {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: #fff;
+      transition: flex-basis 1.2s ease;
+    }
+    .seg-repro { background: var(--terracotta); }
+    .seg-lph { background: var(--accent-blue); }
+    .seg-small { background: var(--accent-green); }
+
+    /* ═══════════════════════════════════════════
+       13. TIMELINE
+    ═══════════════════════════════════════════ */
+    .timeline {
+      display: flex;
+      gap: 0;
+      margin: 40px 0;
+      position: relative;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: 40px;
+      right: 40px;
+      height: 3px;
+      background: var(--border);
+      z-index: 0;
+    }
+    .timeline-item {
+      flex: 1;
+      position: relative;
+      padding: 0 16px;
+      text-align: center;
+    }
+    .timeline-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--terracotta);
+      margin: 20px auto 20px;
+      position: relative;
+      z-index: 1;
+      border: 3px solid var(--paper);
+    }
+    .timeline-year {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--terracotta);
+      margin-bottom: 4px;
+    }
+    .timeline-content {
+      text-align: left;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .timeline-content h4 { font-size: 14px; margin-bottom: 8px; }
+    .timeline-content ul {
+      list-style: none;
+      padding: 0;
+    }
+    .timeline-content ul li {
+      font-size: 13px;
+      color: var(--slate);
+      padding: 4px 0 4px 14px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .timeline-content ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 11px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--terracotta-light);
+    }
+
+    /* ═══════════════════════════════════════════
+       14. GAP INDICATOR
+    ═══════════════════════════════════════════ */
+    .gap-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .gap-negative { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
+    .gap-positive { color: var(--accent-green); background: rgba(45, 106, 79, 0.08); }
+
+    /* ═══════════════════════════════════════════
+       15. PROBLEM GRID (Section 15)
+    ═══════════════════════════════════════════ */
+    .problem-card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 28px 24px;
+      border-top: 3px solid var(--terracotta);
+    }
+    .problem-card-number {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--terracotta);
+      margin-bottom: 10px;
+    }
+    .problem-card h3 { font-size: 15px; margin-bottom: 14px; }
+    .problem-card ul { list-style: none; padding: 0; }
+    .problem-card ul li {
+      font-size: 13px;
+      color: var(--slate);
+      padding: 5px 0 5px 14px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .problem-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 12px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--terracotta-light);
+      opacity: 0.6;
+    }
+
+    /* ═══════════════════════════════════════════
+       16. SIDE-BY-SIDE (Section 16)
+    ═══════════════════════════════════════════ */
+    .side-by-side {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr;
+      gap: 0;
+      align-items: start;
+      margin: 40px 0;
+    }
+    .side-panel {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 32px 28px;
+    }
+    .side-panel h3 { margin-bottom: 20px; }
+    .side-panel ul { list-style: none; padding: 0; }
+    .side-panel ul li {
+      font-size: 14px;
+      color: var(--slate);
+      padding: 8px 0 8px 18px;
+      position: relative;
+      line-height: 1.6;
+    }
+    .side-panel ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .side-panel.situation ul li::before { background: var(--accent-amber); }
+    .side-panel.consequences ul li::before { background: #dc2626; }
+    .side-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--muted);
+      align-self: center;
+    }
+
+    /* ═══════════════════════════════════════════
+       17. LOGISTICS CARDS
+    ═══════════════════════════════════════════ */
+    .logistics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 32px 0;
+    }
+    .logistics-card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .logistics-card h4 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: var(--ink);
+    }
+    .logistics-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: var(--slate);
+    }
+    .logistics-icon { font-size: 16px; flex-shrink: 0; width: 24px; }
+    .logistics-value { font-family: var(--font-mono); font-size: 12px; color: var(--ink); font-weight: 500; }
+
+    /* ═══════════════════════════════════════════
+       18. THREE COLUMNS (Section 6)
+    ═══════════════════════════════════════════ */
+    .pillar-card {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .pillar-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.06); }
+    .pillar-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: rgba(196, 87, 42, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .pillar-icon svg { width: 24px; height: 24px; stroke: var(--terracotta); fill: none; stroke-width: 1.5; }
+    .pillar-card h3 { font-size: 16px; margin-bottom: 10px; }
+    .pillar-card p { font-size: 14px; color: var(--slate); line-height: 1.6; margin-bottom: 12px; }
+    .pillar-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--terracotta);
+      background: rgba(196, 87, 42, 0.06);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════
+       19. REVEAL ANIMATION
+    ═══════════════════════════════════════════ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    .reveal.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+
+    /* ═══════════════════════════════════════════
+       20. SPLIT LAYOUT (Section 2)
+    ═══════════════════════════════════════════ */
+    .split-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .split-panel {
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 32px 28px;
+      overflow-x: auto;
+    }
+    .split-panel h3 { margin-bottom: 6px; }
+    .split-panel .panel-sub {
+      font-size: 13px;
+      color: var(--slate);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .panel-type {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      margin-top: 12px;
+      letter-spacing: 0.5px;
+    }
+    .type-economy { background: rgba(30, 58, 95, 0.08); color: var(--accent-blue); }
+    .type-premium { background: rgba(196, 87, 42, 0.08); color: var(--terracotta); }
+
+    /* ═══════════════════════════════════════════
+       21. LATIN AMERICA CASE BLOCK
+    ═══════════════════════════════════════════ */
+    .case-block {
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 32px 28px;
+      margin-top: 40px;
+    }
+    .case-block h3 { margin-bottom: 16px; font-size: 17px; }
+    .case-block ul { list-style: none; padding: 0; }
+    .case-block ul li {
+      font-size: 14px;
+      color: var(--slate);
+      padding: 8px 0 8px 20px;
+      position: relative;
+      line-height: 1.6;
+    }
+    .case-block ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      opacity: 0.5;
+    }
+
+    /* ═══════════════════════════════════════════
+       22. FOUR PILLARS ROW
+    ═══════════════════════════════════════════ */
+    .pillars-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .pillar-tag-large {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      background: rgba(196, 87, 42, 0.06);
+      border: 1px solid rgba(196, 87, 42, 0.12);
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    /* ═══════════════════════════════════════════
+       23. TREND CARDS (Section 10)
+    ═══════════════════════════════════════════ */
+    .principle-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 24px 20px;
+    }
+    .principle-card h4 {
+      font-size: 15px;
+      color: #f1f5f9;
+      margin-bottom: 10px;
+    }
+    .principle-card p {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    /* ═══════════════════════════════════════════
+       24. BAR CHART (Light bg, vertical-ish)
+    ═══════════════════════════════════════════ */
+    .vbar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 220px;
+      padding-top: 20px;
+      margin: 32px 0 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .vbar-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .vbar-fill {
+      width: 100%;
+      max-width: 48px;
+      background: var(--terracotta);
+      border-radius: 4px 4px 0 0;
+      transition: height 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .vbar-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    .vbar-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+      text-align: center;
+      font-family: var(--font-mono);
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 1280px) {
+      :root { --container: 960px; }
+    }
+    @media (max-width: 768px) {
+      :root { --section-py: 64px; }
+      .grid-2, .split-layout, .side-by-side { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .grid-4, .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .pipeline { flex-direction: column; align-items: flex-start; }
+      .pipeline-arrow { transform: rotate(90deg); padding: 4px 0; }
+      .bar-label { min-width: 80px; font-size: 11px; }
+      .logistics-grid { grid-template-columns: 1fr; }
+      .timeline {
+        flex-direction: column;
+        gap: 0;
+      }
+      .timeline::before {
+        top: 0;
+        bottom: 0;
+        left: 24px;
+        right: auto;
+        width: 3px;
+        height: auto;
+      }
+      .timeline-item {
+        padding: 0 0 24px 56px;
+        text-align: left;
+      }
+      .timeline-dot {
+        position: absolute;
+        left: 16px;
+        top: 24px;
+        margin: 0;
+      }
+      .timeline-year { text-align: left; }
+      .side-by-side { grid-template-columns: 1fr; }
+      .side-arrow { transform: rotate(90deg); padding: 16px 0; }
+      .nav-link { font-size: 11px; padding: 5px 8px; }
+      .hero { padding: 80px 0 60px; min-height: auto; }
+      .hero h1 { font-size: 1.8rem; }
+      .stacked-bar-label { min-width: 70px; font-size: 12px; }
+    }
+    @media (max-width: 480px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .grid-4 { grid-template-columns: 1fr; }
+      .vbar-chart { height: 160px; }
+    }
+
+    /* ═══════════════════════════════════════════
+       PRINT
+    ═══════════════════════════════════════════ */
+    @media print {
+      .sticky-nav { display: none !important; }
+      .hero { min-height: auto; padding: 40px 0; break-after: page; }
+      .section { padding: 30px 0; break-inside: avoid; }
+      .reveal { opacity: 1 !important; transform: none !important; }
+      .bar-fill { transition: none; }
+      .chart-line.draw-in { stroke-dashoffset: 0 !important; }
+      body { font-size: 12px; }
+      .kpi-grid, .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     STICKY NAVIGATION
+═══════════════════════════════════════════ -->
+<nav class="sticky-nav" id="stickyNav" aria-label="Section navigation">
+  <div class="sticky-nav-inner">
+    <a class="nav-back" href="/">Turan Standard</a>
+    <button class="nav-link" data-target="hero">Концепция</button>
+    <button class="nav-link" data-target="s1">Глобальный контекст</button>
+    <button class="nav-link" data-target="s2">Экспортёры</button>
+    <button class="nav-link" data-target="s3">Ценовые спреды</button>
+    <button class="nav-link" data-target="s4">Китай</button>
+    <button class="nav-link" data-target="s5">Рынки</button>
+    <button class="nav-link" data-target="s6">Премиум</button>
+    <button class="nav-link" data-target="s7">Мультипликатор</button>
+    <button class="nav-link" data-target="s8">Ресурсная база</button>
+    <button class="nav-link" data-target="s9">Цены</button>
+    <button class="nav-link" data-target="s10">США</button>
+    <button class="nav-link" data-target="s11">КРС</button>
+    <button class="nav-link" data-target="s12">Структура</button>
+    <button class="nav-link" data-target="s13">Отставание</button>
+    <button class="nav-link" data-target="s14">Ветеринария</button>
+    <button class="nav-link" data-target="s15">Ограничения</button>
+    <button class="nav-link" data-target="s16">Субсидии</button>
+    <button class="nav-link" data-target="s17">Меры</button>
+  </div>
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 0: HERO
+═══════════════════════════════════════════ -->
+<section class="hero" id="hero">
+  <div class="container">
+    <span class="section-label reveal">Turan Standard — аналитический отчёт</span>
+    <h1 class="reveal">Концепция Комплексного плана развития рынка говядины Казахстана</h1>
+    <p class="hero-subtitle reveal reveal-delay-1">Казахстан может стать поставщиком премиальной говядины на экспортные рынки, если отрасль перейдет от сырьевой модели к интегрированной</p>
+
+    <div class="pipeline reveal reveal-delay-2">
+      <div class="pipeline-step">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></div>
+        Репродукция
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg></div>
+        Откорм
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        Переработка
+      </div>
+      <span class="pipeline-arrow">&rarr;</span>
+      <div class="pipeline-step">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+        Экспорт
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card reveal reveal-delay-1">
+        <div class="kpi-value"><span class="counter" data-target="10">0</span>%</div>
+        <div class="kpi-label">доли рынка премиальной говядины</div>
+      </div>
+      <div class="kpi-card reveal reveal-delay-2">
+        <div class="kpi-value"><span class="counter" data-target="400">0</span>+ тыс. т</div>
+        <div class="kpi-label">экспорта премиальной говядины</div>
+      </div>
+      <div class="kpi-card reveal reveal-delay-3">
+        <div class="kpi-value">$<span class="counter" data-target="4">0</span> млрд</div>
+        <div class="kpi-label">экспортной выручки</div>
+      </div>
+      <div class="kpi-card reveal reveal-delay-4">
+        <div class="kpi-value kpi-value--text" style="font-size:clamp(1.2rem,2vw,1.6rem)">100%</div>
+        <div class="kpi-label">цифровизация и учёт</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 1: ГЛОБАЛЬНЫЙ КОНТЕКСТ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s1">
+  <div class="container">
+    <span class="section-label reveal">Секция 01</span>
+    <h2 class="reveal">Глобальный контекст и рынок</h2>
+    <p class="section-subtitle reveal">Основные игроки на мировом рынке говядины (прогноз на 2025 г.)</p>
+
+    <div class="grid-2 reveal">
+      <!-- Производство -->
+      <div class="table-wrapper">
+        <div class="table-title">Производство (1,000 MT CWE)</div>
+        <table class="data-table">
+          <thead><tr><th>Страна</th><th class="num">Объём</th><th class="num">%/Мир</th></tr></thead>
+          <tbody>
+            <tr><td>Мир</td><td class="num">60 895</td><td class="num">—</td></tr>
+            <tr><td>США</td><td class="num">11 811</td><td class="num">19%</td></tr>
+            <tr><td>Бразилия</td><td class="num">11 750</td><td class="num">19%</td></tr>
+            <tr><td>Китай</td><td class="num">7 780</td><td class="num">13%</td></tr>
+            <tr><td>Европа</td><td class="num">6 500</td><td class="num">11%</td></tr>
+            <tr><td>Индия</td><td class="num">4 635</td><td class="num">8%</td></tr>
+            <tr class="highlight"><td>Казахстан</td><td class="num">445</td><td class="num">0,7%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Потребление -->
+      <div class="table-wrapper">
+        <div class="table-title">Потребление (1,000 MT CWE)</div>
+        <table class="data-table">
+          <thead><tr><th>Страна</th><th class="num">Объём</th><th class="num">%/Мир</th></tr></thead>
+          <tbody>
+            <tr><td>Мир</td><td class="num">59 159</td><td class="num">—</td></tr>
+            <tr><td>США</td><td class="num">12 657</td><td class="num">21%</td></tr>
+            <tr><td>Бразилия</td><td class="num">11 587</td><td class="num">20%</td></tr>
+            <tr><td>Китай</td><td class="num">8 210</td><td class="num">14%</td></tr>
+            <tr><td>Европа</td><td class="num">6 195</td><td class="num">10%</td></tr>
+            <tr><td>Индия</td><td class="num">2 990</td><td class="num">5%</td></tr>
+            <tr class="highlight"><td>Казахстан</td><td class="num">433</td><td class="num">0,7%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Экспорт -->
+      <div class="table-wrapper">
+        <div class="table-title">Экспорт (1,000 MT CWE)</div>
+        <table class="data-table">
+          <thead><tr><th>Страна</th><th class="num">Объём</th><th class="num">%/Мир</th></tr></thead>
+          <tbody>
+            <tr><td>Мир</td><td class="num">12 944</td><td class="num">—</td></tr>
+            <tr><td>США</td><td class="num">3 600</td><td class="num">28%</td></tr>
+            <tr><td>Бразилия</td><td class="num">1 900</td><td class="num">15%</td></tr>
+            <tr><td>Китай</td><td class="num">1 645</td><td class="num">13%</td></tr>
+            <tr><td>Европа</td><td class="num">1 179</td><td class="num">9%</td></tr>
+            <tr><td>Индия</td><td class="num">860</td><td class="num">7%</td></tr>
+            <tr class="highlight"><td>Казахстан</td><td class="num">22,1</td><td class="num">0,2%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Импорт -->
+      <div class="table-wrapper">
+        <div class="table-title">Импорт (1,000 MT CWE)</div>
+        <table class="data-table">
+          <thead><tr><th>Страна</th><th class="num">Объём</th><th class="num">%/Мир</th></tr></thead>
+          <tbody>
+            <tr><td>Мир</td><td class="num">11 180</td><td class="num">—</td></tr>
+            <tr><td>США</td><td class="num">3 825</td><td class="num">34%</td></tr>
+            <tr><td>Бразилия</td><td class="num">2 007</td><td class="num">18%</td></tr>
+            <tr><td>Китай</td><td class="num">720</td><td class="num">6%</td></tr>
+            <tr><td>Европа</td><td class="num">575</td><td class="num">5%</td></tr>
+            <tr><td>Индия</td><td class="num">415</td><td class="num">4%</td></tr>
+            <tr class="highlight"><td>Казахстан</td><td class="num">19</td><td class="num">0,2%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout reveal">
+      <strong>Казахстан сегодня &lt; 1% по всем показателям</strong> — производство, потребление, экспорт и импорт говядины. Однако потенциал для роста есть при системном подходе к развитию отрасли.
+    </div>
+    <p class="table-source reveal">Источник: USDA FAS PSD DATA</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 2: ДВА ПОЛЮСА ЭКСПОРТА
+═══════════════════════════════════════════ -->
+<section class="section bg-cream" id="s2">
+  <div class="container">
+    <span class="section-label reveal">Секция 02</span>
+    <h2 class="reveal">Глобальные лидеры экспорта говядины</h2>
+    <p class="section-subtitle reveal">Два полюса мирового рынка: массовый эконом-сегмент и высокомаржинальный премиум</p>
+
+    <div class="split-layout">
+      <!-- LEFT: Brazil + India -->
+      <div class="split-panel reveal">
+        <h3>Бразилия и Индия</h3>
+        <p class="panel-sub">Формируют низкоценовой сегмент — массовый экспорт замороженного мяса</p>
+
+        <div class="table-title" style="font-size:14px; margin-top:16px">Бразилия — экспорт</div>
+        <table class="data-table" style="font-size:13px">
+          <thead><tr><th>Направление</th><th class="num">$ млн</th><th class="num">%</th><th class="num">1,000 MT</th><th class="num">$/кг</th></tr></thead>
+          <tbody>
+            <tr><td>Всего</td><td class="num">11 658</td><td class="num">—</td><td class="num">2 546</td><td class="num">4,6</td></tr>
+            <tr><td>Китай</td><td class="num">5 980</td><td class="num">51%</td><td class="num">1 323</td><td class="num">4,5</td></tr>
+            <tr><td>США</td><td class="num">889</td><td class="num">8%</td><td class="num">181</td><td class="num">4,9</td></tr>
+            <tr><td>ОАЭ</td><td class="num">597</td><td class="num">5%</td><td class="num">129</td><td class="num">4,6</td></tr>
+            <tr><td>Чили</td><td class="num">425</td><td class="num">4%</td><td class="num">83</td><td class="num">5,1</td></tr>
+            <tr><td>Филиппины</td><td class="num">334</td><td class="num">3%</td><td class="num">92</td><td class="num">3,6</td></tr>
+            <tr><td>Египет</td><td class="num">273</td><td class="num">2%</td><td class="num">67</td><td class="num">4,1</td></tr>
+          </tbody>
+        </table>
+        <span class="panel-type type-economy">Замороженная бескостная, блоки, trimmings</span>
+
+        <div class="table-title" style="font-size:14px; margin-top:24px">Индия — экспорт</div>
+        <table class="data-table" style="font-size:13px">
+          <thead><tr><th>Направление</th><th class="num">$ млн</th><th class="num">%</th><th class="num">1,000 MT</th><th class="num">$/кг</th></tr></thead>
+          <tbody>
+            <tr><td>Всего</td><td class="num">3 569</td><td class="num">—</td><td class="num">1 096</td><td class="num">3,3</td></tr>
+            <tr><td>Вьетнам</td><td class="num">605</td><td class="num">17%</td><td class="num">181</td><td class="num">3,3</td></tr>
+            <tr><td>Египет</td><td class="num">612</td><td class="num">15%</td><td class="num">191</td><td class="num">3,2</td></tr>
+            <tr><td>Малайзия</td><td class="num">580</td><td class="num">14%</td><td class="num">175</td><td class="num">3,3</td></tr>
+            <tr><td>Индонезия</td><td class="num">209</td><td class="num">8%</td><td class="num">63</td><td class="num">3,3</td></tr>
+            <tr><td>Ирак</td><td class="num">380</td><td class="num">8%</td><td class="num">127</td><td class="num">3,0</td></tr>
+          </tbody>
+        </table>
+        <span class="panel-type type-economy">Замороженное мясо буйвола (carabeef)</span>
+      </div>
+
+      <!-- RIGHT: USA + Australia -->
+      <div class="split-panel reveal reveal-delay-1">
+        <h3>США и Австралия</h3>
+        <p class="panel-sub">Формируют верхний ценовой диапазон, экспортируя высококачественное мясо</p>
+
+        <div class="table-title" style="font-size:14px; margin-top:16px">США — экспорт</div>
+        <table class="data-table" style="font-size:13px">
+          <thead><tr><th>Направление</th><th class="num">$ млн</th><th class="num">%</th><th class="num">1,000 MT</th><th class="num">$/кг</th></tr></thead>
+          <tbody>
+            <tr><td>Всего</td><td class="num">9 125</td><td class="num">—</td><td class="num">962</td><td class="num">—</td></tr>
+            <tr><td>Юж. Корея</td><td class="num">2 160</td><td class="num">24%</td><td class="num">222</td><td class="num">9,7</td></tr>
+            <tr><td>Япония</td><td class="num">1 418</td><td class="num">16%</td><td class="num">113</td><td class="num">12,5</td></tr>
+            <tr><td>Китай</td><td class="num">1 219</td><td class="num">13%</td><td class="num">157</td><td class="num">7,7</td></tr>
+            <tr><td>Мексика</td><td class="num">1 018</td><td class="num">11%</td><td class="num">110</td><td class="num">9,3</td></tr>
+            <tr><td>Другая Азия</td><td class="num">660</td><td class="num">7%</td><td class="num">63</td><td class="num">10,5</td></tr>
+          </tbody>
+        </table>
+        <span class="panel-type type-premium">Охлаждённая grain-fed, высокая мраморность</span>
+
+        <div class="table-title" style="font-size:14px; margin-top:24px">Австралия — экспорт</div>
+        <table class="data-table" style="font-size:13px">
+          <thead><tr><th>Направление</th><th class="num">$ млн</th><th class="num">%</th><th class="num">1,000 MT</th><th class="num">$/кг</th></tr></thead>
+          <tbody>
+            <tr><td>Всего</td><td class="num">9 569</td><td class="num">—</td><td class="num">1 471</td><td class="num">6,5</td></tr>
+            <tr><td>США</td><td class="num">2 991</td><td class="num">31%</td><td class="num">410</td><td class="num">7,3</td></tr>
+            <tr><td>Китай</td><td class="num">1 522</td><td class="num">16%</td><td class="num">228</td><td class="num">6,7</td></tr>
+            <tr><td>Япония</td><td class="num">1 387</td><td class="num">14%</td><td class="num">250</td><td class="num">5,6</td></tr>
+            <tr><td>Юж. Корея</td><td class="num">1 365</td><td class="num">14%</td><td class="num">207</td><td class="num">6,6</td></tr>
+            <tr><td>Индонезия</td><td class="num">363</td><td class="num">4%</td><td class="num">116</td><td class="num">3,1</td></tr>
+          </tbody>
+        </table>
+        <span class="panel-type type-premium">Премиальная говядина зернового и пастбищного откорма</span>
+      </div>
+    </div>
+
+    <div class="grid-2 reveal" style="margin-top:32px">
+      <div class="callout">
+        <strong>Бразилия и Индия</strong> формируют низкоценовой сегмент мирового рынка говядины, обеспечивая до 40% глобального экспорта. Их продукция ориентирована на массовый спрос. <strong>Казахстан не сможет конкурировать по цене и объёмам с этими странами.</strong>
+      </div>
+      <div class="callout" style="border-left-color: var(--accent-green);">
+        <strong>США и Австралия</strong> — ключевые экспортёры премиальной говядины, обеспечивающие около 25% мирового экспорта. Казахстан может следовать их стандартам, сочетая экологичность пастбищ, халяль и происхождение «Grain-fed».
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 3: ЦЕНОВЫЕ СПРЕДЫ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s3">
+  <div class="container">
+    <span class="section-label reveal">Секция 03</span>
+    <h2 class="reveal">Ценовые спреды: Замороженная vs Охлаждённая говядина</h2>
+    <p class="section-subtitle reveal">Охлаждённая говядина — высокомаржинальный сегмент, где конкурируют качеством, а не объёмом</p>
+
+    <div class="table-wrapper reveal">
+      <div class="table-title">Средние цены импорта мяса КРС, 2023-2025 гг. ($/кг)</div>
+      <div class="bar-chart">
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Европа</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="47%">$7</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="80%">$12</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Германия</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="40%">$6</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="67%">$10</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Япония</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="33%">$5</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="80%">$12</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Южная Корея</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="53%">$8</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="80%">$12</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Великобритания</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="47%">$7</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="67%">$10</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Франция</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="40%">$6</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="73%">$11</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Нидерланды</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="40%">$6</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="73%">$11</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Италия</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="47%">$7</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="67%">$10</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Китай</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="33%">$5</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="47%">$7</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Перс. залив</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="27%">$4</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="73%">$11</div></div></div></div>
+        </div>
+        <div class="paired-bar-group">
+          <div class="bar-row"><span class="bar-label">Другая Азия</span><div class="paired-bar-pair"><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="33%">$5</div><div class="bar-fill chilled" style="width:0%;margin-left:4px" data-width="67%">$10</div></div></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:12px;font-size:13px">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:3px;background:var(--accent-blue);display:inline-block"></span> Замороженная</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:3px;background:var(--terracotta);display:inline-block"></span> Охлаждённая</span>
+      </div>
+    </div>
+
+    <div class="callout reveal">
+      <strong>На мировом рынке разница в цене между сегментами заморозки и охлаждёнки-премиум может составлять +100% и более.</strong> Казахстану важно фокусироваться на производстве охлаждённой говядины с высокой добавленной стоимостью — а не пытаться конкурировать объёмами в низком ценовом сегменте заморозки.
+    </div>
+    <p class="table-source reveal">Источник: WITS</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 4: КИТАЙ
+═══════════════════════════════════════════ -->
+<section class="section bg-navy" id="s4">
+  <div class="container">
+    <span class="section-label reveal">Секция 04</span>
+    <h2 class="reveal">Динамика импорта говядины в Китае</h2>
+    <p class="section-subtitle reveal">Китай — крупнейший импортёр говядины в мире: 30% мирового рынка. За последние 10 лет объём импорта вырос более чем в 6 раз.</p>
+
+    <div class="grid-2">
+      <!-- Line Chart 1: Total imports -->
+      <div class="chart-container reveal">
+        <div class="chart-title">Общий объём импорта говядины в Китай (млн тонн)</div>
+        <svg class="chart-svg" viewBox="0 0 500 250" preserveAspectRatio="xMidYMid meet">
+          <!-- Grid -->
+          <line x1="50" y1="30" x2="50" y2="210" class="chart-grid-line"/>
+          <line x1="50" y1="210" x2="480" y2="210" class="chart-grid-line"/>
+          <line x1="50" y1="150" x2="480" y2="150" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <line x1="50" y1="90" x2="480" y2="90" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <!-- Y axis -->
+          <text x="42" y="215" class="chart-axis-label" text-anchor="end">0</text>
+          <text x="42" y="155" class="chart-axis-label" text-anchor="end">1,5</text>
+          <text x="42" y="95" class="chart-axis-label" text-anchor="end">3,0</text>
+          <!-- X axis -->
+          <text x="89" y="228" class="chart-axis-label" text-anchor="middle">2014</text>
+          <text x="128" y="228" class="chart-axis-label" text-anchor="middle">2015</text>
+          <text x="167" y="228" class="chart-axis-label" text-anchor="middle">2016</text>
+          <text x="206" y="228" class="chart-axis-label" text-anchor="middle">2017</text>
+          <text x="245" y="228" class="chart-axis-label" text-anchor="middle">2018</text>
+          <text x="284" y="228" class="chart-axis-label" text-anchor="middle">2019</text>
+          <text x="323" y="228" class="chart-axis-label" text-anchor="middle">2020</text>
+          <text x="362" y="228" class="chart-axis-label" text-anchor="middle">2021</text>
+          <text x="401" y="228" class="chart-axis-label" text-anchor="middle">2022</text>
+          <text x="440" y="228" class="chart-axis-label" text-anchor="middle">2023</text>
+          <text x="470" y="228" class="chart-axis-label" text-anchor="middle">2024</text>
+          <!-- Line: 0.28, 0.474, 0.58, 0.951, 1.04, 1.66, 2.12, 2.33, 2.69, 2.74, 3.12 -->
+          <!-- Scale: 0-3.2 maps to y 210-30 (180px range) -->
+          <polyline class="chart-line draw-in" stroke="var(--terracotta-light)"
+            points="89,194 128,183 167,177 206,156 245,151 284,117 323,91 362,79 401,59 440,56 470,40"/>
+          <!-- Dots -->
+          <circle cx="89" cy="194" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="128" cy="183" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="167" cy="177" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="206" cy="156" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="245" cy="151" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="284" cy="117" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="323" cy="91" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="362" cy="79" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="401" cy="59" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="440" cy="56" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <circle cx="470" cy="40" r="3.5" class="chart-dot" fill="var(--terracotta-light)" stroke="var(--navy)"/>
+          <!-- Value labels -->
+          <text x="89" y="188" class="chart-value-label">0,28</text>
+          <text x="284" y="111" class="chart-value-label">1,66</text>
+          <text x="470" y="34" class="chart-value-label">3,12</text>
+        </svg>
+      </div>
+
+      <!-- Line Chart 2: Chilled imports -->
+      <div class="chart-container reveal reveal-delay-1">
+        <div class="chart-title">Импорт охлаждённой говядины в Китай (тыс. тонн)</div>
+        <svg class="chart-svg" viewBox="0 0 500 250" preserveAspectRatio="xMidYMid meet">
+          <line x1="50" y1="30" x2="50" y2="210" class="chart-grid-line"/>
+          <line x1="50" y1="210" x2="480" y2="210" class="chart-grid-line"/>
+          <line x1="50" y1="150" x2="480" y2="150" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <line x1="50" y1="90" x2="480" y2="90" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <text x="42" y="215" class="chart-axis-label" text-anchor="end">0</text>
+          <text x="42" y="155" class="chart-axis-label" text-anchor="end">55K</text>
+          <text x="42" y="95" class="chart-axis-label" text-anchor="end">110K</text>
+          <!-- X axis -->
+          <text x="94" y="228" class="chart-axis-label" text-anchor="middle">2016</text>
+          <text x="141" y="228" class="chart-axis-label" text-anchor="middle">2017</text>
+          <text x="188" y="228" class="chart-axis-label" text-anchor="middle">2018</text>
+          <text x="235" y="228" class="chart-axis-label" text-anchor="middle">2019</text>
+          <text x="282" y="228" class="chart-axis-label" text-anchor="middle">2020</text>
+          <text x="329" y="228" class="chart-axis-label" text-anchor="middle">2021</text>
+          <text x="376" y="228" class="chart-axis-label" text-anchor="middle">2022</text>
+          <text x="423" y="228" class="chart-axis-label" text-anchor="middle">2023</text>
+          <text x="455" y="228" class="chart-axis-label" text-anchor="middle">2024</text>
+          <text x="475" y="228" class="chart-axis-label" text-anchor="middle">2025</text>
+          <!-- Line: 6.3, 6.1, 15.2, 36.6, 47.8, 52.7, 51.5, 64.8, 84.2, 109.5 (thousands) -->
+          <!-- Scale: 0-115 maps to y 210-30 -->
+          <polyline class="chart-line draw-in" stroke="#4ade80"
+            points="94,200 141,200 188,186 235,153 282,135 329,127 376,129 423,108 455,79 475,39"/>
+          <circle cx="94" cy="200" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="141" cy="200" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="188" cy="186" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="235" cy="153" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="282" cy="135" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="329" cy="127" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="376" cy="129" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="423" cy="108" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="455" cy="79" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <circle cx="475" cy="39" r="3.5" class="chart-dot" fill="#4ade80" stroke="var(--navy)"/>
+          <text x="94" y="194" class="chart-value-label">6,3</text>
+          <text x="282" y="129" class="chart-value-label">47,8</text>
+          <text x="475" y="33" class="chart-value-label">109,5</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 5: ПОТЕНЦИАЛЬНЫЕ РЫНКИ
+═══════════════════════════════════════════ -->
+<section class="section bg-cream" id="s5">
+  <div class="container">
+    <span class="section-label reveal">Секция 05</span>
+    <h2 class="reveal">Потенциальные рынки экспорта премиальной говядины Казахстана</h2>
+    <p class="section-subtitle reveal">Целевые направления для казахстанской продукции и логистические маршруты</p>
+
+    <div class="callout reveal" style="border-left-color: var(--accent-green); margin-bottom:40px; font-size:18px;">
+      <strong style="font-family:var(--font-mono);">$42 млрд</strong> — объём импорта премиальной говядины в целевых странах, из них <strong style="font-family:var(--font-mono);">$28 млрд</strong> приходится на охлаждённую говядину.
+      <span style="display:block;margin-top:6px;font-size:13px;color:var(--muted)">Источник: ЕАБР</span>
+    </div>
+
+    <div class="table-wrapper reveal">
+      <div class="table-title">Целевые направления экспорта</div>
+      <table class="data-table">
+        <thead><tr><th>Страна</th><th class="num">Объём ($ млн)</th><th class="num">Объём (тыс. тонн)</th></tr></thead>
+        <tbody>
+          <tr><td>Персидский залив</td><td class="num">3 932</td><td class="num">305</td></tr>
+          <tr><td>Китай</td><td class="num">3 098</td><td class="num">365</td></tr>
+          <tr><td>Остальная Европа</td><td class="num">11 933</td><td class="num">1 034</td></tr>
+          <tr><td>Япония</td><td class="num">2 746</td><td class="num">450</td></tr>
+          <tr><td>Нидерланды</td><td class="num">3 009</td><td class="num">254</td></tr>
+          <tr><td>Великобритания</td><td class="num">2 061</td><td class="num">240</td></tr>
+          <tr><td>Италия</td><td class="num">3 884</td><td class="num">339</td></tr>
+          <tr><td>Южная Корея</td><td class="num">3 894</td><td class="num">461</td></tr>
+          <tr><td>Германия</td><td class="num">2 926</td><td class="num">319</td></tr>
+          <tr><td>Франция</td><td class="num">2 566</td><td class="num">271</td></tr>
+          <tr><td>Др. Азия</td><td class="num">1 615</td><td class="num">134</td></tr>
+          <tr class="total-row"><td>Итого</td><td class="num">41 663</td><td class="num">4 173</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="reveal" style="margin-top:48px;margin-bottom:24px">Логистические маршруты</h3>
+    <div class="logistics-grid reveal">
+      <div class="logistics-card">
+        <h4>Алматы &rarr; Шанхай</h4>
+        <div class="logistics-row"><span class="logistics-icon">&#9992;</span> Авиа — 1 день, <span class="logistics-value">$1,5–2,5/кг</span></div>
+        <div class="logistics-row"><span class="logistics-icon">&#128646;</span> Ж/д — 7–15 дней, <span class="logistics-value">$0,61/кг</span></div>
+        <div class="logistics-row"><span class="logistics-icon">&#128666;</span> Авто — 7–15 дней, <span class="logistics-value">$0,8/кг</span></div>
+      </div>
+      <div class="logistics-card">
+        <h4>Алматы &rarr; Франкфурт</h4>
+        <div class="logistics-row"><span class="logistics-icon">&#9992;</span> Авиа — 3 дня, <span class="logistics-value">$1–2,5/кг</span></div>
+        <div class="logistics-row"><span class="logistics-icon">&#128646;</span> Ж/д — 7–15 дней, <span class="logistics-value">$0,08–0,15/кг</span></div>
+      </div>
+      <div class="logistics-card">
+        <h4>Алматы &rarr; ОАЭ</h4>
+        <div class="logistics-row"><span class="logistics-icon">&#9992;</span> Авиа — 1 день, <span class="logistics-value">$0,7–1,5/кг</span></div>
+      </div>
+      <div class="logistics-card">
+        <h4>Для сравнения</h4>
+        <div class="logistics-row">США &rarr; Гонконг: <span class="logistics-icon">&#128674;</span> Море — 34 дня, <span class="logistics-value">$0,23/кг</span></div>
+        <div class="logistics-row">Австралия &rarr; Гонконг: <span class="logistics-icon">&#128674;</span> Море — 30 дней, <span class="logistics-value">$0,22/кг</span></div>
+      </div>
+    </div>
+
+    <div class="callout reveal" style="margin-top:32px">
+      <strong>Казахстан выгодно расположен для экспорта говядины крупнейшим импортёрам Евразии.</strong> Маршрут Чжэнчжоу — Гамбург позволяет доставлять продукцию за 10 дней, что идеально подходит для экспорта охлаждённой говядины со сроком хранения до 90 дней.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 6: НИША ПРЕМИАЛЬНОЙ ГОВЯДИНЫ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s6">
+  <div class="container">
+    <span class="section-label reveal">Секция 06</span>
+    <h2 class="reveal">Ниша премиальной говядины: качество, стандарты и происхождение</h2>
+    <p class="section-subtitle reveal">Чтобы занять место в премиальном сегменте, Казахстану предстоит выстроить всю систему — от фермы до экспорта — по мировым стандартам качества и прослеживаемости.</p>
+
+    <div class="grid-3 reveal">
+      <div class="pillar-card">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <h3>Мраморность и порода</h3>
+        <p>Высокое содержание внутримышечного жира (marbling), однородная структура и текстура мяса</p>
+        <span class="pillar-tag">USDA Select / Choice / Prime, MSA 3+</span>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <h3>Система оценки и сертификация</h3>
+        <p>Формализованные шкалы качества и прослеживаемости продукции</p>
+        <span class="pillar-tag">USDA Grading, MSA, EUROP, Halal</span>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <h3>Происхождение и доверие</h3>
+        <p>Контроль происхождения, условия откорма, этика и экология производства</p>
+        <span class="pillar-tag">Grass-fed, Grain-fed, Traceable origin</span>
+      </div>
+    </div>
+
+    <div class="callout reveal" style="margin-top:40px">
+      <strong>Премиум-сегмент определяется не только параметрами мяса,</strong> но и полной прослеживаемостью происхождения, экологической ответственностью и соответствием признанным международным стандартам. Казахстан планирует использовать стандарты уровня USDA Beef Grades and Standards как основу для создания собственной системы оценки качества.
+    </div>
+
+    <div class="grid-2 reveal" style="margin-top:48px">
+      <div class="table-wrapper">
+        <div class="table-title">Целевые рынки — охлаждённая и замороженная говядина</div>
+        <table class="data-table" style="font-size:13px">
+          <thead><tr><th>Страна</th><th class="num">Охлажд. $ млн</th><th class="num">тыс. т</th><th class="num">$/кг</th><th class="num">Замор. $ млн</th><th class="num">тыс. т</th><th class="num">$/кг</th></tr></thead>
+          <tbody>
+            <tr><td>Ост. Европа</td><td class="num">15 649</td><td class="num">1 356</td><td class="num">12</td><td class="num">8 216</td><td class="num">712</td><td class="num">12</td></tr>
+            <tr><td>Италия</td><td class="num">7 085</td><td class="num">570</td><td class="num">12</td><td class="num">682</td><td class="num">109</td><td class="num">6</td></tr>
+            <tr><td>Перс. залив</td><td class="num">6 711</td><td class="num">468</td><td class="num">14</td><td class="num">576</td><td class="num">143</td><td class="num">8</td></tr>
+            <tr><td>Нидерланды</td><td class="num">5 512</td><td class="num">424</td><td class="num">13</td><td class="num">506</td><td class="num">84</td><td class="num">6</td></tr>
+            <tr><td>Германия</td><td class="num">5 107</td><td class="num">518</td><td class="num">10</td><td class="num">745</td><td class="num">120</td><td class="num">6</td></tr>
+            <tr><td>Франция</td><td class="num">4 199</td><td class="num">387</td><td class="num">11</td><td class="num">933</td><td class="num">155</td><td class="num">6</td></tr>
+            <tr><td>Япония</td><td class="num">3 190</td><td class="num">394</td><td class="num">8</td><td class="num">1 151</td><td class="num">505</td><td class="num">2</td></tr>
+            <tr><td>Юж. Корея</td><td class="num">2 532</td><td class="num">195</td><td class="num">13</td><td class="num">5 256</td><td class="num">727</td><td class="num">7</td></tr>
+            <tr><td>Великобр.</td><td class="num">3 107</td><td class="num">322</td><td class="num">10</td><td class="num">1 016</td><td class="num">158</td><td class="num">6</td></tr>
+            <tr><td>Китай</td><td class="num">1 731</td><td class="num">143</td><td class="num">12</td><td class="num">2 233</td><td class="num">587</td><td class="num">4</td></tr>
+            <tr><td>Др. Азия</td><td class="num">1 704</td><td class="num">104</td><td class="num">16</td><td class="num">1 525</td><td class="num">164</td><td class="num">9</td></tr>
+            <tr class="total-row"><td>Итого</td><td class="num">56 527</td><td class="num">4 883</td><td class="num">12</td><td class="num">22 839</td><td class="num">3 464</td><td class="num">7</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrapper">
+        <div class="table-title">Потенциальная доля Казахстана</div>
+        <table class="data-table">
+          <thead><tr><th>Доля рынка</th><th class="num">Выручка ($ млн)</th><th class="num">Объём (тыс. тонн)</th></tr></thead>
+          <tbody>
+            <tr><td>1%</td><td class="num">417</td><td class="num">42</td></tr>
+            <tr><td>3%</td><td class="num">1 250</td><td class="num">125</td></tr>
+            <tr><td>5%</td><td class="num">2 083</td><td class="num">209</td></tr>
+            <tr class="highlight"><td>10%</td><td class="num">4 166</td><td class="num">417</td></tr>
+          </tbody>
+        </table>
+        <div class="callout" style="margin-top:20px;font-size:14px">
+          <strong>Казахстан способен производить до 400 тысяч тонн премиальной говядины</strong> и занять до 10% глобального рынка премиального сегмента.
+        </div>
+        <p class="table-source">Источник: TRADEMAP</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 7: МУЛЬТИПЛИКАТИВНЫЙ ЭФФЕКТ
+═══════════════════════════════════════════ -->
+<section class="section bg-warm" id="s7">
+  <div class="container">
+    <span class="section-label reveal">Секция 07</span>
+    <h2 class="reveal">Мультипликативный эффект</h2>
+    <p class="section-subtitle reveal">Каждый 1 тенге, вложенный в животноводство, создаёт 4 тенге совокупного ВВП</p>
+
+    <p class="reveal" style="max-width:800px;color:var(--slate);margin-bottom:48px;font-size:15px;line-height:1.8">
+      Это один из самых высоких мультипликаторов в аграрном секторе: развитие животноводства генерирует цепной эффект по всей экономике — от кормопроизводства, логистики и переработки до лёгкой промышленности, пищевой отрасли, производства медицинских препаратов и расширения экспортного потенциала целого ряда продуктов.
+    </p>
+
+    <div class="grid-3">
+      <div class="metric-card reveal">
+        <div class="metric-card-value">1&#8376; = 4&#8376;</div>
+        <div class="metric-card-label">Экономика</div>
+        <div class="metric-card-desc">Вклад в рост ВВП страны. Каждый тенге инвестиций создаёт четырёхкратный совокупный ВВП.</div>
+      </div>
+      <div class="metric-card reveal reveal-delay-1">
+        <div class="metric-card-value">1 = 4</div>
+        <div class="metric-card-label">Занятость</div>
+        <div class="metric-card-desc">Создание новых рабочих мест. Каждое рабочее место создаёт 4 новых в смежных отраслях.</div>
+      </div>
+      <div class="metric-card reveal reveal-delay-2">
+        <div class="metric-card-value">$<span class="counter" data-target="4">0</span> млрд</div>
+        <div class="metric-card-label">Экспорт</div>
+        <div class="metric-card-desc">Потенциал экспортной выручки — $4 млрд валютных поступлений к 2040 году.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 8: РЕСУРСНАЯ БАЗА
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s8">
+  <div class="container">
+    <span class="section-label reveal">Секция 08</span>
+    <h2 class="reveal">Ресурсная база: динамика поголовья КРС (2021–2025)</h2>
+    <p class="section-subtitle reveal">Поголовье крупного рогатого скота в мире последовательно сокращается.</p>
+
+    <div class="table-wrapper reveal">
+      <div class="table-title">Динамика поголовья КРС в мире (1 000 голов)</div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Страна</th><th class="num">2021</th><th class="num">2022</th><th class="num">2023</th><th class="num">2024</th><th class="num">2025</th><th class="num">Тренд</th></tr></thead>
+          <tbody>
+            <tr><td>Индия</td><td class="num">305 500</td><td class="num">306 700</td><td class="num">307 400</td><td class="num">307 420</td><td class="num">307 420</td><td class="num"><span class="gap-indicator gap-positive">+0,63%</span></td></tr>
+            <tr><td>Бразилия</td><td class="num">193 195</td><td class="num">193 780</td><td class="num">194 365</td><td class="num">192 572</td><td class="num">186 875</td><td class="num"><span class="gap-indicator gap-negative">-3,27%</span></td></tr>
+            <tr><td>Китай</td><td class="num">95 621</td><td class="num">98 172</td><td class="num">102 160</td><td class="num">105 090</td><td class="num">104 000</td><td class="num"><span class="gap-indicator gap-positive">+8,76%</span></td></tr>
+            <tr><td>США</td><td class="num">93 587</td><td class="num">91 789</td><td class="num">88 841</td><td class="num">87 157</td><td class="num">86 000</td><td class="num"><span class="gap-indicator gap-negative">-8,11%</span></td></tr>
+            <tr><td>Европа</td><td class="num">76 551</td><td class="num">75 705</td><td class="num">74 808</td><td class="num">73 745</td><td class="num">72 300</td><td class="num"><span class="gap-indicator gap-negative">-5,55%</span></td></tr>
+            <tr><td>Аргентина</td><td class="num">53 540</td><td class="num">53 400</td><td class="num">54 100</td><td class="num">52 800</td><td class="num">51 200</td><td class="num"><span class="gap-indicator gap-negative">-4,37%</span></td></tr>
+            <tr><td>Австралия</td><td class="num">23 021</td><td class="num">23 944</td><td class="num">25 800</td><td class="num">27 080</td><td class="num">26 020</td><td class="num"><span class="gap-indicator gap-positive">+13,03%</span></td></tr>
+            <tr><td>Мексика</td><td class="num">17 000</td><td class="num">17 314</td><td class="num">17 763</td><td class="num">17 840</td><td class="num">17 735</td><td class="num"><span class="gap-indicator gap-positive">+4,32%</span></td></tr>
+            <tr><td>Россия</td><td class="num">17 953</td><td class="num">17 798</td><td class="num">17 435</td><td class="num">17 285</td><td class="num">16 650</td><td class="num"><span class="gap-indicator gap-negative">-7,26%</span></td></tr>
+            <tr><td>Уругвай</td><td class="num">11 966</td><td class="num">11 646</td><td class="num">11 795</td><td class="num">11 366</td><td class="num">11 805</td><td class="num"><span class="gap-indicator gap-negative">-1,35%</span></td></tr>
+            <tr><td>Канада</td><td class="num">11 515</td><td class="num">11 515</td><td class="num">11 245</td><td class="num">11 015</td><td class="num">10 935</td><td class="num"><span class="gap-indicator gap-negative">-5,04%</span></td></tr>
+            <tr class="highlight"><td>Казахстан</td><td class="num">8 146</td><td class="num">6 536</td><td class="num">6 616</td><td class="num">7 842</td><td class="num">8 490</td><td class="num"><span class="gap-indicator gap-positive">+4,22%</span></td></tr>
+            <tr class="total-row"><td>Итого</td><td class="num">946 035</td><td class="num">946 608</td><td class="num">950 383</td><td class="num">940 309</td><td class="num">928 111</td><td class="num"><span class="gap-indicator gap-negative">-1,89%</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="table-wrapper reveal" style="margin-top:32px">
+      <div class="table-title">Площадь пастбищ и продуктивность</div>
+      <table class="data-table">
+        <thead><tr><th>Страна</th><th class="num">Площадь пастбища (млн га)</th><th class="num">Производство мяса кг/га</th></tr></thead>
+        <tbody>
+          <tr><td>Монголия</td><td class="num">110</td><td class="num">2,0</td></tr>
+          <tr class="highlight"><td>Казахстан</td><td class="num">187</td><td class="num">3,2</td></tr>
+          <tr><td>Австралия</td><td class="num">325</td><td class="num">8,4</td></tr>
+          <tr><td>Бразилия</td><td class="num">196</td><td class="num">54,2</td></tr>
+          <tr><td>Китай</td><td class="num">393</td><td class="num">31,7</td></tr>
+          <tr><td>Россия</td><td class="num">93</td><td class="num">19,5</td></tr>
+          <tr><td>Аргентина</td><td class="num">109</td><td class="num">29,7</td></tr>
+          <tr><td>США</td><td class="num">251</td><td class="num">51,7</td></tr>
+          <tr><td>Индия</td><td class="num">10</td><td class="num">139,0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout reveal">
+      <strong>У крупнейших потребителей/экспортёров запасы скота на убой ограничены:</strong> США — исторический минимум стада; ЕС, Аргентина, Бразилия и Австралия — устойчивое снижение. Экспортирующие страны не могут наращивать поголовье из-за ограниченных пастбищ и водных ресурсов, в отличие от Казахстана.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 9: ЦЕНЫ НА ГОВЯДИНУ
+═══════════════════════════════════════════ -->
+<section class="section bg-cream" id="s9">
+  <div class="container">
+    <span class="section-label reveal">Секция 09</span>
+    <h2 class="reveal">Цена на говядину растёт во всём мире</h2>
+    <p class="section-subtitle reveal">Стоимость за кг говядины в разных странах мира</p>
+
+    <div class="grid-2">
+      <!-- Price trend chart -->
+      <div class="table-wrapper reveal">
+        <div class="chart-title" style="color:var(--ink)">Мировая средняя цена на говядину ($/кг)</div>
+        <svg class="chart-svg" viewBox="0 0 500 220" preserveAspectRatio="xMidYMid meet">
+          <line x1="50" y1="20" x2="50" y2="190" stroke="var(--border)" stroke-width="1"/>
+          <line x1="50" y1="190" x2="480" y2="190" stroke="var(--border)" stroke-width="1"/>
+          <line x1="50" y1="105" x2="480" y2="105" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="42" y="195" class="chart-axis-label" text-anchor="end" fill="var(--muted)">$10</text>
+          <text x="42" y="110" class="chart-axis-label" text-anchor="end" fill="var(--muted)">$14</text>
+          <text x="42" y="30" class="chart-axis-label" text-anchor="end" fill="var(--muted)">$18</text>
+          <text x="120" y="208" class="chart-axis-label" fill="var(--muted)" text-anchor="middle">2022</text>
+          <text x="260" y="208" class="chart-axis-label" fill="var(--muted)" text-anchor="middle">2023</text>
+          <text x="400" y="208" class="chart-axis-label" fill="var(--muted)" text-anchor="middle">2024</text>
+          <text x="460" y="208" class="chart-axis-label" fill="var(--muted)" text-anchor="middle">2025</text>
+          <!-- Trend line rising from ~$12 to ~$17.85 -->
+          <polyline class="chart-line draw-in" stroke="var(--terracotta)" style="stroke-width:2.5"
+            points="80,148 120,138 180,120 260,95 340,72 400,52 460,30"/>
+          <circle cx="80" cy="148" r="4" fill="var(--terracotta)" stroke="#fff" stroke-width="2"/>
+          <circle cx="460" cy="30" r="4" fill="var(--terracotta)" stroke="#fff" stroke-width="2"/>
+          <text x="460" y="22" text-anchor="middle" fill="var(--terracotta)" style="font-family:var(--font-mono);font-size:12px;font-weight:600">$17,85</text>
+        </svg>
+      </div>
+
+      <!-- Price by country -->
+      <div class="table-wrapper reveal reveal-delay-1">
+        <div class="table-title">Цена за кг говядины по рынкам ($/кг)</div>
+        <div class="bar-chart">
+          <div class="bar-row"><span class="bar-label">Швейцария</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="100%">$70,56</div></div></div>
+          <div class="bar-row"><span class="bar-label">Юж. Корея</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="86%">$60,65</div></div></div>
+          <div class="bar-row"><span class="bar-label">Гонконг</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="73%">$51,48</div></div></div>
+          <div class="bar-row"><span class="bar-label">Норвегия</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="69%">$48,63</div></div></div>
+          <div class="bar-row"><span class="bar-label">Япония</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="52%">$36,52</div></div></div>
+          <div class="bar-row"><span class="bar-label">Германия</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="50%">$34,97</div></div></div>
+          <div class="bar-row"><span class="bar-label">Дания</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="41%">$29,07</div></div></div>
+          <div class="bar-row"><span class="bar-label">Нидерланды</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="36%">$25,22</div></div></div>
+          <div class="bar-row"><span class="bar-label">Израиль</span><div class="bar-track"><div class="bar-fill chilled" style="width:0%" data-width="31%">$22,05</div></div></div>
+          <div class="bar-row"><span class="bar-label">Россия (#49)</span><div class="bar-track"><div class="bar-fill frozen" style="width:0%" data-width="17%">$11,97</div></div></div>
+          <div class="bar-row" style="background:rgba(196,87,42,0.06);border-radius:6px;padding:4px 0"><span class="bar-label" style="color:var(--terracotta);font-weight:700">Казахстан (#52)</span><div class="bar-track"><div class="bar-fill" style="width:0%;background:var(--terracotta)" data-width="16%">$11,55</div></div></div>
+        </div>
+        <p class="table-source">Источник: globalproductprices</p>
+      </div>
+    </div>
+
+    <div class="callout reveal">
+      <strong>Сжатие поголовья и высокая импортоёмкость Азии</strong> поддерживают восходящий тренд цен, особенно в сегменте «охлаждёнка-премиум».
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 10: ПРИМЕР США
+═══════════════════════════════════════════ -->
+<section class="section bg-navy" id="s10">
+  <div class="container">
+    <span class="section-label reveal">Секция 10</span>
+    <h2 class="reveal">Пример стабилизационной политики США</h2>
+    <p class="section-subtitle reveal">Экспорт дорогого — импорт дешёвого: как удерживать цены внутри страны и наращивать добавленную стоимость</p>
+
+    <div class="grid-2">
+      <!-- Trade quantity chart -->
+      <div class="chart-container reveal">
+        <div class="chart-title">U.S. Beef Trade Quantity (1,000 MT)</div>
+        <svg class="chart-svg" viewBox="0 0 500 220" preserveAspectRatio="xMidYMid meet">
+          <line x1="50" y1="20" x2="50" y2="190" class="chart-grid-line"/>
+          <line x1="50" y1="190" x2="480" y2="190" class="chart-grid-line"/>
+          <line x1="50" y1="105" x2="480" y2="105" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <text x="42" y="195" class="chart-axis-label" text-anchor="end">0</text>
+          <text x="42" y="110" class="chart-axis-label" text-anchor="end">1,000</text>
+          <text x="42" y="30" class="chart-axis-label" text-anchor="end">2,000</text>
+          <text x="265" y="210" class="chart-axis-label" text-anchor="middle">2014 &#8594; 2024</text>
+          <!-- Export line (rising to ~1,605) -->
+          <polyline class="chart-line draw-in" stroke="var(--terracotta-light)" points="80,120 180,105 280,90 380,55 460,54"/>
+          <!-- Import line (rising to ~1,182) -->
+          <polyline class="chart-line draw-in" stroke="#4ade80" points="80,140 180,135 280,128 380,100 460,90"/>
+          <text x="465" y="48" style="font-family:var(--font-mono);font-size:11px;fill:var(--terracotta-light)">Экспорт 1,605</text>
+          <text x="465" y="84" style="font-family:var(--font-mono);font-size:11px;fill:#4ade80">Импорт 1,182</text>
+        </svg>
+      </div>
+
+      <!-- Trade price chart -->
+      <div class="chart-container reveal reveal-delay-1">
+        <div class="chart-title">U.S. Beef Trade Average Price ($/MT)</div>
+        <svg class="chart-svg" viewBox="0 0 500 220" preserveAspectRatio="xMidYMid meet">
+          <line x1="50" y1="20" x2="50" y2="190" class="chart-grid-line"/>
+          <line x1="50" y1="190" x2="480" y2="190" class="chart-grid-line"/>
+          <line x1="50" y1="105" x2="480" y2="105" class="chart-grid-line" stroke-dasharray="4,4"/>
+          <text x="42" y="195" class="chart-axis-label" text-anchor="end">$0</text>
+          <text x="42" y="110" class="chart-axis-label" text-anchor="end">$5,000</text>
+          <text x="42" y="30" class="chart-axis-label" text-anchor="end">$10,000</text>
+          <text x="265" y="210" class="chart-axis-label" text-anchor="middle">2014 &#8594; 2024</text>
+          <!-- Export price (rising to ~$8,382) -->
+          <polyline class="chart-line draw-in" stroke="var(--terracotta-light)" points="80,120 180,100 280,80 380,55 460,48"/>
+          <!-- Import price (rising to ~$6,245) -->
+          <polyline class="chart-line draw-in" stroke="#4ade80" points="80,140 180,130 280,115 380,92 460,84"/>
+          <text x="465" y="42" style="font-family:var(--font-mono);font-size:11px;fill:var(--terracotta-light)">Экспорт $8,382</text>
+          <text x="465" y="78" style="font-family:var(--font-mono);font-size:11px;fill:#4ade80">Импорт $6,245</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="grid-3 reveal" style="margin-top:40px">
+      <div class="principle-card">
+        <h4>1. Стимулирование экспорта</h4>
+        <p>США продаёт на экспорт дорогое премиальное мясо ($10–12/кг), получая высокую маржу в премиальном сегменте.</p>
+      </div>
+      <div class="principle-card">
+        <h4>2. Стимулирование производства</h4>
+        <p>Рост внутреннего производства создаёт избыток предложения, стабилизируя внутренние цены.</p>
+      </div>
+      <div class="principle-card">
+        <h4>3. Стимулирование импорта</h4>
+        <p>Государство и бизнес управляют доступностью мяса для населения через импорт, тарифные механизмы и квоты.</p>
+      </div>
+    </div>
+
+    <p class="table-source reveal" style="margin-top:24px;color:#64748b">Источник: COMTRADE</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 11: ПОГОЛОВЬЕ КРС В КАЗАХСТАНЕ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s11">
+  <div class="container">
+    <span class="section-label reveal">Секция 11</span>
+    <h2 class="reveal">Поголовье КРС в Казахстане: динамика и структура</h2>
+    <p class="section-subtitle reveal">Ограниченная база для роста мясного направления</p>
+
+    <div class="grid-2">
+      <div class="table-wrapper reveal" style="overflow-x:auto">
+        <div class="table-title">Структура поголовья КРС (2025)</div>
+        <table class="data-table" style="font-size:12px">
+          <thead><tr><th>Категория</th><th class="num">%</th><th class="num">Поголовье</th><th class="num">Коров</th></tr></thead>
+          <tbody>
+            <tr style="font-weight:700;background:rgba(0,0,0,0.03)"><td colspan="2">Всего КРС</td><td class="num">8 576 565</td><td class="num">4 379 730</td></tr>
+            <tr><td style="padding-left:24px">Молочные</td><td class="num">54,59%</td><td class="num">4 681 626</td><td class="num">2 212 585</td></tr>
+            <tr class="highlight"><td style="padding-left:24px">Мясные породы</td><td class="num">18,03%</td><td class="num">1 546 410</td><td class="num">684 836</td></tr>
+            <tr><td style="padding-left:24px">Молочно-мясные</td><td class="num">37,56%</td><td class="num">3 221 219</td><td class="num">1 482 309</td></tr>
+            <tr style="font-weight:600;background:rgba(0,0,0,0.03)"><td>Сельхоз предприятия</td><td class="num">10,28%</td><td class="num">881 432</td><td class="num">353 992</td></tr>
+            <tr><td style="padding-left:24px">Молочные</td><td class="num">34,14%</td><td class="num">300 919</td><td class="num">135 621</td></tr>
+            <tr><td style="padding-left:24px">Мясные</td><td class="num">47,58%</td><td class="num">419 360</td><td class="num">155 830</td></tr>
+            <tr><td style="padding-left:24px">Молочно-мясные</td><td class="num">16,59%</td><td class="num">146 236</td><td class="num">62 541</td></tr>
+            <tr style="font-weight:600;background:rgba(0,0,0,0.03)"><td>КХ/ИП</td><td class="num">41,48%</td><td class="num">3 557 536</td><td class="num">2 024 727</td></tr>
+            <tr style="font-weight:600;background:rgba(0,0,0,0.03)"><td>ЛПХ</td><td class="num">48,24%</td><td class="num">4 137 597</td><td class="num">2 001 011</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrapper reveal reveal-delay-1">
+        <div class="table-title">Поголовье КРС 2015–2025 (млн голов)</div>
+        <div class="vbar-chart">
+          <div class="vbar-item"><span class="vbar-val">6,2</span><div class="vbar-fill" style="height:0" data-height="60%"></div><span class="vbar-label">2015</span></div>
+          <div class="vbar-item"><span class="vbar-val">6,4</span><div class="vbar-fill" style="height:0" data-height="62%"></div><span class="vbar-label">2016</span></div>
+          <div class="vbar-item"><span class="vbar-val">6,8</span><div class="vbar-fill" style="height:0" data-height="66%"></div><span class="vbar-label">2017</span></div>
+          <div class="vbar-item"><span class="vbar-val">7,2</span><div class="vbar-fill" style="height:0" data-height="70%"></div><span class="vbar-label">2018</span></div>
+          <div class="vbar-item"><span class="vbar-val">7,4</span><div class="vbar-fill" style="height:0" data-height="72%"></div><span class="vbar-label">2019</span></div>
+          <div class="vbar-item"><span class="vbar-val">7,2</span><div class="vbar-fill" style="height:0" data-height="70%"></div><span class="vbar-label">2020</span></div>
+          <div class="vbar-item"><span class="vbar-val">7,9</span><div class="vbar-fill" style="height:0" data-height="77%"></div><span class="vbar-label">2021</span></div>
+          <div class="vbar-item"><span class="vbar-val">8,2</span><div class="vbar-fill" style="height:0" data-height="80%"></div><span class="vbar-label">2022</span></div>
+          <div class="vbar-item"><span class="vbar-val">7,8</span><div class="vbar-fill" style="height:0" data-height="76%"></div><span class="vbar-label">2023</span></div>
+          <div class="vbar-item"><span class="vbar-val">6,5</span><div class="vbar-fill" style="height:0" data-height="63%"></div><span class="vbar-label">2024</span></div>
+          <div class="vbar-item"><span class="vbar-val">8,5</span><div class="vbar-fill" style="height:0;background:var(--accent-green)" data-height="83%"></div><span class="vbar-label">2025*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout reveal" style="margin-top:32px">
+      <strong>Казахстан обладает потенциалом пастбищ и рынка, но не имеет достаточной мясной ресурсной базы.</strong> Без системного увеличения маточного стада мясных пород (до 50%), племенной селекции и перехода ЛПХ к формату малых ферм-репродукторов (по 100–300 голов), реализация Комплексного плана по производству и экспорту премиальной говядины невозможна.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 12: СРАВНЕНИЕ СТРУКТУРЫ
+═══════════════════════════════════════════ -->
+<section class="section bg-cream" id="s12">
+  <div class="container">
+    <span class="section-label reveal">Секция 12</span>
+    <h2 class="reveal">Сравнение структуры поголовья в Казахстане и в мире</h2>
+    <p class="section-subtitle reveal">Казахстану необходимо выстроить децентрализованную сеть малых ферм с высокой продуктивностью, управлением и едиными стандартами качества.</p>
+
+    <div class="table-wrapper reveal">
+      <div class="table-title">Распределение поголовья по типам ферм</div>
+      <div style="max-width:700px">
+        <div class="stacked-bar-row">
+          <span class="stacked-bar-label">США</span>
+          <div class="stacked-bar-track">
+            <div class="stacked-segment seg-repro" style="flex-basis:0%" data-share="17">17%</div>
+            <div class="stacked-segment seg-lph" style="flex-basis:0%" data-share="5">5%</div>
+            <div class="stacked-segment seg-small" style="flex-basis:0%" data-share="78">78%</div>
+          </div>
+        </div>
+        <div class="stacked-bar-row">
+          <span class="stacked-bar-label">Канада</span>
+          <div class="stacked-bar-track">
+            <div class="stacked-segment seg-repro" style="flex-basis:0%" data-share="9">9%</div>
+            <div class="stacked-segment seg-lph" style="flex-basis:0%" data-share="10">10%</div>
+            <div class="stacked-segment seg-small" style="flex-basis:0%" data-share="81">81%</div>
+          </div>
+        </div>
+        <div class="stacked-bar-row">
+          <span class="stacked-bar-label">Франция</span>
+          <div class="stacked-bar-track">
+            <div class="stacked-segment seg-repro" style="flex-basis:0%" data-share="8">8%</div>
+            <div class="stacked-segment seg-lph" style="flex-basis:0%" data-share="13">13%</div>
+            <div class="stacked-segment seg-small" style="flex-basis:0%" data-share="79">79%</div>
+          </div>
+        </div>
+        <div class="stacked-bar-row" style="background:rgba(196,87,42,0.06);border-radius:8px;padding:8px 0">
+          <span class="stacked-bar-label" style="color:var(--terracotta);font-weight:700">Казахстан</span>
+          <div class="stacked-bar-track">
+            <div class="stacked-segment seg-repro" style="flex-basis:0%" data-share="9">9%</div>
+            <div class="stacked-segment seg-lph" style="flex-basis:0%" data-share="64">64%</div>
+            <div class="stacked-segment seg-small" style="flex-basis:0%" data-share="27">27%</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:16px;font-size:13px;color:var(--slate)">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:3px;background:var(--terracotta);display:inline-block"></span> Репродукторы &gt;300 голов</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:3px;background:var(--accent-blue);display:inline-block"></span> ЛПХ до 50 голов</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:14px;border-radius:3px;background:var(--accent-green);display:inline-block"></span> Малые фермы до 300 голов</span>
+      </div>
+    </div>
+
+    <div class="callout reveal" style="margin-top:32px">
+      <strong>Основу отрасли составляет децентрализованная модель:</strong> малые фермы 100–300 голов КРС составляют 70–85% всего маточного поголовья в развитых странах. В Казахстане 64% поголовья находится в ЛПХ — это главный структурный вызов.
+    </div>
+
+    <div class="pillars-row reveal">
+      <div class="pillar-tag-large">Система кооперации</div>
+      <div class="pillar-tag-large">Стандарты производства</div>
+      <div class="pillar-tag-large">Доступ к финансированию</div>
+      <div class="pillar-tag-large">Цифровизация и учёт</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 13: ПРОИЗВОДСТВЕННОЕ ОТСТАВАНИЕ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s13">
+  <div class="container">
+    <span class="section-label reveal">Секция 13</span>
+    <h2 class="reveal">Производственно-экономическое отставание казахстанского животноводства</h2>
+    <p class="section-subtitle reveal">Казахстану необходимо повысить производственные стандарты мясного животноводства</p>
+
+    <div class="table-wrapper reveal">
+      <div class="table-title">Бенчмарк: Казахстан vs США</div>
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>Метрика</th><th>Ед.</th><th class="num">Казахстан</th><th class="num">Бенчмарк (США)</th><th class="num">Gap</th></tr></thead>
+          <tbody>
+            <tr style="font-weight:700;background:rgba(0,0,0,0.03)"><td colspan="5">1. Производственные</td></tr>
+            <tr><td>Выход телят на 100 маток</td><td>гол</td><td class="num">52</td><td class="num">90</td><td class="num"><span class="gap-indicator gap-negative">-42%</span></td></tr>
+            <tr><td>Средний живой вес на убой</td><td>кг</td><td class="num">359</td><td class="num">500</td><td class="num"><span class="gap-indicator gap-negative">-28%</span></td></tr>
+            <tr><td>Убойный выход</td><td>%</td><td class="num">52%</td><td class="num">63%</td><td class="num"><span class="gap-indicator gap-negative">-18%</span></td></tr>
+            <tr><td>Среднесуточный прирост массы</td><td>г/день</td><td class="num">450</td><td class="num">1 400</td><td class="num"><span class="gap-indicator gap-negative">-68%</span></td></tr>
+            <tr><td>Использование пастбищ</td><td>кг/га</td><td class="num">3,2</td><td class="num">51,7</td><td class="num"><span class="gap-indicator gap-negative">-94%</span></td></tr>
+            <tr style="font-weight:700;background:rgba(0,0,0,0.03)"><td colspan="5">2. Экономические</td></tr>
+            <tr><td>Себестоимость 1 кг живого веса</td><td>$/кг</td><td class="num">5</td><td class="num">4</td><td class="num">—</td></tr>
+            <tr><td>Средняя цена реализации</td><td>$/кг</td><td class="num">6,5</td><td class="num">12</td><td class="num">—</td></tr>
+            <tr><td>Рентабельность на голову</td><td>%</td><td class="num">23%</td><td class="num">35%</td><td class="num"><span class="gap-indicator gap-negative">-34%</span></td></tr>
+            <tr><td>Прибыль на 1 голову</td><td>$</td><td class="num">$278</td><td class="num">$890</td><td class="num"><span class="gap-indicator gap-negative">-69%</span></td></tr>
+            <tr style="font-weight:700;background:rgba(0,0,0,0.03)"><td colspan="5">3. Поголовье и структура</td></tr>
+            <tr><td>Общее поголовье КРС</td><td>млн</td><td class="num">8,45</td><td class="num">86</td><td class="num">—</td></tr>
+            <tr><td>Маточное поголовье</td><td>тыс.</td><td class="num">684</td><td class="num">25 800</td><td class="num">—</td></tr>
+            <tr><td>Доля мясных пород в КРС</td><td>%</td><td class="num">18%</td><td class="num">70%</td><td class="num"><span class="gap-indicator gap-negative">-78%</span></td></tr>
+            <tr><td>Доля племенного маточного поголовья</td><td>%</td><td class="num">5%</td><td class="num">30%</td><td class="num"><span class="gap-indicator gap-negative">-85%</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-source">Источник: COMTRADE</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 14: ВЕТЕРИНАРИЯ
+═══════════════════════════════════════════ -->
+<section class="section bg-warm" id="s14">
+  <div class="container">
+    <span class="section-label reveal">Секция 14</span>
+    <h2 class="reveal">Ветеринария и био-безопасность</h2>
+    <p class="section-subtitle reveal">Эпизоотические ситуации в мире и Казахстане</p>
+
+    <div class="timeline reveal">
+      <div class="timeline-item">
+        <div class="timeline-year">2015–2021</div>
+        <div class="timeline-dot" style="border-color:var(--warm)"></div>
+        <div class="timeline-content">
+          <h4 style="color:var(--accent-green)">Статус FMD-free без вакцинации</h4>
+          <ul>
+            <li>Казахстан официально признан свободным от ящура без вакцинации (наивысший статус WOAH)</li>
+            <li>Полное отсутствие болезни и отмена вакцинации по всей территории</li>
+            <li>Открывались экспортные возможности в Китай, страны Персидского залива и переговоры с ЕС</li>
+          </ul>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2022–2023</div>
+        <div class="timeline-dot" style="background:var(--accent-amber);border-color:var(--warm)"></div>
+        <div class="timeline-content">
+          <h4 style="color:var(--accent-amber)">Приостановление статуса</h4>
+          <ul>
+            <li>В 2022 году зафиксированы вспышки в приграничных районах</li>
+            <li>WOAH приостановила действие статуса (Suspension)</li>
+            <li>Казахстан вернулся в зону вакцинации и усиленного контроля</li>
+            <li>Экспорт охлаждённого мяса был ограничен</li>
+          </ul>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-year">2025</div>
+        <div class="timeline-dot" style="background:#dc2626;border-color:var(--warm)"></div>
+        <div class="timeline-content">
+          <h4 style="color:#dc2626">Отсутствие статуса</h4>
+          <ul>
+            <li>Казахстан отмечен как страна без официального статуса по ящуру</li>
+            <li>Статус FMD-free не был восстановлен из-за нехватки данных и мониторинга</li>
+            <li>Это ограничивает экспорт казахстанской говядины</li>
+            <li>Без программы зонирования страна рискует потерять доступ к рынкам Китая, ОАЭ и ЕС</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="case-block reveal">
+      <h3>Опыт Латинской Америки по искоренению ящура (30-летний период)</h3>
+      <ul>
+        <li>Введение двух вакцинаций в год с чётким графиком и централизованным контролем холодовой цепи</li>
+        <li>Принятие Гемисферической программы искоренения ящура (PHEFA), обязательной для всех стран региона</li>
+        <li>Ведение электронной системы отслеживания вспышек и базы данных для быстрой верификации случаев</li>
+        <li>Разработка единых стандартов вакцин и контроль их качества через лаборатории PANAFTOSA (Бразилия)</li>
+        <li>Формирование BANVACO — регионального банка антигенов и вакцин против всех серотипов вируса</li>
+        <li>Создание национальных и региональных лабораторий FMD с аккредитацией WOAH</li>
+        <li>Механизм быстрого реагирования при вспышках — поставка антигенов в любую страну в течение 48–72 часов</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 15: КЛЮЧЕВЫЕ ОГРАНИЧЕНИЯ
+═══════════════════════════════════════════ -->
+<section class="section bg-paper" id="s15">
+  <div class="container">
+    <span class="section-label reveal">Секция 15</span>
+    <h2 class="reveal">Ключевые ограничения развития мясной отрасли Казахстана</h2>
+    <p class="section-subtitle reveal">Системный кризис мясного животноводства: деградация базы, искажённая статистика и потеря экспортного потенциала</p>
+
+    <div class="grid-3 reveal" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="problem-card">
+        <div class="problem-card-number">01</div>
+        <h3>Низкая мясная продуктивность</h3>
+        <ul>
+          <li>Маленькое количество маточного поголовья в стране</li>
+          <li>Низкая доля породного скота и недостаточный уровень селекционно-племенной работы</li>
+          <li>Недостаток знаний о кормлении и содержании скота</li>
+        </ul>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-number">02</div>
+        <h3>Дефицит кормовых ресурсов</h3>
+        <ul>
+          <li>Недостаточный объём заготовки кормов на пашне</li>
+          <li>Нерациональное использование пастбищных ресурсов</li>
+          <li>Деградация пастбищ населённых пунктов</li>
+          <li>Неразвитость отгонного животноводства</li>
+          <li>Дефицит воды</li>
+        </ul>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-number">03</div>
+        <h3>Несовершенство производственной цепочки</h3>
+        <ul>
+          <li>Высокая доля ЛПХ</li>
+          <li>Нехватка бычков для ОП соответствующего требования</li>
+          <li>Отсутствие специализированных звеньев цепочки (доращивание, пастбищный откорм)</li>
+        </ul>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-number">04</div>
+        <h3>Недостатки системы ветеринарии</h3>
+        <ul>
+          <li>Низкое качество ветеринарных услуг</li>
+          <li>Недостаточно эффективный ветеринарный контроль, периодические вспышки</li>
+          <li>Дефицит квалифицированных кадров</li>
+          <li>Отсутствие эффективной системы прослеживаемости и достоверной статистики</li>
+        </ul>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-number">05</div>
+        <h3>Неразвитость инфраструктуры</h3>
+        <ul>
+          <li>Инфраструктура хранения и переработки (корма, мясо)</li>
+          <li>Транспортно-логистическая дорожная инфраструктура</li>
+          <li>Недостаточная развитость системы финансирования и страхования СХТП</li>
+          <li>Недостаточность развития цифровизации отрасли</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 16: СУБСИДИИ
+═══════════════════════════════════════════ -->
+<section class="section bg-cream" id="s16">
+  <div class="container">
+    <span class="section-label reveal">Секция 16</span>
+    <h2 class="reveal">Субсидии и экспортная политика</h2>
+    <p class="section-subtitle reveal">Казахстан ограничивает экспорт мяса, но фактически экспортирует живой скот — тем самым теряя добавленную стоимость и субсидируя мясную промышленность соседних стран.</p>
+
+    <div class="side-by-side reveal">
+      <div class="side-panel situation">
+        <h3>Текущая ситуация</h3>
+        <ul>
+          <li>Экспорт мяса практически закрыт</li>
+          <li>При этом ежегодно вывозится значительный объём живого КРС, в основном в Узбекистан</li>
+          <li>Казахстанская мясная отрасль испытывает дефицит сырья — мясокомбинаты загружены лишь на ≈50%</li>
+        </ul>
+      </div>
+      <div class="side-arrow">&rarr;</div>
+      <div class="side-panel consequences">
+        <h3>Последствия</h3>
+        <ul>
+          <li>Ущерб внутренней переработке: мясокомбинаты простаивают, снижается прибыльность и рабочие места</li>
+          <li>Потеря добавленной стоимости: экспортируем живое животное, а не мясо с высокой ценой</li>
+          <li>Государство фактически субсидирует переработку импортёров: фермеры получают господдержку, но продукция уходит за рубеж в виде живого скота</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout reveal" style="border-left-color:#dc2626">
+      <strong>Необходимо сместить акцент господдержки</strong> — от экспорта живого скота к развитию внутренней переработки и экспорта мяса.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 17: НЕОБХОДИМЫЕ МЕРЫ
+═══════════════════════════════════════════ -->
+<section class="section bg-navy" id="s17">
+  <div class="container">
+    <span class="section-label reveal">Секция 17</span>
+    <h2 class="reveal">Необходимые меры</h2>
+    <p class="section-subtitle reveal">Сектор производства мяса КРС — ключевые направления трансформации</p>
+
+    <div class="grid-3 reveal" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="action-card">
+        <div class="action-card-number">01</div>
+        <h3>Производственная база</h3>
+        <ul>
+          <li>Создать 20 000 ферм по репродукции (150 маток каждая)</li>
+          <li>Запустить 1 000 хозяйств по доращиванию (до 2 000 голов)</li>
+          <li>Построить 1+ млн кормомест на откормочных площадках</li>
+          <li>Возвести экспортоориентированные МПК на 2,3 млн голов</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <div class="action-card-number">02</div>
+        <h3>Качество поголовья КРС</h3>
+        <ul>
+          <li>Увеличить маточное поголовье до 6 млн голов</li>
+          <li>Довести долю породного скота мясного направления до не менее 50%</li>
+          <li>Обеспечить деловой выход 80 телят на 100 маток</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <div class="action-card-number">03</div>
+        <h3>Кормовая база и пастбища</h3>
+        <ul>
+          <li>Расширить площади под кормовые культуры до 4 млн га</li>
+          <li>Выделить из запаса и улучшить 40 млн га пастбищ (с обводнением)</li>
+          <li>Внедрить современные методы эффективного управления пастбищами</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <div class="action-card-number">04</div>
+        <h3>Водные и инфраструктурные ресурсы</h3>
+        <ul>
+          <li>Создать инфраструктуру холодовой цепи хранения и логистики</li>
+          <li>Внедрить водосберегающие технологии на 370 тыс. га</li>
+          <li>Создать 4 млн тонн мощностей хранения кормов</li>
+          <li>Увеличить парк спецтехники до 1 000 ед. и холодильных складов до 50 тыс. тонн</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <div class="action-card-number">05</div>
+        <h3>Финансирование и страхование</h3>
+        <ul>
+          <li>Обеспечить до 75% потребности АПК в заёмных средствах</li>
+          <li>Расширить сроки кредитования до 20 лет, с индивидуальным графиком погашения</li>
+          <li>Пересмотреть залоговую политику. Ввести субсидирование страхования доходов с 2026 года</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <div class="action-card-number">06</div>
+        <h3>Кадры и ветеринария</h3>
+        <ul>
+          <li>Вернуть Казахстану статус FMD-free — ключевое условие для экспорта</li>
+          <li>Обучить 100 тыс. фермеров</li>
+          <li>Делегировать до 50% функций госветслужбы частным специалистам</li>
+          <li>Включить 100% предприятий-экспортёров в реестры стран-импортёров</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  /* ── Intersection Observer: reveal ── */
+  const revealObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('revealed');
+        revealObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(function(el) {
+    revealObs.observe(el);
+  });
+
+  /* ── Counter animation ── */
+  function animateCounter(el) {
+    var target = parseFloat(el.getAttribute('data-target'));
+    var duration = 2000;
+    var start = performance.now();
+    var isFloat = target % 1 !== 0;
+    function ease(t) { return 1 - Math.pow(1 - t, 3); }
+    function tick(now) {
+      var elapsed = now - start;
+      var progress = Math.min(elapsed / duration, 1);
+      var value = target * ease(progress);
+      el.textContent = isFloat ? value.toFixed(1) : Math.round(value);
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  var counterObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        animateCounter(e.target);
+        counterObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.counter').forEach(function(el) {
+    counterObs.observe(el);
+  });
+
+  /* ── Bar chart animation ── */
+  var barObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        var bars = e.target.querySelectorAll('.bar-fill[data-width]');
+        bars.forEach(function(bar) {
+          bar.style.width = bar.getAttribute('data-width');
+        });
+        barObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('.bar-chart, .vbar-chart').forEach(function(el) {
+    barObs.observe(el);
+  });
+
+  /* ── SVG line draw-in ── */
+  var lineObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('revealed');
+        lineObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.draw-in').forEach(function(el) {
+    var len = el.getTotalLength ? el.getTotalLength() : 1000;
+    el.style.setProperty('--line-length', len);
+    el.style.strokeDasharray = len;
+    el.style.strokeDashoffset = len;
+    lineObs.observe(el);
+  });
+
+  /* ── Sticky nav visibility + active section ── */
+  var stickyNav = document.getElementById('stickyNav');
+  var progressBar = document.getElementById('progressBar');
+  var sections = document.querySelectorAll('section[id]');
+  var navLinks = document.querySelectorAll('.nav-link[data-target]');
+
+  window.addEventListener('scroll', function() {
+    var scrollY = window.scrollY;
+    var docH = document.documentElement.scrollHeight - window.innerHeight;
+    var progress = docH > 0 ? (scrollY / docH * 100) : 0;
+
+    /* show/hide nav */
+    if (scrollY > 600) {
+      stickyNav.classList.add('visible');
+    } else {
+      stickyNav.classList.remove('visible');
+    }
+
+    /* progress */
+    progressBar.style.width = progress + '%';
+
+    /* active section */
+    var current = '';
+    sections.forEach(function(sec) {
+      var top = sec.offsetTop - 120;
+      if (scrollY >= top) current = sec.id;
+    });
+    navLinks.forEach(function(link) {
+      link.classList.toggle('active', link.getAttribute('data-target') === current);
+    });
+  }, { passive: true });
+
+  /* ── Nav link click ── */
+  navLinks.forEach(function(link) {
+    link.addEventListener('click', function() {
+      var target = document.getElementById(this.getAttribute('data-target'));
+      if (target) {
+        window.scrollTo({ top: target.offsetTop - 60, behavior: 'smooth' });
+      }
+    });
+  });
+
+  /* ── Vertical bar chart animation ── */
+  var vbarObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        var fills = e.target.querySelectorAll('.vbar-fill[data-height]');
+        fills.forEach(function(fill) {
+          fill.style.height = fill.getAttribute('data-height');
+        });
+        vbarObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('.vbar-chart').forEach(function(el) {
+    vbarObs.observe(el);
+  });
+
+  /* ── Stacked bar animation ── */
+  var stackObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) {
+        var segs = e.target.querySelectorAll('.stacked-segment[data-share]');
+        segs.forEach(function(seg) {
+          seg.style.flexBasis = seg.getAttribute('data-share') + '%';
+        });
+        stackObs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.stacked-bar-track').forEach(function(el) {
+    stackObs.observe(el);
+  });
+
+})();
+</script>
+
+</body>
+</html>
