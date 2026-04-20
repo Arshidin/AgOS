@@ -15,7 +15,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/cabinet/vet/new': 'Report Sick Animal',
   '/cabinet/feed': 'Feed',
   '/admin': 'Admin Dashboard',
-  '/admin/membership': 'Membership',
+  '/admin/applications': 'Заявки',
   '/admin/users': 'Users',
   '/admin/knowledge': 'Knowledge',
   '/admin/consulting': 'Консалтинг',
@@ -27,8 +27,8 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/cabinet/vet/') && pathname !== '/cabinet/vet/new') {
     return 'Vet Case'
   }
-  if (pathname.startsWith('/admin/membership/')) {
-    return 'Membership Decision'
+  if (pathname.startsWith('/admin/applications/level/')) {
+    return 'Смена уровня — решение'
   }
 
   const segments = pathname.split('/').filter(Boolean)

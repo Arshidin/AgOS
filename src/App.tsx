@@ -48,6 +48,9 @@ const AdminSubsidiesPage = lazy(() => import('@/pages/admin/subsidies/AdminSubsi
 const AdminPassportsPage = lazy(() => import('@/pages/admin/subsidies/AdminPassportsPage'))
 const ApplicationList = lazy(() => import('@/pages/admin/membership/ApplicationList'))
 const ApplicationDetail = lazy(() => import('@/pages/admin/membership/ApplicationDetail'))
+const ApplicationsHub = lazy(() => import('@/pages/admin/applications/ApplicationsHub').then(m => ({ default: m.ApplicationsHub })))
+const MembershipLevelTab = lazy(() => import('@/pages/admin/applications/MembershipLevelTab').then(m => ({ default: m.MembershipLevelTab })))
+const EducationTab = lazy(() => import('@/pages/admin/applications/EducationTab').then(m => ({ default: m.EducationTab })))
 import { AppLayout } from '@/components/layout/AppLayout'
 import { FarmProfile } from '@/pages/cabinet/FarmProfile'
 import { ReportSick } from '@/pages/cabinet/vet/ReportSick'
@@ -73,7 +76,6 @@ import { CreateBatch } from '@/pages/cabinet/market/CreateBatch'
 import { BatchDetail } from '@/pages/cabinet/market/BatchDetail'
 import { PriceInfo } from '@/pages/cabinet/market/PriceInfo'
 import { AdminDashboard } from '@/pages/admin/AdminDashboard'
-import { MembershipQueue } from '@/pages/admin/MembershipQueue'
 import { MembershipDecision } from '@/pages/admin/MembershipDecision'
 import { VetCaseQueue } from '@/pages/admin/expert/VetCaseQueue'
 import { CaseConsultation } from '@/pages/admin/expert/CaseConsultation'
@@ -197,7 +199,8 @@ function App() {
                     <Route path="expert/vaccination/:planId/record" element={<RecordVaccination />} />
                     <Route path="expert/epidemic" element={<EpidemicSignals />} />
                     <Route path="expert/kpi" element={<ExpertKpi />} />
-                    <Route path="membership" element={<MembershipQueue />} />
+                    {/* legacy redirects — keep additive */}
+                    <Route path="membership" element={<Navigate to="/admin/applications/level" replace />} />
                     <Route path="membership/:applicationId" element={<MembershipDecision />} />
                     <Route path="knowledge" element={<KnowledgeBase />} />
                     <Route path="restrictions" element={<Restrictions />} />
@@ -236,9 +239,16 @@ function App() {
                       <Route path="ration" element={<RationTab />} />
                     </Route>
 
-                    {/* ── Public site admin: applications, news, startups, finance, subsidies ── */}
-                    <Route path="applications" element={<Suspense fallback={null}><ApplicationList /></Suspense>} />
-                    <Route path="applications/:id" element={<Suspense fallback={null}><ApplicationDetail /></Suspense>} />
+                    {/* ── Applications hub ── */}
+                    <Route path="applications" element={<Suspense fallback={null}><ApplicationsHub /></Suspense>}>
+                      <Route index element={<Navigate to="membership" replace />} />
+                      <Route path="membership" element={<Suspense fallback={null}><ApplicationList /></Suspense>} />
+                      <Route path="membership/:id" element={<Suspense fallback={null}><ApplicationDetail /></Suspense>} />
+                      <Route path="level" element={<Suspense fallback={null}><MembershipLevelTab /></Suspense>} />
+                      <Route path="level/:applicationId" element={<MembershipDecision />} />
+                      <Route path="finance" element={<Suspense fallback={null}><AdminFinanceRequestsPage /></Suspense>} />
+                      <Route path="education" element={<Suspense fallback={null}><EducationTab /></Suspense>} />
+                    </Route>
                     <Route path="news" element={<Suspense fallback={null}><AdminNewsPage /></Suspense>} />
                     <Route path="news/create-article" element={<Suspense fallback={null}><CreateArticlePage /></Suspense>} />
                     <Route path="news/create-media" element={<Suspense fallback={null}><CreateMediaPage /></Suspense>} />

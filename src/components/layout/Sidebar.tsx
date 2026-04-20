@@ -128,7 +128,6 @@ const ADMIN_GROUPS: NavGroup[] = [
     label: 'Участники',
     items: [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Главная', route: '/admin' },
-      { id: 'membership', icon: Users, label: 'Членство', route: '/admin/membership' },
       { id: 'applications', icon: FileText, label: 'Заявки', route: '/admin/applications' },
       { id: 'users', icon: UserCog, label: 'Пользователи', route: '/admin/users' },
       { id: 'roles', icon: Users, label: 'Роли', route: '/admin/roles' },

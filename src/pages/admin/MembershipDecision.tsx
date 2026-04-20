@@ -111,7 +111,7 @@ export function MembershipDecision() {
       successMessage: confirmAction === 'approved' ? 'Заявка одобрена' : 'Заявка отклонена',
       invalidateKeys: [['rpc_get_membership_queue']],
       onSuccess: () => {
-        navigate('/admin/membership')
+        navigate('/admin/applications/level')
       },
     }
   )
@@ -142,7 +142,7 @@ export function MembershipDecision() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/membership')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/applications/level')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <span className="text-sm text-muted-foreground">Назад к списку</span>
@@ -164,7 +164,7 @@ export function MembershipDecision() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/membership')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin/applications/level')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h2 className="text-xl font-semibold">Заявка на членство</h2>
