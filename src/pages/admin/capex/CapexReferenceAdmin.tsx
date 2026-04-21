@@ -110,9 +110,9 @@ const MATERIAL_TARGET_OPTIONS = [
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 const CAPEX_TABS = [
-  { label: 'Материалы',                path: '/admin/capex/materials' },
-  { label: 'Нормативы инфраструктуры', path: '/admin/capex/norms' },
-  { label: 'Надбавки',                 path: '/admin/capex/surcharges' },
+  { label: 'Материалы',                path: '/admin/directories/capex/materials' },
+  { label: 'Нормативы инфраструктуры', path: '/admin/directories/capex/norms' },
+  { label: 'Надбавки',                 path: '/admin/directories/capex/surcharges' },
 ]
 
 export function CapexReferenceAdmin() {
@@ -128,9 +128,9 @@ export function CapexReferenceAdmin() {
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null
 
-  // Redirect bare /admin/capex → /admin/capex/materials
-  if (pathname === '/admin/capex' || pathname === '/admin/capex/') {
-    return <Navigate to="/admin/capex/materials" replace />
+  // Redirect bare route → first tab
+  if (pathname === '/admin/directories/capex' || pathname === '/admin/directories/capex/') {
+    return <Navigate to="/admin/directories/capex/materials" replace />
   }
 
   return (

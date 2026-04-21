@@ -91,9 +91,9 @@ const NUTRIENTS = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const FEEDS_TABS = [
-  { label: 'Каталог кормов',   path: '/admin/feeds/catalog' },
-  { label: 'Цены',             path: '/admin/feeds/prices' },
-  { label: 'Нормы кормления',  path: '/admin/feeds/norms' },
+  { label: 'Каталог кормов',   path: '/admin/directories/feeds/catalog' },
+  { label: 'Цены',             path: '/admin/directories/feeds/prices' },
+  { label: 'Нормы кормления',  path: '/admin/directories/feeds/norms' },
 ]
 
 export function FeedReferenceAdmin() {
@@ -109,9 +109,9 @@ export function FeedReferenceAdmin() {
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null
 
-  // Redirect bare /admin/feeds → /admin/feeds/catalog
-  if (pathname === '/admin/feeds' || pathname === '/admin/feeds/') {
-    return <Navigate to="/admin/feeds/catalog" replace />
+  // Redirect bare route → first tab
+  if (pathname === '/admin/directories/feeds' || pathname === '/admin/directories/feeds/') {
+    return <Navigate to="/admin/directories/feeds/catalog" replace />
   }
 
   return (

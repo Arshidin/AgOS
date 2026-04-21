@@ -97,6 +97,8 @@ import { SystemSettings } from '@/pages/admin/settings/SystemSettings'
 import { FeedReferenceAdmin, CatalogTab as FeedCatalogTab, PricesTab as FeedPricesTab, NormsTab as FeedNormsTab } from '@/pages/admin/feeds/FeedReferenceAdmin'
 import { CapexReferenceAdmin, CapexMaterialsTab, CapexNormsTab, CapexSurchargesTab } from '@/pages/admin/capex/CapexReferenceAdmin'
 import { LivestockPricesAdmin } from '@/pages/admin/livestock-prices/LivestockPricesAdmin'
+import { DirectoriesHub } from '@/pages/admin/directories/DirectoriesHub'
+import { NormsReferenceAdmin, FacilityNormsTab, PaddockNormsTab, CalvingScenariosTab, RegionalPastureTab, CapexCoefficientsTab } from '@/pages/admin/directories/norms/NormsReferenceAdmin'
 import { ConsultingDashboard } from '@/pages/admin/consulting/ConsultingDashboard'
 import { ProjectPage } from '@/pages/admin/consulting/ProjectPage'
 import { ProjectWizard } from '@/pages/admin/consulting/ProjectWizard'
@@ -211,21 +213,35 @@ function App() {
                     <Route path="users" element={<UserManagement />} />
                     <Route path="roles" element={<RoleAssignment />} />
                     <Route path="orgs" element={<OrgManagement />} />
-                    <Route path="regions" element={<RegionDirectory />} />
+                    <Route path="regions" element={<Navigate to="/admin/directories/regions" replace />} />
                     <Route path="settings" element={<SystemSettings />} />
-                    <Route path="feeds" element={<FeedReferenceAdmin />}>
+                    {/* Legacy redirects → /admin/directories/* (routes kept, sidebar removed per HS-5) */}
+                    <Route path="feeds" element={<Navigate to="/admin/directories/feeds/catalog" replace />} />
+                    <Route path="feeds/*" element={<Navigate to="/admin/directories/feeds/catalog" replace />} />
+                    <Route path="capex" element={<Navigate to="/admin/directories/capex/materials" replace />} />
+                    <Route path="capex/*" element={<Navigate to="/admin/directories/capex/materials" replace />} />
+                    <Route path="livestock-prices" element={<Navigate to="/admin/directories/livestock-prices" replace />} />
+                    {/* ── Справочники hub ── */}
+                    <Route path="directories" element={<DirectoriesHub />} />
+                    <Route path="directories/feeds" element={<FeedReferenceAdmin />}>
                       <Route path="catalog" element={<FeedCatalogTab />} />
                       <Route path="prices" element={<FeedPricesTab />} />
                       <Route path="norms" element={<FeedNormsTab />} />
                     </Route>
-                    {/* ADR-CAPEX-01 Phase 4: admin CAPEX reference (materials / norms / surcharges) */}
-                    <Route path="capex" element={<CapexReferenceAdmin />}>
+                    <Route path="directories/capex" element={<CapexReferenceAdmin />}>
                       <Route path="materials" element={<CapexMaterialsTab />} />
                       <Route path="norms" element={<CapexNormsTab />} />
                       <Route path="surcharges" element={<CapexSurchargesTab />} />
                     </Route>
-                    {/* ADR-PRICES-01: livestock sale prices reference */}
-                    <Route path="livestock-prices" element={<LivestockPricesAdmin />} />
+                    <Route path="directories/livestock-prices" element={<LivestockPricesAdmin />} />
+                    <Route path="directories/regions" element={<RegionDirectory />} />
+                    <Route path="directories/norms" element={<NormsReferenceAdmin />}>
+                      <Route path="facilities" element={<FacilityNormsTab />} />
+                      <Route path="paddocks" element={<PaddockNormsTab />} />
+                      <Route path="scenarios" element={<CalvingScenariosTab />} />
+                      <Route path="pasture" element={<RegionalPastureTab />} />
+                      <Route path="coefficients" element={<CapexCoefficientsTab />} />
+                    </Route>
                     <Route path="consulting" element={<ConsultingDashboard />} />
                     <Route path="consulting/:projectId" element={<ProjectPage />}>
                       <Route path="edit" element={<ProjectWizard />} />

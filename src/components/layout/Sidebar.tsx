@@ -18,7 +18,6 @@ import {
   DollarSign,
   UserCog,
   Building2,
-  MapPin,
   Settings,
   Syringe,
   Shield,
@@ -31,8 +30,8 @@ import {
   Moon,
   LogOut,
   Briefcase,
-  FlaskConical,
   User,
+  Library,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -151,12 +150,14 @@ const ADMIN_GROUPS: NavGroup[] = [
       { id: 'audit', icon: FileText, label: 'Аудит', route: '/admin/audit' },
       { id: 'pools', icon: Package, label: 'Пулы', route: '/admin/pools' },
       { id: 'pricing', icon: DollarSign, label: 'Цены', route: '/admin/pricing' },
-      { id: 'regions', icon: MapPin, label: 'Регионы', route: '/admin/regions' },
       { id: 'settings', icon: Settings, label: 'Настройки', route: '/admin/settings' },
-      { id: 'feeds', icon: FlaskConical, label: 'Кормовая база', route: '/admin/feeds' },
-      { id: 'capex', icon: Building2, label: 'Инфраструктура', route: '/admin/capex' },
-      { id: 'livestock-prices', icon: DollarSign, label: 'Цены КРС', route: '/admin/livestock-prices' },
       { id: 'consulting', icon: Briefcase, label: 'Консалтинг', route: '/admin/consulting' },
+    ],
+  },
+  {
+    label: 'Справочники',
+    items: [
+      { id: 'directories', icon: Library, label: 'Справочники', route: '/admin/directories' },
     ],
   },
 ]

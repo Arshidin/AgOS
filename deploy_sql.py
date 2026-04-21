@@ -24,6 +24,7 @@ SQL_FILES = [
     "d07_ai_gateway.sql",
     "d08_epidemic.sql",
     "d09_consulting.sql",
+    "d11_norms.sql",
 ]
 
 def deploy(password: str):
