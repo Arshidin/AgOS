@@ -1,7 +1,7 @@
 /**
  * /admin/directories — Справочники (hub page)
- * Lists all reference directories. Navigation: hub → directory → tabs.
- * Pattern mirrors ConsultingDashboard (list of items → detail with tabs).
+ * Table format matching ConsultingDashboard.
+ * Navigation: hub → directory → tabs inside directory.
  */
 import { useNavigate } from 'react-router-dom'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
@@ -10,64 +10,79 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   FlaskConical,
   Building2,
-  DollarSign,
+  Banknote,
   MapPin,
   ClipboardList,
-  ChevronRight,
+  ArrowRight,
+  ChevronDown,
+  LayoutGrid,
   Library,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 // ─── Directory definitions ────────────────────────────────────────────────────
 
-interface DirectoryCard {
+interface DirectoryDef {
   id: string
-  icon: React.ReactNode
+  Icon: LucideIcon
   title: string
   description: string
-  route: string
-  badge?: string
+  firstRoute: string
+  sections: number
 }
 
-const DIRECTORIES: DirectoryCard[] = [
+// Canonical order — MUST match DIRECTORY_LIST in DirectoryShell.tsx
+const DIRECTORIES: DirectoryDef[] = [
   {
     id: 'feeds',
-    icon: <FlaskConical size={22} />,
+    Icon: FlaskConical,
     title: 'Кормовая база',
     description: 'Каталог кормов, нормы кормления, цены по регионам',
-    route: '/admin/directories/feeds/catalog',
-    badge: '3 таба',
+    firstRoute: '/admin/directories/feeds/catalog',
+    sections: 3,
   },
   {
     id: 'capex',
-    icon: <Building2 size={22} />,
+    Icon: Building2,
     title: 'Инфраструктура',
     description: 'Материалы строительства, нормативы CAPEX, надбавки',
-    route: '/admin/directories/capex/materials',
-    badge: '3 таба',
+    firstRoute: '/admin/directories/capex/materials',
+    sections: 3,
   },
   {
     id: 'livestock-prices',
-    icon: <DollarSign size={22} />,
+    Icon: Banknote,
     title: 'Цены КРС',
     description: 'Справочник цен продажи крупного рогатого скота',
-    route: '/admin/directories/livestock-prices',
+    firstRoute: '/admin/directories/livestock-prices',
+    sections: 0,
   },
   {
     id: 'regions',
-    icon: <MapPin size={22} />,
+    Icon: MapPin,
     title: 'Регионы',
     description: 'Справочник регионов Казахстана',
-    route: '/admin/directories/regions',
+    firstRoute: '/admin/directories/regions',
+    sections: 0,
   },
   {
     id: 'norms',
-    icon: <ClipboardList size={22} />,
+    Icon: ClipboardList,
     title: 'Нормативы',
-    description: 'НТС-КРС: помещения, площадки, сценарии отёла, пастбища, коэффициенты CAPEX',
-    route: '/admin/directories/norms/facilities',
-    badge: '5 табов',
+    description: 'НТС-КРС: помещения, площадки, сценарии, пастбища, коэффициенты',
+    firstRoute: '/admin/directories/norms/facilities',
+    sections: 5,
   },
 ]
+
+function pluralRazdel(n: number): string {
+  if (n === 0) return '—'
+  if (n === 1) return '1 раздел'
+  if (n <= 4) return `${n} раздела`
+  return `${n} разделов`
+}
+
+const COL_TEMPLATE = 'minmax(280px,3fr) 140px'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -83,130 +98,119 @@ export function DirectoriesHub() {
   if (checking) {
     return (
       <div className="page">
-        <Skeleton className="h-48 w-full" />
+        <div className="flex flex-col border border-border/60 rounded-[8px] overflow-hidden bg-background">
+          <div className="flex items-center h-10 px-4 border-b border-border/60">
+            <Skeleton className="h-[26px] w-36 rounded-md" />
+          </div>
+          <div className="grid border-b border-border/60 bg-muted/40" style={{ gridTemplateColumns: COL_TEMPLATE }}>
+            {[280, 140].map((w, i) => (
+              <div key={i} className="h-[34px] px-3 flex items-center border-r border-border/60 last:border-r-0">
+                <Skeleton className="h-3" style={{ width: w * 0.35 }} />
+              </div>
+            ))}
+          </div>
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="grid border-b border-border/60" style={{ gridTemplateColumns: COL_TEMPLATE }}>
+              <div className="h-[48px] px-3 flex items-center gap-2.5 border-r border-border/60">
+                <Skeleton className="w-[28px] h-[28px] rounded-[7px] flex-shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3 w-32" />
+                  <Skeleton className="h-2.5 w-48" />
+                </div>
+              </div>
+              <div className="h-[48px] px-3 flex items-center">
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
+
   if (!isAdmin) return null
 
   return (
-    <div className="page" style={{ paddingTop: 24 }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: 12,
-          maxWidth: 960,
-        }}
-      >
-        {DIRECTORIES.map((dir) => (
-          <DirectoryCardItem
+    <div className="page">
+      <div className="flex flex-col border border-border/60 rounded-[8px] overflow-hidden bg-background">
+
+        {/* ── Toolbar ── */}
+        <div className="flex items-center h-10 px-4 border-b border-border/60 gap-2">
+          <div
+            className="h-[26px] px-2.5 rounded-md border border-border/60 text-[12px] flex items-center gap-1.5 cursor-pointer select-none"
+            style={{ color: 'var(--fg)' }}
+          >
+            <LayoutGrid className="w-3 h-3 opacity-50" />
+            Все справочники
+            <ChevronDown className="w-3 h-3 opacity-40 ml-0.5" />
+          </div>
+        </div>
+
+        {/* ── Table header ── */}
+        <div
+          className="grid border-b border-border/60 bg-muted/40"
+          style={{ gridTemplateColumns: COL_TEMPLATE }}
+        >
+          <div className="h-[34px] px-3 flex items-center text-[11px] font-medium text-muted-foreground border-r border-border/60">
+            Справочник
+          </div>
+          <div className="h-[34px] px-3 flex items-center text-[11px] font-medium text-muted-foreground">
+            Разделы
+          </div>
+        </div>
+
+        {/* ── Rows ── */}
+        {DIRECTORIES.map(dir => (
+          <div
             key={dir.id}
-            dir={dir}
-            onClick={() => navigate(dir.route)}
-          />
+            onClick={() => navigate(dir.firstRoute)}
+            className="grid border-b border-border/60 cursor-pointer hover:bg-muted/40 transition-colors group"
+            style={{ gridTemplateColumns: COL_TEMPLATE }}
+          >
+            {/* Directory name + description */}
+            <div className="h-[48px] px-3 flex items-center gap-2.5 border-r border-border/60 min-w-0">
+              <div
+                className="w-[28px] h-[28px] rounded-[7px] flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--bg-s)', color: 'var(--accent)' }}
+              >
+                <dir.Icon size={14} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-medium" style={{ color: 'var(--fg)' }}>
+                    {dir.title}
+                  </span>
+                  <ArrowRight
+                    className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity ml-auto flex-shrink-0"
+                    style={{ color: 'var(--fg3)' }}
+                  />
+                </div>
+                <p className="text-[11px] truncate m-0" style={{ color: 'var(--fg3)' }}>
+                  {dir.description}
+                </p>
+              </div>
+            </div>
+
+            {/* Sections count */}
+            <div className="h-[48px] px-3 flex items-center">
+              <span className="text-[12px] text-muted-foreground">
+                {pluralRazdel(dir.sections)}
+              </span>
+            </div>
+          </div>
         ))}
+
+        {/* ── Footer ── */}
+        <div className="grid bg-muted/40" style={{ gridTemplateColumns: COL_TEMPLATE }}>
+          <div className="h-[28px] px-3 flex items-center">
+            <span className="text-[11px] text-muted-foreground">
+              <span className="font-medium" style={{ color: 'var(--fg)' }}>{DIRECTORIES.length}</span> справочников
+            </span>
+          </div>
+          <div className="h-[28px]" />
+        </div>
+
       </div>
     </div>
-  )
-}
-
-// ─── Card ─────────────────────────────────────────────────────────────────────
-
-function DirectoryCardItem({
-  dir,
-  onClick,
-}: {
-  dir: DirectoryCard
-  onClick: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '18px 20px',
-        background: 'var(--bg)',
-        border: '1px solid var(--bd)',
-        borderRadius: 10,
-        cursor: 'pointer',
-        textAlign: 'left',
-        transition: 'border-color 150ms, background 150ms',
-        width: '100%',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'var(--bd-h)'
-        e.currentTarget.style.background = 'var(--bg-s)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--bd)'
-        e.currentTarget.style.background = 'var(--bg)'
-      }}
-    >
-      {/* Icon */}
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 10,
-          background: 'var(--bg-m)',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--accent)',
-          flexShrink: 0,
-        }}
-      >
-        {dir.icon}
-      </div>
-
-      {/* Text */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--fg)',
-              lineHeight: 1.3,
-            }}
-          >
-            {dir.title}
-          </span>
-          {dir.badge && (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 500,
-                color: 'var(--fg3)',
-                background: 'var(--bg-m)',
-                borderRadius: 4,
-                padding: '1px 6px',
-                flexShrink: 0,
-              }}
-            >
-              {dir.badge}
-            </span>
-          )}
-        </div>
-        <p
-          style={{
-            fontSize: 12,
-            color: 'var(--fg3)',
-            margin: 0,
-            lineHeight: 1.4,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {dir.description}
-        </p>
-      </div>
-
-      {/* Arrow */}
-      <ChevronRight size={16} style={{ color: 'var(--fg3)', flexShrink: 0 }} />
-    </button>
   )
 }

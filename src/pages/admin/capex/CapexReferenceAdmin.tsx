@@ -9,10 +9,10 @@
  */
 import { useMemo, useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { Building2, Pencil, Plus } from 'lucide-react'
+import { Building2, Pencil, Plus, Layers, Percent } from 'lucide-react'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useDirectoryTopbar, type DirectoryTab } from '@/pages/admin/directories/DirectoryShell'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -109,21 +109,17 @@ const MATERIAL_TARGET_OPTIONS = [
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-const CAPEX_TABS = [
-  { label: 'Материалы',                path: '/admin/directories/capex/materials' },
-  { label: 'Нормативы инфраструктуры', path: '/admin/directories/capex/norms' },
-  { label: 'Надбавки',                 path: '/admin/directories/capex/surcharges' },
+const CAPEX_TABS: DirectoryTab[] = [
+  { label: 'Материалы',                path: '/admin/directories/capex/materials',  icon: Layers },
+  { label: 'Нормативы инфраструктуры', path: '/admin/directories/capex/norms',      icon: Building2 },
+  { label: 'Надбавки',                 path: '/admin/directories/capex/surcharges', icon: Percent },
 ]
 
 export function CapexReferenceAdmin() {
   const { pathname } = useLocation()
   const { isAdmin, checking } = useAdminGuard()
 
-  useSetTopbar({
-    title: 'Инфраструктура',
-    titleIcon: <Building2 size={15} />,
-    tabs: CAPEX_TABS,
-  })
+  useDirectoryTopbar({ directoryId: 'capex', title: 'Инфраструктура', Icon: Building2, tabs: CAPEX_TABS })
 
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null

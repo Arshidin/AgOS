@@ -3,11 +3,11 @@ import { useState, useEffect } from 'react'
 import { MapPin } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useDirectoryTopbar } from '@/pages/admin/directories/DirectoryShell'
 import { supabase } from '@/lib/supabase'
 
 export function RegionDirectory() {
-  useSetTopbar({ title: 'Регионы', titleIcon: <MapPin size={15} /> })
+  useDirectoryTopbar({ directoryId: 'regions', title: 'Регионы', Icon: MapPin })
   const { isAdmin, checking: adminChecking } = useAdminGuard()
   const [regions, setRegions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

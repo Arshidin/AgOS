@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useDirectoryTopbar, type DirectoryTab } from '@/pages/admin/directories/DirectoryShell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Plus, Pencil, FlaskConical } from 'lucide-react'
+import { Plus, Pencil, FlaskConical, Package, Tag, BarChart2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -90,21 +90,17 @@ const NUTRIENTS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const FEEDS_TABS = [
-  { label: 'Каталог кормов',   path: '/admin/directories/feeds/catalog' },
-  { label: 'Цены',             path: '/admin/directories/feeds/prices' },
-  { label: 'Нормы кормления',  path: '/admin/directories/feeds/norms' },
+const FEEDS_TABS: DirectoryTab[] = [
+  { label: 'Каталог кормов',  path: '/admin/directories/feeds/catalog', icon: Package },
+  { label: 'Цены',            path: '/admin/directories/feeds/prices',  icon: Tag },
+  { label: 'Нормы кормления', path: '/admin/directories/feeds/norms',   icon: BarChart2 },
 ]
 
 export function FeedReferenceAdmin() {
   const { pathname } = useLocation()
   const { isAdmin, checking } = useAdminGuard()
 
-  useSetTopbar({
-    title: 'Кормовая база',
-    titleIcon: <FlaskConical size={15} />,
-    tabs: FEEDS_TABS,
-  })
+  useDirectoryTopbar({ directoryId: 'feeds', title: 'Кормовая база', Icon: FlaskConical, tabs: FEEDS_TABS })
 
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null

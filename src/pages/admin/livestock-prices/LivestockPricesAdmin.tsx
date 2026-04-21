@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { Banknote, Pencil, Plus, Archive } from 'lucide-react'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useRpc, useRpcMutation } from '@/hooks/useRpc'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useDirectoryTopbar } from '@/pages/admin/directories/DirectoryShell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -54,10 +54,7 @@ export function LivestockPricesAdmin() {
 
   const { data: rows, isLoading, refetch } = useRpc<LivestockPrice[]>('rpc_list_livestock_prices', {})
 
-  useSetTopbar({
-    title: 'Цены продажи КРС',
-    titleIcon: <Banknote size={15} />,
-  })
+  useDirectoryTopbar({ directoryId: 'livestock-prices', title: 'Цены КРС', Icon: Banknote })
 
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null

@@ -6,10 +6,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAdminGuard } from '@/hooks/useAdminGuard'
 import { useRpc } from '@/hooks/useRpc'
-import { useSetTopbar } from '@/components/layout/TopbarContext'
+import { useDirectoryTopbar, type DirectoryTab } from '@/pages/admin/directories/DirectoryShell'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { ClipboardList, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ClipboardList, CheckCircle2, AlertCircle, Home, LayoutGrid, GitBranch, Leaf, Calculator } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,23 +117,19 @@ function SectionNote({ children }: { children: React.ReactNode }) {
 
 // ─── Main container ───────────────────────────────────────────────────────────
 
-const NORMS_TABS = [
-  { label: 'Помещения',    path: '/admin/directories/norms/facilities' },
-  { label: 'Площадки',    path: '/admin/directories/norms/paddocks' },
-  { label: 'Сценарии',    path: '/admin/directories/norms/scenarios' },
-  { label: 'Пастбища',    path: '/admin/directories/norms/pasture' },
-  { label: 'Коэффициенты', path: '/admin/directories/norms/coefficients' },
+const NORMS_TABS: DirectoryTab[] = [
+  { label: 'Помещения',     path: '/admin/directories/norms/facilities',  icon: Home },
+  { label: 'Площадки',     path: '/admin/directories/norms/paddocks',    icon: LayoutGrid },
+  { label: 'Сценарии',     path: '/admin/directories/norms/scenarios',   icon: GitBranch },
+  { label: 'Пастбища',     path: '/admin/directories/norms/pasture',     icon: Leaf },
+  { label: 'Коэффициенты', path: '/admin/directories/norms/coefficients', icon: Calculator },
 ]
 
 export function NormsReferenceAdmin() {
   const { pathname } = useLocation()
   const { isAdmin, checking } = useAdminGuard()
 
-  useSetTopbar({
-    title: 'Нормативы',
-    titleIcon: <ClipboardList size={15} />,
-    tabs: NORMS_TABS,
-  })
+  useDirectoryTopbar({ directoryId: 'norms', title: 'Нормативы', Icon: ClipboardList, tabs: NORMS_TABS })
 
   if (checking) return <div className="page"><Skeleton className="h-48 w-full" /></div>
   if (!isAdmin) return null
