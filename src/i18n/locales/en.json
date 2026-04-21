@@ -5,8 +5,12 @@
     "news": "News",
     "startups": "Startups",
     "analytics": "Analytics",
+    "financing": "Financing",
     "phone": "+7 708 108 2526",
     "menu": "Menu"
+  },
+  "nav": {
+    "financing": "Financing"
   },
   "hero": {
     "farmsInAssociation": "Farms in the association",
@@ -1720,6 +1724,216 @@
       "paymentComplete": "Payment made",
       "paymentSkipped": "Payment deferred",
       "contactUs": "Questions? WhatsApp us"
+    }
+  },
+  "finance": {
+    "badge": "Financial Support",
+    "hero": {
+      "title": "Financing for Kazakhstan Livestock Farmers",
+      "subtitle": "Loans, subsidies and government programs for growing your farm"
+    },
+    "heroV2": {
+      "primaryCta": "Find a Program",
+      "secondaryCta": "Browse Catalog"
+    },
+    "subnav": {
+      "credits": "Loans",
+      "subsidies": "Subsidies",
+      "build": "Find Financing"
+    },
+    "scenarios": {
+      "title": "Your Goal"
+    },
+    "goals": {
+      "start_farm": "Start a Farm",
+      "start_farm_desc": "Start from scratch with government support",
+      "add_livestock": "Buy Livestock",
+      "add_livestock_desc": "Loans for purchasing cattle and sheep",
+      "expand_farm": "Expand Production",
+      "expand_farm_desc": "Infrastructure and equipment",
+      "working_capital": "Working Capital",
+      "working_capital_desc": "Short-term loans for operational needs"
+    },
+    "how": {
+      "title": "How It Works",
+      "step1_title": "Choose Your Goal",
+      "step1_desc": "Tell us what you need: buy livestock, build a farm, or cover operational costs",
+      "step2_title": "Find a Program",
+      "step2_desc": "The system will show matching loans and subsidies for your parameters",
+      "step3_title": "Apply",
+      "step3_desc": "Contact the bank or agro-centre to complete the application"
+    },
+    "catalog": {
+      "title": "All Financing Programs",
+      "subtitle": "Loans and subsidies for agricultural producers",
+      "filterAll": "All",
+      "filterClear": "Clear",
+      "goalStart": "Start Farm",
+      "goalExpand": "Expand",
+      "goalWorking": "Working Capital",
+      "purposeLivestock": "Livestock",
+      "purposeInfra": "Infrastructure",
+      "purposeWorking": "Working Capital",
+      "farmerAgri": "For Agricultural Producers",
+      "tagImport": "Imported Livestock",
+      "upTo": "up to",
+      "noResults": "No programs found"
+    },
+    "typeCredit": "Loan",
+    "typeSubsidy": "Subsidy",
+    "segments": {
+      "livestock_farmer": "Livestock Farmer",
+      "investor": "Investor"
+    },
+    "builder": {
+      "intent": {
+        "title": "Your Financing Goal",
+        "subtitle": "Choose the type of support you are interested in",
+        "project": "Investment Project",
+        "projectDesc": "Loans for construction, equipment, livestock purchase",
+        "reimbursement": "Subsidy / Reimbursement",
+        "reimbursementDesc": "Government reimbursement of incurred costs",
+        "showAll": "Show All Programs"
+      },
+      "prefillNote": "Program «{{program}}» pre-filled",
+      "segment_label": "Your Profile",
+      "step1_title": "Farm Parameters",
+      "step2_title": "Financing Goals",
+      "step3_title": "Your Profile",
+      "step4_title": "Matching Programs"
+    },
+    "fields": {
+      "herd_size": "Herd Size (head)",
+      "land_area": "Land Area (ha)",
+      "has_farm": "Have an active farm",
+      "has_feed_base": "Have a feed base",
+      "import_livestock": "Planning imported livestock",
+      "is_agri_producer": "Registered as agricultural producer",
+      "need_infrastructure": "Need infrastructure",
+      "target_herd_size": "Target Herd Size (head)"
+    },
+    "back": "Back",
+    "limits": "Limits",
+    "noPrograms": "No programs found",
+    "loginRequired": "Log in to save your project",
+    "save": "Save",
+    "saveError": "Save error",
+    "projectSaved": "Project saved",
+    "next": "Next"
+  },
+  "financeHub": {
+    "creditsTitle": "Loans for Livestock Farmers",
+    "creditsDesc": "Concessional loans for livestock, construction and equipment",
+    "creditsCta": "View Loans",
+    "subsidiesTitle": "Subsidies & Government Support",
+    "subsidiesDesc": "Government reimbursement programs for agricultural producers",
+    "subsidiesCta": "View Subsidies"
+  },
+  "subsidies": {
+    "hero": {
+      "badge": "Government Support",
+      "title": "Subsidies for Agricultural Producers",
+      "subtitle": "Government reimbursement programs for livestock, crop and infrastructure costs",
+      "ctaCatalog": "Browse Subsidy Catalog"
+    },
+    "catalog": {
+      "title": "Subsidy Catalog",
+      "filterAll": "All",
+      "empty": "No subsidies found"
+    },
+    "categories": {
+      "count": "{{count}} programs"
+    },
+    "detail": {
+      "back": "Back to catalog",
+      "backInvest": "Back to financing",
+      "rates": "Subsidy Rates",
+      "rateName": "Name",
+      "rateUnit": "Unit",
+      "rateValue": "Rate",
+      "rateCap": "Maximum",
+      "reimbursement": "Reimbursement",
+      "recipients": "Recipients",
+      "platform": "Submission Platform",
+      "goToPlatform": "Go to Platform",
+      "processingDays": "Processing Time",
+      "days": "days",
+      "submissionPeriod": "Submission Period",
+      "documents": "Documents",
+      "required": "Required",
+      "optional": "Optional",
+      "stepsTitle": "Application Steps",
+      "faq": "Frequently Asked Questions",
+      "obligations": "Obligations",
+      "sanctions": "Sanctions",
+      "formula": "Calculation Formula",
+      "calculator": "Subsidy Calculator",
+      "calcQty": "Quantity",
+      "calcSelectRate": "Select Rate",
+      "calcAmount": "Subsidy Amount",
+      "calcActualCost": "Actual Costs",
+      "calcActualCostHint": "Enter actual costs for calculation",
+      "calcCropNotice": "For crops — area in ha",
+      "linkFinance": "Related Loan Programs"
+    },
+    "glossary": {
+      "title": "Subsidy Glossary",
+      "subtitle": "Terms and definitions for government support programs",
+      "abbreviation": "Abbreviation",
+      "definition": "Definition"
+    },
+    "compare": {
+      "title": "Compare Subsidies",
+      "subtitle": "Compare terms of multiple programs",
+      "parameter": "Parameter"
+    },
+    "match": {
+      "title": "Subsidy Matching",
+      "back": "Back",
+      "next": "Next",
+      "startOver": "Start Over",
+      "step1": "Activity Type",
+      "step2": "Parameters",
+      "step3": "Results",
+      "step3Desc": "Matching programs found",
+      "step4": "Details",
+      "stepOf": "{{current}} of {{total}}",
+      "activities": "Choose your activity type",
+      "activity": {
+        "livestock": "Livestock",
+        "crop": "Crop Farming",
+        "irrigation": "Irrigation"
+      },
+      "recipientType": "Recipient Type",
+      "livestockType": "Livestock Type",
+      "origin": "Livestock Origin",
+      "herdSize": "Herd Size (head)",
+      "landArea": "Land Area (ha)",
+      "irrigatedArea": "Irrigated Area (ha)",
+      "irrigationEquipment": "Equipment Type",
+      "irrigationCost": "Equipment Cost (KZT)",
+      "irrigationCostPlaceholder": "Enter cost",
+      "calculate": "Calculate",
+      "empty": "No subsidies found for your parameters",
+      "matched": "Programs found: {{count}}",
+      "viewDetails": "View Details",
+      "totalEstimate": "Estimated Subsidy Amount",
+      "amountForQty": "{{amount}} per {{qty}}",
+      "noDetailsNeeded": "No additional parameters required"
+    },
+    "passport": {
+      "title": "Subsidy Passports",
+      "subtitle": "Official subsidy rate standards",
+      "catalog": "To subsidy catalog",
+      "search": "Search passports",
+      "empty": "No passports found",
+      "code": "Code",
+      "name": "Name",
+      "rate": "Rate",
+      "unit": "Unit",
+      "maxCost": "Maximum Cost",
+      "threshold": "Threshold",
+      "items": "items"
     }
   }
 }
