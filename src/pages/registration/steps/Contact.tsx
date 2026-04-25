@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { FloatingInput } from '../components/FloatingInput'
 import { PhoneInput } from '../components/PhoneInput'
+import { OtpInput } from '../components/OtpInput'
 import { BottomSheet } from '../components/BottomSheet'
 import { REGIONS } from '../constants'
 import type { RegistrationFormData } from '../constants'
@@ -11,17 +15,26 @@ interface ContactProps {
   onNext: () => void
 }
 
-/**
- * Contact step — collects name, phone, password, region.
- * NO auth call here — account is created at Agreement step (after consent).
- */
 export function Contact({ formData, onChange, onNext }: ContactProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [regionSheetOpen, setRegionSheetOpen] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [otpValue, setOtpValue] = useState('')
+  const [countdown, setCountdown] = useState(0)
 
   const selectedRegion = REGIONS.find((r) => r.id === formData.region_id)
+  const maskedPhone = formData.phone.length >= 7
+    ? `+7 (${formData.phone.slice(0, 3)}) ${formData.phone.slice(3, 6)}-••-••`
+    : `+7 ${formData.phone}`
 
-  const validate = () => {
+  useEffect(() => {
+    if (countdown <= 0) return
+    const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [countdown])
+
+  const validateContact = () => {
     const errs: Record<string, string> = {}
     if (!formData.full_name.trim() || formData.full_name.trim().length < 2) {
       errs.full_name = 'Введите ваше имя'
@@ -29,26 +42,133 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     if (formData.phone.length < 10) {
       errs.phone = 'Введите номер телефона'
     }
-    if (!formData.password || formData.password.length < 6) {
-      errs.password = 'Минимум 6 символов'
-    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  const handleNext = () => {
-    if (!validate()) return
-    onNext()
+  const handleSendOtp = async () => {
+    if (!validateContact()) return
+    setIsSending(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: `+7${formData.phone}`,
+      })
+      if (error) {
+        toast.error(error.message || 'Ошибка отправки кода')
+        return
+      }
+      onChange({ otp_sent: true })
+      setCountdown(60)
+    } catch {
+      toast.error('Ошибка отправки кода')
+    } finally {
+      setIsSending(false)
+    }
   }
 
+  const handleVerifyOtp = async (token: string) => {
+    if (token.length < 6) return
+    setIsVerifying(true)
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: `+7${formData.phone}`,
+        token,
+        type: 'sms',
+      })
+      if (error) {
+        toast.error('Неверный код — попробуйте ещё раз')
+        setOtpValue('')
+        return
+      }
+      onChange({ otp_verified: true })
+      onNext()
+    } catch {
+      toast.error('Ошибка проверки кода')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (countdown > 0 || isSending) return
+    setIsSending(true)
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: `+7${formData.phone}`,
+      })
+      if (error) { toast.error(error.message); return }
+      setOtpValue('')
+      setCountdown(60)
+    } catch {
+      toast.error('Ошибка отправки')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  // Phase 2: OTP verification
+  if (formData.otp_sent) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
+            Код из SMS
+          </h2>
+          <p className="text-sm text-[#6b5744]">
+            Отправили на {maskedPhone}
+          </p>
+        </div>
+
+        <OtpInput
+          value={otpValue}
+          onChange={setOtpValue}
+          onComplete={handleVerifyOtp}
+          disabled={isVerifying}
+        />
+
+        <button
+          onClick={() => handleVerifyOtp(otpValue)}
+          disabled={otpValue.length < 6 || isVerifying}
+          className="reg-btn-primary w-full flex items-center justify-center gap-2"
+        >
+          {isVerifying && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isVerifying ? 'Проверка…' : 'Подтвердить'}
+        </button>
+
+        <p className="text-center text-sm text-[#6b5744]">
+          Не пришло?{' '}
+          {countdown > 0 ? (
+            <span className="text-[#6b5744]/50">через {countdown} сек.</span>
+          ) : (
+            <button
+              onClick={handleResend}
+              disabled={isSending}
+              className="text-[hsl(24,73%,54%)] font-medium hover:underline"
+            >
+              {isSending ? 'Отправка…' : 'Отправить снова'}
+            </button>
+          )}
+        </p>
+
+        <button
+          onClick={() => { onChange({ otp_sent: false }); setOtpValue('') }}
+          className="w-full text-center text-sm text-[#6b5744]/50 hover:text-[#6b5744] transition-colors"
+        >
+          ← Изменить номер
+        </button>
+      </div>
+    )
+  }
+
+  // Phase 1: contact form
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
-          Контактные данные
+          Как с вами связаться?
         </h2>
         <p className="text-sm text-[#6b5744]">
-          Как с вами связаться
+          SMS-код придёт на указанный номер
         </p>
       </div>
 
@@ -72,17 +192,6 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
           error={errors.phone}
         />
 
-        <FloatingInput
-          label="Придумайте пароль"
-          value={formData.password}
-          onChange={(v) => {
-            onChange({ password: v })
-            if (errors.password) setErrors((e) => ({ ...e, password: '' }))
-          }}
-          error={errors.password}
-          type="password"
-        />
-
         <button
           type="button"
           onClick={() => setRegionSheetOpen(true)}
@@ -98,10 +207,12 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
       </div>
 
       <button
-        onClick={handleNext}
-        className="reg-btn-primary w-full"
+        onClick={handleSendOtp}
+        disabled={isSending}
+        className="reg-btn-primary w-full flex items-center justify-center gap-2"
       >
-        Продолжить
+        {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isSending ? 'Отправка…' : 'Получить код'}
       </button>
 
       <BottomSheet

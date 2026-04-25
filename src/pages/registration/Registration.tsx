@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import { ProgressBar } from './components/ProgressBar'
@@ -13,7 +12,6 @@ import { MpkDetails } from './steps/MpkDetails'
 import { ServicesDetails } from './steps/ServicesDetails'
 import { FeedProducerDetails } from './steps/FeedProducerDetails'
 import { Agreement } from './steps/Agreement'
-import { MembershipApp } from './steps/MembershipApp'
 import { Success } from './steps/Success'
 import { INITIAL_FORM_DATA } from './constants'
 import type { RegistrationFormData, RoleType } from './constants'
@@ -27,7 +25,6 @@ type Step =
   | 'role_details'
   | 'benefit_2'
   | 'agreement'
-  | 'membership'
   | 'success'
 
 const STEP_ORDER: Step[] = [
@@ -37,14 +34,8 @@ const STEP_ORDER: Step[] = [
   'role_details',
   'benefit_2',
   'agreement',
-  'membership',
   'success',
 ]
-
-function getProgress(step: Step): number {
-  const idx = STEP_ORDER.indexOf(step)
-  return Math.round(((idx + 1) / STEP_ORDER.length) * 100)
-}
 
 export function Registration() {
   const { session } = useAuth()
@@ -64,7 +55,6 @@ export function Registration() {
     return INITIAL_FORM_DATA
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [orgId, setOrgId] = useState<string | null>(null)
   const stepRef = useRef<HTMLDivElement>(null)
 
   // If already authenticated with context, redirect to cabinet
@@ -109,12 +99,16 @@ export function Registration() {
   }, [step])
 
   const goBack = useCallback(() => {
+    if (step === 'contact' && formData.otp_sent) {
+      updateForm({ otp_sent: false })
+      return
+    }
     const curIdx = STEP_ORDER.indexOf(step)
     if (curIdx > 0) {
       const prev = STEP_ORDER[curIdx - 1]
       if (prev) goTo(prev)
     }
-  }, [step, goTo])
+  }, [step, formData.otp_sent, updateForm, goTo])
 
   const handleRegister = async () => {
     setIsSubmitting(true)
@@ -161,28 +155,7 @@ export function Registration() {
         }
       }
 
-      // 1. Create auth account (phone+password → fake email pattern)
-      const fakeEmail = phoneToFakeEmail(formData.phone)
-
-      const { error: authError } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: formData.password,
-      })
-
-      if (authError) {
-        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-          toast.error('Этот номер уже зарегистрирован. Войдите в кабинет.')
-        } else {
-          toast.error('Ошибка создания аккаунта')
-          console.error('Auth error:', authError)
-        }
-        return
-      }
-
-      // Small delay for auth trigger to create public.users record
-      await new Promise((r) => setTimeout(r, 500))
-
-      // 2. Create organization via RPC
+      // Create organization via RPC (user already authenticated via OTP)
       const enrichedRoleData = {
         ...roleData,
         full_name: formData.full_name,
@@ -209,14 +182,20 @@ export function Registration() {
       }
 
       const result = data as { org_id: string; farm_id?: string } | null
+
+      // Registration = membership application — submit silently in background
       if (result?.org_id) {
-        setOrgId(result.org_id)
+        supabase.rpc('rpc_submit_membership_application', {
+          p_organization_id: result.org_id,
+          p_membership_type: 'associate',
+          p_notes: null,
+        }).then(() => {/* intentionally fire-and-forget */})
       }
 
       // Clear saved form data
       sessionStorage.removeItem(STORAGE_KEY)
 
-      goTo('membership')
+      goTo('success')
     } catch (err) {
       toast.error('Ошибка регистрации')
       console.error(err)
@@ -306,14 +285,6 @@ export function Registration() {
             isSubmitting={isSubmitting}
           />
         )
-      case 'membership':
-        return (
-          <MembershipApp
-            orgId={orgId || ''}
-            onComplete={() => goTo('success')}
-            onSkip={() => goTo('success')}
-          />
-        )
       case 'success':
         return (
           <Success
@@ -327,7 +298,8 @@ export function Registration() {
     }
   }
 
-  const showBackButton = step !== 'role_select' && step !== 'success' && step !== 'membership'
+  const showBackButton = step !== 'role_select' && step !== 'success'
+  const stepIndex = STEP_ORDER.indexOf(step) + 1
 
   return (
     <div className="min-h-screen bg-[#fdf6ee] flex flex-col">
@@ -345,7 +317,7 @@ export function Registration() {
             </button>
           )}
           <div className="flex-1">
-            <ProgressBar progress={getProgress(step)} />
+            <ProgressBar current={stepIndex} total={STEP_ORDER.length} />
           </div>
         </div>
       </div>

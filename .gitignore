@@ -38,3 +38,6 @@ Design_System/
 tsconfig.tsbuildinfo
 .vercel
 .superpowers/
+
+*storybook.log
+storybook-static

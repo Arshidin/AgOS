@@ -66,8 +66,11 @@ export function Agreement({ formData, onChange, onSubmit, isSubmitting }: Agreem
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-xl font-semibold text-[#2B180A] font-serif">
-          Завершение регистрации
+          Почти готово
         </h2>
+        <p className="text-sm text-[#6b5744]">
+          Привязываем профиль к организации
+        </p>
       </div>
 
       {/* Summary box */}

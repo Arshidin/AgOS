@@ -35,26 +35,14 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-/* ---- Turan Star SVG ---- */
-function TuranStar({ size = 24 }: { size?: number }) {
+/* ---- Turan Logo Icon ---- */
+function TuranIcon({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-      <g transform="translate(16,16)">
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
-          <line
-            key={a}
-            x1="0"
-            y1="-3"
-            x2="0"
-            y2="-13"
-            stroke="var(--accent, #E8920B)"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            transform={`rotate(${a})`}
-          />
-        ))}
-        <circle cx="0" cy="0" r="2.5" fill="var(--accent, #E8920B)" />
-      </g>
+    <svg width={size} height={size} viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20.5996 33.3L44.8296 57.53C45.8396 58.54 47.4696 58.54 48.4696 57.53L54.3896 51.61C67.4696 38.53 74.8196 20.79 74.8196 2.3V0H56.4396V43.15L33.5996 20.31L20.5996 33.31V33.3Z" fill="#F7931E"/>
+      <path d="M109.13 96.4499L84.9002 72.2199C83.8902 71.2099 82.2602 71.2099 81.2602 72.2199L75.3402 78.1399C62.2602 91.2199 54.9102 108.96 54.9102 127.45V129.74H73.2902V86.5899L96.1301 109.43L109.13 96.4299V96.4499Z" fill="#F7931E"/>
+      <path d="M96.4397 20.6099L72.2096 44.8399C71.1996 45.8499 71.1996 47.4799 72.2096 48.4799L78.1296 54.3999C91.2096 67.4799 108.95 74.8299 127.44 74.8299H129.73V56.4499H86.5797L109.42 33.6099L96.4196 20.6099H96.4397Z" fill="#F7931E"/>
+      <path d="M33.29 109.14L57.52 84.9099C58.53 83.8999 58.53 82.2699 57.52 81.2699L51.6 75.3499C38.52 62.2699 20.78 54.9199 2.29 54.9199H0V73.2999H43.15L20.31 96.1399L33.31 109.14H33.29Z" fill="#F7931E"/>
     </svg>
   )
 }
@@ -322,7 +310,7 @@ export function Sidebar() {
           justifyContent: isCollapsed ? 'center' : 'flex-start',
         }}
       >
-        <TuranStar size={24} />
+        <TuranIcon size={24} />
         {isExpanded && (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>

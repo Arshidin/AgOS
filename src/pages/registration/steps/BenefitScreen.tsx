@@ -1,5 +1,12 @@
 import type { RoleType } from '../constants'
 
+const ROLE_ILLOS: Record<RoleType, string> = {
+  farmer: '🐄',
+  mpk: '🏭',
+  services: '🔧',
+  feed_producer: '🌾',
+}
+
 const BENEFIT_CONTENT: Record<
   RoleType,
   { step1: BenefitData; step2: BenefitData }
@@ -103,28 +110,49 @@ export function BenefitScreen({ role, step, onNext }: BenefitScreenProps) {
     : BENEFIT_CONTENT[role].step2
 
   return (
-    <div className="reg-benefit-enter space-y-8">
-      <div className="text-center">
-        <h2 className="text-xl font-semibold text-[#2B180A] font-serif leading-tight">
-          {content.title}
-        </h2>
+    <div className="reg-benefit-enter space-y-5">
+      {/* Illustration card */}
+      <div
+        className="rounded-2xl border border-[#e8ddd0] overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #fdf6ee 0%, #f0e0c8 100%)' }}
+      >
+        <div
+          className="h-24 flex items-center justify-center text-5xl"
+          style={{
+            background: 'repeating-linear-gradient(135deg, rgba(196,136,58,0.06) 0 1px, transparent 1px 8px)',
+          }}
+        >
+          {ROLE_ILLOS[role]}
+        </div>
+        <div className="px-4 pt-3 pb-4">
+          <h2 className="text-[18px] font-semibold text-[#2B180A] font-serif leading-snug">
+            {content.title}
+          </h2>
+        </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Benefits list */}
+      <div className="space-y-3">
         {content.items.map((item, idx) => (
           <div
             key={idx}
             className="flex items-start gap-3 reg-benefit-enter"
-            style={{ animationDelay: `${(idx + 1) * 100}ms` }}
+            style={{ animationDelay: `${(idx + 1) * 80}ms` }}
           >
-            <div className="w-6 h-6 rounded-full bg-[hsl(24,73%,54%)]/10 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-5 h-5 rounded-full bg-[hsl(24,73%,54%)]/10 flex items-center justify-center shrink-0 mt-0.5">
               <svg className="w-3 h-3 text-[hsl(24,73%,54%)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-[15px] text-[#2B180A]/80 leading-relaxed">{item}</p>
+            <p className="text-[14px] text-[#2B180A]/80 leading-relaxed">{item}</p>
           </div>
         ))}
+      </div>
+
+      {/* Pager dots */}
+      <div className="flex justify-center items-center gap-2 py-1">
+        <div className={`rounded-full transition-all duration-300 ${step === 1 ? 'w-5 h-1.5 bg-[hsl(24,73%,54%)]' : 'w-1.5 h-1.5 bg-[#e8ddd0]'}`} />
+        <div className={`rounded-full transition-all duration-300 ${step === 2 ? 'w-5 h-1.5 bg-[hsl(24,73%,54%)]' : 'w-1.5 h-1.5 bg-[#e8ddd0]'}`} />
       </div>
 
       <button onClick={onNext} className="reg-btn-primary w-full">

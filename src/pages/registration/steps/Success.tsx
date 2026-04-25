@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { MessageCircle, ClipboardList, ArrowRight } from 'lucide-react'
 import type { RoleType } from '../constants'
 
 interface SuccessProps {
@@ -8,162 +7,124 @@ interface SuccessProps {
   companyName?: string
 }
 
-const CONFETTI_PARTICLES = [
-  { left: '12%', delay: '0s', color: '#C4883A', size: 8 },
-  { left: '28%', delay: '0.3s', color: '#E8C87A', size: 6 },
-  { left: '42%', delay: '0.1s', color: '#D4A44C', size: 10 },
-  { left: '58%', delay: '0.4s', color: '#C4883A', size: 7 },
-  { left: '72%', delay: '0.15s', color: '#8B6914', size: 9 },
-  { left: '85%', delay: '0.25s', color: '#E8C87A', size: 6 },
-  { left: '50%', delay: '0.2s', color: '#C4883A', size: 8 },
-]
-
-function Confetti() {
-  return (
-    <div className="absolute inset-x-0 top-0 h-40 pointer-events-none overflow-hidden">
-      {CONFETTI_PARTICLES.map((p, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full reg-confetti-particle"
-          style={{
-            left: p.left,
-            top: '-12px',
-            width: p.size,
-            height: p.size,
-            backgroundColor: p.color,
-            animationDelay: p.delay,
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-function formatPhoneFull(digits: string): string {
-  if (digits.length !== 10) return `+7${digits}`
-  return `+7 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 8)}-${digits.slice(8)}`
-}
-
-const ROLE_MESSAGES: Record<RoleType, { title: string; farmerMsg: string; nextStep: string; cta: string; route: string }> = {
+const CABINET_CONTENT: Record<
+  RoleType,
+  {
+    kpi: { n: string; t: string }[]
+    tasks: string[]
+    cta: string
+    route: string
+  }
+> = {
   farmer: {
-    title: 'Регистрация завершена!',
-    farmerMsg: 'Ваш кабинет фермера активирован. Мы отправим уведомление на',
-    nextStep: 'Заполните профиль фермы, добавьте поголовье и попробуйте AI-ветеринара',
-    cta: 'Войти в кабинет',
-    route: '/login',
+    kpi: [{ n: '0', t: 'голов' }, { n: '0', t: 'групп' }, { n: '—', t: 'корма' }],
+    tasks: ['Добавить группы стада', 'Указать остатки кормов', 'Первый чекап здоровья'],
+    cta: 'В кабинет →',
+    route: '/cabinet',
   },
   mpk: {
-    title: 'Регистрация завершена!',
-    farmerMsg: 'Ваша заявка принята. Мы сообщим о подключении кабинета на',
-    nextStep: 'Мы подготовим ваш личный кабинет и уведомим о готовности',
-    cta: 'Войти в кабинет',
-    route: '/login',
+    kpi: [{ n: '0', t: 'пулов' }, { n: '—', t: 'закуп' }, { n: '0', t: 'команда' }],
+    tasks: ['Посмотреть доступные пулы', 'Настроить критерии закупа', 'Пригласить команду'],
+    cta: 'В кабинет →',
+    route: '/cabinet',
   },
   services: {
-    title: 'Регистрация завершена!',
-    farmerMsg: 'Ваша заявка принята. Мы сообщим о подключении кабинета на',
-    nextStep: 'Мы подготовим ваш кабинет сервисной компании и уведомим о готовности',
-    cta: 'Войти в кабинет',
-    route: '/login',
+    kpi: [{ n: '0', t: 'услуг' }, { n: '0', t: 'зон' }, { n: 'off', t: 'приём' }],
+    tasks: ['Заполнить прайс-лист', 'Указать зоны обслуживания', 'Включить приём заявок'],
+    cta: 'В кабинет →',
+    route: '/cabinet',
   },
   feed_producer: {
-    title: 'Регистрация завершена!',
-    farmerMsg: 'Ваша заявка принята. Мы сообщим о подключении кабинета на',
-    nextStep: 'Мы подготовим ваш кабинет кормопроизводителя и уведомим о готовности',
-    cta: 'Войти в кабинет',
-    route: '/login',
+    kpi: [{ n: '0', t: 'позиций' }, { n: '0', t: 'складов' }, { n: 'off', t: 'заказы' }],
+    tasks: ['Настроить каталог кормов', 'Указать склады', 'Запустить приём заказов'],
+    cta: 'В кабинет →',
+    route: '/cabinet',
   },
 }
 
-export function Success({ role, phone = '', companyName = '' }: SuccessProps) {
+export function Success({ role, companyName = '' }: SuccessProps) {
   const navigate = useNavigate()
-  const msg = ROLE_MESSAGES[role]
-  const formattedPhone = formatPhoneFull(phone)
-
-  const waMessage = encodeURIComponent(
-    `Здравствуйте! Я зарегистрировался в TURAN${companyName ? ` (${companyName})` : ''}. Хочу уточнить детали.`
-  )
-  const waLink = `https://wa.me/77753387130?text=${waMessage}`
+  const content = CABINET_CONTENT[role]
 
   return (
-    <div className="text-center relative">
-      <Confetti />
-
-      {/* Animated checkmark */}
-      <div className="flex justify-center pt-4">
-        <svg className="w-20 h-20" viewBox="0 0 52 52">
-          <circle
-            className="reg-checkmark-circle"
-            cx="26"
-            cy="26"
-            r="25"
-            fill="none"
-            stroke="#2d7a3a"
-            strokeWidth="2"
-          />
-          <path
-            className="reg-checkmark-check"
-            fill="none"
-            stroke="#2d7a3a"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M14.1 27.2l7.1 7.2 16.7-16.8"
-          />
-        </svg>
+    <div className="space-y-4 reg-benefit-enter">
+      {/* Mini app chrome */}
+      <div className="flex items-center gap-2.5 pb-3 border-b border-dashed border-[#e8ddd0]">
+        <div className="w-7 h-7 rounded-lg bg-[hsl(24,73%,54%)] flex items-center justify-center text-white font-bold text-sm shrink-0">
+          Т
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-[#2B180A] truncate leading-tight">
+            {companyName || 'Ваша организация'}
+          </div>
+          <div className="text-[10px] text-[#6b5744]/60 uppercase tracking-wide font-mono">
+            TURAN · на рассмотрении
+          </div>
+        </div>
       </div>
 
-      <h2 className="font-serif text-[26px] font-semibold mt-6 text-[#2B180A]">
-        {msg.title}
-      </h2>
+      {/* Welcome */}
+      <div>
+        <h2 className="text-[22px] font-semibold text-[#2B180A] font-serif leading-tight">
+          Добро пожаловать
+        </h2>
+        <p className="text-sm text-[#6b5744] mt-1">
+          Кабинет создан. Вот что сделать первым.
+        </p>
+      </div>
 
-      <p className="text-[15px] max-w-[360px] mx-auto mt-3 leading-relaxed text-[#6b5744]">
-        {msg.farmerMsg}{' '}
-        {phone && <span className="font-semibold text-[#2B180A]">{formattedPhone}</span>}
-        {phone ? '.' : ''}
-      </p>
+      {/* KPI grid */}
+      <div className="grid grid-cols-3 gap-2">
+        {content.kpi.map((k, i) => (
+          <div
+            key={i}
+            className="border border-[#e8ddd0] rounded-xl p-2.5 bg-white text-center"
+          >
+            <div className="text-[22px] font-semibold text-[#2B180A] font-serif leading-tight">
+              {k.n}
+            </div>
+            <div className="text-[9px] text-[#6b5744] uppercase tracking-wide font-mono mt-0.5">
+              {k.t}
+            </div>
+          </div>
+        ))}
+      </div>
 
-      {/* Next steps */}
-      <div className="flex flex-col gap-3 mt-10">
-        {/* WhatsApp */}
-        <a
-          href={waLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-3 p-4 rounded-xl text-left transition-all duration-200 hover:shadow-sm reg-benefit-enter"
-          style={{ background: 'rgba(43,24,10,0.02)', animationDelay: '150ms' }}
-        >
-          <div className="w-10 h-10 rounded-xl bg-[#fdf6ee] flex items-center justify-center shrink-0 mt-0.5">
-            <MessageCircle size={20} className="text-[hsl(24,73%,54%)]" />
+      {/* Task list */}
+      <div className="border border-[#e8ddd0] rounded-xl overflow-hidden bg-white">
+        <div className="px-3 py-2 bg-[#fdf6ee] border-b border-[#e8ddd0] flex justify-between items-center">
+          <span className="text-[10px] text-[#6b5744] uppercase tracking-wide font-mono">
+            Первые шаги
+          </span>
+          <span className="text-[10px] text-[#6b5744]/60 font-mono">0 / 3</span>
+        </div>
+        {content.tasks.map((task, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-[#2B180A]"
+            style={{ borderTop: i === 0 ? 'none' : '1px dashed #e8ddd0' }}
+          >
+            <div className="w-3.5 h-3.5 border border-[hsl(24,73%,54%)] rounded shrink-0" />
+            <span className="flex-1">{task}</span>
+            <span className="text-[#6b5744]/40 text-xs">→</span>
           </div>
-          <div className="flex-1">
-            <p className="text-sm leading-relaxed text-[#2B180A] font-medium">
-              Написать в WhatsApp
-            </p>
-            <p className="text-xs text-[#6b5744]/70 mt-0.5">Открыть чат</p>
-          </div>
-          <ArrowRight size={16} className="text-[#6b5744]/40 shrink-0 mt-1" />
-        </a>
+        ))}
+      </div>
 
-        {/* Info step */}
-        <div
-          className="flex items-start gap-3 p-4 rounded-xl text-left reg-benefit-enter"
-          style={{ background: 'rgba(43,24,10,0.02)', animationDelay: '300ms' }}
-        >
-          <div className="w-10 h-10 rounded-xl bg-[#fdf6ee] flex items-center justify-center shrink-0 mt-0.5">
-            <ClipboardList size={20} className="text-[hsl(24,73%,54%)]" />
-          </div>
-          <p className="text-sm leading-relaxed text-[#6b5744]">
-            {msg.nextStep}
-          </p>
+      {/* Membership pending banner */}
+      <div className="flex gap-2.5 items-start p-3 rounded-xl border border-dashed border-[hsl(24,73%,54%)] bg-[hsl(24,73%,54%)]/5">
+        <span className="text-[hsl(24,73%,54%)] text-base leading-none mt-0.5">⧗</span>
+        <div className="text-[12px] text-[#2B180A]/70 leading-relaxed">
+          <span className="font-semibold text-[#2B180A]">Заявка в ТУРАН · на рассмотрении</span>
+          <br />Обычно 1–3 дня. Уведомим в WhatsApp.
         </div>
       </div>
 
       <button
-        onClick={() => navigate(msg.route)}
-        className="reg-btn-primary w-full mt-10"
+        onClick={() => navigate(content.route)}
+        className="reg-btn-primary w-full"
       >
-        {msg.cta}
+        {content.cta}
       </button>
     </div>
   )
