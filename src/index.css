@@ -156,9 +156,13 @@
 
     /* Semantic status colors (available globally for badges etc.) */
     --blue: #4571b8;
+    --blue-m: rgba(69,113,184,0.08);
     --green: #3a8a52;
+    --green-m: rgba(58,138,82,0.08);
     --amber: #b37a10;
+    --amber-m: rgba(179,122,16,0.08);
     --red: #c0392b;
+    --red-m: rgba(192,57,43,0.08);
   }
 
   /* ═══ TURAN DS v12 — Dark (scoped to AppShell only) ═══ */
