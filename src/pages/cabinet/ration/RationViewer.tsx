@@ -100,8 +100,8 @@ function StatusBadge({ ok, okLabel = 'ОК', failLabel = 'дефицит' }: { o
         fontWeight: 600,
         padding: '2px 8px',
         borderRadius: 6,
-        background: ok ? 'rgba(76,175,80,0.15)' : 'rgba(229,57,53,0.12)',
-        color: ok ? '#2e7d32' : '#c62828',
+        background: ok ? 'var(--green-m)' : 'var(--red-m)',
+        color: ok ? 'var(--green)' : 'var(--red)',
       }}
     >
       {ok ? okLabel : failLabel}
@@ -420,12 +420,12 @@ function RationCard({ ration, onRecalculate }: { ration: RationData; onRecalcula
         {warnings.length > 0 && (
           <div
             style={{
-              background: 'rgba(245,158,11,0.1)',
-              border: '1px solid rgba(245,158,11,0.3)',
+              background: 'var(--amber-m)',
+              border: '1px solid color-mix(in srgb, var(--amber) 30%, transparent)',
               borderRadius: 8,
               padding: '10px 14px',
               fontSize: 13,
-              color: '#92400e',
+              color: 'var(--amber)',
               lineHeight: 1.6,
             }}
           >

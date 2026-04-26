@@ -1,0 +1,379 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ═══════ CANONICAL SCROLLBAR ═══════
+     Thin · warm · visible only on hover/scroll · matches Turan paper palette.
+     Firefox: scrollbar-width + scrollbar-color
+     WebKit:  ::-webkit-scrollbar + thumb + track                              */
+  .tur-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #c7beac transparent;
+  }
+  .tur-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .tur-scroll::-webkit-scrollbar-track { background: transparent; }
+  .tur-scroll::-webkit-scrollbar-thumb {
+    background: #d9d1c5;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 10px;
+  }
+  .tur-scroll::-webkit-scrollbar-thumb:hover { background: #9a9288; background-clip: padding-box; }
+  .tur-scroll::-webkit-scrollbar-corner { background: transparent; }
+
+  /* Overlay variant — auto-hide, appears on :hover of container */
+  .tur-scroll-overlay::-webkit-scrollbar-thumb { background: transparent; }
+  .tur-scroll-overlay:hover::-webkit-scrollbar-thumb { background: #d9d1c5; background-clip: padding-box; }
+  .tur-scroll-overlay:hover::-webkit-scrollbar-thumb:hover { background: #9a9288; }
+
+  /* ═══════ Scrollbar anatomy diagram ═══════ */
+  .anatomy {
+    display: grid; grid-template-columns: 280px 1fr; gap: 24px;
+    align-items: start;
+  }
+  .anatomy .demo {
+    position: relative;
+    height: 220px; width: 260px;
+    background: #fbfaf6;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    overflow: hidden;
+  }
+  .anatomy .demo .inner {
+    position: absolute; inset: 0;
+    padding: 14px 16px; padding-right: 18px;
+    overflow-y: auto;
+    font: 400 12px 'Geist'; color: #6b6359; line-height: 1.6;
+  }
+  .anatomy .demo .inner p { margin-bottom: 10px; }
+
+  .anatomy .labels {
+    display: flex; flex-direction: column; gap: 14px;
+    padding-top: 12px;
+  }
+  .anatomy .lab {
+    display: grid; grid-template-columns: 14px 1fr; gap: 10px;
+    font: 400 11.5px 'Geist';
+    line-height: 1.4;
+  }
+  .anatomy .lab .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    margin-top: 5px;
+    background: #3d2b1f;
+  }
+  .anatomy .lab .dot.thumb { background: #9a9288; }
+  .anatomy .lab .dot.track { background: #ebe4d5; box-shadow: inset 0 0 0 1px #d9d1c5; }
+  .anatomy .lab .dot.pad   { background: #fbfaf6; box-shadow: inset 0 0 0 1px #c7beac; }
+  .anatomy .lab h5 { margin: 0; font: 500 11.5px 'Geist'; color:#3d2b1f; }
+  .anatomy .lab h5 em {
+    font: 500 10.5px 'Geist Mono';
+    color: #9a9288; font-style: normal;
+    margin-left: 6px;
+  }
+  .anatomy .lab span { color: #9a9288; font-size: 11px; }
+
+  /* ═══════ Sizes ═══════ */
+  .sizes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .sizes .case {
+    background:#fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .sizes .case h5 {
+    margin: 0; font: 500 12px 'Geist Mono'; color:#3d2b1f;
+    letter-spacing: -0.005em;
+  }
+  .sizes .case p {
+    margin: 0; font: 400 10.5px 'Geist'; color: #9a9288; line-height: 1.5;
+    text-wrap: pretty;
+  }
+  .sizes .scroll-demo {
+    height: 130px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow-y: auto;
+    font: 400 11.5px 'Geist'; color: #6b6359; line-height: 1.55;
+    padding: 10px 12px;
+  }
+  .sizes .scroll-demo .n {
+    display: flex; gap: 10px; padding: 3px 0;
+    font-family: 'Geist Mono'; font-size: 10.5px; color: #9a9288;
+  }
+  .sizes .scroll-demo .n b { color: #3d2b1f; font-weight: 500; font-family: 'Geist'; min-width: 160px; }
+
+  /* Thin variant */
+  .thin {
+    scrollbar-width: thin;
+    scrollbar-color: #c7beac transparent;
+  }
+  .thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .thin::-webkit-scrollbar-track { background: transparent; }
+  .thin::-webkit-scrollbar-thumb { background: #d9d1c5; border-radius: 6px; }
+  .thin::-webkit-scrollbar-thumb:hover { background: #9a9288; }
+
+  /* ═══════ In-context demos ═══════ */
+  .ctx-table {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    overflow: hidden;
+  }
+  .ctx-table .t-head, .ctx-table .t-row {
+    display: grid;
+    grid-template-columns: 180px 120px 100px 90px 1fr;
+    align-items: center;
+    padding: 0 14px;
+    height: 40px;
+    font: 400 12px 'Geist'; color: #3d2b1f;
+  }
+  .ctx-table .t-head {
+    background: #f3ede1;
+    font: 500 10.5px 'Geist Mono'; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #9a9288;
+    border-bottom: 1px solid #ebe4d5;
+  }
+  .ctx-table .t-body {
+    max-height: 210px; overflow-y: auto;
+  }
+  .ctx-table .t-row { border-bottom: 1px solid #f3ede1; }
+  .ctx-table .t-row:last-child { border-bottom: 0; }
+  .ctx-table .t-row .nm { font-weight: 500; letter-spacing: -0.005em; }
+  .ctx-table .t-row .st {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 500 11px 'Geist'; letter-spacing: -0.005em;
+  }
+  .ctx-table .t-row .st .d { width: 6px; height: 6px; border-radius: 50%; }
+  .ctx-table .t-row .st.ok .d   { background: #3a8a52; }
+  .ctx-table .t-row .st.wait .d { background: #b37a10; }
+  .ctx-table .t-row .st.off .d  { background: #9a9288; }
+  .ctx-table .t-row .st.ok   { color: #3a8a52; }
+  .ctx-table .t-row .st.wait { color: #b37a10; }
+  .ctx-table .t-row .st.off  { color: #9a9288; }
+  .ctx-table .t-row .sum { font-family: 'Geist Mono'; font-size: 11.5px; font-weight: 500; }
+
+  /* ═══════ Code / rules block ═══════ */
+  .rules {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .rules .box {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 14px 16px;
+  }
+  .rules h5 { margin: 0 0 8px; font: 500 11px 'Geist'; color: #3d2b1f; letter-spacing: -0.005em; }
+  .rules h5 em { font: 500 10px 'Geist Mono'; color: #9a9288; font-style: normal; margin-left: 6px; }
+  .rules pre {
+    margin: 0; font: 500 10.5px 'Geist Mono'; color: #3d2b1f;
+    line-height: 1.55; white-space: pre-wrap;
+  }
+  .rules pre .c { color: #9a9288; }
+  .rules pre .k { color: #4571b8; }
+  .rules pre .v { color: #3a8a52; }
+
+  /* Spec */
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 · Anatomy -->
+  <div>
+    <div class="kicker">Anatomy · default 10 px</div>
+    <div class="anatomy">
+      <div class="demo">
+        <div class="inner tur-scroll">
+          <p><b style="color:#3d2b1f">Карта полей · район Целиноградский</b></p>
+          <p>Наведите на скролл-трек — палец подсветится до <code style="font:500 10.5px 'Geist Mono';color:#3d2b1f;background:#f3ede1;padding:1px 4px;border-radius:3px">#9a9288</code>. Базовое состояние — тёплый <code style="font:500 10.5px 'Geist Mono';color:#3d2b1f;background:#f3ede1;padding:1px 4px;border-radius:3px">#d9d1c5</code>, едва читается на кремовом фоне, но присутствует — не «куда пропал».</p>
+          <p>Трек всегда прозрачный. Палец круглится на 10px, с внутренним 2px padding — визуально даёт 6px толщину, но зону hover — 10px, удобно ловить мышью.</p>
+          <p>На macOS родной overlay-скролл перекроет этот стиль в окнах с native frames — что нормально. В встроенных контентных зонах (таблицы, dropdown, textarea) — наш стиль.</p>
+          <p>Не стилизуем горизонтальный scroll в таблицах — лучше «Show more columns» виртуализация или sticky-ячейка.</p>
+          <p>Поля сезона 2026 — пахота закончена 12 марта, первая культивация запланирована на 28 марта при прогреве почвы &gt; 8°C.</p>
+        </div>
+      </div>
+      <div class="labels">
+        <div class="lab">
+          <div class="dot thumb"></div>
+          <div>
+            <h5>Thumb <em>--fg3 → --fg2 on hover</em></h5>
+            <span>6 px visual · 10 px hit area · radius 10</span>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="dot track"></div>
+          <div>
+            <h5>Track <em>transparent</em></h5>
+            <span>никогда не рисуем желоб — бумажный фон сам держит контраст</span>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="dot pad"></div>
+          <div>
+            <h5>Padding-clip <em>2 px inset</em></h5>
+            <span>border 2px transparent + background-clip padding-box даёт визуально тонкий палец внутри широкой зоны</span>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="dot" style="background:#3d2b1f"></div>
+          <div>
+            <h5>Corner <em>transparent</em></h5>
+            <span>для зон с обоими скроллами — не рисуем квадратик</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 · Sizes -->
+  <div>
+    <div class="kicker">Sizes · 3 widths for 3 contexts</div>
+    <div class="sizes">
+
+      <div class="case">
+        <h5>6 · thin</h5>
+        <p>Dropdown, autocomplete, sidebar nav — там где скролл «живёт» внутри компонента 200–360 px</p>
+        <div class="scroll-demo thin">
+          <div class="n"><b>АО «КазАгроФинанс»</b><span>Астана</span></div>
+          <div class="n"><b>ТОО «Агро-Север»</b><span>Кокшетау</span></div>
+          <div class="n"><b>ИП Кадыров Р.</b><span>Караганда</span></div>
+          <div class="n"><b>ТОО «Степь-2025»</b><span>Петропавловск</span></div>
+          <div class="n"><b>КФХ «Жасыл»</b><span>Костанай</span></div>
+          <div class="n"><b>ТОО «Алтын-Дала»</b><span>Аркалык</span></div>
+          <div class="n"><b>ТОО «Целинное»</b><span>Атбасар</span></div>
+          <div class="n"><b>КФХ «Асем»</b><span>Щучинск</span></div>
+          <div class="n"><b>ТОО «Жана-Жол»</b><span>Атырау</span></div>
+        </div>
+      </div>
+
+      <div class="case">
+        <h5>10 · default</h5>
+        <p>Main content, tables, textarea, modal — основной рабочий стандарт</p>
+        <div class="scroll-demo tur-scroll">
+          <div class="n"><b>Поле №12-Б</b><span>24.8 га</span></div>
+          <div class="n"><b>Поле №07-А</b><span>18.4 га</span></div>
+          <div class="n"><b>Поле №03-В</b><span>42.1 га</span></div>
+          <div class="n"><b>Поле №18-Г</b><span>31.6 га</span></div>
+          <div class="n"><b>Поле №25-А</b><span>27.9 га</span></div>
+          <div class="n"><b>Поле №09-Б</b><span>15.3 га</span></div>
+          <div class="n"><b>Поле №14-Д</b><span>38.7 га</span></div>
+          <div class="n"><b>Поле №06-В</b><span>22.5 га</span></div>
+          <div class="n"><b>Поле №31-А</b><span>29.1 га</span></div>
+        </div>
+      </div>
+
+      <div class="case">
+        <h5>overlay · auto</h5>
+        <p>Карты, canvas, графики — где контент должен занимать 100% ширины без видимого желоба</p>
+        <div class="scroll-demo tur-scroll-overlay">
+          <div class="n"><b>Урожайность · 2023</b><span>32 ц/га</span></div>
+          <div class="n"><b>Урожайность · 2024</b><span>28 ц/га</span></div>
+          <div class="n"><b>Урожайность · 2025</b><span>35 ц/га</span></div>
+          <div class="n"><b>Прогноз · 2026</b><span>38 ц/га</span></div>
+          <div class="n"><b>Почва · N</b><span>норма</span></div>
+          <div class="n"><b>Почва · P</b><span>ниже</span></div>
+          <div class="n"><b>Почва · K</b><span>норма</span></div>
+          <div class="n"><b>pH</b><span>7.2</span></div>
+          <div class="n"><b>Влажность</b><span>18%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 · In context: table -->
+  <div>
+    <div class="kicker">In context · table body</div>
+    <div class="ctx-table">
+      <div class="t-head">
+        <div>Фермер</div>
+        <div>Регион</div>
+        <div>Поля</div>
+        <div>Статус</div>
+        <div style="text-align:right">Оборот, ₸</div>
+      </div>
+      <div class="t-body tur-scroll">
+        <div class="t-row"><div class="nm">ТОО «Агро-Север»</div><div>Кокшетау</div><div>12</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">4 280 000</div></div>
+        <div class="t-row"><div class="nm">КФХ «Жасыл»</div><div>Костанай</div><div>7</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">2 910 400</div></div>
+        <div class="t-row"><div class="nm">ИП Кадыров Р.</div><div>Караганда</div><div>3</div><div><span class="st wait"><span class="d"></span>На модерации</span></div><div class="sum" style="text-align:right">1 540 800</div></div>
+        <div class="t-row"><div class="nm">ТОО «Степь-2025»</div><div>Петропавловск</div><div>21</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">7 120 000</div></div>
+        <div class="t-row"><div class="nm">ТОО «Алтын-Дала»</div><div>Аркалык</div><div>9</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">3 380 200</div></div>
+        <div class="t-row"><div class="nm">КФХ «Асем»</div><div>Щучинск</div><div>5</div><div><span class="st off"><span class="d"></span>Не активен</span></div><div class="sum" style="text-align:right">0</div></div>
+        <div class="t-row"><div class="nm">ТОО «Целинное»</div><div>Атбасар</div><div>14</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">5 210 600</div></div>
+        <div class="t-row"><div class="nm">ТОО «Жана-Жол»</div><div>Атырау</div><div>8</div><div><span class="st wait"><span class="d"></span>На модерации</span></div><div class="sum" style="text-align:right">2 180 900</div></div>
+        <div class="t-row"><div class="nm">КФХ «Бота»</div><div>Актобе</div><div>6</div><div><span class="st ok"><span class="d"></span>Активен</span></div><div class="sum" style="text-align:right">2 040 300</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 04 · Code & rules -->
+  <div>
+    <div class="kicker">Tokens & usage</div>
+    <div class="rules">
+      <div class="box">
+        <h5>CSS <em>class .tur-scroll</em></h5>
+<pre><span class="c">/* Firefox */</span>
+<span class="k">scrollbar-width</span>: <span class="v">thin</span>;
+<span class="k">scrollbar-color</span>: <span class="v">#c7beac transparent</span>;
+
+<span class="c">/* WebKit */</span>
+<span class="k">::-webkit-scrollbar</span> { <span class="k">width</span>: <span class="v">10px</span>; }
+<span class="k">-thumb</span> {
+  <span class="k">background</span>: <span class="v">#d9d1c5</span>;
+  <span class="k">border</span>: <span class="v">2px solid transparent</span>;
+  <span class="k">background-clip</span>: <span class="v">padding-box</span>;
+  <span class="k">border-radius</span>: <span class="v">10px</span>;
+}
+<span class="k">-thumb:hover</span> { <span class="k">background</span>: <span class="v">#9a9288</span>; }</pre>
+      </div>
+      <div class="box">
+        <h5>Rules <em>when to apply</em></h5>
+        <div style="display:flex; flex-direction:column; gap: 8px; font: 400 11px 'Geist'; color:#6b6359; line-height: 1.5">
+          <div style="display:flex; gap:8px"><span style="color:#3a8a52; font-weight:500; font-family:'Geist Mono'; font-size:10.5px">DO</span> Применять на всех вертикальных скроллах внутри бумажных поверхностей: tables, modals, dropdowns, textareas, sidebar</div>
+          <div style="display:flex; gap:8px"><span style="color:#3a8a52; font-weight:500; font-family:'Geist Mono'; font-size:10.5px">DO</span> <code style="font-family:'Geist Mono'; font-size:10.5px">.thin</code> (6px) в узких компонентах ≤ 360 px ширины</div>
+          <div style="display:flex; gap:8px"><span style="color:#3a8a52; font-weight:500; font-family:'Geist Mono'; font-size:10.5px">DO</span> <code style="font-family:'Geist Mono'; font-size:10.5px">.overlay</code> поверх карт, графиков, canvas</div>
+          <div style="display:flex; gap:8px; margin-top: 2px; padding-top: 8px; border-top: 1px solid #f3ede1"><span style="color:#c0392b; font-weight:500; font-family:'Geist Mono'; font-size:10.5px">DON'T</span> Не стилизовать горизонтальный scroll в таблицах — используйте sticky-колонку</div>
+          <div style="display:flex; gap:8px"><span style="color:#c0392b; font-weight:500; font-family:'Geist Mono'; font-size:10.5px">DON'T</span> Не трогать нативные скроллы window — macOS overlay переопределяет</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>width</b> 10 default · 6 thin</span>
+    <span><b>thumb</b> #d9d1c5 (--bd-s-ish)</span>
+    <span><b>thumb:hover</b> #9a9288 (--fg3)</span>
+    <span><b>track</b> transparent</span>
+    <span><b>rx</b> 10</span>
+    <span><b>inset</b> 2 px via border + background-clip</span>
+    <span><b>FF</b> scrollbar-width: thin · scrollbar-color</span>
+    <span><b>Safari</b> ::-webkit-scrollbar-*</span>
+  </div>
+
+</div>
+</body></html>

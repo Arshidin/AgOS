@@ -1,0 +1,156 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .card {
+    background:#f6f3ed; padding:22px 24px;
+    font-family:'Geist',sans-serif; color:#3d2b1f;
+  }
+  .head {
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom: 18px;
+  }
+  .head .t {
+    font: 600 12px 'Geist', sans-serif;
+    color: #3d2b1f; letter-spacing: -0.005em;
+  }
+  .head .sub {
+    font: 500 10px 'Geist Mono', monospace;
+    color: #9a9288;
+  }
+  .grp-title {
+    font: 600 9.5px 'Geist', sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9a9288;
+    margin: 0 0 10px;
+  }
+  .grp + .grp { margin-top: 18px; }
+
+  /* Avatar base — micro-minimal:
+     - flat muted bg (low chroma warm)
+     - single hairline inner ring for definition on cream bg
+     - tighter mono-like tabular letters
+     - no gradient, no shadow (resist slop) */
+  .av {
+    border-radius: 9999px;
+    display:grid; place-items:center;
+    font-family: 'Geist', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    box-shadow: inset 0 0 0 1px rgba(61,43,31,0.06);
+    user-select:none;
+    flex-shrink: 0;
+  }
+
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  /* Stack row — overlap */
+  .stack { display:flex; align-items:center; }
+  .stack .av {
+    box-shadow:
+      inset 0 0 0 1px rgba(61,43,31,0.06),
+      0 0 0 2px #f6f3ed;
+  }
+  .stack .av + .av { margin-left: -8px; }
+  .stack .more {
+    margin-left: -8px;
+    display:grid; place-items:center;
+    width:28px; height:28px; border-radius:9999px;
+    background:#ece7dd;
+    color:#6b6359;
+    font: 600 10px 'Geist',sans-serif;
+    box-shadow:
+      inset 0 0 0 1px rgba(61,43,31,0.06),
+      0 0 0 2px #f6f3ed;
+  }
+
+  .label {
+    font: 500 10px 'Geist Mono',monospace;
+    color:#9a9288;
+    margin-right: 4px;
+  }
+
+  /* Presence dot */
+  .presence {
+    position: relative;
+  }
+  .presence::after {
+    content:''; position:absolute;
+    right:-1px; bottom:-1px;
+    width: 9px; height: 9px;
+    border-radius: 9999px;
+    background: #3a8a52;
+    box-shadow: 0 0 0 2px #f6f3ed;
+  }
+  .presence.away::after { background: #b37a10; }
+  .presence.off::after  { background: #c7beac; }
+</style>
+</head><body data-theme="light">
+<div class="card">
+
+  <div class="head">
+    <div class="t">Avatars · deterministic by name</div>
+    <div class="sub">flat · hairline · no gloss</div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">Palette (8 hues, ~10% chroma)</div>
+    <div class="row" style="gap:10px">
+      <div class="av" style="width:32px;height:32px;background:#ece2d3;color:#6b5235;font-size:11px">AK</div>
+      <div class="av" style="width:32px;height:32px;background:#dce3ec;color:#3d5576;font-size:11px">SN</div>
+      <div class="av" style="width:32px;height:32px;background:#d9e6db;color:#34613f;font-size:11px">MP</div>
+      <div class="av" style="width:32px;height:32px;background:#e4dbe7;color:#5a4168;font-size:11px">DV</div>
+      <div class="av" style="width:32px;height:32px;background:#ece0cf;color:#6b5530;font-size:11px">AT</div>
+      <div class="av" style="width:32px;height:32px;background:#d8e0e7;color:#3a546c;font-size:11px">BO</div>
+      <div class="av" style="width:32px;height:32px;background:#ebd9dc;color:#6b3a48;font-size:11px">ZK</div>
+      <div class="av" style="width:32px;height:32px;background:#dde7d6;color:#3f5a30;font-size:11px">YD</div>
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">Size scale · xs · sm · md · lg · xl</div>
+    <div class="row" style="gap:10px;align-items:flex-end">
+      <div class="av" style="width:16px;height:16px;background:#ece2d3;color:#6b5235;font-size:8px;letter-spacing:-0.02em">A</div>
+      <div class="av" style="width:22px;height:22px;background:#ece2d3;color:#6b5235;font-size:9px">AK</div>
+      <div class="av" style="width:28px;height:28px;background:#ece2d3;color:#6b5235;font-size:10px">AK</div>
+      <div class="av" style="width:36px;height:36px;background:#ece2d3;color:#6b5235;font-size:12px">AK</div>
+      <div class="av" style="width:48px;height:48px;background:#ece2d3;color:#6b5235;font-size:15px">AK</div>
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">Stack · overlap −8 · cream ring</div>
+    <div class="stack">
+      <div class="av" style="width:28px;height:28px;background:#ece2d3;color:#6b5235;font-size:10px">AK</div>
+      <div class="av" style="width:28px;height:28px;background:#dce3ec;color:#3d5576;font-size:10px">SN</div>
+      <div class="av" style="width:28px;height:28px;background:#d9e6db;color:#34613f;font-size:10px">MP</div>
+      <div class="av" style="width:28px;height:28px;background:#e4dbe7;color:#5a4168;font-size:10px">DV</div>
+      <div class="more">+7</div>
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="grp-title">States · presence · current user</div>
+    <div class="row" style="gap:14px">
+      <div class="row" style="gap:6px">
+        <span class="label">online</span>
+        <div class="av presence" style="width:28px;height:28px;background:#ece2d3;color:#6b5235;font-size:10px">AK</div>
+      </div>
+      <div class="row" style="gap:6px">
+        <span class="label">away</span>
+        <div class="av presence away" style="width:28px;height:28px;background:#dce3ec;color:#3d5576;font-size:10px">SN</div>
+      </div>
+      <div class="row" style="gap:6px">
+        <span class="label">offline</span>
+        <div class="av presence off" style="width:28px;height:28px;background:#ece7dd;color:#9a9288;font-size:10px">MP</div>
+      </div>
+      <div class="row" style="gap:6px;margin-left:auto">
+        <span class="label">you</span>
+        <div class="av" style="width:28px;height:28px;background:#3d2b1f;color:#fbfaf6;font-size:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06)">AR</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

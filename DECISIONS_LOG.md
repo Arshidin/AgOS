@@ -2337,3 +2337,92 @@ Added `consulting_engine/conftest.py` (sys.path) + `pytest.ini` (pythonpath=.). 
 - Easy: one codebase, one Supabase project, one deployment
 - Hard: public zone colors are temporarily inconsistent with cabinet v11 DS — requires rebrand sprint
 - Tech debt: migrated components have hardcoded Russian strings (no i18n); acceptable start state
+
+
+### 2026-04-25: TURAN DS v12 — token refresh from Claude Design handoff
+**What**: Updated `[data-shell]` and `[data-shell][data-theme="light"]` token values in `src/index.css` to match the v12 design system exported from claude.ai/design (handle `sUQuD5CZM096QCWYHxG0NQ`).
+
+**Scope** (per CEO directive): only `/cabinet` and `/admin` (anything under `[data-shell]`). Landing (`:root`) and Registration (`.reg-*`) untouched.
+
+**Changes**:
+- Dark: deeper L0 `#141312 → #0e0d0c` (Vercel-deep), brighter fg `#e6e2dc → #ededea` (Claude paper-cream), hairline borders `#302e2a → #2a2825` (Attio).
+- Light: brighter paper `#f0ebe2 → #f6f3ed`, near-white card `#f7f4ee → #fbfaf6`, less-yellow borders `#d9d1c5 → #e0d9cc`. CTA `#3d2b1f` preserved (matches earlier CEO confirmation in chat transcript).
+- Added font tokens: `--font-sans = Geist`, `--font-mono = Geist Mono`, `--font-display`. Inter/JetBrains Mono kept as fallbacks. Geist applied via `font-family: var(--font-sans)` on `[data-shell]` only.
+- Added missing token scales inside `[data-shell]`: `--fs-*`, `--fw-*`, `--ls-*`, `--h-*` (incl. `--h-row: 48px`), `--sp-*`, `--r-*`, `--dur-*`, `--*-m` muted status backgrounds.
+- Synced shadcn HSL overrides to the new hex values so shadcn components and CSS-var components agree.
+
+**Why**: Visual debt — old shell tokens were "muddy" (too saturated warm-grey), borders too thick, fg too yellow. New design refines these per Vercel/Attio/Claude exemplars. Geist is cyrillic-first with native Kazakh glyphs (ҒҚҢӨҰҮҺ) — better for ERP tables than Inter.
+
+**Files**: `src/index.css` (one file, three Edit operations — additive token refinement, no removed APIs).
+
+**Out of scope** (deferred):
+- Landing/Registration restyling.
+- New preview cards (tabs/pagination/skeleton/toast/date-picker/token-input/scrollbar/disclaimer/option-list/pill-button/textarea) — separate slice.
+- Existing component refactors (cards, table rows, buttons) — they consume the tokens and update automatically.
+
+**Verification**: visual via dev server at `/cabinet` and `/admin` (light + dark). No SQL/RPC/event changes — `cross_check.sh` not required.
+
+
+### 2026-04-25: DS v12 — preview catalog + foundations doc imported
+**What**: Imported the full Claude Design v12 preview catalog (40 self-contained HTML cards) into `Docs/design-system-v12/preview/`, plus the canonical reference CSS as `Docs/design-system-v12/colors_and_type.css`, plus the original logo SVG to `Docs/design-system-v12/assets/`. Created `Docs/AGOS-DesignSystem-v12.md` as the foundations doc — surface hierarchy, CTA discipline, type scale, heights, motion, forbidden patterns, iconography, apply checklist.
+
+**Why**: Designers and future coding agents need a single browsable place to verify "what does the v12 button/card/input look like" without spinning up Storybook. HTML cards are framework-agnostic and survive any frontend refactor. The foundations doc sets governing rules for `[data-shell]` so component code converges on tokens, not literal hex.
+
+**Files added**:
+- `Docs/AGOS-DesignSystem-v12.md` — foundations + preview index + apply checklist
+- `Docs/design-system-v12/colors_and_type.css` — canonical token reference (mirrors `src/index.css [data-shell]`)
+- `Docs/design-system-v12/preview/*.html` — 40 cards + `_shared.css`
+- `Docs/design-system-v12/assets/turan-logo-original.svg` — source artifact
+
+**Out of scope**: React/Storybook conversion (preview cards stay as static HTML); component-by-component refactor of `src/components/` (they already consume CSS vars and pick up v12 automatically).
+
+
+### 2026-04-25: DS v12 — literal hex sweep in /cabinet and /admin
+**What**: Replaced 23 literal hex occurrences across 8 files in `[data-shell]` scope (`src/pages/cabinet/`, `src/pages/admin/`, `src/components/admin/`, `src/components/cabinet/`) with v12 token references.
+
+**Files changed** (MINOR + SIGNIFICANT tier):
+- `src/pages/cabinet/ration/RationViewer.tsx` — status colors (`#2e7d32`/`#c62828`/`#92400e` + rgba) → `var(--green/red/amber)` + `var(--*-m)` muted bands
+- `src/pages/admin/directories/norms/NormsReferenceAdmin.tsx` — fallback `#22c55e` → `#3a8a52` (v12 light `--green`)
+- `src/components/admin/RejectDialog.tsx` — `#993333` / `#fff` → `var(--red)` / `var(--cta-fg)`
+- `src/components/admin/ApproveDialog.tsx` — `#2B180A` → `var(--cta)` + `var(--cta-fg)`
+- `src/components/cabinet/MembershipBadge.tsx` — fallback `#7a6b5d` → `#6b6359` (v12 light `--fg2`)
+- `src/pages/admin/news/BackfillCovers.tsx` — `#fdf6ee` → `var(--bg)`, `#2B180A` → `var(--fg)`, `#E8730C` → `var(--brand)`, rgba tints → `var(--bg-m)`
+- `src/pages/admin/membership/ApplicationDetail.tsx` — `#FAFAF8` → `var(--bg)`, `#2B180A` → `var(--fg)` + `var(--cta)`, `#993333` → `var(--red)`, rgba border → `var(--bd)`
+- `src/pages/admin/startups/StartupDetail.tsx` — same mapping as ApplicationDetail
+
+**Why**: These three admin-detail screens (StartupDetail, ApplicationDetail, BackfillCovers) and two cabinet utilities used pre-v12 hex literals (`#2B180A` darker than v12 `--fg #3d2b1f`; `#FAFAF8` lighter than v12 `--bg-c`). Now they consume the same tokens as the rest of the shell — single source of truth, automatic theme switching.
+
+**Intentionally NOT replaced** (semantic data colors, not brand tokens):
+- `src/pages/admin/consulting/tabs/TechCardTab.tsx` — `PHASE_COLORS` for breeding-cycle Gantt phases (must be visually distinct categories)
+- `src/pages/admin/consulting/tabs/CapexTab.tsx` — project category palette for capex chart
+- `src/pages/admin/finance/components/ProgramDetailFields.tsx` + `AdminProgramsPage.tsx` — `#1a3d22` is a default for user-configurable `hero_color` field
+- `src/pages/admin/membership/ApplicationDetail.tsx` line 198 — `#128C7E` is WhatsApp brand teal (not our palette)
+
+**Verification**: dev server (port 5173) reloaded clean, zero console errors.
+
+
+### 2026-04-25: DS v12 — bg-white sweep in admin-detail screens
+**What**: Replaced 16 `bg-white` Tailwind utilities + 16 literal `rgba(43,24,10,0.06)` borderColors across 3 admin-detail files with v12 tokens (`var(--bg-c)` / `var(--bd-s)`).
+
+**Files**:
+- `src/pages/admin/membership/ApplicationDetail.tsx` (9 cards)
+- `src/pages/admin/startups/StartupDetail.tsx` (7 cards)
+- (BackfillCovers had 0 bg-white — already token-correct)
+
+**Why**: `bg-white` is a hardcoded white that breaks dark-theme. `var(--bg-c)` resolves to `#fbfaf6` in light theme (visually identical to `bg-white` on a beige page) and `#1d1c1a` in dark theme. Cards now follow the surface hierarchy correctly: page=`--bg`, card=`--bg-c`, hover=`--bg-m`. Subtle dividers also normalized to `--bd-s` (replaces alpha-tinted `rgba(43,24,10,0.06)` literal).
+
+**Open follow-up (Minor, not blocking)**: 25 `rgba(43,24,10,X)` literals remain inside `style={{ color: ... }}` for secondary/tertiary text in the same 3 files. They render correctly in light theme (alpha tints of an old brand-brown that visually matches v12 `--fg`), but break in dark theme. Replacing them with `color-mix(in srgb, var(--fg) Y
+
+### 2026-04-25: DS v12 — bg-white sweep in admin-detail screens
+**What**: Replaced 16 `bg-white` Tailwind utilities + 16 literal `rgba(43,24,10,0.06)` borderColors across 3 admin-detail files with v12 tokens (`var(--bg-c)` / `var(--bd-s)`).
+
+**Files**:
+- `src/pages/admin/membership/ApplicationDetail.tsx` (9 cards)
+- `src/pages/admin/startups/StartupDetail.tsx` (7 cards)
+- (BackfillCovers had 0 bg-white — already token-correct)
+
+**Why**: `bg-white` is a hardcoded white that breaks dark-theme. `var(--bg-c)` resolves to `#fbfaf6` in light theme (visually identical to `bg-white` on a beige page) and `#1d1c1a` in dark theme. Cards now follow the surface hierarchy correctly: page=`--bg`, card=`--bg-c`, hover=`--bg-m`. Subtle dividers also normalized to `--bd-s` (replaces alpha-tinted `rgba(43,24,10,0.06)` literal).
+
+**Open follow-up (Minor, not blocking)**: 25 `rgba(43,24,10,X)` literals remain inside `style={{ color: ... }}` for secondary/tertiary text in the same 3 files. They render correctly in light theme (alpha tints of an old brand-brown that visually matches v12 `--fg`), but break in dark theme. Replacing them with `color-mix(in srgb, var(--fg) Y%, transparent)` is a separate sweep — defer until full dark-theme audit happens.
+
+**Verification**: dev-server (port 5173) running clean, zero console errors. `grep bg-white src/pages/admin/{membership,startups,news}` returns 0 hits.

@@ -1,0 +1,275 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap { width: 700px; padding: 24px 28px; background:#f6f3ed; font-family: var(--font-sans); }
+  .kicker { font: 600 10px 'Geist', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #9a9288; margin-bottom: 14px; }
+
+  /* Row layout */
+  .row {
+    display: grid;
+    grid-template-columns: 78px 1fr 160px;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ece5d6;
+  }
+  .row:last-of-type { border-bottom: none; }
+
+  .tok {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    color: #9a9288;
+    letter-spacing: 0;
+    line-height: 1.3;
+  }
+  .tok b { color: #3d2b1f; font-weight: 500; display: block; }
+
+  .usage {
+    font-size: 11px;
+    color: #6b6359;
+    line-height: 1.4;
+  }
+  .usage b { color: #3d2b1f; font-weight: 600; }
+
+  /* Real product surfaces — no abstract boxes */
+  .surface { position: relative; background: transparent; }
+
+  /* 24 — filter chip */
+  .chip24 {
+    display: inline-flex; align-items: stretch; height: 24px;
+    font: 500 11px 'Geist'; letter-spacing:-0.005em;
+    border: 1px solid #c7beac; border-radius: 4px; overflow: hidden;
+    background: #fbfaf6;
+  }
+  .chip24 .k { padding: 0 8px; display:flex; align-items:center; color:#6b6359; border-right:1px solid #e0d9cc; }
+  .chip24 .v { padding: 0 9px 0 8px; display:flex; align-items:center; color:#3d2b1f; gap: 5px; }
+  .chip24 .v .d { width:5px; height:5px; border-radius:9999px; background:#3a8a52; }
+
+  /* 28 — compact button / icon+label */
+  .btn28 {
+    display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px;
+    background: #fbfaf6; border: 1px solid #e0d9cc; border-radius: 6px;
+    font: 500 12px 'Geist'; letter-spacing:-0.005em; color: #3d2b1f; cursor: default;
+  }
+  .btn28 svg { color:#9a9288; }
+
+  /* 32 — CTA default + input default */
+  .bar32 { display:flex; gap:8px; align-items:center; }
+  .cta32 {
+    display:inline-flex; align-items:center; height:32px; padding:0 14px;
+    background: #3d2b1f; color: #fbfaf6; border-radius: 6px; border:0;
+    font: 600 12px 'Geist'; letter-spacing:-0.01em;
+  }
+  .in32 {
+    display:flex; align-items:center; height:32px; padding:0 10px;
+    background:#fbfaf6; border:1px solid #e0d9cc; border-radius:6px;
+    font: 400 13px 'Geist'; color:#3d2b1f;
+    width: 220px;
+  }
+  .in32 .ph { color:#9a9288; }
+
+  /* 36 — edit-form input */
+  .in36 {
+    display:flex; align-items:center; height:36px; padding:0 12px;
+    background:#fbfaf6; border:1px solid #c7beac; border-radius:6px;
+    font: 400 13px 'Geist'; color:#3d2b1f;
+    width: 280px;
+    box-shadow: 0 0 0 3px rgba(61,43,31,0.06);
+  }
+
+  /* 48 — default table row */
+  .tr48 {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 10px;
+    height: 48px; padding: 0 14px;
+    background: #fbfaf6;
+    border: 1px solid #ece5d6;
+    border-radius: 8px;
+  }
+  .tr48 .av {
+    width:28px; height:28px; border-radius:9999px;
+    background:#ede5d8;
+    display:grid; place-items:center;
+    font: 600 10.5px 'Geist'; color:#6b6359; letter-spacing:-0.01em;
+    box-shadow: inset 0 0 0 1px rgba(61,43,31,0.06);
+  }
+  .tr48 .id .nm { font: 500 13px 'Geist'; color:#3d2b1f; letter-spacing:-0.005em; line-height:1.2; }
+  .tr48 .id .em { font: 400 11px 'Geist Mono'; color:#9a9288; margin-top:1px; }
+  .tr48 .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:2px 9px 2px 7px; border-radius:9999px;
+    font: 600 10.5px 'Geist';
+    background:#3a8a5214; color:#2f6e42; box-shadow: inset 0 0 0 1px #3a8a5226;
+  }
+  .tr48 .pill .d { width:6px; height:6px; border-radius:9999px; background:#3a8a52; }
+
+  /* 56 — page header / main toolbar */
+  .hdr56 {
+    display:flex; align-items:center; justify-content:space-between;
+    height:56px; padding:0 18px;
+    background:#ece7dd;
+    border:1px solid #e0d9cc;
+    border-radius:8px;
+  }
+  .hdr56 .brand { display:flex; align-items:center; gap:10px; }
+  .hdr56 .brand .star {
+    width:28px; height:28px; border-radius:6px;
+    background: radial-gradient(circle at 35% 30%, #f0b040 0%, #E8920B 70%);
+    display:grid; place-items:center; color:#fff; font: 700 14px 'Geist'; letter-spacing:-0.02em;
+  }
+  .hdr56 .brand .nm { font: 700 15px 'Geist'; letter-spacing:-0.02em; color:#3d2b1f; }
+  .hdr56 .actions { display:flex; align-items:center; gap:8px; font: 500 12px 'Geist'; color:#6b6359; }
+  .hdr56 .actions .kbd {
+    font: 500 10px 'Geist Mono'; padding:1px 5px; border-radius:3px;
+    background:#fbfaf6; border:1px solid #c7beac; color:#6b6359;
+  }
+
+  .section-break {
+    margin-top: 16px; padding-top: 12px;
+    border-top: 1px dashed #d9cfbb;
+    font: 600 10px 'Geist'; letter-spacing: 0.06em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 2px;
+  }
+
+  .density {
+    display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top: 10px;
+  }
+  .density .col h5 {
+    font: 600 10.5px 'Geist'; letter-spacing: 0.04em; text-transform: uppercase;
+    color:#6b6359; margin-bottom: 6px;
+  }
+  .density .col h5 kbd {
+    font: 500 10px 'Geist Mono'; padding:1px 5px; border-radius:3px;
+    background:#fbfaf6; border:1px solid #e0d9cc; color:#9a9288; margin-left: 4px; text-transform: none; letter-spacing: 0;
+  }
+  .density .list { border:1px solid #ece5d6; border-radius:8px; overflow:hidden; background:#fbfaf6; }
+  .density .list .item {
+    display:flex; align-items:center; gap:10px; padding: 0 12px;
+    border-bottom: 1px solid #ece5d6;
+    font: 400 12.5px 'Geist'; color:#3d2b1f;
+  }
+  .density .list .item:last-child { border-bottom: none; }
+  .density .list .item .d { width:5px; height:5px; border-radius:9999px; background:#3a8a52; }
+  .density .list .item .em { margin-left:auto; font: 400 11px 'Geist Mono'; color:#9a9288; }
+
+  .footnote {
+    margin-top: 16px; padding: 10px 12px;
+    background: #fbfaf6; border: 1px solid #ece5d6; border-radius: 6px;
+    font-size: 11px; line-height: 1.55; color:#6b6359;
+  }
+  .footnote b { color:#3d2b1f; font-weight: 600; }
+  .footnote code { font-family:'Geist Mono', monospace; font-size:10.5px; color:#3d2b1f; background:#f3ede1; padding: 1px 4px; border-radius:3px; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+  <div class="kicker">Heights · 4px grid · sized to real Turan surfaces</div>
+
+  <!-- 24 -->
+  <div class="row">
+    <div class="tok"><b>--h-xs</b>24px</div>
+    <div class="surface">
+      <div class="chip24">
+        <span class="k">Регион</span>
+        <span class="v">Акмолинская</span>
+      </div>
+    </div>
+    <div class="usage"><b>Filter chips · tags</b><br>Плотные токены в фильтр-баре над таблицей</div>
+  </div>
+
+  <!-- 28 -->
+  <div class="row">
+    <div class="tok"><b>--h-sm</b>28px</div>
+    <div class="surface">
+      <div class="btn28">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        Добавить фильтр
+      </div>
+    </div>
+    <div class="usage"><b>Secondary · icon buttons · dense mode</b><br>Кнопки в меню строки, inline-действия</div>
+  </div>
+
+  <!-- 32 — default -->
+  <div class="row" style="background:rgba(232,146,11,0.04);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:6px">
+    <div class="tok"><b style="color:#b37a10">--h-md</b>32px · <span style="color:#b37a10;font-weight:500">default</span></div>
+    <div class="surface">
+      <div class="bar32">
+        <button class="cta32">+ Добавить контакт</button>
+        <div class="in32"><span class="ph">Поиск по имени или ИИН…</span></div>
+      </div>
+    </div>
+    <div class="usage"><b>Все CTAs + inputs + nav</b><br>95% интерактивных элементов в продукте</div>
+  </div>
+
+  <!-- 36 -->
+  <div class="row">
+    <div class="tok"><b>--h-lg</b>36px</div>
+    <div class="surface">
+      <div class="in36">astana-agro@turan.kz</div>
+    </div>
+    <div class="usage"><b>Edit-form fields · login</b><br>Полноразмерные поля на форме создания/редактирования</div>
+  </div>
+
+  <!-- 48 — default row -->
+  <div class="row" style="background:rgba(232,146,11,0.04);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:6px">
+    <div class="tok"><b style="color:#b37a10">--h-row</b>48px · <span style="color:#b37a10;font-weight:500">default row</span></div>
+    <div class="surface">
+      <div class="tr48">
+        <div class="av">АК</div>
+        <div class="id"><div class="nm">Арман Керимов</div><div class="em">arman@steppe.kz · 1 240 га</div></div>
+        <span class="pill"><span class="d"></span>Active</span>
+      </div>
+    </div>
+    <div class="usage"><b>Default table row</b><br>Список фермеров, контракты, реестры — основная density</div>
+  </div>
+
+  <!-- 56 -->
+  <div class="row">
+    <div class="tok"><b>--h-xl</b>56px</div>
+    <div class="surface">
+      <div class="hdr56">
+        <div class="brand">
+          <div class="star">✦</div>
+          <div class="nm">turan</div>
+        </div>
+        <div class="actions">
+          Фермеры · 1 432
+          <span class="kbd">⌘K</span>
+        </div>
+      </div>
+    </div>
+    <div class="usage"><b>Page header · main toolbar</b><br>Top bar, section headers, окна авторизации</div>
+  </div>
+
+  <!-- Density comparison -->
+  <div class="section-break">Density modes · farmer list</div>
+  <div class="density">
+    <div class="col">
+      <h5>Comfortable <kbd>row 48</kbd></h5>
+      <div class="list">
+        <div class="item" style="height:48px"><span class="d"></span>Арман Керимов<span class="em">1 240 га</span></div>
+        <div class="item" style="height:48px"><span class="d"></span>Сауле Нурмагамбетова<span class="em">860 га</span></div>
+        <div class="item" style="height:48px"><span class="d"></span>Болат Омаров<span class="em">2 350 га</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <h5>Compact <kbd>h-lg 36</kbd> · admin</h5>
+      <div class="list">
+        <div class="item" style="height:36px"><span class="d"></span>Арман Керимов<span class="em">1 240 га</span></div>
+        <div class="item" style="height:36px"><span class="d"></span>Сауле Нурмагамбетова<span class="em">860 га</span></div>
+        <div class="item" style="height:36px"><span class="d"></span>Болат Омаров<span class="em">2 350 га</span></div>
+        <div class="item" style="height:36px"><span class="d"></span>Данияр Касымов<span class="em">540 га</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footnote -->
+  <div class="footnote">
+    <b>Ритм:</b> <code>24 → 28 → 32 → 36 → 48 → 56</code>. Пропуск через 40 и 44 сознательный — их частое использование создавало «ленивые» промежуточные размеры. <br>
+    <b>Default — 32.</b> Всё, что interactive и не table/toolbar, должно быть 32. Если 32 кажется мал — проверь, что это не админский compact-mode (тогда 28), и не edit-форма (тогда 36). <br>
+    <b>Default row — 48.</b> В admin panel с массовыми операциями — compact (36).
+    Mobile touch targets ≥ 44px мы решаем padding-ом вокруг, а не высотой самого элемента.
+  </div>
+</div>
+</body></html>

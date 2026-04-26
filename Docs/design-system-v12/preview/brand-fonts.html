@@ -1,0 +1,507 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>Turan · Brand Font Candidates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f3ed;
+    --card: #fbfaf6;
+    --bd: #e6dfd2;
+    --bd-h: #c7beac;
+    --fg: #3d2b1f;
+    --fg2: #6b6359;
+    --fg3: #9a9288;
+    --accent: #E8920B;
+    --blue: #4571b8;
+    --green: #3a8a52;
+    --amber: #b37a10;
+    --red: #c0392b;
+  }
+  html, body { margin:0; background:var(--bg); color:var(--fg); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { font-family: 'Geist', sans-serif; }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 40px 28px 60px; }
+
+  .hdr { margin-bottom: 28px; }
+  .hdr h1 { font: 700 24px/1.2 'Geist',sans-serif; letter-spacing:-0.02em; margin:0 0 6px; }
+  .hdr p  { font: 400 13px/1.5 'Geist',sans-serif; color: var(--fg2); margin:0; max-width: 680px; }
+  .hdr .req {
+    margin-top:14px; display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .hdr .req span {
+    font: 500 10.5px 'Geist Mono', monospace;
+    color: var(--fg2);
+    padding: 3px 8px; border-radius: 9999px;
+    background: #f3ede1; border: 1px solid var(--bd);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    padding: 22px 24px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(61,43,31,0.03);
+  }
+
+  .card-head {
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:16px; margin-bottom: 14px; padding-bottom: 12px;
+    border-bottom: 1px solid #ece5d6;
+  }
+  .card-head .left { display:flex; flex-direction:column; gap:2px; }
+  .card-head .rank {
+    font: 600 9.5px 'Geist', sans-serif;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg3);
+  }
+  .card-head h2 {
+    font: 700 18px/1.2 var(--sans, 'Geist');
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .card-head .use {
+    font: 500 11.5px 'Geist',sans-serif;
+    color: var(--fg2);
+  }
+  .card-head .use kbd {
+    font: 500 10.5px 'Geist Mono', monospace;
+    padding: 1px 5px; border-radius: 3px;
+    background: #f3ede1; border: 1px solid var(--bd);
+    color: var(--fg2); margin: 0 1px;
+  }
+  .card-head .mono-pair {
+    margin-top: 4px;
+    font: 500 10.5px 'Geist Mono', monospace;
+    color: var(--fg3);
+  }
+
+  /* Each card uses its own font via --sans + --mono */
+  .sans { font-family: var(--sans); }
+  .mono { font-family: var(--mono); font-feature-settings: "tnum" 1; }
+
+  /* ─── Sample stack ─── */
+  .samples { display: grid; gap: 18px; }
+
+  .display {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 38px;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--fg);
+  }
+  .display .sub {
+    display:block;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0;
+    color: var(--fg2);
+    margin-top: 6px;
+  }
+
+  /* Scale row */
+  .scale {
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 12px 14px;
+    background: #f3ede1;
+    border: 1px solid #ece5d6;
+    border-radius: 8px;
+  }
+  .scale .s { display:flex; flex-direction:column; gap:2px; }
+  .scale .s .lbl {
+    font: 500 9px 'Geist Mono', monospace;
+    color: var(--fg3);
+    letter-spacing: 0;
+  }
+  .scale .s .v {
+    font-family: var(--sans);
+    color: var(--fg);
+  }
+
+  /* Fake table */
+  .tbl {
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .tbl .th, .tbl .tr {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr 110px 110px;
+    gap: 14px;
+    align-items: center;
+    padding: 0 14px;
+  }
+  .tbl .th {
+    height: 32px;
+    background: #f3ede1;
+    border-bottom: 1px solid #ece5d6;
+    font: 600 9.5px var(--sans);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg3);
+  }
+  .tbl .tr {
+    height: 40px;
+    border-bottom: 1px solid #ece5d6;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--fg);
+  }
+  .tbl .tr:last-child { border-bottom: none; }
+  .tbl .name { font-weight: 500; letter-spacing:-0.005em; }
+  .tbl .sub { font-size: 11px; color: var(--fg3); margin-top: 1px; font-weight: 400; }
+  .tbl .region { font-size: 12.5px; color: var(--fg2); }
+  .tbl .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding: 2px 8px 2px 7px;
+    border-radius: 9999px;
+    font: 600 10.5px var(--sans);
+    width: fit-content;
+  }
+  .tbl .pill .d { width:6px; height:6px; border-radius:9999px; }
+  .tbl .num {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 12px; font-weight: 500;
+    text-align: right; color: var(--fg);
+  }
+  .tbl .num .u { color: var(--fg3); font-weight: 400; margin-left: 2px; }
+
+  /* Paragraph sample */
+  .para {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--fg);
+    max-width: 70ch;
+  }
+  .para strong { font-weight: 600; }
+  .para .muted { color: var(--fg2); }
+
+  /* Glyph zoo */
+  .glyphs {
+    font-family: var(--sans);
+    font-size: 22px;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    color: var(--fg);
+    padding: 14px 16px;
+    background: #f3ede1;
+    border: 1px solid #ece5d6;
+    border-radius: 8px;
+    word-spacing: 0.2em;
+  }
+  .glyphs .lbl {
+    display:block;
+    font: 500 9.5px 'Geist Mono', monospace;
+    color: var(--fg3);
+    margin-bottom: 6px;
+    letter-spacing: 0;
+  }
+
+  .pros {
+    display:grid; grid-template-columns: 1fr 1fr; gap: 10px 16px;
+    font-size: 12px; color: var(--fg2);
+    margin-top: 4px;
+  }
+  .pros h4 {
+    font: 600 9.5px 'Geist', sans-serif;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--fg3);
+    margin: 0 0 6px;
+  }
+  .pros ul { margin: 0; padding-left: 15px; }
+  .pros li { margin-bottom: 3px; line-height: 1.45; }
+  .pros .ok::marker   { color: #3a8a52; }
+  .pros .warn::marker { color: #b37a10; }
+
+  .rec {
+    background: rgba(232,146,11,0.07);
+    border: 1px solid rgba(232,146,11,0.28);
+  }
+  .rec .rank { color: #b37a10; }
+
+  .stamp {
+    position: absolute; right: 24px; top: 22px;
+    font: 600 9.5px 'Geist', sans-serif;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: #b37a10;
+    padding: 3px 8px; border-radius: 9999px;
+    background: rgba(232,146,11,0.12);
+    border: 1px solid rgba(232,146,11,0.32);
+  }
+  .card { position: relative; }
+
+  .closing {
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: #f3ede1;
+    border: 1px dashed var(--bd-h);
+    border-radius: 8px;
+    font-size: 12.5px; line-height: 1.55;
+    color: var(--fg2);
+  }
+  .closing strong { color: var(--fg); font-weight: 600; }
+</style>
+</head><body>
+<div class="page">
+
+  <header class="hdr">
+    <h1>Brand fonts · подбор для Turan ERP</h1>
+    <p>Приоритет — кириллица, высокая разборчивость в таблицах (11–13px) и уверенный характер на крупных заголовках (20–40px). Только open-source/Google Fonts, стабильные метрики, табличные цифры.</p>
+    <div class="req">
+      <span>cyrillic-ext</span>
+      <span>tnum</span>
+      <span>400·500·600·700</span>
+      <span>open source</span>
+      <span>variable / static OK</span>
+      <span>≤ 2 seconds load</span>
+    </div>
+  </header>
+
+  <!-- ══════════════ 1 · GEIST ══════════════ -->
+  <section class="card rec" style="--sans:'Geist',-apple-system,sans-serif; --mono:'Geist Mono',monospace;">
+    <div class="stamp">Recommended</div>
+    <div class="card-head">
+      <div class="left">
+        <div class="rank">Option 1 · primary candidate</div>
+        <h2 class="sans">Geist + Geist Mono</h2>
+        <div class="use">Vercel, 2023 · <kbd>geometric-neo-grotesk</kbd> · строгая кириллика, равные ширины знаков</div>
+        <div class="mono-pair">sans: Geist · mono: Geist Mono · both by Vercel · SIL OFL</div>
+      </div>
+    </div>
+
+    <div class="samples">
+      <div class="display">
+        Платформа для агробизнеса
+        <span class="sub">Display 38 · 700 · −3% tracking</span>
+      </div>
+
+      <div class="scale">
+        <div class="s"><span class="lbl">11px · caption</span><span class="v" style="font-size:11px;font-weight:400">Последнее обновление — сегодня</span></div>
+        <div class="s"><span class="lbl">13px · body</span><span class="v" style="font-size:13px;font-weight:400">Контакты фермерских хозяйств</span></div>
+        <div class="s"><span class="lbl">15px · subhead</span><span class="v" style="font-size:15px;font-weight:600;letter-spacing:-0.005em">Обзор пайплайна</span></div>
+        <div class="s"><span class="lbl">20px · h1</span><span class="v" style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Контакты</span></div>
+      </div>
+
+      <div class="tbl">
+        <div class="th"><span>Ферма</span><span>Регион</span><span>Статус</span><span style="text-align:right">Площадь</span></div>
+        <div class="tr">
+          <div><div class="name">Арман Керимов</div><div class="sub">turantech@kz.ag</div></div>
+          <div class="region">Акмолинская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">1 240<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Сауле Нурмагамбетова</div><div class="sub">saule@kaz.ag</div></div>
+          <div class="region">Алматинская</div>
+          <span class="pill" style="background:rgba(69,113,184,0.10);color:#355996;box-shadow:inset 0 0 0 1px rgba(69,113,184,0.22);"><span class="d" style="background:#4571b8"></span>Qualified</span>
+          <div class="num">860<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Болат Омаров</div><div class="sub">bolat@steppe.kz</div></div>
+          <div class="region">Павлодарская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">2 350<span class="u"> га</span></div>
+        </div>
+      </div>
+
+      <p class="para">
+        <strong>Geist</strong> — гуманистичный гротеск от Vercel, сделанный специально для плотных интерфейсов: открытые апертуры, короткие засечки у <em>а / е</em>, низкий контраст. <span class="muted">Кириллика спроектирована вместе с латиницей — нет «гостевого» облика. Цифры моноширинные по умолчанию, идеально для таблиц.</span>
+      </p>
+
+      <div class="glyphs">
+        <span class="lbl">Сложные глифы · цифры · знаки</span>
+        АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ<br>
+        абвгдеёжзийклмнопрстуфхцчшщъыьэюя<br>
+        <span class="mono" style="font-size:18px">0123456789 · 1,240 · 2,350 · 78.4% · −12 °C</span>
+      </div>
+
+      <div class="pros">
+        <div>
+          <h4>За</h4>
+          <ul>
+            <li class="ok">Отличная кириллика (полная ext-поддержка, включая ҒҚҢӨҰҮҺ для казахского)</li>
+            <li class="ok">Геометрия чистая, но не холодная — читается на 11px без «шума»</li>
+            <li class="ok">Geist Mono создан в паре — идеальные table cells + код</li>
+            <li class="ok">Современный, узнаваемый (Vercel, Linear-адъяжан)</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Осторожно</h4>
+          <ul>
+            <li class="warn">Строчная «а» чуть уже, чем у Inter — может выглядеть плотнее в узких колонках</li>
+            <li class="warn">Стиль «tech» — если хочется «тёплого аграрного», смотри вариант 3</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 2 · IBM PLEX ══════════════ -->
+  <section class="card" style="--sans:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;">
+    <div class="card-head">
+      <div class="left">
+        <div class="rank">Option 2 · enterprise-neutral</div>
+        <h2 class="sans">IBM Plex Sans + Plex Mono</h2>
+        <div class="use">IBM, 2017 · <kbd>neo-grotesk</kbd> · кириллика проектировалась IBM Russia, включая казахский</div>
+        <div class="mono-pair">sans: IBM Plex Sans · mono: IBM Plex Mono · SIL OFL</div>
+      </div>
+    </div>
+
+    <div class="samples">
+      <div class="display">
+        Платформа для агробизнеса
+        <span class="sub">Display 38 · 700 · −3% tracking</span>
+      </div>
+
+      <div class="scale">
+        <div class="s"><span class="lbl">11px · caption</span><span class="v" style="font-size:11px;font-weight:400">Последнее обновление — сегодня</span></div>
+        <div class="s"><span class="lbl">13px · body</span><span class="v" style="font-size:13px;font-weight:400">Контакты фермерских хозяйств</span></div>
+        <div class="s"><span class="lbl">15px · subhead</span><span class="v" style="font-size:15px;font-weight:600;letter-spacing:-0.005em">Обзор пайплайна</span></div>
+        <div class="s"><span class="lbl">20px · h1</span><span class="v" style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Контакты</span></div>
+      </div>
+
+      <div class="tbl">
+        <div class="th"><span>Ферма</span><span>Регион</span><span>Статус</span><span style="text-align:right">Площадь</span></div>
+        <div class="tr">
+          <div><div class="name">Арман Керимов</div><div class="sub">turantech@kz.ag</div></div>
+          <div class="region">Акмолинская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">1 240<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Сауле Нурмагамбетова</div><div class="sub">saule@kaz.ag</div></div>
+          <div class="region">Алматинская</div>
+          <span class="pill" style="background:rgba(69,113,184,0.10);color:#355996;box-shadow:inset 0 0 0 1px rgba(69,113,184,0.22);"><span class="d" style="background:#4571b8"></span>Qualified</span>
+          <div class="num">860<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Болат Омаров</div><div class="sub">bolat@steppe.kz</div></div>
+          <div class="region">Павлодарская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">2 350<span class="u"> га</span></div>
+        </div>
+      </div>
+
+      <p class="para">
+        <strong>IBM Plex</strong> — корпоративный флагман IBM с самой глубокой кириллицей в open source. Характерные «хвостики» у <em>l, t, y</em> дают индивидуальность без крикливости. <span class="muted">Абсолютно стабильные метрики при мелком рендере — долгое время был выбором Linear для русских интерфейсов.</span>
+      </p>
+
+      <div class="glyphs">
+        <span class="lbl">Сложные глифы · цифры · знаки</span>
+        АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ<br>
+        абвгдеёжзийклмнопрстуфхцчшщъыьэюя<br>
+        <span class="mono" style="font-size:18px">0123456789 · 1,240 · 2,350 · 78.4% · −12 °C</span>
+      </div>
+
+      <div class="pros">
+        <div>
+          <h4>За</h4>
+          <ul>
+            <li class="ok">Эталонная кириллика в open source — проектировалась в IBM Russia</li>
+            <li class="ok">Характерные «хвосты» добавляют бренд-характера без гротесковой стерильности</li>
+            <li class="ok">Plex Mono с такими же пропорциями — чистая табличная пара</li>
+            <li class="ok">Спокойный, «взрослый» enterprise-облик, доверие</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Осторожно</h4>
+          <ul>
+            <li class="warn">Чуть «журналистский» характер — менее tech-модерн, чем Geist</li>
+            <li class="warn">x-height ниже → заголовки требуют +1–2px чтобы уравновесить</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 3 · GOLOS TEXT ══════════════ -->
+  <section class="card" style="--sans:'Golos Text',sans-serif; --mono:'JetBrains Mono',monospace;">
+    <div class="card-head">
+      <div class="left">
+        <div class="rank">Option 3 · cyrillic-native</div>
+        <h2 class="sans">Golos Text + JetBrains Mono</h2>
+        <div class="use">type.today + Mail.ru, 2022 · <kbd>humanist-sans</kbd> · спроектирован Cyrillic-first, эталонная казахская поддержка</div>
+        <div class="mono-pair">sans: Golos Text · mono: JetBrains Mono · SIL OFL</div>
+      </div>
+    </div>
+
+    <div class="samples">
+      <div class="display">
+        Платформа для агробизнеса
+        <span class="sub">Display 38 · 700 · −3% tracking</span>
+      </div>
+
+      <div class="scale">
+        <div class="s"><span class="lbl">11px · caption</span><span class="v" style="font-size:11px;font-weight:400">Последнее обновление — сегодня</span></div>
+        <div class="s"><span class="lbl">13px · body</span><span class="v" style="font-size:13px;font-weight:400">Контакты фермерских хозяйств</span></div>
+        <div class="s"><span class="lbl">15px · subhead</span><span class="v" style="font-size:15px;font-weight:600;letter-spacing:-0.005em">Обзор пайплайна</span></div>
+        <div class="s"><span class="lbl">20px · h1</span><span class="v" style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Контакты</span></div>
+      </div>
+
+      <div class="tbl">
+        <div class="th"><span>Ферма</span><span>Регион</span><span>Статус</span><span style="text-align:right">Площадь</span></div>
+        <div class="tr">
+          <div><div class="name">Арман Керимов</div><div class="sub">turantech@kz.ag</div></div>
+          <div class="region">Акмолинская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">1 240<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Сауле Нурмагамбетова</div><div class="sub">saule@kaz.ag</div></div>
+          <div class="region">Алматинская</div>
+          <span class="pill" style="background:rgba(69,113,184,0.10);color:#355996;box-shadow:inset 0 0 0 1px rgba(69,113,184,0.22);"><span class="d" style="background:#4571b8"></span>Qualified</span>
+          <div class="num">860<span class="u"> га</span></div>
+        </div>
+        <div class="tr">
+          <div><div class="name">Болат Омаров</div><div class="sub">bolat@steppe.kz</div></div>
+          <div class="region">Павлодарская</div>
+          <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);"><span class="d" style="background:#3a8a52"></span>Active</span>
+          <div class="num">2 350<span class="u"> га</span></div>
+        </div>
+      </div>
+
+      <p class="para">
+        <strong>Golos Text</strong> — первый большой open-source шрифт, где кириллица — основной, а не «догнанный» скрипт. Спроектирован командой type.today/ЦДИ для «Яндекс-масштабного» UI. <span class="muted">Гуманистичные штрихи, открытые апертуры, безукоризненная работа с ҚҢӨҰҮҺ — как будто шрифт создан для Казахстана.</span>
+      </p>
+
+      <div class="glyphs">
+        <span class="lbl">Сложные глифы · цифры · знаки</span>
+        АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ<br>
+        абвгдеёжзийклмнопрстуфхцчшщъыьэюя<br>
+        <span class="mono" style="font-size:18px">0123456789 · 1,240 · 2,350 · 78.4% · −12 °C</span>
+      </div>
+
+      <div class="pros">
+        <div>
+          <h4>За</h4>
+          <ul>
+            <li class="ok">Лучшая в open-source кириллика — тестировалась на RU/KZ-продуктах</li>
+            <li class="ok">Тёплый гуманистичный тон → созвучен бренду «земля/аграрность»</li>
+            <li class="ok">Отлично читается в таблицах на 11–13px</li>
+            <li class="ok">Пара с JetBrains Mono (уже в системе) — минимальная миграция</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Осторожно</h4>
+          <ul>
+            <li class="warn">Нет собственного mono → используем JetBrains Mono (другая школа, но совместимо)</li>
+            <li class="warn">Менее «tech-современный» силуэт, чем Geist</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    <strong>Рекомендация.</strong> Для Turan как tech-платформы с акцентом на скорость и плотные таблицы — <strong>Geist + Geist Mono</strong> (вариант 1): современно, отличная кириллица, парный mono. Если важнее «тёплый/аграрный» характер и нужна лучшая казахская типографика — <strong>Golos Text + JetBrains Mono</strong> (вариант 3). <strong>IBM Plex</strong> — безопасный enterprise-дефолт, если бренд не хочет выделяться визуально.<br><br>
+    Скажи, какой вариант нравится — применю его во всём design system (обновлю <code>colors_and_type.css</code>, все превью, компоненты).
+  </div>
+
+</div>
+</body></html>

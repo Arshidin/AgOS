@@ -40,7 +40,7 @@ function Field({ label, value, colSpan2 }: { label: string; value: React.ReactNo
   return (
     <div className={colSpan2 ? 'col-span-2' : ''}>
       <p className="text-xs mb-0.5" style={{ color: 'rgba(43,24,10,0.4)' }}>{label}</p>
-      <p className="text-sm whitespace-pre-wrap" style={{ color: '#2B180A' }}>{value || '—'}</p>
+      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--fg)' }}>{value || '—'}</p>
     </div>
   );
 }
@@ -98,7 +98,7 @@ export default function AdminStartupDetail() {
   // Loading
   if (isLoading) {
     return (
-      <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-8 w-64" />
@@ -112,9 +112,9 @@ export default function AdminStartupDetail() {
   // Error
   if (error || !startup) {
     return (
-      <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="mx-auto max-w-2xl px-4 py-8 text-center">
-          <p className="text-sm mb-3" style={{ color: '#993333' }}>{t('admin.startupDetail.notFound')}</p>
+          <p className="text-sm mb-3" style={{ color: 'var(--red)' }}>{t('admin.startupDetail.notFound')}</p>
           <Button variant="outline" onClick={() => navigate('/admin/startups')}>
             {t('admin.startupDetail.backToList')}
           </Button>
@@ -126,7 +126,7 @@ export default function AdminStartupDetail() {
   const isPending = startup.submission_status === 'pending_review';
 
   return (
-    <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-8">
 
         {/* Navigation */}
@@ -143,8 +143,8 @@ export default function AdminStartupDetail() {
 
         {/* Header */}
         <div
-          className="bg-white rounded-xl border p-5 sm:p-6 mb-4"
-          style={{ borderColor: 'rgba(43,24,10,0.06)' }}
+          className="rounded-xl border p-5 sm:p-6 mb-4"
+          style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}
         >
           <div className="flex items-start justify-between mb-4">
             <StartupStatusBadge status={startup.submission_status} />
@@ -153,7 +153,7 @@ export default function AdminStartupDetail() {
             </p>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-semibold mb-1" style={{ color: '#2B180A' }}>
+          <h1 className="text-xl sm:text-2xl font-semibold mb-1" style={{ color: 'var(--fg)' }}>
             {startup.title}
           </h1>
           {startup.tagline && (
@@ -162,13 +162,13 @@ export default function AdminStartupDetail() {
 
           <div className="flex flex-wrap items-center gap-3">
             {startup.contact_name && (
-              <span className="text-sm" style={{ color: '#2B180A' }}>{startup.contact_name}</span>
+              <span className="text-sm" style={{ color: 'var(--fg)' }}>{startup.contact_name}</span>
             )}
             {startup.contact_email && (
               <a
                 href={`mailto:${startup.contact_email}`}
                 className="inline-flex items-center gap-1 text-sm"
-                style={{ color: '#2B180A' }}
+                style={{ color: 'var(--fg)' }}
               >
                 <Mail className="w-3.5 h-3.5" /> {startup.contact_email}
               </a>
@@ -177,7 +177,7 @@ export default function AdminStartupDetail() {
               <a
                 href={`tel:${startup.contact_phone}`}
                 className="inline-flex items-center gap-1 text-sm"
-                style={{ color: '#2B180A' }}
+                style={{ color: 'var(--fg)' }}
               >
                 <Phone className="w-3.5 h-3.5" /> {startup.contact_phone}
               </a>
@@ -186,7 +186,7 @@ export default function AdminStartupDetail() {
         </div>
 
         {/* About */}
-        <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+        <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
           <Section title={t('admin.startupDetail.about')}>
             <Field label={t('admin.startupDetail.category')} value={t(`constants.startupCategories.${startup.category}`)} />
             <Field label={t('admin.startupDetail.stage')} value={t(`constants.startupStages.${startup.stage}`)} />
@@ -200,7 +200,7 @@ export default function AdminStartupDetail() {
         </div>
 
         {/* Investment */}
-        <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+        <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
           <Section title={t('admin.startupDetail.investment')}>
             <Field label={t('admin.startupDetail.fundingAsk')} value={formatAmount(startup.funding_ask)} />
             <Field label={t('admin.startupDetail.fundingRaised')} value={formatAmount(startup.funding_raised)} />
@@ -215,7 +215,7 @@ export default function AdminStartupDetail() {
               <div className="space-y-2">
                 {startup.use_of_funds.map(item => (
                   <div key={item.id} className="flex items-center justify-between text-sm">
-                    <span style={{ color: '#2B180A' }}>{item.item}</span>
+                    <span style={{ color: 'var(--fg)' }}>{item.item}</span>
                     <span className="font-medium" style={{ color: 'rgba(43,24,10,0.6)' }}>{item.percentage}%</span>
                   </div>
                 ))}
@@ -225,7 +225,7 @@ export default function AdminStartupDetail() {
         </div>
 
         {/* Team */}
-        <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+        <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
           <Section title={t('admin.startupDetail.team')}>
             <Field label={t('admin.startupDetail.teamSize')} value={startup.team_size} />
             <Field label={t('admin.startupDetail.yearFounded')} value={startup.year_founded} />
@@ -240,7 +240,7 @@ export default function AdminStartupDetail() {
               <div className="space-y-3">
                 {startup.team_members.map(member => (
                   <div key={member.id}>
-                    <p className="text-sm font-medium" style={{ color: '#2B180A' }}>{member.name}</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--fg)' }}>{member.name}</p>
                     {member.role && <p className="text-xs" style={{ color: 'rgba(43,24,10,0.5)' }}>{member.role}</p>}
                   </div>
                 ))}
@@ -250,7 +250,7 @@ export default function AdminStartupDetail() {
         </div>
 
         {/* Materials */}
-        <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+        <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
           <h3
             className="text-xs uppercase tracking-wider mb-3"
             style={{ color: 'rgba(43,24,10,0.4)', letterSpacing: '0.05em' }}
@@ -264,7 +264,7 @@ export default function AdminStartupDetail() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors hover:bg-orange-50"
-                style={{ borderColor: 'rgba(43,24,10,0.1)', color: '#2B180A' }}
+                style={{ borderColor: 'var(--bd)', color: 'var(--fg)' }}
               >
                 <FileText className="w-3.5 h-3.5" /> Pitch Deck <ExternalLink className="w-3 h-3" />
               </a>
@@ -275,7 +275,7 @@ export default function AdminStartupDetail() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors hover:bg-orange-50"
-                style={{ borderColor: 'rgba(43,24,10,0.1)', color: '#2B180A' }}
+                style={{ borderColor: 'var(--bd)', color: 'var(--fg)' }}
               >
                 <FileText className="w-3.5 h-3.5" /> One Pager <ExternalLink className="w-3 h-3" />
               </a>
@@ -286,7 +286,7 @@ export default function AdminStartupDetail() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors hover:bg-orange-50"
-                style={{ borderColor: 'rgba(43,24,10,0.1)', color: '#2B180A' }}
+                style={{ borderColor: 'var(--bd)', color: 'var(--fg)' }}
               >
                 <Video className="w-3.5 h-3.5" /> Video <ExternalLink className="w-3 h-3" />
               </a>
@@ -297,7 +297,7 @@ export default function AdminStartupDetail() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors hover:bg-orange-50"
-                style={{ borderColor: 'rgba(43,24,10,0.1)', color: '#2B180A' }}
+                style={{ borderColor: 'var(--bd)', color: 'var(--fg)' }}
               >
                 <Globe className="w-3.5 h-3.5" /> Website <ExternalLink className="w-3 h-3" />
               </a>
@@ -310,7 +310,7 @@ export default function AdminStartupDetail() {
 
         {/* Review info (if not pending) */}
         {!isPending && (
-          <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+          <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
             <Section title={t('admin.startupDetail.review')}>
               <Field
                 label={t('admin.startupDetail.decision')}
@@ -327,12 +327,12 @@ export default function AdminStartupDetail() {
         {/* Actions (pending only) */}
         {isPending && (
           <div
-            className="bg-white rounded-xl border p-4 sm:p-5 mt-4 flex gap-3"
-            style={{ borderColor: 'rgba(43,24,10,0.06)' }}
+            className="rounded-xl border p-4 sm:p-5 mt-4 flex gap-3"
+            style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}
           >
             <Button
               className="flex-1 h-11 text-white font-medium"
-              style={{ background: '#2B180A' }}
+              style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
               onClick={() => setApproveOpen(true)}
               disabled={approve.isPending || reject.isPending}
             >
@@ -342,7 +342,7 @@ export default function AdminStartupDetail() {
             <Button
               variant="outline"
               className="flex-1 h-11 font-medium"
-              style={{ color: '#993333', borderColor: 'rgba(43,24,10,0.15)' }}
+              style={{ color: 'var(--red)', borderColor: 'var(--bd)' }}
               onClick={() => setRejectOpen(true)}
               disabled={approve.isPending || reject.isPending}
             >
@@ -366,7 +366,7 @@ export default function AdminStartupDetail() {
               <AlertDialogAction
                 onClick={handleApprove}
                 disabled={approve.isPending}
-                style={{ background: '#2B180A' }}
+                style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
               >
                 {approve.isPending ? t('admin.startupApproveDialog.approving') : t('admin.startupApproveDialog.approve')}
               </AlertDialogAction>

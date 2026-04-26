@@ -1,0 +1,59 @@
+/* Shared preview-card styles. Cards are 700×auto (≤400px tall).
+   Card has no title chrome — the asset name shows outside.         */
+@import url('../colors_and_type.css');
+
+html, body {
+  background: var(--bg);
+}
+.card {
+  width: 700px;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 24px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  overflow: hidden;
+}
+.light .card, [data-theme="light"] .card { background: var(--bg); }
+
+/* Utility grids */
+.row { display: flex; gap: 12px; align-items: flex-start; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.grid { display: grid; gap: 12px; }
+
+/* Swatches */
+.sw {
+  border-radius: var(--r-md);
+  border: 1px solid var(--bd);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.sw .chip {
+  height: 56px;
+  width: 100%;
+}
+.sw .meta {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-c);
+}
+.sw .meta .name {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--fg);
+}
+.sw .meta .val {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg3);
+  letter-spacing: 0;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg3);
+}

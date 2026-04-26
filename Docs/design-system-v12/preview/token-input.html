@@ -1,0 +1,233 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap { width: 700px; padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; font-family: var(--font-sans); }
+  .kicker { font: 600 10px 'Geist'; letter-spacing: .06em; text-transform: uppercase; color: #9a9288; }
+  .lbl { font: 500 10.5px 'Geist Mono'; color: #9a9288; margin: 3px 0 8px; }
+
+  /* Field wrapper */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field .h { font: 600 11px 'Geist'; color:#3d2b1f; letter-spacing:-0.005em; }
+  .field .hint { font: 400 11px 'Geist'; color:#9a9288; }
+
+  /* Token input container */
+  .tokens {
+    min-height: 56px;
+    background: #fbfaf6;
+    border: 1px solid #c7beac;
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    cursor: text;
+  }
+  .tokens.focus {
+    border-color: #3d2b1f;
+    box-shadow: 0 0 0 3px rgba(61,43,31,0.08);
+  }
+
+  /* Pill token — rx 16 DNA from reference, sized for our 13px font */
+  .tk {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 4px 0 10px;
+    background: #3d2b1f; color: #fbfaf6;
+    border-radius: 16px;
+    font: 500 12px 'Geist'; letter-spacing:-0.005em;
+    max-width: 100%;
+  }
+  .tk .x {
+    width: 20px; height: 20px; border-radius: 9999px;
+    display: grid; place-items: center;
+    color: rgba(251,250,246,0.6); cursor: pointer;
+  }
+  .tk .x:hover { background: rgba(251,250,246,0.12); color: #fbfaf6; }
+  .tk .x svg { width: 9px; height: 9px; }
+
+  /* Variant tokens */
+  .tk.g { background:#e1eee4; color:#2f6e42; }
+  .tk.g .x { color: rgba(47,110,66,0.55); }
+  .tk.a { background:#f7efd8; color:#9a6a08; }
+  .tk.a .x { color: rgba(154,106,8,0.55); }
+  .tk.b { background:#edf1f8; color:#3b62a0; }
+  .tk.b .x { color: rgba(59,98,160,0.55); }
+  .tk.ghost { background: transparent; color:#3d2b1f; box-shadow: inset 0 0 0 1px #e0d9cc; }
+  .tk.ghost .x { color:#9a9288; }
+
+  /* Avatar token (contact picker) */
+  .tk.avatar { padding-left: 3px; gap: 7px; }
+  .tk.avatar .av {
+    width: 22px; height: 22px; border-radius: 9999px;
+    background:#ede5d8; color:#6b6359; font: 600 9.5px 'Geist';
+    display:grid; place-items:center;
+    letter-spacing: -0.01em;
+    box-shadow: inset 0 0 0 1px rgba(61,43,31,0.08);
+  }
+
+  /* Cursor input */
+  .tokens .cursor {
+    flex: 1; min-width: 80px;
+    font: 400 13px 'Geist'; color:#3d2b1f; outline: none; border: 0; background: transparent;
+    padding: 5px 3px;
+  }
+  .tokens .cursor::placeholder { color:#9a9288; }
+
+  /* Dropdown */
+  .dd {
+    margin-top: 6px;
+    background: #fbfaf6;
+    border: 1px solid #e0d9cc;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(61,43,31,0.10);
+    overflow: hidden;
+  }
+  .dd .group-head {
+    padding: 8px 12px 4px;
+    font: 600 9.5px 'Geist'; letter-spacing: .05em; text-transform: uppercase; color:#9a9288;
+  }
+  .dd .item {
+    display: grid; grid-template-columns: 26px 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 0 12px; height: 40px;
+    cursor: pointer;
+    font: 400 13px 'Geist'; color:#3d2b1f;
+    border-top: 1px solid #f3ede1;
+  }
+  .dd .item:first-of-type { border-top: 0; }
+  .dd .item:hover, .dd .item.hv { background:#f3ede1; }
+  .dd .item .av {
+    width: 24px; height: 24px; border-radius: 9999px;
+    background:#ede5d8; color:#6b6359; font: 600 9.5px 'Geist';
+    display:grid; place-items:center; letter-spacing:-0.01em;
+    box-shadow: inset 0 0 0 1px rgba(61,43,31,0.08);
+  }
+  .dd .item .av.b { background:#dae3f2; color:#3b62a0; }
+  .dd .item .av.g { background:#c7dfcf; color:#2f6e42; }
+  .dd .item .name { font-weight: 500; letter-spacing:-0.005em; }
+  .dd .item .meta { font-family:'Geist Mono'; font-size: 11px; color:#9a9288; }
+  .dd .item .kbd {
+    font-family:'Geist Mono'; font-size: 10px; color:#9a9288;
+    padding: 1px 5px; border-radius: 3px; background:#f3ede1;
+  }
+
+  /* Highlight match */
+  .dd .item .name em { color:#3d2b1f; background: rgba(232,146,11,0.22); font-style: normal; padding: 0 1px; border-radius: 2px; }
+
+  /* Mini simple tokens input (filter search pattern) */
+  .mini {
+    display: flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 8px 0 10px;
+    background: #fbfaf6; border: 1px solid #e0d9cc; border-radius: 8px;
+  }
+  .mini .lens { color:#9a9288; }
+  .mini .lens svg { width: 13px; height: 13px; display:block; }
+  .mini .chips { display:flex; gap:4px; }
+  .mini .chip {
+    display:inline-flex; align-items:center; gap: 4px;
+    height:22px; padding: 0 3px 0 8px; border-radius: 11px;
+    font: 500 11px 'Geist'; letter-spacing:-0.005em;
+    background:#3d2b1f; color:#fbfaf6;
+  }
+  .mini .chip .xx {
+    width:14px; height:14px; border-radius:9999px;
+    display:grid; place-items:center; color:rgba(251,250,246,0.55);
+  }
+  .mini .chip .xx svg { width:7px; height:7px; }
+  .mini input {
+    flex:1; border:0; background:transparent; outline:none;
+    font: 400 12.5px 'Geist'; color:#3d2b1f;
+  }
+  .mini input::placeholder { color:#9a9288; }
+
+  /* Spec */
+  .spec {
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+    padding: 6px 10px; background:#fbfaf6; border:1px solid #ece5d6; border-radius: 6px;
+    display: inline-flex; flex-wrap: wrap; gap: 12px;
+  }
+  .spec b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- Contact picker with avatars -->
+  <div class="field">
+    <div class="kicker">Token input · contact picker</div>
+    <div class="lbl">Multi-select fermers into a mass-action group</div>
+    <div class="h">Получатели рассылки</div>
+
+    <div class="tokens focus">
+      <span class="tk avatar"><span class="av">АК</span>Арман Керимов<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <span class="tk avatar"><span class="av" style="background:#c7dfcf;color:#2f6e42">СН</span>Сауле Нурм.<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <span class="tk avatar"><span class="av" style="background:#dae3f2;color:#3b62a0">БО</span>Болат Омаров<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <input class="cursor" value="дан" placeholder="Добавить получателя…">
+    </div>
+
+    <!-- Dropdown -->
+    <div class="dd">
+      <div class="group-head">Совпадения · 3</div>
+      <div class="item hv">
+        <div class="av">ДК</div>
+        <div><span class="name"><em>Дан</em>ияр Касымов</span></div>
+        <div class="meta">ИИН 850314…·540 га</div>
+      </div>
+      <div class="item">
+        <div class="av b">ДА</div>
+        <div><span class="name"><em>Дан</em>ил Аскаров</span></div>
+        <div class="meta">ИИН 720811…·2 100 га</div>
+      </div>
+      <div class="item">
+        <div class="av g">ДМ</div>
+        <div><span class="name">Жай<em>дан</em> Муратов</span></div>
+        <div class="meta">ИИН 910506…·880 га</div>
+      </div>
+      <div class="item" style="color:#9a9288; border-top: 1px solid #ece5d6; background: #faf6ec">
+        <div style="color:#9a9288">+</div>
+        <div><span class="name" style="color:#3d2b1f; font-weight:500">Создать нового фермера</span><span style="font-family:'Geist Mono';font-size:11px; color:#9a9288; margin-left:8px">«дан»</span></div>
+        <div class="kbd">⌘↵</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Semantic tag input (tags/labels) -->
+  <div class="field">
+    <div class="kicker">Token input · tags / labels</div>
+    <div class="lbl">Semantic categories attached to a record</div>
+    <div class="h">Теги контрагента</div>
+
+    <div class="tokens">
+      <span class="tk g">озимые<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <span class="tk a">премиум-контракт<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <span class="tk b">Акмолинская обл.<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <span class="tk ghost">требует проверки<span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      <input class="cursor" placeholder="Добавить тег…">
+    </div>
+    <div class="hint">Цвет тега задаётся при создании · до 8 тегов на контрагента</div>
+  </div>
+
+  <!-- Mini / compact search with active filters -->
+  <div class="field">
+    <div class="kicker">Compact · filter bar</div>
+    <div class="lbl">Search input 36px with inline pill-chips</div>
+    <div class="h">Поиск по реестру</div>
+
+    <div class="mini">
+      <span class="lens"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+      <div class="chips">
+        <span class="chip">статус: активен<span class="xx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+        <span class="chip">регион: Акмол.<span class="xx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 6l12 12M18 6L6 18"/></svg></span></span>
+      </div>
+      <input placeholder="ИИН, имя или контракт…">
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>container</b> rx 10 · min 56px / compact 36px</span>
+    <span><b>token</b> 28px rx 16 · semantic bg (--*-m)</span>
+    <span><b>mini-chip</b> 22px rx 11</span>
+    <span><b>dropdown</b> rx 10 · 40px row · hover bg-m</span>
+    <span><b>match highlight</b> accent 22% alpha</span>
+  </div>
+
+</div>
+</body></html>

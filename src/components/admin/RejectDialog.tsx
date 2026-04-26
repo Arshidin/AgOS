@@ -42,7 +42,7 @@ export default function RejectDialog({ open, onOpenChange, isPending, onConfirm 
           placeholder={t('admin.rejectDialog.placeholder')}
           rows={4}
         />
-        <p className="text-xs" style={{ color: reason.trim().length >= 10 ? 'rgba(43,24,10,0.4)' : '#993333' }}>
+        <p className="text-xs" style={{ color: reason.trim().length >= 10 ? 'var(--fg3)' : 'var(--red)' }}>
           {t('admin.rejectDialog.charCount', { count: reason.trim().length })}
         </p>
 
@@ -53,7 +53,7 @@ export default function RejectDialog({ open, onOpenChange, isPending, onConfirm 
           <Button
             onClick={handleConfirm}
             disabled={reason.trim().length < 10 || isPending}
-            style={{ background: '#993333', color: '#fff' }}
+            style={{ background: 'var(--red)', color: 'var(--cta-fg)' }}
           >
             {isPending ? t('admin.rejectDialog.rejecting') : t('admin.rejectDialog.reject')}
           </Button>

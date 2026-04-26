@@ -1,0 +1,303 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ────── Textarea base ────── */
+  .ta-field {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ta-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font: 500 11px 'Geist';
+    letter-spacing: -0.005em;
+  }
+  .ta-head .lbl { color:#3d2b1f; }
+  .ta-head .req { color:#c0392b; margin-left: 2px; }
+  .ta-head .hint { font: 400 11px 'Geist'; color:#9a9288; }
+
+  .ta {
+    position: relative;
+    background: #fbfaf6;
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    transition: box-shadow 100ms;
+  }
+  .ta:hover { box-shadow: inset 0 0 0 1px #c7beac; }
+  .ta textarea {
+    width: 100%;
+    padding: 10px 12px 26px;
+    background: transparent;
+    border: 0; outline: 0; resize: none;
+    font: 400 13px 'Geist';
+    letter-spacing: -0.005em;
+    color: #3d2b1f;
+    line-height: 1.5;
+  }
+  .ta textarea::placeholder { color: #b0a79c; }
+
+  /* Counter · always pinned bottom-right */
+  .ta .counter {
+    position: absolute;
+    bottom: 8px; right: 12px;
+    font: 400 10.5px 'Geist Mono';
+    color: #9a9288;
+    pointer-events: none;
+    display: flex; gap: 3px; align-items: baseline;
+  }
+  .ta .counter b { color:#6b6359; font-weight: 500; }
+
+  /* Toolbar · left-bottom */
+  .ta .toolbar {
+    position: absolute; bottom: 6px; left: 8px;
+    display: flex; gap: 2px;
+  }
+  .ta .toolbar button {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 4px;
+    color: #9a9288; cursor: pointer;
+    transition: background 80ms, color 80ms;
+  }
+  .ta .toolbar button:hover { background: #f3ede1; color: #3d2b1f; }
+  .ta .toolbar button svg { width: 13px; height: 13px; }
+  .ta .toolbar .sep { width: 1px; align-self: stretch; background:#ece5d6; margin: 4px 3px; }
+
+  /* ──── States ──── */
+  .ta.focus {
+    box-shadow: inset 0 0 0 1px #3d2b1f, 0 0 0 3px rgba(61,43,31,0.08);
+  }
+  .ta.focus .counter b { color:#3d2b1f; }
+
+  .ta.error {
+    box-shadow: inset 0 0 0 1px #c0392b;
+  }
+  .ta.error .counter { color: #c0392b; }
+  .ta.error .counter b { color: #c0392b; }
+
+  .ta.disabled {
+    background: #f3ede1;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+  }
+  .ta.disabled textarea { color:#9a9288; cursor: not-allowed; }
+
+  .ta-msg {
+    font: 400 11px 'Geist';
+    color: #9a9288;
+    display: flex; align-items: center; gap: 5px;
+    line-height: 1.4;
+  }
+  .ta-msg.error { color: #c0392b; }
+  .ta-msg svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+  /* Footer action bar — real use */
+  .ta-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px;
+  }
+  .ta-foot .left { display: flex; gap: 8px; align-items: center; font: 400 11px 'Geist'; color:#9a9288; }
+  .ta-foot .left kbd {
+    font: 500 10px 'Geist Mono';
+    padding: 2px 5px; border-radius: 4px;
+    background: #fbfaf6; box-shadow: inset 0 0 0 1px #e0d9cc;
+    color: #6b6359;
+  }
+  .ta-foot .right { display: flex; gap: 8px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px;
+    border: 0; cursor: pointer; border-radius: 6px;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+  }
+  .btn-g { background: transparent; color: #6b6359; box-shadow: inset 0 0 0 1px #e0d9cc; }
+  .btn-g:hover { box-shadow: inset 0 0 0 1px #c7beac; color: #3d2b1f; }
+  .btn-p { background: #3d2b1f; color: #fbfaf6; }
+  .btn-p:hover { background: #2c1e14; }
+
+  /* ──── Spec chips ──── */
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 · Default + hover + focus -->
+  <div>
+    <div class="kicker">Default · size md · rx 6</div>
+
+    <div class="ta-field" style="margin-bottom: 18px">
+      <div class="ta-head">
+        <span class="lbl">Комментарий к поставке</span>
+        <span class="hint">не обязательно</span>
+      </div>
+      <div class="ta">
+        <textarea rows="3" placeholder="Добавьте пояснение к поставке, если нужно…"></textarea>
+        <div class="counter"><b>0</b>&nbsp;/&nbsp;500</div>
+      </div>
+    </div>
+
+    <div class="ta-field">
+      <div class="ta-head">
+        <span class="lbl">Описание поля</span>
+        <span class="hint">поддерживается Markdown</span>
+      </div>
+      <div class="ta focus">
+        <textarea rows="4">Поле №12-Б · северная сторона. Почва чернозём, pH ~7.2.
+Последний анализ 14 марта — азот норма, фосфор ниже среднего.
+
+Рядом два</textarea>
+        <div class="toolbar">
+          <button title="Жирный"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+          <button title="Список"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" stroke-linecap="round"/></svg></button>
+          <div class="sep"></div>
+          <button title="Прикрепить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10l-8.5 8.5a5 5 0 0 1-7-7L13 3a3.5 3.5 0 0 1 5 5l-7.5 7.5a1.5 1.5 0 0 1-2-2L16 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button title="Упоминание"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="counter"><b>147</b>&nbsp;/&nbsp;500</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 · States -->
+  <div>
+    <div class="kicker">States</div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px">
+
+      <!-- Near-limit warning -->
+      <div class="ta-field">
+        <div class="ta-head">
+          <span class="lbl">Близко к лимиту</span>
+        </div>
+        <div class="ta">
+          <textarea rows="3">Хочу предложить изменения в графике еженедельных отчётов. Сейчас мы присылаем их по пятницам, но для нас удобнее переде</textarea>
+          <div class="counter" style="color:#b37a10"><b style="color:#b37a10">142</b>&nbsp;/&nbsp;160</div>
+        </div>
+      </div>
+
+      <!-- Error over limit -->
+      <div class="ta-field">
+        <div class="ta-head">
+          <span class="lbl">Превышен лимит</span>
+          <span class="req">•</span>
+        </div>
+        <div class="ta error">
+          <textarea rows="3">Текст превышает максимальную длину — укоротите на 23 символа, чтобы сохранить сообщение.</textarea>
+          <div class="counter"><b>183</b>&nbsp;/&nbsp;160</div>
+        </div>
+        <div class="ta-msg error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>
+          На 23 символа больше, чем нужно
+        </div>
+      </div>
+
+      <!-- Disabled -->
+      <div class="ta-field">
+        <div class="ta-head">
+          <span class="lbl" style="color:#9a9288">Недоступно</span>
+          <span class="hint">после подтверждения</span>
+        </div>
+        <div class="ta disabled">
+          <textarea rows="3" disabled>Комментарий нельзя изменить — поставка уже подтверждена агрономом.</textarea>
+          <div class="counter">—</div>
+        </div>
+      </div>
+
+      <!-- Empty with validation hint -->
+      <div class="ta-field">
+        <div class="ta-head">
+          <span class="lbl">Причина отклонения<span class="req">*</span></span>
+        </div>
+        <div class="ta error">
+          <textarea rows="3" placeholder="Опишите причину минимум 30 символами…"></textarea>
+          <div class="counter"><b>0</b>&nbsp;/&nbsp;30 min</div>
+        </div>
+        <div class="ta-msg error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>
+          Это поле обязательно
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 · Full use-case: message composer -->
+  <div>
+    <div class="kicker">In context · message composer</div>
+
+    <div class="ta-field">
+      <div class="ta-head">
+        <span class="lbl">Сообщение фермеру</span>
+        <span class="hint">отправится в Telegram и сохранится в ленту</span>
+      </div>
+      <div class="ta focus">
+        <textarea rows="5">Арман Серикович, по результатам анализа почвы с поля №12 рекомендую добавить фосфорное удобрение — 40 кг/га, срок две недели. Подробности в прикреплённом отчёте.
+
+— Сауле, агроном</textarea>
+        <div class="toolbar">
+          <button title="Жирный"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+          <button title="Список"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" stroke-linecap="round"/></svg></button>
+          <div class="sep"></div>
+          <button title="Прикрепить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10l-8.5 8.5a5 5 0 0 1-7-7L13 3a3.5 3.5 0 0 1 5 5l-7.5 7.5a1.5 1.5 0 0 1-2-2L16 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button title="Шаблон"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="counter"><b>217</b>&nbsp;/&nbsp;1000</div>
+      </div>
+      <div class="ta-foot">
+        <div class="left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3a8a52" stroke-width="2" width="12" height="12" style="flex-shrink:0"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Черновик сохраняется</span>
+          <span style="color:#ece5d6">·</span>
+          <kbd>⌘</kbd><kbd>↵</kbd>
+          <span>отправить</span>
+        </div>
+        <div class="right">
+          <button class="btn btn-g">Отложить</button>
+          <button class="btn btn-p">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Отправить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>rx</b> 6 (--r-md)</span>
+    <span><b>bg</b> var(--bg-c) #fbfaf6</span>
+    <span><b>fg</b> var(--fg) #3d2b1f</span>
+    <span><b>bd</b> var(--bd) #e0d9cc</span>
+    <span><b>bd-h</b> var(--bd-h) #c7beac</span>
+    <span><b>focus</b> bd=--fg + shadow 3px fg/.08</span>
+    <span><b>error</b> bd=--red #c0392b</span>
+    <span><b>counter font</b> Geist Mono 10.5</span>
+    <span><b>padding</b> 10 12 26 (bottom for counter)</span>
+    <span><b>textarea</b> font 13 / lh 1.5 / no resize</span>
+  </div>
+
+</div>
+</body></html>

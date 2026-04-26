@@ -103,7 +103,7 @@ export default function BackfillCoversPage() {
     if (status === 'done') return <CheckCircle2 size={16} className="text-green-500" />;
     if (status === 'error') return <XCircle size={16} className="text-red-500" />;
     if (status === 'describing' || status === 'generating')
-      return <Loader2 size={16} className="animate-spin" style={{ color: '#E8730C' }} />;
+      return <Loader2 size={16} className="animate-spin" style={{ color: 'var(--brand)' }} />;
     if (status === 'skipped') return <CheckCircle2 size={16} className="text-gray-400" />;
     return <ImageIcon size={16} className="text-gray-300" />;
   };
@@ -117,10 +117,10 @@ export default function BackfillCoversPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-3xl mx-auto" style={{ background: '#fdf6ee' }}>
+    <div className="min-h-screen px-4 py-6 max-w-3xl mx-auto" style={{ background: 'var(--bg)' }}>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold" style={{ color: '#2B180A' }}>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--fg)' }}>
             Обложки стартапов
           </h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(43,24,10,0.5)' }}>
@@ -132,7 +132,7 @@ export default function BackfillCoversPage() {
             onClick={runAll}
             disabled={running}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-60"
-            style={{ background: '#E8730C' }}
+            style={{ background: 'var(--brand)' }}
           >
             {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
             {running ? 'Обрабатываю...' : `Запустить (${pendingCount})`}
@@ -142,7 +142,7 @@ export default function BackfillCoversPage() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 size={24} className="animate-spin" style={{ color: '#E8730C' }} />
+          <Loader2 size={24} className="animate-spin" style={{ color: 'var(--brand)' }} />
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -168,7 +168,7 @@ export default function BackfillCoversPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: '#2B180A' }}>
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--fg)' }}>
                   {s.title}
                 </p>
                 <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'rgba(43,24,10,0.45)' }}>
@@ -182,7 +182,7 @@ export default function BackfillCoversPage() {
                 <button
                   onClick={() => processOne(s)}
                   className="text-xs px-3 py-1.5 rounded-lg"
-                  style={{ background: 'rgba(43,24,10,0.06)', color: '#2B180A' }}
+                  style={{ background: 'var(--bg-m)', color: 'var(--fg)' }}
                 >
                   Повторить
                 </button>

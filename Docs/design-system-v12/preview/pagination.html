@@ -1,0 +1,296 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ═══════ Base page pagination ═══════ */
+  .pag {
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+  .pag .btn {
+    min-width: 32px; height: 32px; padding: 0 10px;
+    display: inline-grid; place-items: center;
+    background: transparent;
+    border: 0; border-radius: 6px;
+    box-shadow: inset 0 0 0 1px transparent;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+    color: #6b6359;
+    cursor: pointer;
+    transition: background 100ms, color 100ms, box-shadow 100ms;
+  }
+  .pag .btn:hover { background: #f3ede1; color: #3d2b1f; }
+  .pag .btn.active {
+    background: #3d2b1f; color: #fbfaf6;
+  }
+  .pag .btn.active:hover { background: #2c1e14; }
+  .pag .btn.arrow { color: #6b6359; }
+  .pag .btn.arrow svg { width: 14px; height: 14px; }
+  .pag .btn.arrow:disabled, .pag .btn.arrow.disabled {
+    color: #c7beac; cursor: not-allowed; background: transparent;
+  }
+  .pag .btn.arrow.disabled:hover { background: transparent; }
+  .pag .ellipsis {
+    min-width: 32px; height: 32px;
+    display: inline-grid; place-items: center;
+    font: 400 14px 'Geist'; color: #9a9288;
+    cursor: default;
+  }
+
+  /* Outlined variant */
+  .pag.outlined .btn { box-shadow: inset 0 0 0 1px #e0d9cc; background: #fbfaf6; }
+  .pag.outlined .btn:hover { box-shadow: inset 0 0 0 1px #c7beac; background: #fbfaf6; }
+  .pag.outlined .btn.active { box-shadow: inset 0 0 0 1px #3d2b1f; background: #3d2b1f; }
+  .pag.outlined .ellipsis { color: #9a9288; }
+  .pag.outlined .btn.arrow.disabled {
+    box-shadow: inset 0 0 0 1px #ebe4d5; background: #fbfaf6;
+  }
+
+  /* ═══════ Table footer pagination ═══════ */
+  .tbl-pag {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px;
+    background: #fbfaf6;
+    border-radius: 0 0 8px 8px;
+    box-shadow: inset 0 1px 0 #ebe4d5;
+    font: 400 12px 'Geist'; color: #6b6359;
+  }
+  .tbl-pag .left { display: flex; align-items: center; gap: 16px; }
+  .tbl-pag .left .rows {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tbl-pag .left .rows b { color: #3d2b1f; font-weight: 500; }
+  .tbl-pag .left .sel {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 26px; padding: 0 8px; padding-right: 6px;
+    background: #fbfaf6; border-radius: 5px;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    font: 500 12px 'Geist Mono'; color: #3d2b1f;
+    cursor: pointer;
+  }
+  .tbl-pag .left .sel:hover { box-shadow: inset 0 0 0 1px #c7beac; }
+  .tbl-pag .left .sel svg { width: 11px; height: 11px; color: #9a9288; }
+  .tbl-pag .center { font: 400 12px 'Geist Mono'; color: #9a9288; }
+  .tbl-pag .center b { color: #3d2b1f; font-weight: 500; }
+
+  /* ═══════ Mobile pagination (prev/next only) ═══════ */
+  .pag-m {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; width: 320px;
+  }
+  .pag-m .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 14px;
+    background: #fbfaf6; border-radius: 7px;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    font: 500 13px 'Geist'; color: #3d2b1f;
+    cursor: pointer;
+  }
+  .pag-m .btn:hover { box-shadow: inset 0 0 0 1px #c7beac; }
+  .pag-m .btn.disabled { color: #c7beac; box-shadow: inset 0 0 0 1px #ebe4d5; cursor: not-allowed; }
+  .pag-m .btn svg { width: 14px; height: 14px; }
+  .pag-m .info {
+    font: 500 12px 'Geist Mono'; color: #9a9288;
+  }
+  .pag-m .info b { color: #3d2b1f; font-weight: 500; }
+
+  /* ═══════ Jump-to-page ═══════ */
+  .jump {
+    display: inline-flex; align-items: center; gap: 6px;
+    font: 400 12px 'Geist'; color: #9a9288;
+  }
+  .jump input {
+    width: 48px; height: 28px;
+    padding: 0 8px;
+    background: #fbfaf6; border-radius: 5px; border: 0;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    font: 500 12px 'Geist Mono'; text-align: center;
+    color: #3d2b1f;
+    outline: 0;
+  }
+  .jump input:focus { box-shadow: inset 0 0 0 1px #3d2b1f, 0 0 0 3px rgba(61,43,31,0.08); }
+
+  /* Table mock */
+  .tbl-mock {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    overflow: hidden;
+  }
+  .tbl-mock .h, .tbl-mock .r {
+    display: grid; grid-template-columns: 1fr 120px 110px;
+    padding: 10px 18px; align-items: center;
+    font: 400 12px 'Geist'; color: #3d2b1f;
+    border-bottom: 1px solid #f3ede1;
+  }
+  .tbl-mock .h {
+    font: 500 10.5px 'Geist Mono'; text-transform: uppercase;
+    color: #9a9288; background: #f3ede1; letter-spacing: 0.06em;
+  }
+  .tbl-mock .r .nm { font-weight: 500; letter-spacing: -0.005em; }
+  .tbl-mock .r .sum { font-family: 'Geist Mono'; font-weight: 500; }
+
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- Base -->
+  <div>
+    <div class="kicker">Base · ghost buttons, active filled</div>
+    <div class="pag">
+      <button class="btn arrow disabled">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="btn active">1</button>
+      <button class="btn">2</button>
+      <button class="btn">3</button>
+      <button class="btn">4</button>
+      <span class="ellipsis">…</span>
+      <button class="btn">24</button>
+      <button class="btn arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div style="height: 12px"></div>
+
+    <div class="pag">
+      <button class="btn arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="btn">1</button>
+      <span class="ellipsis">…</span>
+      <button class="btn">11</button>
+      <button class="btn active">12</button>
+      <button class="btn">13</button>
+      <span class="ellipsis">…</span>
+      <button class="btn">24</button>
+      <button class="btn arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Outlined -->
+  <div>
+    <div class="kicker">Outlined · more weight · dense toolbar</div>
+    <div class="pag outlined">
+      <button class="btn arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="btn">1</button>
+      <span class="ellipsis">…</span>
+      <button class="btn">6</button>
+      <button class="btn">7</button>
+      <button class="btn active">8</button>
+      <button class="btn">9</button>
+      <button class="btn">10</button>
+      <span class="ellipsis">…</span>
+      <button class="btn">24</button>
+      <button class="btn arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Full table footer -->
+  <div>
+    <div class="kicker">Table footer · with rows-per-page + range</div>
+    <div class="tbl-mock">
+      <div class="h">
+        <div>Поставка</div>
+        <div>Дата</div>
+        <div style="text-align:right">Сумма, ₸</div>
+      </div>
+      <div class="r"><div class="nm">Удобрение · поле №12-Б</div><div>14 мар 2026</div><div class="sum" style="text-align:right">240 800</div></div>
+      <div class="r"><div class="nm">Семена · поле №07-А</div><div>18 мар 2026</div><div class="sum" style="text-align:right">380 400</div></div>
+      <div class="r"><div class="nm">СЗР · поле №03-В</div><div>22 мар 2026</div><div class="sum" style="text-align:right">182 600</div></div>
+      <div class="r" style="border-bottom:0"><div class="nm">Горючее · парк</div><div>25 мар 2026</div><div class="sum" style="text-align:right">914 200</div></div>
+
+      <div class="tbl-pag">
+        <div class="left">
+          <div class="rows">
+            <span>Строк на страницу</span>
+            <div class="sel">10
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="center"><b>1–10</b> из <b>184</b></div>
+        <div class="pag">
+          <button class="btn arrow disabled">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 18L6 12 18 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18l12-6L6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Mobile + jump -->
+  <div>
+    <div class="kicker">Mobile · prev/next · low-density</div>
+    <div style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap">
+      <div class="pag-m">
+        <button class="btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Назад
+        </button>
+        <span class="info"><b>12</b>&nbsp;/&nbsp;24</span>
+        <button class="btn">
+          Вперёд
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <div class="jump">
+        Перейти
+        <input type="text" value="12">
+        из 24
+      </div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <span><b>btn</b> 32×32 · rx 6 · font 12/500</span>
+    <span><b>active</b> bg --cta · fg --cta-fg</span>
+    <span><b>hover</b> bg #f3ede1</span>
+    <span><b>ellipsis</b> 32×32 · #9a9288</span>
+    <span><b>table footer</b> padding 14 18 · inset top border</span>
+    <span><b>mobile</b> btn 36 h · rx 7</span>
+  </div>
+</div>
+</body></html>

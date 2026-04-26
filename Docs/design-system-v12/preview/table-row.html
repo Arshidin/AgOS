@@ -1,0 +1,277 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    background: #fbfaf6;
+    border: 1px solid #e6dfd2;
+    border-radius: 10px;
+    overflow: hidden;
+    font-family: 'Geist', sans-serif;
+    color: #3d2b1f;
+    box-shadow: 0 1px 2px rgba(61,43,31,0.04);
+  }
+
+  .cols {
+    display: grid;
+    grid-template-columns: 32px 1.7fr 1fr 116px 108px 36px;
+    gap: 14px;
+    align-items: center;
+  }
+
+  /* Header */
+  .th {
+    padding: 9px 14px;
+    background: #f3ede1;
+    border-bottom: 1px solid #e6dfd2;
+    font: 600 9.5px 'Geist',sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9a9288;
+  }
+  .th .sort {
+    display:inline-flex; align-items:center; gap:4px;
+    color:#6b6359;
+  }
+  .th .sort svg { opacity: 0.7; }
+
+  /* Row */
+  .tr {
+    position: relative;
+    padding: 0 14px;
+    height: 48px;
+    border-bottom: 1px solid #ece5d6;
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  .tr:last-child { border-bottom: none; }
+  .tr:hover { background: #f3ede1; }
+  .tr.selected {
+    background: rgba(69,113,184,0.07);
+  }
+  .tr.selected::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width: 2px; background: #4571b8;
+  }
+
+  /* Cells */
+  .cell-id {
+    display:flex; align-items:center; gap:10px;
+    min-width: 0;
+  }
+  .av {
+    width:26px; height:26px; border-radius:9999px;
+    display:grid; place-items:center;
+    font: 600 10px 'Geist',sans-serif;
+    letter-spacing:-0.01em;
+    box-shadow: inset 0 0 0 1px rgba(61,43,31,0.06);
+    flex-shrink:0;
+  }
+  .idtext { min-width:0; }
+  .name {
+    font: 500 13px 'Geist',sans-serif;
+    color: #3d2b1f;
+    letter-spacing: -0.005em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .email {
+    font: 400 11px 'Geist Mono',monospace;
+    color: #9a9288;
+    margin-top: 1px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .region {
+    font: 400 12.5px 'Geist',sans-serif;
+    color: #6b6359;
+  }
+  .region .flag {
+    display:inline-block; width:4px; height:4px; border-radius:9999px;
+    background:#c7beac; margin-right:7px; vertical-align: 2px;
+  }
+
+  /* Status pill — dot + text, subtle */
+  .pill {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 2px 9px 2px 7px;
+    border-radius: 9999px;
+    font: 600 10.5px 'Geist',sans-serif;
+    letter-spacing: 0.005em;
+    width: fit-content;
+  }
+  .pill .dot { width:6px; height:6px; border-radius:9999px; }
+
+  .area {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: #3d2b1f;
+    font-feature-settings: "tnum" 1;
+    text-align: right;
+    letter-spacing: -0.01em;
+  }
+  .area .u { color:#9a9288; margin-left: 2px; font-weight: 400; }
+
+  .menu {
+    display:grid; place-items:center;
+    width: 26px; height: 26px; border-radius: 6px;
+    color: #9a9288;
+    transition: background 120ms, color 120ms;
+  }
+  .tr:hover .menu { background: #ece7dd; color: #6b6359; }
+
+  /* Custom checkbox */
+  .chk {
+    width: 15px; height: 15px; border-radius: 4px;
+    background: #fbfaf6;
+    box-shadow: inset 0 0 0 1.5px #c7beac;
+    display:grid; place-items:center;
+    transition: all 120ms;
+  }
+  .chk.on {
+    background: #4571b8;
+    box-shadow: inset 0 0 0 1.5px #4571b8;
+  }
+  .chk.on::after {
+    content:''; width:8px; height:5px;
+    border-left: 1.5px solid #fbfaf6;
+    border-bottom: 1.5px solid #fbfaf6;
+    transform: rotate(-45deg) translate(1px,-1px);
+  }
+
+  /* Footer meta */
+  .foot {
+    display:flex; justify-content:space-between; align-items:center;
+    padding: 9px 14px;
+    background: #f3ede1;
+    border-top: 1px solid #e6dfd2;
+    font: 500 10.5px 'Geist',sans-serif;
+    color: #6b6359;
+  }
+  .foot .sel {
+    display:inline-flex; align-items:center; gap:6px;
+    color: #4571b8;
+    font-weight: 600;
+  }
+  .foot .sel .count {
+    background: rgba(69,113,184,0.12);
+    padding: 1px 6px; border-radius: 9999px;
+    font: 600 10px 'Geist Mono',monospace;
+  }
+  .foot kbd {
+    font: 500 9.5px 'Geist Mono',monospace;
+    padding: 1px 5px; border-radius: 3px;
+    background: #fbfaf6; border: 1px solid #e6dfd2;
+    color: #6b6359;
+  }
+</style>
+</head><body data-theme="light">
+<div style="padding:24px">
+  <div class="wrap">
+    <!-- HEADER -->
+    <div class="th cols">
+      <span></span>
+      <span class="sort">Ферма
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 4 L5 2 L7 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6 L5 8 L7 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span>Регион</span>
+      <span>Статус</span>
+      <span style="text-align:right">Площадь</span>
+      <span></span>
+    </div>
+
+    <!-- ROW 1 -->
+    <div class="tr cols">
+      <div class="chk"></div>
+      <div class="cell-id">
+        <div class="av" style="background:#ece2d3;color:#6b5235">АК</div>
+        <div class="idtext">
+          <div class="name">Арман Керимов</div>
+          <div class="email">turantech@kz.ag</div>
+        </div>
+      </div>
+      <div class="region"><span class="flag" style="background:#3a8a52"></span>Акмолинская</div>
+      <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);">
+        <span class="dot" style="background:#3a8a52"></span>Active
+      </span>
+      <div class="area">1,240<span class="u"> га</span></div>
+      <div class="menu">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <!-- ROW 2 — selected -->
+    <div class="tr selected cols">
+      <div class="chk on"></div>
+      <div class="cell-id">
+        <div class="av" style="background:#dce3ec;color:#3d5576">СН</div>
+        <div class="idtext">
+          <div class="name">Сауле Нурмагамбетова</div>
+          <div class="email">saule@kaz.ag</div>
+        </div>
+      </div>
+      <div class="region"><span class="flag" style="background:#4571b8"></span>Алматинская</div>
+      <span class="pill" style="background:rgba(69,113,184,0.10);color:#355996;box-shadow:inset 0 0 0 1px rgba(69,113,184,0.22);">
+        <span class="dot" style="background:#4571b8"></span>Qualified
+      </span>
+      <div class="area">860<span class="u"> га</span></div>
+      <div class="menu">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <!-- ROW 3 -->
+    <div class="tr cols">
+      <div class="chk"></div>
+      <div class="cell-id">
+        <div class="av" style="background:#d8e0e7;color:#3a546c">БО</div>
+        <div class="idtext">
+          <div class="name">Болат Омаров</div>
+          <div class="email">bolat@steppe.kz</div>
+        </div>
+      </div>
+      <div class="region"><span class="flag" style="background:#3a8a52"></span>Павлодарская</div>
+      <span class="pill" style="background:rgba(58,138,82,0.10);color:#2f6e42;box-shadow:inset 0 0 0 1px rgba(58,138,82,0.22);">
+        <span class="dot" style="background:#3a8a52"></span>Active
+      </span>
+      <div class="area">2,350<span class="u"> га</span></div>
+      <div class="menu">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <!-- ROW 4 — stalled (shown to demo red) -->
+    <div class="tr cols">
+      <div class="chk"></div>
+      <div class="cell-id">
+        <div class="av" style="background:#ebd9dc;color:#6b3a48">ЗК</div>
+        <div class="idtext">
+          <div class="name">Зауреш Касымова</div>
+          <div class="email">zk@agro.kz</div>
+        </div>
+      </div>
+      <div class="region"><span class="flag" style="background:#c0392b"></span>Костанайская</div>
+      <span class="pill" style="background:rgba(192,57,43,0.09);color:#9b2d22;box-shadow:inset 0 0 0 1px rgba(192,57,43,0.22);">
+        <span class="dot" style="background:#c0392b"></span>Stalled
+      </span>
+      <div class="area">540<span class="u"> га</span></div>
+      <div class="menu">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="foot">
+      <div class="sel">
+        <span class="count">1</span>
+        <span>selected</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span>4 of 127</span>
+        <kbd>↑</kbd><kbd>↓</kbd>
+        <span style="opacity:0.7">navigate</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

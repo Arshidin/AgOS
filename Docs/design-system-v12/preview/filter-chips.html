@@ -1,0 +1,225 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .card {
+    background:#f6f3ed; padding:22px 24px;
+    font-family:'Geist',sans-serif; color:#3d2b1f;
+  }
+  .head {
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom: 14px;
+  }
+  .head .t {
+    font: 600 12px 'Geist', sans-serif;
+    color: #3d2b1f; letter-spacing: -0.005em;
+  }
+  .head .sub {
+    font: 500 10px 'Geist Mono', monospace;
+    color: #9a9288;
+  }
+
+  .row {
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+    padding: 10px 12px;
+    background: #fbfaf6;
+    border: 1px solid #e6dfd2;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(61,43,31,0.03);
+  }
+
+  /* CHIP base — minimal, segmented, hairline */
+  .chip {
+    display:inline-flex; align-items:stretch;
+    height: 24px;
+    font: 500 11.5px 'Geist',sans-serif;
+    letter-spacing:-0.005em;
+    border-radius: 6px;
+    background: #fbfaf6;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    overflow: hidden;
+    color: #3d2b1f;
+    transition: box-shadow 120ms;
+  }
+  .chip:hover { box-shadow: inset 0 0 0 1px #c7beac; }
+  .chip > * {
+    display:inline-flex; align-items:center;
+    padding: 0 8px;
+  }
+  .chip .field {
+    color: #6b6359;
+    background: #f3ede1;
+    border-right: 1px solid #e6dfd2;
+    font-weight: 500;
+  }
+  .chip .op {
+    color: #9a9288;
+    font: 500 10.5px 'Geist Mono',monospace;
+    padding: 0 6px;
+    border-right: 1px solid #ece5d6;
+  }
+  .chip .val {
+    color: #3d2b1f;
+    font-weight: 600;
+    max-width: 180px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .chip .val .tag {
+    display:inline-flex; align-items:center; gap:4px;
+    padding: 1px 6px;
+    margin: 0 -2px 0 6px;
+    background: rgba(69,113,184,0.10);
+    color: #355996;
+    border-radius: 9999px;
+    font: 600 9.5px 'Geist',sans-serif;
+  }
+  .chip .val .dot {
+    display:inline-block; width:6px; height:6px; border-radius:9999px;
+    margin-right: 6px; vertical-align: 0;
+  }
+  .chip .x {
+    color: #9a9288;
+    border-left: 1px solid #ece5d6;
+    padding: 0 7px;
+    cursor: pointer;
+    transition: color 120ms, background 120ms;
+  }
+  .chip .x:hover { color: #c0392b; background: rgba(192,57,43,0.06); }
+
+  /* Special: accented (active filter focus) */
+  .chip.accent {
+    box-shadow: inset 0 0 0 1px rgba(69,113,184,0.35);
+    background: rgba(69,113,184,0.04);
+  }
+  .chip.accent .field {
+    background: rgba(69,113,184,0.10);
+    color: #355996;
+    border-right-color: rgba(69,113,184,0.20);
+  }
+  .chip.accent .op { border-right-color: rgba(69,113,184,0.15); }
+  .chip.accent .x { border-left-color: rgba(69,113,184,0.15); }
+
+  /* Add filter — dashed, subtle */
+  .add {
+    display:inline-flex; align-items:center; gap:5px;
+    height: 24px; padding: 0 10px 0 8px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px dashed #c7beac;
+    color: #6b6359;
+    font: 500 11.5px 'Geist',sans-serif;
+    cursor: pointer;
+    transition: all 120ms;
+  }
+  .add:hover { border-color: #6b6359; color: #3d2b1f; background: #f3ede1; border-style: solid; }
+  .add svg { opacity: 0.7; }
+
+  /* Divider between filters + actions */
+  .spacer { flex: 1; }
+
+  .clear {
+    font: 500 10.5px 'Geist',sans-serif;
+    color: #9a9288;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 120ms;
+  }
+  .clear:hover { color: #c0392b; }
+
+  .count {
+    font: 600 10px 'Geist Mono',monospace;
+    color: #6b6359;
+    background: #ece7dd;
+    padding: 2px 7px;
+    border-radius: 9999px;
+  }
+
+  .grp-title {
+    font: 600 9.5px 'Geist', sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9a9288;
+    margin: 0 0 8px;
+  }
+  .grp + .grp { margin-top: 16px; }
+
+  /* State demo chips row */
+  .states { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  .state-lbl {
+    font: 500 10px 'Geist Mono',monospace;
+    color:#9a9288; margin-right:4px;
+  }
+</style>
+</head><body data-theme="light">
+<div class="card">
+
+  <div class="head">
+    <div class="t">Filter chips · segmented</div>
+    <div class="sub">field · op · value · ×</div>
+  </div>
+
+  <!-- LIVE BAR -->
+  <div class="grp">
+    <div class="grp-title">In context · filter bar</div>
+    <div class="row">
+      <span class="count">3</span>
+
+      <div class="chip">
+        <span class="field">Статус</span>
+        <span class="op">is</span>
+        <span class="val"><span class="dot" style="background:#3a8a52"></span>Active</span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="chip accent">
+        <span class="field">Регион</span>
+        <span class="op">in</span>
+        <span class="val">Акмолинская<span class="tag">+2</span></span>
+        <span class="x">×</span>
+      </div>
+
+      <div class="chip">
+        <span class="field">Площадь</span>
+        <span class="op">≥</span>
+        <span class="val" style="font-family:'Geist Mono',monospace;font-weight:500">1,000 га</span>
+        <span class="x">×</span>
+      </div>
+
+      <button class="add">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5v7M1.5 5h7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Add filter
+      </button>
+
+      <span class="spacer"></span>
+      <span class="clear">Clear all</span>
+    </div>
+  </div>
+
+  <!-- STATES -->
+  <div class="grp">
+    <div class="grp-title">States</div>
+    <div class="states">
+      <span class="state-lbl">default</span>
+      <div class="chip">
+        <span class="field">Тип</span><span class="op">is</span><span class="val">КРС</span><span class="x">×</span>
+      </div>
+
+      <span class="state-lbl" style="margin-left:6px">focused</span>
+      <div class="chip accent">
+        <span class="field">Тип</span><span class="op">is</span><span class="val">КРС</span><span class="x">×</span>
+      </div>
+
+      <span class="state-lbl" style="margin-left:6px">numeric</span>
+      <div class="chip">
+        <span class="field">Дата</span><span class="op">&gt;</span><span class="val" style="font-family:'Geist Mono',monospace;font-weight:500">2024-06-01</span><span class="x">×</span>
+      </div>
+
+      <span class="state-lbl" style="margin-left:6px">multi</span>
+      <div class="chip">
+        <span class="field">Культура</span><span class="op">in</span><span class="val">Пшеница<span class="tag">+3</span></span><span class="x">×</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body></html>

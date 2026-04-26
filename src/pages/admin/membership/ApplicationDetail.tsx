@@ -62,7 +62,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs mb-0.5" style={{ color: 'rgba(43,24,10,0.4)' }}>{label}</p>
-      <p className="text-sm" style={{ color: '#2B180A' }}>{value || '—'}</p>
+      <p className="text-sm" style={{ color: 'var(--fg)' }}>{value || '—'}</p>
     </div>
   );
 }
@@ -119,7 +119,7 @@ export default function ApplicationDetail() {
   // ── Loading
   if (isLoading) {
     return (
-      <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="mx-auto max-w-2xl px-4 py-8 space-y-6">
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-8 w-64" />
@@ -133,9 +133,9 @@ export default function ApplicationDetail() {
   // ── Error
   if (error || !app) {
     return (
-      <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="mx-auto max-w-2xl px-4 py-8 text-center">
-          <p className="text-sm mb-3" style={{ color: '#993333' }}>{t('admin.detail.notFound')}</p>
+          <p className="text-sm mb-3" style={{ color: 'var(--red)' }}>{t('admin.detail.notFound')}</p>
           <Button variant="outline" onClick={() => navigate('/admin/applications')}>
             {t('admin.detail.backToList')}
           </Button>
@@ -147,7 +147,7 @@ export default function ApplicationDetail() {
   const isFarmer = app.role === 'farmer';
 
   return (
-    <div className="min-h-screen" style={{ background: '#FAFAF8' }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="mx-auto max-w-2xl px-4 sm:px-6 py-6 sm:py-8">
 
         {/* ── Навигация ── */}
@@ -164,8 +164,8 @@ export default function ApplicationDetail() {
 
         {/* ── Шапка ── */}
         <div
-          className="bg-white rounded-xl border p-5 sm:p-6 mb-6"
-          style={{ borderColor: 'rgba(43,24,10,0.06)' }}
+          className="rounded-xl border p-5 sm:p-6 mb-6"
+          style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}
         >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function ApplicationDetail() {
             </p>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-semibold mb-2" style={{ color: '#2B180A' }}>
+          <h1 className="text-xl sm:text-2xl font-semibold mb-2" style={{ color: 'var(--fg)' }}>
             {app.full_name}
           </h1>
 
@@ -185,7 +185,7 @@ export default function ApplicationDetail() {
             <a
               href={getTelUrl(app.phone)}
               className="inline-flex items-center gap-1.5 text-sm"
-              style={{ color: '#2B180A' }}
+              style={{ color: 'var(--fg)' }}
             >
               <Phone className="w-3.5 h-3.5" />
               {formatPhone(app.phone)}
@@ -212,7 +212,7 @@ export default function ApplicationDetail() {
           {isFarmer ? (
             <>
               {/* Farmer sections */}
-              <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+              <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
                 <Section title={t('admin.detail.aboutFarm')}>
                   <Field label={t('admin.detail.name')} value={app.farm_name} />
                   <Field label={t('admin.detail.binIin')} value={app.bin_iin} />
@@ -221,7 +221,7 @@ export default function ApplicationDetail() {
                 </Section>
               </div>
 
-              <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+              <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
                 <Section title={t('admin.detail.salesPlans')}>
                   <Field label={t('admin.detail.readiness')} value={getLocalizedLabel(t, 'readyToSell', app.ready_to_sell)} />
                   <Field label={t('admin.detail.plannedVolume')} value={app.sell_count} />
@@ -231,7 +231,7 @@ export default function ApplicationDetail() {
           ) : (
             <>
               {/* MPK sections */}
-              <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+              <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
                 <Section title={t('admin.detail.aboutCompany')}>
                   <Field label={t('admin.detail.name')} value={app.company_name} />
                   <Field label={t('admin.detail.bin')} value={app.bin} />
@@ -240,7 +240,7 @@ export default function ApplicationDetail() {
                 </Section>
               </div>
 
-              <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+              <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
                 <Section title={t('admin.detail.purchaseNeeds')}>
                   <Field label={t('admin.detail.breeds')} value={app.target_breeds?.join(', ')} />
                   <Field label={t('admin.detail.targetWeight')} value={app.target_weight} />
@@ -251,7 +251,7 @@ export default function ApplicationDetail() {
           )}
 
           {/* Дополнительно */}
-          <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+          <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
             <Section title={t('admin.detail.additional')}>
               <Field label={t('admin.detail.consentGiven')} value={app.consent_given ? t('admin.detail.yes') : t('admin.detail.no')} />
               <Field label={t('admin.detail.source')} value={getLocalizedLabel(t, 'howHeard', app.how_heard)} />
@@ -260,7 +260,7 @@ export default function ApplicationDetail() {
 
           {/* Документы и прогресс заявки */}
           {docStatus && (
-            <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+            <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
               <h3
                 className="text-xs uppercase tracking-wider mb-3"
                 style={{ color: 'rgba(43,24,10,0.4)', letterSpacing: '0.05em' }}
@@ -328,7 +328,7 @@ export default function ApplicationDetail() {
 
           {/* Рассмотрение (только если не pending) */}
           {app.status !== 'pending' && (
-            <div className="bg-white rounded-xl border p-5 sm:p-6 mb-4" style={{ borderColor: 'rgba(43,24,10,0.06)' }}>
+            <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
               <Section title={t('admin.detail.review')}>
                 <Field label={t('admin.detail.decision')} value={app.status === 'approved' ? t('admin.detail.approvedStatus') : t('admin.detail.rejectedStatus')} />
                 <Field label={t('admin.detail.reviewedBy')} value={app.reviewed_by} />
@@ -344,12 +344,12 @@ export default function ApplicationDetail() {
         {/* ── Действия (только pending) ── */}
         {app.status === 'pending' && (
           <div
-            className="bg-white rounded-xl border p-4 sm:p-5 mt-4 flex gap-3"
-            style={{ borderColor: 'rgba(43,24,10,0.06)' }}
+            className="rounded-xl border p-4 sm:p-5 mt-4 flex gap-3"
+            style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}
           >
             <Button
               className="flex-1 h-11 text-white font-medium"
-              style={{ background: '#2B180A' }}
+              style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
               onClick={() => setApproveOpen(true)}
               disabled={approve.isPending || reject.isPending}
             >
@@ -359,7 +359,7 @@ export default function ApplicationDetail() {
             <Button
               variant="outline"
               className="flex-1 h-11 font-medium"
-              style={{ color: '#993333', borderColor: 'rgba(43,24,10,0.15)' }}
+              style={{ color: 'var(--red)', borderColor: 'var(--bd)' }}
               onClick={() => setRejectOpen(true)}
               disabled={approve.isPending || reject.isPending}
             >

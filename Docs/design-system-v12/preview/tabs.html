@@ -1,0 +1,300 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ═══════ 01 UNDERLINE (primary) ═══════ */
+  .tabs-u {
+    display: flex; align-items: center; gap: 0;
+    box-shadow: inset 0 -1px 0 #ebe4d5;
+  }
+  .tabs-u .tab {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 14px;
+    font: 500 13px 'Geist'; letter-spacing: -0.005em;
+    color: #9a9288;
+    cursor: pointer;
+    transition: color 120ms;
+  }
+  .tabs-u .tab:hover { color: #6b6359; }
+  .tabs-u .tab.active { color: #3d2b1f; }
+  .tabs-u .tab.active::after {
+    content: "";
+    position: absolute; left: 10px; right: 10px; bottom: -1px;
+    height: 2px; background: #3d2b1f;
+    border-radius: 2px 2px 0 0;
+  }
+  .tabs-u .tab .count {
+    display: inline-grid; place-items: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #f3ede1;
+    border-radius: 9999px;
+    font: 500 10.5px 'Geist Mono'; color: #6b6359;
+  }
+  .tabs-u .tab.active .count { background: #3d2b1f; color: #fbfaf6; }
+  .tabs-u .tab.disabled { color: #c7beac; cursor: not-allowed; }
+  .tabs-u .tab.disabled:hover { color: #c7beac; }
+  .tabs-u .tab .dot { width: 6px; height: 6px; border-radius: 50%; background: #c0392b; }
+
+  /* ═══════ 02 SEGMENTED (switch) ═══════ */
+  .tabs-s {
+    display: inline-flex; align-items: center;
+    padding: 3px;
+    background: #efe8d8;
+    border-radius: 8px;
+  }
+  .tabs-s .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+    color: #6b6359;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 100ms, color 100ms;
+  }
+  .tabs-s .tab:hover { color: #3d2b1f; }
+  .tabs-s .tab.active {
+    background: #fbfaf6;
+    color: #3d2b1f;
+    box-shadow: 0 1px 2px rgba(61,43,31,0.08), 0 0 0 1px rgba(61,43,31,0.04);
+  }
+  .tabs-s .tab svg { width: 13px; height: 13px; }
+
+  /* ═══════ 03 PILLS (filter tabs) ═══════ */
+  .tabs-p {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .tabs-p .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 12px;
+    background: transparent;
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+    color: #6b6359;
+    cursor: pointer;
+    transition: all 100ms;
+  }
+  .tabs-p .tab:hover { box-shadow: inset 0 0 0 1px #c7beac; color: #3d2b1f; }
+  .tabs-p .tab.active {
+    background: #3d2b1f;
+    box-shadow: inset 0 0 0 1px #3d2b1f;
+    color: #fbfaf6;
+  }
+  .tabs-p .tab .count {
+    font: 500 10.5px 'Geist Mono'; color: #9a9288;
+    padding-left: 2px;
+  }
+  .tabs-p .tab.active .count { color: rgba(251,250,246,0.65); }
+
+  /* ═══════ 04 VERTICAL (settings) ═══════ */
+  .tabs-v {
+    display: flex; flex-direction: column; gap: 2px;
+    width: 220px;
+    padding: 4px;
+    background: #fbfaf6;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+  }
+  .tabs-v .tab {
+    position: relative;
+    display: flex; align-items: center; gap: 10px;
+    height: 34px; padding: 0 10px;
+    font: 500 12.5px 'Geist'; letter-spacing: -0.005em;
+    color: #6b6359;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background 100ms, color 100ms;
+  }
+  .tabs-v .tab svg { width: 14px; height: 14px; flex-shrink: 0; color: #9a9288; }
+  .tabs-v .tab .count {
+    margin-left: auto;
+    font: 500 10.5px 'Geist Mono'; color: #9a9288;
+  }
+  .tabs-v .tab:hover { background: #f3ede1; color: #3d2b1f; }
+  .tabs-v .tab:hover svg { color: #6b6359; }
+  .tabs-v .tab.active { background: #f3ede1; color: #3d2b1f; }
+  .tabs-v .tab.active svg { color: #3d2b1f; }
+  .tabs-v .tab.active::before {
+    content: "";
+    position: absolute; left: -4px; top: 6px; bottom: 6px;
+    width: 2px; background: #3d2b1f; border-radius: 2px;
+  }
+
+  /* Panel preview */
+  .panel {
+    margin-top: 16px;
+    padding: 18px;
+    background: #fbfaf6;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .panel h4 {
+    margin: 0; font: 500 14px 'Geist'; color: #3d2b1f;
+    letter-spacing: -0.01em;
+  }
+  .panel p {
+    margin: 0; font: 400 12px 'Geist'; color: #6b6359; line-height: 1.5;
+  }
+
+  /* Real use – two-column layout */
+  .use-case {
+    display: grid; grid-template-columns: 220px 1fr; gap: 18px;
+    align-items: start;
+  }
+  .use-case .right {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 18px;
+  }
+  .use-case h4 { margin: 0 0 4px; font: 500 14px 'Geist'; color:#3d2b1f; letter-spacing: -0.01em; }
+  .use-case .sub { font: 400 12px 'Geist'; color:#9a9288; margin-bottom: 16px; }
+  .use-case .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid #f3ede1;
+  }
+  .use-case .row:first-of-type { border-top: 0; padding-top: 0; }
+  .use-case .row .k { font: 500 12px 'Geist'; color:#3d2b1f; }
+  .use-case .row .k span { display:block; font: 400 11px 'Geist'; color:#9a9288; margin-top: 2px; }
+  .use-case .row .v { font: 500 12px 'Geist Mono'; color:#3d2b1f; }
+
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 Underline -->
+  <div>
+    <div class="kicker">Underline · primary pattern · page-level nav</div>
+    <div class="tabs-u">
+      <div class="tab active">Поставки<span class="count">12</span></div>
+      <div class="tab">Поля<span class="count">24</span></div>
+      <div class="tab">Фермеры<span class="count">148</span></div>
+      <div class="tab">Аналитика<span class="dot"></span></div>
+      <div class="tab disabled">Архив</div>
+    </div>
+    <div class="panel">
+      <h4>Поставки · апрель 2026</h4>
+      <p>Показаны 12 активных поставок. Фильтруйте по статусу и региону выше. Tab-индикатор — 2 px, радиус 2 2 0 0, inset от краёв 10 px, чтобы визуально «обнимать» текст вкладки.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 Segmented -->
+  <div>
+    <div class="kicker">Segmented · binary / ternary switch</div>
+    <div style="display:flex; gap: 16px; flex-wrap: wrap; align-items: center">
+      <div class="tabs-s">
+        <div class="tab active">Таблица</div>
+        <div class="tab">Карта</div>
+        <div class="tab">Календарь</div>
+      </div>
+      <div class="tabs-s">
+        <div class="tab active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18" stroke-linecap="round"/></svg>
+          Список
+        </div>
+        <div class="tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Карточки
+        </div>
+      </div>
+      <div class="tabs-s">
+        <div class="tab">День</div>
+        <div class="tab active">Неделя</div>
+        <div class="tab">Месяц</div>
+        <div class="tab">Год</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 Pills -->
+  <div>
+    <div class="kicker">Pills · filter tabs · scannable categories</div>
+    <div class="tabs-p">
+      <div class="tab active">Все<span class="count">184</span></div>
+      <div class="tab">Активные<span class="count">127</span></div>
+      <div class="tab">На модерации<span class="count">12</span></div>
+      <div class="tab">Завершённые<span class="count">38</span></div>
+      <div class="tab">Отклонённые<span class="count">7</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 04 Vertical + panel -->
+  <div>
+    <div class="kicker">Vertical · settings · deep nav</div>
+    <div class="use-case">
+      <div class="tabs-v">
+        <div class="tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0" stroke-linecap="round"/></svg>
+          Профиль
+        </div>
+        <div class="tab active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5" stroke-linecap="round"/></svg>
+          Хозяйство
+          <span class="count">3</span>
+        </div>
+        <div class="tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5M9 17a3 3 0 0 0 6 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Уведомления
+        </div>
+        <div class="tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M7 6V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M3 11h18" stroke-linecap="round"/></svg>
+          Оплата
+        </div>
+        <div class="tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Интеграции
+        </div>
+      </div>
+
+      <div class="right">
+        <h4>Хозяйство</h4>
+        <div class="sub">Реквизиты и поля — видны вашему агроному</div>
+        <div class="row"><div class="k">Название<span>как подписывать отчёты</span></div><div class="v">ТОО «Агро-Север»</div></div>
+        <div class="row"><div class="k">БИН / ИИН</div><div class="v">210940000123</div></div>
+        <div class="row"><div class="k">Регион</div><div class="v">Акмолинская обл.</div></div>
+        <div class="row"><div class="k">Полей на учёте</div><div class="v">24 / 42.1 га</div></div>
+        <div class="row"><div class="k">Агроном</div><div class="v">С. Нурсултанова</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <span><b>underline</b> 2px indicator, inset 10 top</span>
+    <span><b>segmented</b> bg #efe8d8, active #fbfaf6 + shadow</span>
+    <span><b>pills</b> rx 9999, bd 1 #e0d9cc, active --fg</span>
+    <span><b>vertical</b> rx 5, active bg #f3ede1 + 2px left rail</span>
+    <span><b>hit area</b> 40 / 28 / 30 / 34</span>
+    <span><b>font</b> Geist 500 12–13 / -0.005em</span>
+  </div>
+</div>
+</body></html>

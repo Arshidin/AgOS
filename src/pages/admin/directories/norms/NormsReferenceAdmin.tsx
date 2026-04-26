@@ -88,7 +88,7 @@ function val(v: unknown): string {
 }
 
 function BoolBadge({ v }: { v: unknown }) {
-  if (v === true || v === 'Да') return <CheckCircle2 size={14} style={{ color: 'var(--green, #22c55e)' }} />
+  if (v === true || v === 'Да') return <CheckCircle2 size={14} style={{ color: 'var(--green, #3a8a52)' }} />
   if (v === false || v === 'Нет') return <span style={{ color: 'var(--fg3)' }}>—</span>
   return <span style={{ fontSize: 11, color: 'var(--fg3)' }}>{String(v)}</span>
 }

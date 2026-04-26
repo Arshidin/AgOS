@@ -1,0 +1,389 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px 28px;
+    display:flex; flex-direction:column; gap: 28px;
+    font-family: var(--font-sans);
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before {
+    content: ""; width: 14px; height: 1px; background:#c7beac;
+  }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+  .divider { height: 1px; background: #ebe4d5; margin: 4px 0; }
+
+  /* ═══════════════════════ 01 · Ordered steps ═══════════════════════ */
+  .olist { display:flex; flex-direction:column; }
+  .oi {
+    display:grid; grid-template-columns: 20px 1fr;
+    gap: 14px; align-items: start;
+    padding: 12px 0;
+    position: relative;
+  }
+  .oi::after {
+    /* vertical track between bullets */
+    content:""; position:absolute;
+    left: 9.5px; top: 27px; bottom: -12px;
+    width: 1px; background: #e7dfce;
+  }
+  .oi:last-child::after { display: none; }
+
+  .oi .bul {
+    display:inline-flex; align-items:center; justify-content:center;
+    width: 20px; height: 20px;
+    border-radius: 7.5px;
+    font: 500 10px 'Geist Mono';
+    margin-top: 1px;
+    position: relative; z-index: 1;
+  }
+  .oi.done .bul { background:#3d2b1f; color:#fbfaf6; }
+  .oi.done .bul svg { width: 10px; height: 10px; stroke-width: 2.6; }
+  .oi.now .bul {
+    background:#fbfaf6; color:#3d2b1f;
+    box-shadow: inset 0 0 0 1.5px #3d2b1f;
+  }
+  .oi.now .bul::after {
+    /* subtle pulse ring */
+    content:""; position:absolute; inset:-4px;
+    border-radius: 11.5px; border: 1px solid #3d2b1f;
+    opacity: .16;
+  }
+  .oi.todo .bul {
+    background:transparent; color:#9a9288;
+    box-shadow: inset 0 0 0 1px #d9d0bf;
+  }
+
+  .oi .bd .t { font: 500 13px 'Geist'; color:#3d2b1f; letter-spacing:-0.005em; }
+  .oi.done .bd .t { color:#6b6359; }
+  .oi.todo .bd .t { color:#6b6359; }
+  .oi .bd .s { font: 400 11.5px 'Geist'; color:#9a9288; margin-top: 3px; line-height: 1.5; text-wrap: pretty; max-width: 280px; }
+  .oi .bd .meta {
+    display:inline-flex; align-items:center; gap: 6px;
+    margin-top: 6px;
+    font: 500 10px 'Geist Mono'; color:#9a9288; letter-spacing: .03em;
+  }
+  .oi .bd .meta .dot { width: 3px; height: 3px; border-radius:50%; background:#c7beac; }
+  .oi.now .bd .meta { color:#3d2b1f; }
+
+  .progress-cap {
+    display:flex; align-items:baseline; gap: 8px;
+    margin-top: 10px;
+    padding-left: 34px;
+  }
+  .progress-cap .num { font: 500 22px 'Geist'; letter-spacing:-0.02em; color:#3d2b1f; }
+  .progress-cap .num span { color:#c7beac; }
+  .progress-cap .lbl-t { font: 400 11px 'Geist'; color:#9a9288; }
+
+  /* ═══════════════════════ 02 · Keyboard shortcuts ═══════════════════════ */
+  .klist { display:flex; flex-direction:column; gap: 0; }
+  .ki {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 11px 0;
+    border-bottom: 1px solid #ebe4d5;
+    font: 400 12.5px 'Geist'; color:#3d2b1f;
+  }
+  .ki:last-child { border-bottom: 0; }
+  .ki .lbl-k { display:flex; align-items:center; gap: 10px; }
+  .ki .lbl-k .i {
+    width: 16px; height: 16px;
+    color: #9a9288; flex-shrink: 0;
+  }
+  .ki .lbl-k .i svg { width: 100%; height: 100%; display:block; }
+
+  .ki .ks { display:inline-flex; gap: 3px; align-items:center; }
+  .ki .ks .plus { color:#c7beac; font: 400 10px 'Geist'; }
+  .ki .ks .pill {
+    display:inline-flex; align-items:center; justify-content:center;
+    height: 18px; padding: 0 6px; min-width: 20px;
+    border-radius: 7.5px;
+    background:#fbfaf6;
+    box-shadow: inset 0 0 0 1px #e7dfce, 0 1px 0 #e7dfce;
+    font: 500 10.5px 'Geist Mono'; color:#6b6359;
+  }
+  .ki .ks .pill.d {
+    background:#3d2b1f;
+    box-shadow: inset 0 0 0 1px #3d2b1f;
+    color:#fbfaf6;
+  }
+
+  /* ═══════════════════════ 03 · Bulleted options w/ bar ═══════════════════════ */
+  .pl { display:flex; flex-direction:column; gap: 10px; }
+  .pi {
+    display:grid;
+    grid-template-columns: 14px 1fr auto;
+    align-items: center;
+    gap: 12px;
+  }
+  .pi .b {
+    width: 10px; height: 10px; border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .pi .bd { display:flex; flex-direction:column; gap: 4px; }
+  .pi .bd .t {
+    display:flex; align-items: baseline; justify-content:space-between;
+    font: 500 12px 'Geist'; color:#3d2b1f; letter-spacing:-0.005em;
+  }
+  .pi .bd .t em {
+    font: 500 10.5px 'Geist Mono'; color:#9a9288; font-style:normal;
+  }
+  .pi .bd .bar {
+    height: 3px; border-radius: 1.5px;
+    background: #ebe4d5;
+    overflow: hidden;
+  }
+  .pi .bd .bar i {
+    display:block; height: 100%; border-radius: 1.5px;
+  }
+  .pi .m { font: 500 10.5px 'Geist Mono'; color:#3d2b1f; letter-spacing:0; }
+
+  /* ═══════════════════════ 04 · Status legend ═══════════════════════ */
+  .leg { display:flex; flex-direction:column; gap: 14px; }
+  .li { display:grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: baseline; }
+  .li .d { width: 10px; height: 10px; border-radius: 5px; margin-top: 5px; }
+  .li .d.g { background:#3a8a52; }
+  .li .d.a { background:#b37a10; }
+  .li .d.r { background:#c0392b; }
+  .li .d.n { background:#c7beac; }
+  .li .bd .t { font: 500 12px 'Geist'; color:#3d2b1f; }
+  .li .bd .s { font: 400 11px 'Geist'; color:#9a9288; margin-top: 2px; line-height: 1.45; }
+  .li .m {
+    font: 500 14px 'Geist'; color:#3d2b1f; letter-spacing:-0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ═══════════════════════ Footer token annotation ═══════════════════════ */
+  .tokenrow {
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top: 22px;
+    border-top: 1px solid #ebe4d5;
+    gap: 24px;
+  }
+  .tokenrow .note {
+    font: 400 11px 'Geist'; color:#6b6359; line-height: 1.55; max-width: 340px; text-wrap: pretty;
+  }
+  .tokenrow .note b { color:#3d2b1f; font-weight:500; }
+  .tokenrow .atoms {
+    display:flex; align-items:center; gap: 10px;
+    padding: 10px 14px;
+    background: #fbfaf6;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+  }
+  .tokenrow .atoms .a { display:flex; align-items:center; gap: 6px; font: 500 9.5px 'Geist Mono'; letter-spacing: .04em; color:#9a9288; }
+  .tokenrow .atoms .sep { width: 1px; height: 14px; background:#ebe4d5; }
+
+  .h-atom { width: 15px; height: 15px; border-radius: 7.5px; }
+  .kbd-atom { display:inline-flex; align-items:center; justify-content:center; height: 15px; padding: 0 5px; min-width: 18px; border-radius: 7.5px; background:#fbfaf6; box-shadow: inset 0 0 0 1px #e7dfce; color:#6b6359; font: 500 9.5px 'Geist Mono'; }
+  .cnt-atom { display:inline-flex; align-items:center; justify-content:center; height: 15px; padding: 0 6px; min-width: 18px; border-radius: 7.5px; background:#3d2b1f; color:#fbfaf6; font: 500 9.5px 'Geist Mono'; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <div class="row">
+
+    <!-- 01 · Ordered steps -->
+    <div>
+      <div class="kicker">Onboarding · 01</div>
+
+      <div class="olist">
+        <div class="oi done">
+          <span class="bul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="bd">
+            <div class="t">Регистрация хозяйства</div>
+            <div class="s">БИН, область, код ОКЭД — подтянуто автоматически</div>
+            <div class="meta">12 апр · 2 мин</div>
+          </div>
+        </div>
+        <div class="oi done">
+          <span class="bul"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <div class="bd">
+            <div class="t">Карта полей</div>
+            <div class="s">184 контура · 12 480 га</div>
+            <div class="meta">12 апр · 4 мин</div>
+          </div>
+        </div>
+        <div class="oi now">
+          <span class="bul">3</span>
+          <div class="bd">
+            <div class="t">Посев · сезон 2025</div>
+            <div class="s">Укажите культуру и сорт для каждого поля. Можно импортировать из&nbsp;сезона 2024.</div>
+            <div class="meta">Сейчас · ~15 мин</div>
+          </div>
+        </div>
+        <div class="oi todo">
+          <span class="bul">4</span>
+          <div class="bd">
+            <div class="t">Телематика</div>
+            <div class="s">John Deere / Claas · разблокирует отчёты по&nbsp;расходу</div>
+            <div class="meta"><span class="dot"></span>Опционально</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-cap">
+        <div class="num">2<span>/4</span></div>
+        <div class="lbl-t">шага завершено</div>
+      </div>
+    </div>
+
+    <!-- 02 · Keyboard shortcuts -->
+    <div>
+      <div class="kicker">Shortcuts · 02</div>
+
+      <div class="klist">
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4" stroke-linecap="round"/></svg></span>
+            <span>Глобальный поиск</span>
+          </span>
+          <span class="ks"><span class="pill d">⌘</span><span class="pill d">K</span></span>
+        </div>
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span>
+            <span>Новая запись</span>
+          </span>
+          <span class="ks"><span class="pill">N</span></span>
+        </div>
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12l6 6L20 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <span>Сохранить</span>
+          </span>
+          <span class="ks"><span class="pill d">⌘</span><span class="pill d">S</span></span>
+        </div>
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 12h13M10 18h10" stroke-linecap="round"/></svg></span>
+            <span>Фильтр</span>
+          </span>
+          <span class="ks"><span class="pill">F</span></span>
+        </div>
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M10 10v9"/></svg></span>
+            <span>К таблице</span>
+          </span>
+          <span class="ks"><span class="pill">G</span><span class="plus">→</span><span class="pill">T</span></span>
+        </div>
+        <div class="ki">
+          <span class="lbl-k">
+            <span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+            <span>Отмена / закрыть</span>
+          </span>
+          <span class="ks"><span class="pill">Esc</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="row">
+
+    <!-- 03 · Crops breakdown -->
+    <div>
+      <div class="kicker">Breakdown · 03</div>
+
+      <div class="pl">
+        <div class="pi">
+          <span class="b" style="background:#3d2b1f"></span>
+          <div class="bd">
+            <div class="t"><span>Пшеница яровая</span><em>42%</em></div>
+            <div class="bar"><i style="width:88%;background:#3d2b1f"></i></div>
+          </div>
+          <span class="m">5 240</span>
+        </div>
+        <div class="pi">
+          <span class="b" style="background:#e8920b"></span>
+          <div class="bd">
+            <div class="t"><span>Ячмень фуражный</span><em>14%</em></div>
+            <div class="bar"><i style="width:30%;background:#e8920b"></i></div>
+          </div>
+          <span class="m">1 746</span>
+        </div>
+        <div class="pi">
+          <span class="b" style="background:#6b6359"></span>
+          <div class="bd">
+            <div class="t"><span>Рапс озимый</span><em>3%</em></div>
+            <div class="bar"><i style="width:6%;background:#6b6359"></i></div>
+          </div>
+          <span class="m">240</span>
+        </div>
+        <div class="pi">
+          <span class="b" style="background:#c7beac"></span>
+          <div class="bd">
+            <div class="t"><span>Прочие культуры</span><em>41%</em></div>
+            <div class="bar"><i style="width:86%;background:#c7beac"></i></div>
+          </div>
+          <span class="m">5 114</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 · Status legend -->
+    <div>
+      <div class="kicker">Status · 04</div>
+
+      <div class="leg">
+        <div class="li">
+          <span class="d g"></span>
+          <div class="bd">
+            <div class="t">Активные контрагенты</div>
+            <div class="s">Документы действительны, договоры открыты</div>
+          </div>
+          <div class="m">1 240</div>
+        </div>
+        <div class="li">
+          <span class="d a"></span>
+          <div class="bd">
+            <div class="t">Ожидают проверки</div>
+            <div class="s">Новые заявки, дубликаты ИНН</div>
+          </div>
+          <div class="m">84</div>
+        </div>
+        <div class="li">
+          <span class="d r"></span>
+          <div class="bd">
+            <div class="t">Приостановлены</div>
+            <div class="s">Нет действия &gt;30 дней</div>
+          </div>
+          <div class="m">12</div>
+        </div>
+        <div class="li">
+          <span class="d n"></span>
+          <div class="bd">
+            <div class="t">Архив</div>
+            <div class="s">Сезон закрыт, доступ read-only</div>
+          </div>
+          <div class="m">398</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token footer — one atom, four uses -->
+  <div class="tokenrow">
+    <div class="note">
+      <b>Один атом — четыре роли.</b>  15×15 px, rx&nbsp;7.5 — визуальная константа, которая объединяет step-маркер, клавишу, счётчик и точку&nbsp;статуса. Ритм сохраняется без отдельных токенов.
+    </div>
+    <div class="atoms">
+      <span class="a"><span class="h-atom" style="background:#3d2b1f"></span>dot</span>
+      <span class="sep"></span>
+      <span class="a"><span class="cnt-atom">12</span>count</span>
+      <span class="sep"></span>
+      <span class="a"><span class="kbd-atom">⌘</span>kbd</span>
+      <span class="sep"></span>
+      <span class="a"><span class="h-atom" style="background:#3a8a52"></span>status</span>
+    </div>
+  </div>
+
+</div>
+</body></html>

@@ -1,0 +1,351 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* Trigger field */
+  .date-trigger {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 40px; padding: 0 12px; padding-right: 10px;
+    background: #fbfaf6;
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    font: 400 13px 'Geist'; color: #3d2b1f;
+    cursor: pointer;
+    min-width: 220px;
+    letter-spacing: -0.005em;
+  }
+  .date-trigger.focus { box-shadow: inset 0 0 0 1px #3d2b1f, 0 0 0 3px rgba(61,43,31,0.08); }
+  .date-trigger svg { color: #9a9288; flex-shrink: 0; }
+  .date-trigger .val { flex: 1; font-variant-numeric: tabular-nums; }
+  .date-trigger .val.ph { color: #b0a79c; }
+  .date-trigger .clr { color: #9a9288; cursor: pointer; }
+  .date-trigger .clr:hover { color: #3d2b1f; }
+
+  /* Calendar */
+  .cal {
+    width: 300px;
+    background: #fbfaf6;
+    border-radius: 10px;
+    box-shadow:
+      0 0 0 1px #e0d9cc,
+      0 8px 24px rgba(61,43,31,0.08),
+      0 16px 40px rgba(61,43,31,0.06);
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cal .head {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 28px;
+  }
+  .cal .head .mo {
+    display: inline-flex; align-items: center; gap: 4px;
+    font: 500 13px 'Geist'; color: #3d2b1f; letter-spacing: -0.005em;
+    cursor: pointer;
+    padding: 4px 6px; border-radius: 5px;
+  }
+  .cal .head .mo:hover { background: #f3ede1; }
+  .cal .head .mo svg { color: #9a9288; }
+  .cal .head .nav { display: flex; gap: 2px; }
+  .cal .head .nav .n {
+    width: 24px; height: 24px; display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 5px;
+    color: #6b6359; cursor: pointer;
+  }
+  .cal .head .nav .n:hover { background: #f3ede1; color: #3d2b1f; }
+  .cal .head .nav .n svg { width: 14px; height: 14px; }
+
+  .cal .dow {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    font: 500 10px 'Geist Mono'; color: #9a9288;
+    text-align: center; letter-spacing: 0.06em;
+    padding-bottom: 4px;
+  }
+  .cal .dow div { padding: 4px 0; }
+
+  .cal .grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .cal .d {
+    position: relative;
+    aspect-ratio: 1;
+    display: grid; place-items: center;
+    font: 500 12px 'Geist'; color: #3d2b1f;
+    letter-spacing: -0.005em;
+    border-radius: 5px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal .d:hover { background: #f3ede1; }
+  .cal .d.muted { color: #c7beac; }
+  .cal .d.today {
+    box-shadow: inset 0 0 0 1px #c7beac;
+  }
+  .cal .d.today.selected { box-shadow: none; }
+  .cal .d.selected {
+    background: #3d2b1f; color: #fbfaf6;
+  }
+  .cal .d.selected:hover { background: #2c1e14; }
+  .cal .d.disabled { color: #d9d1c5; cursor: not-allowed; }
+  .cal .d.disabled:hover { background: transparent; }
+
+  /* Range */
+  .cal .d.in-range {
+    background: #f3ede1;
+    border-radius: 0;
+  }
+  .cal .d.range-start {
+    background: #3d2b1f; color: #fbfaf6;
+    border-radius: 5px 0 0 5px;
+  }
+  .cal .d.range-end {
+    background: #3d2b1f; color: #fbfaf6;
+    border-radius: 0 5px 5px 0;
+  }
+  .cal .grid .d.range-start + .d.in-range,
+  .cal .d.in-range { position: relative; }
+  /* Row range background continuity — fine with gap:2 */
+
+  .cal .foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid #f3ede1;
+  }
+  .cal .foot .hint { font: 400 11px 'Geist'; color: #9a9288; }
+  .cal .foot .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    background: #3d2b1f; color: #fbfaf6; border: 0; cursor: pointer;
+    border-radius: 5px;
+    font: 500 11.5px 'Geist'; letter-spacing: -0.005em;
+  }
+  .cal .foot .btn:hover { background: #2c1e14; }
+  .cal .foot .btn.gh {
+    background: transparent; color: #6b6359;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+  }
+  .cal .foot .btn.gh:hover { color: #3d2b1f; box-shadow: inset 0 0 0 1px #c7beac; }
+
+  /* Presets (for range picker) */
+  .cal-wide { width: 560px; display: grid; grid-template-columns: 140px 1fr; gap: 0; padding: 0; }
+  .cal-wide .presets {
+    padding: 14px 10px; border-right: 1px solid #f3ede1;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .cal-wide .presets .p {
+    padding: 6px 10px;
+    background: transparent; border: 0; cursor: pointer;
+    border-radius: 5px;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+    color: #6b6359;
+    text-align: left;
+  }
+  .cal-wide .presets .p:hover { background: #f3ede1; color: #3d2b1f; }
+  .cal-wide .presets .p.active { background: #f3ede1; color: #3d2b1f; }
+  .cal-wide .month {
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  /* Time input */
+  .time-row {
+    display: flex; align-items: center; gap: 8px;
+    padding-top: 8px; border-top: 1px solid #f3ede1;
+    font: 500 11.5px 'Geist'; color: #6b6359;
+  }
+  .time-row .ti {
+    display: inline-flex; align-items: center;
+    background: #fbfaf6;
+    box-shadow: inset 0 0 0 1px #e0d9cc;
+    border-radius: 5px;
+    height: 26px; padding: 0 6px;
+    font: 500 12px 'Geist Mono'; color: #3d2b1f;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Spec */
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 Triggers -->
+  <div>
+    <div class="kicker">Trigger · input field</div>
+    <div style="display:flex; gap: 14px; flex-wrap: wrap">
+      <div class="date-trigger">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+        <span class="val ph">Выбрать дату</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="date-trigger focus">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+        <span class="val">14 апр 2026</span>
+        <span class="clr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+      </div>
+      <div class="date-trigger" style="min-width: 280px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke-linecap="round"/></svg>
+        <span class="val">14 апр&nbsp;—&nbsp;28 апр 2026</span>
+        <span class="clr"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 Single date calendar -->
+  <div>
+    <div class="kicker">Single · April 2026 · сегодня 24, выбрано 18</div>
+    <div class="cal">
+      <div class="head">
+        <div class="mo">Апрель 2026
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="nav">
+          <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="dow"><div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div></div>
+      <div class="grid">
+        <!-- March tail -->
+        <div class="d muted">30</div><div class="d muted">31</div>
+        <!-- April -->
+        <div class="d">1</div><div class="d">2</div><div class="d">3</div><div class="d">4</div><div class="d">5</div>
+        <div class="d">6</div><div class="d">7</div><div class="d">8</div><div class="d">9</div><div class="d">10</div><div class="d">11</div><div class="d">12</div>
+        <div class="d">13</div><div class="d">14</div><div class="d">15</div><div class="d">16</div><div class="d">17</div><div class="d selected">18</div><div class="d">19</div>
+        <div class="d">20</div><div class="d">21</div><div class="d">22</div><div class="d">23</div><div class="d today">24</div><div class="d">25</div><div class="d">26</div>
+        <div class="d">27</div><div class="d">28</div><div class="d">29</div><div class="d">30</div>
+        <!-- May head -->
+        <div class="d muted">1</div><div class="d muted">2</div><div class="d muted">3</div>
+      </div>
+      <div class="foot">
+        <span class="hint">Сегодня · 24</span>
+        <div style="display: flex; gap: 6px">
+          <button class="btn gh">Очистить</button>
+          <button class="btn">Применить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 Range with presets -->
+  <div>
+    <div class="kicker">Range + presets · 14 → 28 апреля</div>
+    <div class="cal cal-wide">
+      <div class="presets">
+        <button class="p">Сегодня</button>
+        <button class="p">Вчера</button>
+        <button class="p">Эта неделя</button>
+        <button class="p active">Этот месяц</button>
+        <button class="p">Прошлый месяц</button>
+        <button class="p">Последние 7 дней</button>
+        <button class="p">Последние 30 дней</button>
+        <button class="p">Сезон 2026</button>
+        <button class="p">Пользовательский</button>
+      </div>
+      <div class="month">
+        <div class="head">
+          <div class="mo">Апрель 2026
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="nav">
+            <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div class="dow"><div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div></div>
+        <div class="grid">
+          <div class="d muted">30</div><div class="d muted">31</div>
+          <div class="d">1</div><div class="d">2</div><div class="d">3</div><div class="d">4</div><div class="d">5</div>
+          <div class="d">6</div><div class="d">7</div><div class="d">8</div><div class="d">9</div><div class="d">10</div><div class="d">11</div><div class="d">12</div>
+          <div class="d">13</div><div class="d range-start">14</div><div class="d in-range">15</div><div class="d in-range">16</div><div class="d in-range">17</div><div class="d in-range">18</div><div class="d in-range">19</div>
+          <div class="d in-range">20</div><div class="d in-range">21</div><div class="d in-range">22</div><div class="d in-range">23</div><div class="d in-range today">24</div><div class="d in-range">25</div><div class="d in-range">26</div>
+          <div class="d in-range">27</div><div class="d range-end">28</div><div class="d">29</div><div class="d">30</div>
+          <div class="d muted">1</div><div class="d muted">2</div><div class="d muted">3</div>
+        </div>
+        <div class="foot">
+          <span class="hint" style="font-family: 'Geist Mono'; font-size: 11px; color:#3d2b1f">14 → 28 апр · <b>15 дней</b></span>
+          <div style="display: flex; gap: 6px">
+            <button class="btn gh">Отмена</button>
+            <button class="btn">Применить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 04 With time + disabled weekends -->
+  <div>
+    <div class="kicker">With time · disabled past · weekends dim</div>
+    <div class="cal">
+      <div class="head">
+        <div class="mo">Апрель 2026
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="nav">
+          <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="n"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+      <div class="dow"><div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div></div>
+      <div class="grid">
+        <div class="d muted disabled">30</div><div class="d muted disabled">31</div>
+        <div class="d disabled">1</div><div class="d disabled">2</div><div class="d disabled">3</div><div class="d disabled">4</div><div class="d disabled">5</div>
+        <div class="d disabled">6</div><div class="d disabled">7</div><div class="d disabled">8</div><div class="d disabled">9</div><div class="d disabled">10</div><div class="d disabled">11</div><div class="d disabled">12</div>
+        <div class="d disabled">13</div><div class="d disabled">14</div><div class="d disabled">15</div><div class="d disabled">16</div><div class="d disabled">17</div><div class="d disabled">18</div><div class="d disabled">19</div>
+        <div class="d disabled">20</div><div class="d disabled">21</div><div class="d disabled">22</div><div class="d disabled">23</div><div class="d today">24</div><div class="d">25</div><div class="d">26</div>
+        <div class="d selected">27</div><div class="d">28</div><div class="d">29</div><div class="d">30</div>
+        <div class="d muted">1</div><div class="d muted">2</div><div class="d muted">3</div>
+      </div>
+      <div class="time-row">
+        <span>в</span>
+        <span class="ti">09</span>
+        <span>:</span>
+        <span class="ti">30</span>
+        <span style="margin-left: auto; display: flex; gap: 6px">
+          <button class="btn gh">Отмена</button>
+          <button class="btn">OK</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <span><b>trigger</b> h 40 · rx 6 · tabular-nums</span>
+    <span><b>panel</b> rx 10 · shadow 0 1 #e0d9cc + 0 8 24/.08</span>
+    <span><b>cell</b> aspect 1:1 · rx 5 · font 12/500</span>
+    <span><b>today</b> bd 1 #c7beac</span>
+    <span><b>selected</b> bg --cta · fg --cta-fg</span>
+    <span><b>in-range</b> bg #f3ede1 · rx 0</span>
+    <span><b>muted</b> #c7beac (other month)</span>
+    <span><b>dow</b> Geist Mono 10 / 500 / 0.06em</span>
+    <span><b>locale</b> ПН-first · RU month names</span>
+  </div>
+</div>
+</body></html>

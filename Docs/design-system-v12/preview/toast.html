@@ -1,0 +1,372 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ═══════ TOAST base ═══════ */
+  .toast {
+    position: relative;
+    display: grid; grid-template-columns: 20px 1fr auto;
+    gap: 12px; align-items: flex-start;
+    padding: 14px 14px 14px 14px;
+    background: #fbfaf6;
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px #e0d9cc,
+      0 4px 12px rgba(61,43,31,0.06),
+      0 10px 32px rgba(61,43,31,0.08);
+    min-width: 360px; max-width: 480px;
+    overflow: hidden;
+  }
+  .toast .ic {
+    width: 20px; height: 20px; flex-shrink: 0;
+    display: grid; place-items: center;
+    color: #6b6359;
+    margin-top: 1px;
+  }
+  .toast .ic svg { width: 16px; height: 16px; }
+  .toast .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .toast .t {
+    font: 500 13px 'Geist'; color: #3d2b1f;
+    letter-spacing: -0.005em; line-height: 1.35;
+  }
+  .toast .d {
+    font: 400 12px 'Geist'; color: #6b6359;
+    line-height: 1.4;
+  }
+  .toast .actions {
+    display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+    margin-left: 4px;
+  }
+  .toast .a {
+    display: inline-flex; align-items: center;
+    height: 24px; padding: 0 8px;
+    background: transparent; border: 0; cursor: pointer;
+    border-radius: 4px;
+    font: 500 12px 'Geist'; letter-spacing: -0.005em;
+    color: #3d2b1f;
+  }
+  .toast .a:hover { background: #f3ede1; }
+  .toast .x {
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    background: transparent; border: 0; cursor: pointer;
+    border-radius: 4px;
+    color: #9a9288;
+  }
+  .toast .x:hover { background: #f3ede1; color: #3d2b1f; }
+  .toast .x svg { width: 12px; height: 12px; }
+
+  /* Left accent rail */
+  .toast.ok   { box-shadow: inset 3px 0 0 #3a8a52, 0 0 0 1px #e0d9cc, 0 4px 12px rgba(61,43,31,0.06), 0 10px 32px rgba(61,43,31,0.08); padding-left: 18px; }
+  .toast.warn { box-shadow: inset 3px 0 0 #b37a10, 0 0 0 1px #e0d9cc, 0 4px 12px rgba(61,43,31,0.06), 0 10px 32px rgba(61,43,31,0.08); padding-left: 18px; }
+  .toast.err  { box-shadow: inset 3px 0 0 #c0392b, 0 0 0 1px #e0d9cc, 0 4px 12px rgba(61,43,31,0.06), 0 10px 32px rgba(61,43,31,0.08); padding-left: 18px; }
+  .toast.info { box-shadow: inset 3px 0 0 #4571b8, 0 0 0 1px #e0d9cc, 0 4px 12px rgba(61,43,31,0.06), 0 10px 32px rgba(61,43,31,0.08); padding-left: 18px; }
+
+  .toast.ok .ic   { color: #3a8a52; }
+  .toast.warn .ic { color: #b37a10; }
+  .toast.err .ic  { color: #c0392b; }
+  .toast.info .ic { color: #4571b8; }
+
+  /* Progress bar */
+  .toast .progress {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 2px; background: #f3ede1;
+  }
+  .toast .progress i {
+    display: block; height: 100%; background: #3d2b1f;
+    animation: toast-progress 5s linear forwards;
+  }
+  .toast.ok   .progress i { background: #3a8a52; }
+  .toast.warn .progress i { background: #b37a10; }
+  .toast.err  .progress i { background: #c0392b; }
+  @keyframes toast-progress {
+    from { width: 100%; } to { width: 0; }
+  }
+
+  /* Dark variant (inverted) */
+  .toast.dark {
+    background: #2c1e14;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12), 0 10px 32px rgba(0,0,0,0.18);
+  }
+  .toast.dark .t { color: #fbfaf6; }
+  .toast.dark .d { color: rgba(251,250,246,0.72); }
+  .toast.dark .ic { color: rgba(251,250,246,0.78); }
+  .toast.dark .a { color: #fbfaf6; }
+  .toast.dark .a:hover { background: rgba(251,250,246,0.08); }
+  .toast.dark .x { color: rgba(251,250,246,0.55); }
+  .toast.dark .x:hover { background: rgba(251,250,246,0.08); color: #fbfaf6; }
+
+  /* Stack demo */
+  .stack-demo {
+    position: relative;
+    width: 480px;
+    padding: 20px;
+    background: #f3ede1;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+  }
+  .stack-demo .label {
+    font: 500 10.5px 'Geist Mono'; color: #9a9288;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .stack-demo .slot {
+    display: flex; flex-direction: column; gap: 10px;
+    align-items: flex-end;
+  }
+  .stack-demo .t-stack-item:nth-child(2) { transform: scale(0.97); opacity: 0.85; }
+  .stack-demo .t-stack-item:nth-child(3) { transform: scale(0.94); opacity: 0.68; }
+
+  /* Position diagram */
+  .positions {
+    position: relative;
+    width: 100%; aspect-ratio: 16/10;
+    background: #fbfaf6;
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    overflow: hidden;
+  }
+  .positions .screen-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(61,43,31,0.04), transparent 60%),
+      repeating-linear-gradient(0deg, transparent 0, transparent 19px, #f3ede1 19px, #f3ede1 20px);
+  }
+  .positions .hint {
+    position: absolute;
+    background: #fbfaf6;
+    box-shadow: inset 0 0 0 1px #c7beac;
+    border-radius: 4px;
+    padding: 5px 9px;
+    font: 500 10px 'Geist Mono'; color: #3d2b1f;
+    letter-spacing: 0.04em;
+  }
+  .positions .hint b { color: #3a8a52; font-weight: 500; }
+  .positions .hint.top-left     { top: 16px; left: 16px; }
+  .positions .hint.top-right    { top: 16px; right: 16px; }
+  .positions .hint.bot-left     { bottom: 16px; left: 16px; }
+  .positions .hint.bot-right    { bottom: 16px; right: 16px; }
+  .positions .hint.top-center   { top: 16px; left: 50%; transform: translateX(-50%); }
+  .positions .hint.bot-center   { bottom: 16px; left: 50%; transform: translateX(-50%); }
+
+  /* Rules */
+  .rules {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .rules .box {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 14px 16px;
+  }
+  .rules h5 { margin: 0 0 8px; font: 500 11.5px 'Geist'; color: #3d2b1f; letter-spacing: -0.005em; }
+  .rules .line {
+    display: flex; gap: 8px; padding: 5px 0;
+    font: 400 11.5px 'Geist'; color: #6b6359; line-height: 1.5;
+  }
+  .rules .line .tag { font: 500 10px 'Geist Mono'; }
+  .rules .line .tag.ok { color: #3a8a52; }
+  .rules .line .tag.no { color: #c0392b; }
+  .rules .line b { color: #3d2b1f; font-weight: 500; }
+
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 Four variants -->
+  <div>
+    <div class="kicker">Variants · OK · Warn · Error · Info</div>
+    <div style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start">
+
+      <div class="toast ok">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="body">
+          <div class="t">Отчёт отправлен фермеру</div>
+          <div class="d">Арман Серикович получит Telegram-уведомление в течение 30 секунд</div>
+        </div>
+        <div class="actions">
+          <button class="a">Отменить</button>
+          <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="progress"><i></i></div>
+      </div>
+
+      <div class="toast warn">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke-linecap="round"/></svg>
+        </div>
+        <div class="body">
+          <div class="t">Черновик не сохранён</div>
+          <div class="d">Сеть нестабильна — данные в очереди, отправим автоматически</div>
+        </div>
+        <div class="actions">
+          <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+
+      <div class="toast err">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01" stroke-linecap="round"/></svg>
+        </div>
+        <div class="body">
+          <div class="t">Не удалось загрузить отчёт</div>
+          <div class="d">Файл повреждён или превышает 20 МБ · код E‑413</div>
+        </div>
+        <div class="actions">
+          <button class="a">Повторить</button>
+          <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+
+      <div class="toast info">
+        <div class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01" stroke-linecap="round"/></svg>
+        </div>
+        <div class="body">
+          <div class="t">Обновление · новые поля в форме</div>
+          <div class="d">Добавили поле «прогноз урожайности» в отчёт</div>
+        </div>
+        <div class="actions">
+          <button class="a">Смотреть</button>
+          <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 Short + dark + stacked -->
+  <div>
+    <div class="kicker">Variants · compact, dark, stacked</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start">
+
+        <div class="toast" style="min-width: 280px">
+          <div class="ic" style="color:#3a8a52">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="body"><div class="t">Скопировано</div></div>
+          <div class="actions">
+            <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+
+        <div class="toast dark" style="min-width: 320px">
+          <div class="ic">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="body">
+            <div class="t">Поле №12-Б удалено</div>
+          </div>
+          <div class="actions">
+            <button class="a">Вернуть</button>
+            <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack-demo">
+        <div class="label">Stack · newest on top</div>
+        <div class="slot">
+          <div class="toast t-stack-item" style="min-width: 260px">
+            <div class="ic" style="color:#3a8a52">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="body"><div class="t">Отчёт отправлен</div></div>
+            <div class="actions"><button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button></div>
+          </div>
+          <div class="toast t-stack-item" style="min-width: 260px">
+            <div class="ic" style="color:#4571b8">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01" stroke-linecap="round"/></svg>
+            </div>
+            <div class="body"><div class="t">3 новых уведомления</div></div>
+            <div class="actions"><button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button></div>
+          </div>
+          <div class="toast t-stack-item" style="min-width: 260px">
+            <div class="ic" style="color:#b37a10">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke-linecap="round"/></svg>
+            </div>
+            <div class="body"><div class="t">Черновик в очереди</div></div>
+            <div class="actions"><button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 Positions -->
+  <div>
+    <div class="kicker">Positioning · default bottom-right · inset 24 px</div>
+    <div class="positions">
+      <div class="screen-bg"></div>
+      <div class="hint top-left">top-left</div>
+      <div class="hint top-center">top-center</div>
+      <div class="hint top-right">top-right</div>
+      <div class="hint bot-left">bot-left</div>
+      <div class="hint bot-center">bot-center</div>
+      <div class="hint bot-right"><b>bot-right · default</b></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 04 Rules -->
+  <div>
+    <div class="kicker">Rules</div>
+    <div class="rules">
+      <div class="box">
+        <h5>Timing</h5>
+        <div class="line"><span class="tag ok">DO</span><span><b>5s</b> — success без Action</span></div>
+        <div class="line"><span class="tag ok">DO</span><span><b>7s</b> — c Action (Undo / Retry)</span></div>
+        <div class="line"><span class="tag ok">DO</span><span><b>∞</b> — error: не скрывать автоматически</span></div>
+        <div class="line"><span class="tag no">DON'T</span><span>&lt; 3s — не успеет прочитать даже заголовок</span></div>
+      </div>
+      <div class="box">
+        <h5>Content</h5>
+        <div class="line"><span class="tag ok">DO</span><span>Title — <b>действие в прошедшем времени</b>: «Отчёт отправлен», «Удалено»</span></div>
+        <div class="line"><span class="tag ok">DO</span><span>Description — факты, без извинений</span></div>
+        <div class="line"><span class="tag no">DON'T</span><span>«Пожалуйста, подождите…» — пустой шум</span></div>
+        <div class="line"><span class="tag no">DON'T</span><span>Эмодзи в title/description</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <span><b>rx</b> 8</span>
+    <span><b>bg</b> #fbfaf6 (dark: #2c1e14)</span>
+    <span><b>shadow</b> 0 1 #e0d9cc + 0 4 12/.06 + 0 10 32/.08</span>
+    <span><b>accent</b> inset 3 0 0 [status]</span>
+    <span><b>min-w</b> 360 · max-w 480</span>
+    <span><b>grid</b> 20 / 1fr / auto · gap 12</span>
+    <span><b>position</b> fixed bottom-right, inset 24</span>
+    <span><b>auto-hide</b> 5s / 7s / ∞</span>
+  </div>
+</div>
+</body></html>

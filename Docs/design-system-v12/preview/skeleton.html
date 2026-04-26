@@ -1,0 +1,385 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap {
+    width: 700px;
+    padding: 32px 28px;
+    display: flex; flex-direction: column; gap: 28px;
+    font-family: var(--font-sans);
+    color: #3d2b1f;
+  }
+  .kicker {
+    display:inline-flex; align-items:center; gap: 8px;
+    font: 500 10px 'Geist Mono'; letter-spacing: .08em; text-transform: uppercase; color: #9a9288;
+    margin-bottom: 14px;
+  }
+  .kicker::before { content:""; width: 14px; height: 1px; background:#c7beac; }
+  .divider { height: 1px; background: #ebe4d5; }
+
+  /* ═══════ Skeleton primitive ═══════ */
+  .sk {
+    display: block;
+    background: linear-gradient(
+      90deg,
+      #ede6d6 0%,
+      #f3ede1 40%,
+      #f3ede1 60%,
+      #ede6d6 100%
+    );
+    background-size: 200% 100%;
+    background-position: 100% 0;
+    border-radius: 4px;
+    animation: sk-shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes sk-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+  .sk-text  { height: 10px; border-radius: 3px; }
+  .sk-line  { height: 1px;  background: #ebe4d5; animation: none; }
+  .sk-circle { border-radius: 50%; }
+  .sk-pill  { height: 22px; border-radius: 9999px; }
+  .sk-box   { border-radius: 8px; }
+
+  /* Cards */
+  .card {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 16px;
+  }
+  .cap {
+    font: 500 10.5px 'Geist Mono'; letter-spacing: 0.06em;
+    color: #9a9288; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* 01 — primitives row */
+  .prim-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  }
+
+  /* 02 — list skeleton vs real */
+  .compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .list-item {
+    display: grid; grid-template-columns: 40px 1fr auto; gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f3ede1;
+  }
+  .list-item:last-child { border-bottom: 0; }
+  .list-item .real-av {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #3d2b1f; color: #fbfaf6;
+    display: grid; place-items: center;
+    font: 500 13px 'Geist Mono';
+  }
+  .list-item .real-av.v2 { background: #b37a10; }
+  .list-item .real-av.v3 { background: #3a8a52; }
+  .list-item .real-nm { font: 500 13px 'Geist'; color: #3d2b1f; letter-spacing: -0.005em; }
+  .list-item .real-sub { font: 400 11.5px 'Geist'; color: #9a9288; margin-top: 2px; }
+  .list-item .real-meta { font: 500 11.5px 'Geist Mono'; color: #6b6359; }
+
+  /* 03 — table skeleton */
+  .tbl {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    overflow: hidden;
+  }
+  .tbl .h, .tbl .r {
+    display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr;
+    padding: 12px 18px; align-items: center;
+    border-bottom: 1px solid #f3ede1;
+  }
+  .tbl .h {
+    font: 500 10.5px 'Geist Mono'; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #9a9288;
+    background: #f3ede1;
+  }
+  .tbl .r:last-child { border-bottom: 0; }
+  .tbl .r .sk { height: 11px; }
+  .tbl .r .sk.w-short { width: 40%; }
+  .tbl .r .sk.w-mid   { width: 65%; }
+  .tbl .r .sk.w-long  { width: 85%; }
+  .tbl .r .sk.right   { margin-left: auto; }
+
+  /* 04 — card grid skeleton */
+  .grid-mock { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-sk {
+    background: #fbfaf6; border-radius: 8px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .card-sk .head { display: flex; gap: 10px; align-items: center; }
+
+  /* 05 — detail skeleton (full page) */
+  .detail {
+    background: #fbfaf6; border-radius: 10px;
+    box-shadow: inset 0 0 0 1px #ebe4d5;
+    padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .detail .head { display: flex; flex-direction: column; gap: 8px; }
+  .detail .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .detail .content { display: flex; flex-direction: column; gap: 7px; padding-top: 4px; }
+
+  /* Rules */
+  .rules {
+    display: flex; flex-direction: column; gap: 8px;
+    font: 400 11.5px 'Geist'; color: #6b6359; line-height: 1.5;
+  }
+  .rules .r { display: flex; gap: 8px; }
+  .rules .r .tag {
+    flex-shrink: 0;
+    font: 500 10px 'Geist Mono'; letter-spacing: 0.04em;
+  }
+  .rules .r .tag.ok   { color: #3a8a52; }
+  .rules .r .tag.no   { color: #c0392b; }
+
+  /* Spec */
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; padding-top: 14px; border-top:1px solid #ebe4d5; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; box-shadow: inset 0 0 0 1px #ebe4d5;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- 01 Primitives -->
+  <div>
+    <div class="kicker">Primitives · shimmer #ede6d6 → #f3ede1</div>
+    <div class="prim-row">
+      <div class="card">
+        <div class="cap">Text line</div>
+        <div style="display:flex; flex-direction:column; gap: 8px">
+          <span class="sk sk-text" style="width: 100%"></span>
+          <span class="sk sk-text" style="width: 70%"></span>
+          <span class="sk sk-text" style="width: 40%"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Circle · avatar</div>
+        <div style="display:flex; gap: 8px; align-items:center">
+          <span class="sk sk-circle" style="width: 40px; height: 40px"></span>
+          <span class="sk sk-circle" style="width: 28px; height: 28px"></span>
+          <span class="sk sk-circle" style="width: 20px; height: 20px"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Pill · badge</div>
+        <div style="display:flex; gap: 6px; flex-wrap: wrap">
+          <span class="sk sk-pill" style="width: 64px"></span>
+          <span class="sk sk-pill" style="width: 48px"></span>
+          <span class="sk sk-pill" style="width: 72px"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap">Box · image</div>
+        <span class="sk sk-box" style="width: 100%; height: 64px"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 02 List before/after -->
+  <div>
+    <div class="kicker">List · loading → loaded</div>
+    <div class="compare">
+      <div class="card">
+        <div class="cap">Loading</div>
+        <div class="list-item">
+          <span class="sk sk-circle" style="width: 40px; height: 40px"></span>
+          <div style="display:flex; flex-direction:column; gap: 6px; min-width:0">
+            <span class="sk sk-text" style="width: 75%"></span>
+            <span class="sk sk-text" style="width: 45%; height: 8px"></span>
+          </div>
+          <span class="sk sk-text" style="width: 48px"></span>
+        </div>
+        <div class="list-item">
+          <span class="sk sk-circle" style="width: 40px; height: 40px"></span>
+          <div style="display:flex; flex-direction:column; gap: 6px; min-width:0">
+            <span class="sk sk-text" style="width: 62%"></span>
+            <span class="sk sk-text" style="width: 38%; height: 8px"></span>
+          </div>
+          <span class="sk sk-text" style="width: 48px"></span>
+        </div>
+        <div class="list-item">
+          <span class="sk sk-circle" style="width: 40px; height: 40px"></span>
+          <div style="display:flex; flex-direction:column; gap: 6px; min-width:0">
+            <span class="sk sk-text" style="width: 80%"></span>
+            <span class="sk sk-text" style="width: 52%; height: 8px"></span>
+          </div>
+          <span class="sk sk-text" style="width: 48px"></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cap" style="color: #3a8a52">Loaded</div>
+        <div class="list-item">
+          <div class="real-av">АС</div>
+          <div>
+            <div class="real-nm">Арман Серикович</div>
+            <div class="real-sub">ТОО «Агро-Север» · 12 полей</div>
+          </div>
+          <div class="real-meta">4 280 ₸</div>
+        </div>
+        <div class="list-item">
+          <div class="real-av v2">СН</div>
+          <div>
+            <div class="real-nm">Сауле Нурсултанова</div>
+            <div class="real-sub">агроном · 38 отчётов</div>
+          </div>
+          <div class="real-meta">—</div>
+        </div>
+        <div class="list-item">
+          <div class="real-av v3">РК</div>
+          <div>
+            <div class="real-nm">Руслан Кадыров</div>
+            <div class="real-sub">ИП · Караганда · 3 поля</div>
+          </div>
+          <div class="real-meta">1 540 ₸</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 03 Table -->
+  <div>
+    <div class="kicker">Table · match column widths exactly</div>
+    <div class="tbl">
+      <div class="h">
+        <div>Поставка</div>
+        <div>Регион</div>
+        <div>Дата</div>
+        <div style="text-align:right">Сумма</div>
+      </div>
+      <div class="r">
+        <div><span class="sk w-long"></span></div>
+        <div><span class="sk w-mid"></span></div>
+        <div><span class="sk w-short"></span></div>
+        <div style="text-align:right"><span class="sk w-mid right" style="display:inline-block"></span></div>
+      </div>
+      <div class="r">
+        <div><span class="sk w-mid"></span></div>
+        <div><span class="sk w-long"></span></div>
+        <div><span class="sk w-mid"></span></div>
+        <div style="text-align:right"><span class="sk w-short right" style="display:inline-block"></span></div>
+      </div>
+      <div class="r">
+        <div><span class="sk w-long"></span></div>
+        <div><span class="sk w-short"></span></div>
+        <div><span class="sk w-mid"></span></div>
+        <div style="text-align:right"><span class="sk w-mid right" style="display:inline-block"></span></div>
+      </div>
+      <div class="r">
+        <div><span class="sk w-mid"></span></div>
+        <div><span class="sk w-mid"></span></div>
+        <div><span class="sk w-short"></span></div>
+        <div style="text-align:right"><span class="sk w-mid right" style="display:inline-block"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 04 Card grid + Detail -->
+  <div>
+    <div class="kicker">Card grid + Detail page</div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px">
+
+      <div class="grid-mock">
+        <div class="card-sk">
+          <div class="head">
+            <span class="sk sk-circle" style="width: 28px; height: 28px"></span>
+            <span class="sk sk-text" style="width: 60%"></span>
+          </div>
+          <span class="sk sk-box" style="height: 60px"></span>
+          <span class="sk sk-text" style="width: 90%"></span>
+          <span class="sk sk-text" style="width: 55%"></span>
+        </div>
+        <div class="card-sk">
+          <div class="head">
+            <span class="sk sk-circle" style="width: 28px; height: 28px"></span>
+            <span class="sk sk-text" style="width: 55%"></span>
+          </div>
+          <span class="sk sk-box" style="height: 60px"></span>
+          <span class="sk sk-text" style="width: 80%"></span>
+          <span class="sk sk-text" style="width: 45%"></span>
+        </div>
+        <div class="card-sk">
+          <div class="head">
+            <span class="sk sk-circle" style="width: 28px; height: 28px"></span>
+            <span class="sk sk-text" style="width: 65%"></span>
+          </div>
+          <span class="sk sk-box" style="height: 60px"></span>
+          <span class="sk sk-text" style="width: 92%"></span>
+          <span class="sk sk-text" style="width: 60%"></span>
+        </div>
+        <div class="card-sk">
+          <div class="head">
+            <span class="sk sk-circle" style="width: 28px; height: 28px"></span>
+            <span class="sk sk-text" style="width: 50%"></span>
+          </div>
+          <span class="sk sk-box" style="height: 60px"></span>
+          <span class="sk sk-text" style="width: 85%"></span>
+          <span class="sk sk-text" style="width: 40%"></span>
+        </div>
+      </div>
+
+      <div class="detail">
+        <div class="head">
+          <span class="sk sk-text" style="width: 30%; height: 8px"></span>
+          <span class="sk sk-text" style="width: 75%; height: 16px; margin-top: 2px"></span>
+        </div>
+        <div class="meta">
+          <span class="sk sk-pill" style="width: 84px"></span>
+          <span class="sk sk-pill" style="width: 64px"></span>
+          <span class="sk sk-pill" style="width: 96px"></span>
+        </div>
+        <span class="sk sk-box" style="height: 100px"></span>
+        <div class="content">
+          <span class="sk sk-text" style="width: 100%"></span>
+          <span class="sk sk-text" style="width: 95%"></span>
+          <span class="sk sk-text" style="width: 88%"></span>
+          <span class="sk sk-text" style="width: 40%"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Rules -->
+  <div>
+    <div class="kicker">Rules</div>
+    <div class="rules">
+      <div class="r"><span class="tag ok">DO</span><span>Повторять геометрию реального контента: ширины строк отличаются (40/65/85%) — иначе скелетон выглядит как «полоски»</span></div>
+      <div class="r"><span class="tag ok">DO</span><span>Показывать 3–6 повторов в списке. Больше — визуальный шум, меньше — «а где контент?»</span></div>
+      <div class="r"><span class="tag ok">DO</span><span>Держать на экране минимум <b>300 ms</b>, чтобы не «мигало». Меньше — сразу показывать контент</span></div>
+      <div class="r"><span class="tag no">DON'T</span><span>Не анимировать shimmer &lt; 1.2s — раздражает. Наш — <b>1.4s ease-in-out</b></span></div>
+      <div class="r"><span class="tag no">DON'T</span><span>Не использовать белый/нейтрально-серый цвет — на бумажном фоне он «дыра». Наш градиент — <b>#ede6d6 → #f3ede1</b></span></div>
+      <div class="r"><span class="tag no">DON'T</span><span>Не ставить скелетон на <b>inline</b> действия (кнопки, дропдауны) — там показывайте spinner 14 px</span></div>
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>anim</b> sk-shimmer 1.4s ease-in-out infinite</span>
+    <span><b>grad</b> 90deg #ede6d6 → #f3ede1 → #ede6d6</span>
+    <span><b>size</b> 200% 100% · position 100% → −100%</span>
+    <span><b>text</b> h 10 · rx 3</span>
+    <span><b>pill</b> h 22 · rx 9999</span>
+    <span><b>box</b> rx 8</span>
+    <span><b>circle</b> 50%</span>
+  </div>
+
+</div>
+</body></html>

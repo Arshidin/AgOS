@@ -1,0 +1,211 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap { width: 700px; padding: 24px; display:flex; flex-direction:column; gap: 20px; font-family: var(--font-sans); }
+  .kicker { font: 500 10px 'Geist Mono'; letter-spacing: .02em; color: #9a9288; }
+  .lbl { font: 400 11px 'Geist'; color:#9a9288; margin: 3px 0 10px; }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+
+  /* Trigger · closed */
+  .sel {
+    display:flex; align-items:center; gap: 10px;
+    height: 40px; padding: 0 10px 0 12px;
+    background:#fbfaf6; border: 1px solid #e0d9cc; border-radius: 10px;
+    font: 500 12.5px 'Geist'; color:#3d2b1f; letter-spacing:-0.005em;
+    cursor: pointer;
+    transition: border-color 100ms;
+  }
+  .sel:hover { border-color:#c7beac; }
+  .sel.open { border-color:#3d2b1f; box-shadow: 0 0 0 3px rgba(61,43,31,0.06); }
+  .sel .lbl-in { color:#9a9288; font-weight: 400; }
+  .sel .value { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sel .chev { color:#9a9288; transition: transform 120ms; }
+  .sel.open .chev { transform: rotate(180deg); }
+  .sel .chev svg { width: 11px; height: 11px; display:block; stroke-width: 2; }
+  .sel .count {
+    padding: 1px 7px; border-radius:9999px;
+    background:#3d2b1f; color:#fbfaf6;
+    font: 500 10.5px 'Geist Mono';
+  }
+
+  /* Dropdown */
+  .dd {
+    margin-top: 6px;
+    background:#fbfaf6;
+    border: 1px solid #e0d9cc;
+    border-radius: 10px;
+    box-shadow: 0 14px 32px -8px rgba(61,43,31,0.14), 0 4px 10px rgba(61,43,31,0.06);
+    overflow: hidden;
+  }
+  .dd .search {
+    display:flex; align-items:center; gap: 8px;
+    height: 40px; padding: 0 12px;
+    border-bottom: 1px solid #ece5d6;
+  }
+  .dd .search svg { color:#9a9288; width: 13px; height: 13px; }
+  .dd .search input { flex:1; border:0; outline:none; background:transparent; font: 400 12.5px 'Geist'; color:#3d2b1f; }
+  .dd .search input::placeholder { color:#9a9288; }
+  .dd .search .kbd { font:500 10px 'Geist Mono'; color:#9a9288; padding: 1px 5px; border-radius: 3px; background:#f3ede1; }
+
+  .dd .group-h {
+    padding: 8px 12px 4px;
+    font: 500 9.5px 'Geist Mono'; letter-spacing: .04em; text-transform: uppercase; color:#9a9288;
+  }
+
+  .dd .item {
+    display:grid; grid-template-columns: 16px 1fr auto;
+    align-items:center; gap: 10px;
+    padding: 0 12px; height: 48px;
+    cursor: pointer;
+    border-top: 1px solid #f3ede1;
+    font: 400 13px 'Geist'; color:#3d2b1f;
+  }
+  .dd .item:first-of-type { border-top: 0; }
+  .dd .item:hover, .dd .item.hv { background:#f3ede1; }
+  .dd .item .check {
+    width: 14px; height: 14px; border-radius: 3px;
+    border: 1.2px solid #c7beac;
+    display:grid; place-items:center;
+  }
+  .dd .item.on .check { background:#3d2b1f; border-color:#3d2b1f; color:#fbfaf6; }
+  .dd .item.on .check svg { width: 9px; height: 9px; display:block; stroke-width: 2.6; }
+  .dd .item .name { font-weight: 500; letter-spacing:-0.005em; }
+  .dd .item .name em { background: rgba(232,146,11,0.22); font-style:normal; padding: 0 1px; border-radius: 2px; }
+  .dd .item .meta { font-family:'Geist Mono'; font-size: 10.5px; color:#9a9288; }
+
+  .dd .footer {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 8px 10px; border-top: 1px solid #ece5d6; background:#faf6ec;
+  }
+  .dd .footer .hint { font: 400 10.5px 'Geist Mono'; color:#9a9288; }
+  .dd .footer .hint kbd { background:#fbfaf6; border:1px solid #e0d9cc; border-radius:3px; padding: 1px 4px; font: 500 10px 'Geist Mono'; color:#6b6359; }
+  .dd .footer a { font: 500 11px 'Geist'; color:#3d2b1f; text-decoration: none; border-bottom: 1px solid #c7beac; cursor: pointer; }
+
+  /* Status select */
+  .dd .item .stat {
+    display:inline-flex; align-items:center; gap: 6px;
+    padding: 2px 8px 2px 6px; border-radius: 9999px;
+    font: 500 11px 'Geist';
+  }
+  .dd .item .stat .sd { width:6px; height:6px; border-radius:9999px; }
+  .dd .item .stat.g { background:#e1eee4; color:#2f6e42; } .dd .item .stat.g .sd { background:#3a8a52; }
+  .dd .item .stat.a { background:#f7efd8; color:#9a6a08; } .dd .item .stat.a .sd { background:#b37a10; }
+  .dd .item .stat.r { background:#f7e3df; color:#9b312a; } .dd .item .stat.r .sd { background:#c0392b; }
+  .dd .item .stat.n { background:#ece7dd; color:#6b6359; } .dd .item .stat.n .sd { background:#9a9288; }
+
+  /* Spec */
+  .spec { display:flex; flex-wrap: wrap; gap: 4px; }
+  .spec span {
+    display:inline-flex; padding: 3px 8px; border-radius: 9999px;
+    background:#fbfaf6; border: 1px solid #ece5d6;
+    font: 400 10.5px 'Geist Mono'; color:#9a9288;
+  }
+  .spec span b { color:#3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <div class="row">
+    <!-- LEFT: Single select (closed + open) -->
+    <div>
+      <div class="kicker">01 · single select</div>
+      <div class="lbl">Trigger 40px · dropdown rx 10</div>
+
+      <div class="sel" style="margin-bottom: 8px">
+        <span class="lbl-in">Регион:</span>
+        <span class="value">Акмолинская область</span>
+        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+
+      <div class="sel open">
+        <span class="lbl-in">Статус:</span>
+        <span class="value">Активные</span>
+        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+
+      <div class="dd">
+        <div class="group-h">Статус контрагента</div>
+        <div class="item on">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="name">Активные</div>
+          <span class="stat g"><span class="sd"></span>1 240</span>
+        </div>
+        <div class="item">
+          <div class="check"></div>
+          <div class="name">Ожидают проверки</div>
+          <span class="stat a"><span class="sd"></span>84</span>
+        </div>
+        <div class="item">
+          <div class="check"></div>
+          <div class="name">Приостановлены</div>
+          <span class="stat r"><span class="sd"></span>12</span>
+        </div>
+        <div class="item">
+          <div class="check"></div>
+          <div class="name">Архив</div>
+          <span class="stat n"><span class="sd"></span>398</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Multi-select with search -->
+    <div>
+      <div class="kicker">02 · multi-select · search</div>
+      <div class="lbl">Count-pill on trigger · checkbox rows · footer hint</div>
+
+      <div class="sel open">
+        <span class="lbl-in">Культуры:</span>
+        <span class="count">3</span>
+        <span class="value">пшеница, ячмень…</span>
+        <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+
+      <div class="dd">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7" stroke-width="2"/><path d="M20 20l-4-4" stroke-width="2" stroke-linecap="round"/></svg>
+          <input value="п" placeholder="Поиск культуры…">
+          <span class="kbd">⌘K</span>
+        </div>
+        <div class="group-h">Зерновые · 3 найдено</div>
+        <div class="item on hv">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="name"><em>П</em>шеница яровая</div>
+          <div class="meta">3.2М га</div>
+        </div>
+        <div class="item on">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="name">Ре<em>п</em>ак озимый</div>
+          <div class="meta">240К га</div>
+        </div>
+        <div class="item on">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12.5l5 5 9-11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="name">Кукуруза кор<em>п</em>оративная</div>
+          <div class="meta">88К га</div>
+        </div>
+        <div class="item">
+          <div class="check"></div>
+          <div class="name">Про<em>п</em>ашные (прочие)</div>
+          <div class="meta">12К га</div>
+        </div>
+        <div class="footer">
+          <span class="hint"><kbd>↑↓</kbd> выбор · <kbd>↵</kbd> toggle</span>
+          <a>Очистить (3)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>trigger</b> h 40 · rx 10</span>
+    <span><b>dropdown</b> rx 10 · shadow 14px/32px warm</span>
+    <span><b>row</b> h 48 · separator #f3ede1</span>
+    <span><b>check</b> 14×14 rx 3 · filled fg</span>
+    <span><b>search</b> h 40 · bottom border</span>
+    <span><b>footer</b> bg-m tint · kbd hints</span>
+    <span><b>status pill</b> 6px dot · --*-m bg</span>
+  </div>
+
+</div>
+</body></html>

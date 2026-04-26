@@ -32,7 +32,7 @@ export default function ApproveDialog({ open, onOpenChange, fullName, role, isPe
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isPending}
-            style={{ background: '#2B180A' }}
+            style={{ background: 'var(--cta)', color: 'var(--cta-fg)' }}
           >
             {isPending ? t('admin.approveDialog.approving') : t('admin.approveDialog.approve')}
           </AlertDialogAction>

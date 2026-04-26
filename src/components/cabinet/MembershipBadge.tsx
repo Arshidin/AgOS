@@ -7,7 +7,7 @@ const BADGE_STYLES: Record<MembershipStatus, { bg: string; fg: string }> = {
   applicant:  { bg: 'rgba(179,122,16,0.08)',  fg: 'var(--amber)' },
   observer:   { bg: 'rgba(69,113,184,0.08)',  fg: 'var(--blue)' },
   active:     { bg: 'rgba(58,138,82,0.08)',   fg: 'var(--green)' },
-  associate:  { bg: 'rgba(122,107,93,0.08)',  fg: 'var(--fg2, #7a6b5d)' },
+  associate:  { bg: 'rgba(107,99,89,0.08)',   fg: 'var(--fg2, #6b6359)' },
   restricted: { bg: 'rgba(192,57,43,0.08)',   fg: 'var(--red)' },
   expelled:   { bg: 'rgba(192,57,43,0.08)',   fg: 'var(--red)' },
 };

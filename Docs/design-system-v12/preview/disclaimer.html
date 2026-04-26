@@ -1,0 +1,296 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body { background:#f6f3ed; }
+  .wrap { width: 700px; padding: 24px 24px; display: flex; flex-direction: column; gap: 22px; font-family: var(--font-sans); }
+  .kicker { font: 500 10px 'Geist Mono'; letter-spacing: .02em; color: #9a9288; }
+  .lbl { font: 400 11px 'Geist'; color: #9a9288; margin: 2px 0 12px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ─── Base disclaimer ──────────────────────────────────────────
+     Minimal · flat · hairline border · no gradient · no halo.
+     Severity signalled by a 2px left rule + colored dot.         */
+  .dc {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px 14px;
+    padding: 12px 12px 12px 16px;
+    background: #fbfaf6;
+    border: 1px solid #ece5d6;
+    border-radius: 10px;
+    font-family: var(--font-sans);
+  }
+  /* left severity rule — 2px, full height */
+  .dc::before {
+    content:''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 2px; border-radius: 2px;
+    background: #c7beac;
+  }
+
+  /* Header row: dot + title + time */
+  .dc .head {
+    display: flex; align-items: baseline; gap: 8px;
+    min-width: 0;
+  }
+  .dc .dot {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background: #9a9288; flex-shrink: 0;
+    position: relative; top: -1px;
+  }
+  .dc .t {
+    font: 500 12.5px 'Geist';
+    letter-spacing:-0.005em;
+    color:#3d2b1f;
+    line-height:1.3;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dc .time {
+    font: 400 10.5px 'Geist Mono'; color:#9a9288; letter-spacing: 0;
+    flex-shrink: 0;
+  }
+
+  .dc .s {
+    font: 400 11.5px 'Geist'; color:#6b6359; line-height: 1.5;
+    grid-column: 1 / -1;
+    margin-top: -2px;
+  }
+  .dc .s b { color:#3d2b1f; font-weight: 500; }
+  .dc .s a { color:#3d2b1f; text-decoration: none; border-bottom: 1px solid #c7beac; }
+
+  .dc .close {
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    color: #c7beac; cursor: pointer;
+    align-self: start;
+    margin-top: 1px;
+    transition: color 80ms;
+  }
+  .dc .close:hover { color:#3d2b1f; }
+  .dc .close svg { width: 10px; height: 10px; stroke-width: 1.75; }
+
+  /* ─── Light semantic variants ─────────────────────────────── */
+  .dc.info    .dot { background: #4571b8; }
+  .dc.info::before   { background: #4571b8; }
+  .dc.warn    .dot { background: #b37a10; }
+  .dc.warn::before   { background: #b37a10; }
+  .dc.error   .dot { background: #c0392b; }
+  .dc.error::before  { background: #c0392b; }
+  .dc.success .dot { background: #3a8a52; }
+  .dc.success::before{ background: #3a8a52; }
+
+  /* ─── Dark push/toast ───────────────────────────────────── */
+  .dc.dark {
+    background: #1a1816;
+    border: 1px solid #2a2825;
+    box-shadow: 0 8px 24px -6px rgba(20,14,10,0.20);
+  }
+  .dc.dark .t { color:#ededea; }
+  .dc.dark .time { color:#706a63; }
+  .dc.dark .s { color:#a8a29a; }
+  .dc.dark .s b { color:#ededea; font-weight: 500; }
+  .dc.dark .close { color:#4a4641; }
+  .dc.dark .close:hover { color:#ededea; }
+
+  .dc.dark.info    .dot, .dc.dark.info::before    { background: #6b9fe0; }
+  .dc.dark.warn    .dot, .dc.dark.warn::before    { background: #f0b040; }
+  .dc.dark.error   .dot, .dc.dark.error::before   { background: #e87b6c; }
+  .dc.dark.success .dot, .dc.dark.success::before { background: #5ec47a; }
+
+  /* Toast actions — link-style, minimal */
+  .dc .actions {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 4px;
+  }
+  .dc .actions a {
+    font: 500 11.5px 'Geist'; letter-spacing: -0.005em;
+    color: #3d2b1f; text-decoration: none; cursor: pointer;
+    padding: 2px 0;
+    border-bottom: 1px solid transparent;
+  }
+  .dc .actions a.primary { border-bottom-color: #3d2b1f; }
+  .dc .actions a.secondary { color: #9a9288; }
+  .dc .actions a:hover { border-bottom-color: currentColor; }
+  .dc.dark .actions a { color:#ededea; }
+  .dc.dark .actions a.primary { border-bottom-color:#ededea; }
+  .dc.dark .actions a.secondary { color:#a8a29a; border-bottom-color: transparent; }
+
+  /* Auto-dismiss progress — hairline at bottom */
+  .dc .progress {
+    position: absolute; left: 0; bottom: -1px; height: 1px;
+    background: currentColor; opacity: 0.4;
+  }
+
+  /* ─── Banner · single-line full-width ─────────────────── */
+  .dc.banner {
+    grid-template-columns: 1fr auto;
+    padding: 10px 12px 10px 16px;
+    align-items: center;
+  }
+  .dc.banner::before { top: 10px; bottom: 10px; }
+  .dc.banner .head { align-items: center; }
+  .dc.banner .t { font-weight: 500; }
+  .dc.banner .s {
+    display: inline; grid-column: auto; margin: 0;
+    color: #6b6359;
+  }
+  .dc.banner .row {
+    display: flex; align-items: center; gap: 10px;
+    min-width: 0; flex: 1;
+  }
+  .dc.banner .sep { width: 3px; height: 3px; border-radius:9999px; background:#c7beac; flex-shrink: 0; }
+
+  /* ─── Spec pill row ─────────────────────────────────── */
+  .spec {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    margin-top: 4px;
+  }
+  .spec span {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 8px;
+    background: #fbfaf6; border: 1px solid #ece5d6; border-radius: 9999px;
+    font: 400 10.5px 'Geist Mono'; color: #9a9288;
+  }
+  .spec span b { color: #3d2b1f; font-weight: 500; }
+</style>
+</head><body data-theme="light">
+<div class="wrap">
+
+  <!-- Light variants -->
+  <div>
+    <div class="kicker">01 · inline disclaimer</div>
+    <div class="lbl">Dot + 2px rail signal severity · no icons, no fill</div>
+    <div class="grid2">
+
+      <div class="dc info">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="t">Отчёт формируется</span>
+          <span class="time">~2 мин</span>
+        </div>
+        <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+        <div class="s">Готовность <b>92%</b>. Отправим на <a>astana-agro@turan.kz</a>.</div>
+      </div>
+
+      <div class="dc warn">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="t">Контракт истекает</span>
+          <span class="time">8 дней</span>
+        </div>
+        <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+        <div class="s">До <b>15 апреля</b> продлите или переведите в архив.</div>
+      </div>
+
+      <div class="dc error">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="t">Не удалось загрузить реестр</span>
+          <span class="time">503</span>
+        </div>
+        <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+        <div class="s">Попытка <b>3 из 5</b>. <a>Повторить сейчас</a></div>
+      </div>
+
+      <div class="dc success">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="t">Договор подписан</span>
+          <span class="time">сейчас</span>
+        </div>
+        <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+        <div class="s">Копия <b>TR-2439</b> отправлена обеим сторонам.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Dark toast -->
+  <div>
+    <div class="kicker">02 · push / toast</div>
+    <div class="lbl">Dark variant · overlay from bottom-right · 4.5s auto-dismiss</div>
+
+    <div class="dc dark info" style="margin-bottom: 8px">
+      <div class="head">
+        <span class="dot"></span>
+        <span class="t">Новая заявка от фермера</span>
+        <span class="time">только что</span>
+      </div>
+      <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+      <div class="s"><b>Арман Керимов</b> запросил изменение квоты для поля А-12.</div>
+      <div class="actions">
+        <a class="primary">Открыть</a>
+        <a class="secondary">Позже</a>
+      </div>
+    </div>
+
+    <div class="dc dark success" style="margin-bottom: 8px">
+      <div class="head">
+        <span class="dot"></span>
+        <span class="t">Синхронизация с 1С завершена</span>
+        <span class="time">1 мин</span>
+      </div>
+      <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+      <div class="s">Обновлено <b>324 контрагента</b> · рассогласований нет.</div>
+      <div class="progress" style="color:#5ec47a; width: 62%;"></div>
+    </div>
+
+    <div class="dc dark error">
+      <div class="head">
+        <span class="dot"></span>
+        <span class="t">Сессия завершится через 2 минуты</span>
+        <span class="time">02:00</span>
+      </div>
+      <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+      <div class="s">Сохраните изменения или продлите сессию.</div>
+      <div class="actions">
+        <a class="primary">Продлить</a>
+        <a class="secondary">Выйти</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banner -->
+  <div>
+    <div class="kicker">03 · banner</div>
+    <div class="lbl">Full-width single-line · top of page or section</div>
+
+    <div class="dc banner warn" style="margin-bottom: 6px">
+      <div class="row">
+        <span class="dot"></span>
+        <span class="t">Режим «только чтение»</span>
+        <span class="sep"></span>
+        <span class="s">Админ ограничил редактирование до <b>18:00 GMT+6</b></span>
+      </div>
+      <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+    </div>
+
+    <div class="dc banner info">
+      <div class="row">
+        <span class="dot"></span>
+        <span class="t">Плановое обновление</span>
+        <span class="sep"></span>
+        <span class="s">Модуль аналитики — <b>15 апреля, 03:00–04:00</b> Астана · <a>Подробнее</a></span>
+      </div>
+      <div class="close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></div>
+    </div>
+  </div>
+
+  <!-- Spec -->
+  <div class="spec">
+    <span><b>rx</b> 10</span>
+    <span><b>rail</b> 2px left · rounded</span>
+    <span><b>dot</b> 6px · semantic</span>
+    <span><b>padding</b> 12/16</span>
+    <span><b>title</b> 12.5 · 500</span>
+    <span><b>body</b> 11.5 · 400</span>
+    <span><b>time</b> 10.5 · Geist Mono · fg3</span>
+    <span><b>actions</b> underlined link-style</span>
+  </div>
+
+</div>
+</body></html>
