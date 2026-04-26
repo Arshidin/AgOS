@@ -273,8 +273,8 @@ export function StaffTab() {
                     <td className="px-2 py-1.5 text-center">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         row.category === 'admin'
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-green-500/10 text-green-400'
+                          ? 'bg-[var(--blue-m)] text-[var(--blue)]'
+                          : 'bg-[var(--green-m)] text-[var(--green)]'
                       }`}>
                         {row.category === 'admin' ? 'АУП' : 'Произв.'}
                       </span>
@@ -308,7 +308,7 @@ export function StaffTab() {
                     </td>
                     <td className="px-2 py-1.5 text-center">
                       <button
-                        className="text-muted-foreground hover:text-red-400 transition-colors"
+                        className="text-muted-foreground hover:text-[var(--red)] transition-colors"
                         onClick={() => removeRow(row.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -352,11 +352,11 @@ export function StaffTab() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Производственный</p>
-              <p className="text-lg font-semibold text-green-400">{fmt(totalProduction, 0)}</p>
+              <p className="text-lg font-semibold text-[var(--green)]">{fmt(totalProduction, 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Административный</p>
-              <p className="text-lg font-semibold text-blue-400">{fmt(totalAdmin, 0)}</p>
+              <p className="text-lg font-semibold text-[var(--blue)]">{fmt(totalAdmin, 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Итого</p>

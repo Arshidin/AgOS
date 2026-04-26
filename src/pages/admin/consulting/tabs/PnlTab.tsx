@@ -343,7 +343,7 @@ function renderTable(rows: TableRow[], headers: string[], fontSize: string) {
                   className={[
                     'px-2 py-1.5 text-right',
                     isBold ? 'font-semibold' : '',
-                    v < -0.1 ? 'text-red-400' : '',
+                    v < -0.1 ? 'text-[var(--red)]' : '',
                   ].join(' ')}
                 >
                   {Math.abs(v) < 0.1 ? '' : fmt(v, 0)}

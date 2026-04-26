@@ -230,7 +230,7 @@ export function CatalogTab() {
 
                 {/* Статус */}
                 <div className="h-[38px] px-3 flex items-center gap-1.5 border-r border-border/60">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.is_validated ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.is_validated ? 'bg-[var(--emerald)]' : 'bg-[var(--fg3)]'}`} />
                   <span className="text-[12px]" style={{ color: 'var(--fg2)' }}>
                     {item.is_validated ? 'Валидирован' : 'Черновик'}
                   </span>

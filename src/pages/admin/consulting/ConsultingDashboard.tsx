@@ -35,10 +35,10 @@ interface ConsultingProject {
 
 /* ── Статус: точка + текст ── */
 const STATUS_CONFIG: Record<string, { dotClass: string; label: string }> = {
-  draft:       { dotClass: 'bg-slate-400',   label: 'Черновик'  },
-  calculating: { dotClass: 'bg-amber-400',   label: 'Расчёт...' },
-  calculated:  { dotClass: 'bg-emerald-500', label: 'Рассчитан' },
-  archived:    { dotClass: 'bg-slate-300',   label: 'Архив'     },
+  draft:       { dotClass: 'bg-[var(--fg3)]',     label: 'Черновик'  },
+  calculating: { dotClass: 'bg-[var(--amber)]',   label: 'Расчёт...' },
+  calculated:  { dotClass: 'bg-[var(--emerald)]', label: 'Рассчитан' },
+  archived:    { dotClass: 'bg-[var(--bd-h)]',    label: 'Архив'     },
 }
 
 /* ── Цвет аватара по хэшу имени ── */
@@ -225,7 +225,7 @@ export function ConsultingDashboard() {
             {/* Строки */}
             {projects.map(p => {
               const av = avatarStyle(p.name)
-              const st = STATUS_CONFIG[p.status] ?? { dotClass: 'bg-slate-400', label: p.status }
+              const st = STATUS_CONFIG[p.status] ?? { dotClass: 'bg-[var(--fg3)]', label: p.status }
               return (
                 <div
                   key={p.id}
@@ -257,7 +257,7 @@ export function ConsultingDashboard() {
                       <span className={cn(
                         'text-[13px] font-medium tabular-nums',
                         p.latest_version.npv === null ? 'text-muted-foreground' :
-                        p.latest_version.npv < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'
+                        p.latest_version.npv < 0 ? 'text-destructive' : 'text-[var(--emerald)]'
                       )}>
                         {formatNumber(p.latest_version.npv)}
                       </span>
@@ -272,7 +272,7 @@ export function ConsultingDashboard() {
                       <span className={cn(
                         'text-[13px] font-medium tabular-nums',
                         p.latest_version.irr === null ? 'text-muted-foreground' :
-                        p.latest_version.irr < 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'
+                        p.latest_version.irr < 0 ? 'text-destructive' : 'text-[var(--emerald)]'
                       )}>
                         {formatPercent(p.latest_version.irr)}
                       </span>

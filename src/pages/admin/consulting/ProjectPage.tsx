@@ -173,7 +173,7 @@ export function ProjectPage() {
           {/* Dok 7 §10.5: staleness badge + recalc trigger */}
           {project?.needs_recalc && (
             <>
-              <Badge variant="outline" className="ml-1 border-amber-400 text-amber-600 dark:text-amber-400 text-xs">
+              <Badge variant="outline" className="ml-1 border-[var(--amber)] text-[var(--amber)] text-xs">
                 Требуется пересчёт
               </Badge>
               <Button

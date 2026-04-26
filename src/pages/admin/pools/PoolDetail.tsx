@@ -80,15 +80,15 @@ export function PoolDetail() {
       </div>
 
       {/* DEF-024: Antitrust disclaimer — Article 171, mandatory on all price screens A11–A15 */}
-      <Card className="border-amber-500/30 bg-amber-50/50">
-        <CardContent className="p-3 text-xs text-amber-800">{DISCLAIMER}</CardContent>
+      <Card className="border-[var(--amber)]/30 bg-[var(--amber-m)]">
+        <CardContent className="p-3 text-xs text-[var(--amber)]">{DISCLAIMER}</CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-5 space-y-2">
           <div className="flex justify-between"><span className="text-muted-foreground">Цель</span><span className="font-bold text-lg">{pool.target_heads} голов</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Подобрано</span><span className="font-bold text-lg">{pool.matched_heads} голов</span></div>
-          {isContactRevealed && <div className="text-sm text-green-600 font-medium">Контакты раскрыты (D40)</div>}
+          {isContactRevealed && <div className="text-sm text-[var(--green)] font-medium">Контакты раскрыты (D40)</div>}
           {/* FSM progress */}
           <div className="flex gap-1 mt-3">{POOL_STATUS_ORDER.map(s => (
             <div key={s} className={`h-2 flex-1 rounded-full ${s === pool.status ? 'bg-primary' : POOL_STATUS_ORDER.indexOf(s) < POOL_STATUS_ORDER.indexOf(pool.status) ? 'bg-primary/40' : 'bg-muted'}`} title={s} />

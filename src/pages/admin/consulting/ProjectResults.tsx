@@ -69,7 +69,7 @@ function MonthlyTable({ data, groups }: { data: any; groups: string[] }) {
             <tr key={g} className="border-b border-border/50">
               <td className="sticky left-0 bg-card px-2 py-1 text-muted-foreground">{g}</td>
               {data[g]?.slice(0, months).map((v: number, i: number) => (
-                <td key={i} className={`px-2 py-1 text-right ${v < 0 ? 'text-red-400' : ''}`}>
+                <td key={i} className={`px-2 py-1 text-right ${v < 0 ? 'text-[var(--red)]' : ''}`}>
                   {fmt(v, 1)}
                 </td>
               ))}

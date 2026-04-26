@@ -129,10 +129,10 @@ function NutritionBadge({ season, status }: {
 }) {
   if (!status) return <span className="text-xs text-muted-foreground">{season}: —</span>
   if (status.met) return (
-    <span className="text-xs font-medium text-green-600 dark:text-green-400">🟢 {season}</span>
+    <span className="text-xs font-medium text-[var(--green)]">🟢 {season}</span>
   )
   return (
-    <span className="text-xs font-medium text-amber-600 dark:text-amber-400" title={status.deficiencies.join(', ')}>
+    <span className="text-xs font-medium text-[var(--amber)]" title={status.deficiencies.join(', ')}>
       🟡 {season}: {status.deficiencies.slice(0, 2).join(', ')}
     </span>
   )
@@ -833,11 +833,11 @@ export function SimpleRationEditor({
               {suggestResult && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <CheckCircle className="w-4 h-4 text-[var(--green)]" />
                     <span className="text-sm font-medium">Предложение NASEM</span>
                     {suggestResult.deficiencies.length > 0
                       ? <Badge variant="destructive" className="text-xs">{suggestResult.deficiencies.length} дефицит</Badge>
-                      : <Badge className="text-xs bg-green-600 text-white">Баланс ✓</Badge>
+                      : <Badge className="text-xs bg-[var(--green)] text-[var(--cta-fg)]">Баланс ✓</Badge>
                     }
                   </div>
 

@@ -100,12 +100,12 @@ export default function BackfillCoversPage() {
   const pendingCount = startups.filter((s) => s.status === 'pending').length;
 
   const statusIcon = (status: Status) => {
-    if (status === 'done') return <CheckCircle2 size={16} className="text-green-500" />;
-    if (status === 'error') return <XCircle size={16} className="text-red-500" />;
+    if (status === 'done') return <CheckCircle2 size={16} className="text-[var(--green)]" />;
+    if (status === 'error') return <XCircle size={16} className="text-[var(--red)]" />;
     if (status === 'describing' || status === 'generating')
       return <Loader2 size={16} className="animate-spin" style={{ color: 'var(--brand)' }} />;
-    if (status === 'skipped') return <CheckCircle2 size={16} className="text-gray-400" />;
-    return <ImageIcon size={16} className="text-gray-300" />;
+    if (status === 'skipped') return <CheckCircle2 size={16} className="text-[var(--fg3)]" />;
+    return <ImageIcon size={16} className="text-[var(--fg3)] opacity-60" />;
   };
 
   const statusLabel = (s: StartupStatus) => {
@@ -123,7 +123,7 @@ export default function BackfillCoversPage() {
           <h1 className="text-xl font-semibold" style={{ color: 'var(--fg)' }}>
             Обложки стартапов
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'rgba(43,24,10,0.5)' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--fg3)' }}>
             Автоматическая генерация обложек из первого слайда Pitch Deck
           </p>
         </div>
@@ -150,18 +150,18 @@ export default function BackfillCoversPage() {
             <div
               key={s.id}
               className="flex items-center gap-4 p-4 rounded-xl"
-              style={{ background: 'rgba(43,24,10,0.03)', border: '1px solid rgba(43,24,10,0.06)' }}
+              style={{ background: 'var(--bg-c)', border: '1px solid var(--bd-s)' }}
             >
               {/* Cover preview */}
               <div
                 className="w-20 h-12 rounded-lg flex-shrink-0 overflow-hidden"
-                style={{ background: 'rgba(43,24,10,0.06)' }}
+                style={{ background: 'var(--bg-m)' }}
               >
                 {s.cover_image_url && s.status === 'done' ? (
                   <img src={s.cover_image_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon size={16} style={{ color: 'rgba(43,24,10,0.2)' }} />
+                    <ImageIcon size={16} style={{ color: 'var(--fg3)' }} />
                   </div>
                 )}
               </div>
@@ -171,7 +171,7 @@ export default function BackfillCoversPage() {
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--fg)' }}>
                   {s.title}
                 </p>
-                <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'rgba(43,24,10,0.45)' }}>
+                <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--fg3)' }}>
                   {statusIcon(s.status)}
                   {statusLabel(s)}
                 </p>

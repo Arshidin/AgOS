@@ -47,7 +47,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div>
       <h3
         className="text-xs uppercase tracking-wider mb-3"
-        style={{ color: 'rgba(43,24,10,0.4)', letterSpacing: '0.05em' }}
+        style={{ color: 'var(--fg3)', letterSpacing: '0.05em' }}
       >
         {title}
       </h3>
@@ -61,7 +61,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs mb-0.5" style={{ color: 'rgba(43,24,10,0.4)' }}>{label}</p>
+      <p className="text-xs mb-0.5" style={{ color: 'var(--fg3)' }}>{label}</p>
       <p className="text-sm" style={{ color: 'var(--fg)' }}>{value || '—'}</p>
     </div>
   );
@@ -155,7 +155,7 @@ export default function ApplicationDetail() {
           <Link
             to="/admin/applications"
             className="inline-flex items-center gap-1.5 text-sm transition-colors"
-            style={{ color: 'rgba(43,24,10,0.5)' }}
+            style={{ color: 'var(--fg3)' }}
           >
             <ArrowLeft className="w-4 h-4" />
             {t('admin.detail.backToList')}
@@ -172,7 +172,7 @@ export default function ApplicationDetail() {
               <StatusBadge status={app.status} />
               <RoleBadge role={app.role} />
             </div>
-            <p className="text-xs" style={{ color: 'rgba(43,24,10,0.4)' }}>
+            <p className="text-xs" style={{ color: 'var(--fg3)' }}>
               {formatDateFull(app.created_at)}
             </p>
           </div>
@@ -203,7 +203,7 @@ export default function ApplicationDetail() {
           </div>
 
           {app.region && (
-            <p className="text-sm" style={{ color: 'rgba(43,24,10,0.5)' }}>{app.region}</p>
+            <p className="text-sm" style={{ color: 'var(--fg3)' }}>{app.region}</p>
           )}
         </div>
 
@@ -263,14 +263,14 @@ export default function ApplicationDetail() {
             <div className="rounded-xl border p-5 sm:p-6 mb-4" style={{ background: 'var(--bg-c)', borderColor: 'var(--bd-s)' }}>
               <h3
                 className="text-xs uppercase tracking-wider mb-3"
-                style={{ color: 'rgba(43,24,10,0.4)', letterSpacing: '0.05em' }}
+                style={{ color: 'var(--fg3)', letterSpacing: '0.05em' }}
               >
                 {t('admin.detail.applicationProgress')}
               </h3>
               <div className="space-y-3">
                 {/* Documents */}
                 <div className="space-y-2">
-                  <p className="text-xs font-medium" style={{ color: 'rgba(43,24,10,0.6)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--fg2)' }}>
                     {t('admin.detail.documents')}
                   </p>
                   {REQUIRED_DOCUMENTS.map(slot => {

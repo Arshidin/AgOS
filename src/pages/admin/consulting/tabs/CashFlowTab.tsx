@@ -170,7 +170,7 @@ export function CashFlowTab() {
                       {r.label}
                     </td>
                     {r.values.slice(0, years).map((v, i) => (
-                      <td key={i} className={`px-3 py-2 text-right ${v < 0 ? 'text-red-400' : ''} ${r.bold ? 'font-semibold' : ''}`}>
+                      <td key={i} className={`px-3 py-2 text-right ${v < 0 ? 'text-[var(--red)]' : ''} ${r.bold ? 'font-semibold' : ''}`}>
                         {fmt(v, 0)}
                       </td>
                     ))}

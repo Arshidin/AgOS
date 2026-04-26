@@ -98,8 +98,8 @@ export function PriceGridManagement() {
     <div className="page space-y-6">
 
       {/* DEF-024: Antitrust disclaimer — Article 171, mandatory on all price screens A11–A15 */}
-      <Card className="border-amber-500/30 bg-amber-50/50">
-        <CardContent className="p-4 text-sm text-amber-800">{DISCLAIMER}</CardContent>
+      <Card className="border-[var(--amber)]/30 bg-[var(--amber-m)]">
+        <CardContent className="p-4 text-sm text-[var(--amber)]">{DISCLAIMER}</CardContent>
       </Card>
 
       {/* ── Price Grid ── */}

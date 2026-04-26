@@ -37,7 +37,7 @@ function StatusBadge({ published }: { published: boolean }) {
   return (
     <span
       className={`inline-flex px-2 py-1 rounded-md text-xs font-medium ${
-        published ? 'bg-green-500/10 text-green-600 dark:text-green-400' : 'bg-muted text-muted-foreground'
+        published ? 'bg-[var(--green-m)] text-[var(--green)]' : 'bg-muted text-muted-foreground'
       }`}
     >
       {published ? 'Опубликовано' : 'Черновик'}

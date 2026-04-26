@@ -1,8 +1,8 @@
 const variants = {
-  success: 'bg-green-500/10 text-green-500',
-  warning: 'bg-orange-500/10 text-orange-500',
-  info: 'bg-blue-500/10 text-blue-500',
-  danger: 'bg-red-500/10 text-red-500',
+  success: 'bg-[var(--green-m)] text-[var(--green)]',
+  warning: 'bg-[var(--amber-m)] text-[var(--amber)]',
+  info: 'bg-[var(--blue-m)] text-[var(--blue)]',
+  danger: 'bg-[var(--red-m)] text-[var(--red)]',
   neutral: 'bg-muted text-muted-foreground',
   primary: 'bg-primary/10 text-primary',
 } as const;

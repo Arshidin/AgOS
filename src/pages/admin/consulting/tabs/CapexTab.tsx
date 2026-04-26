@@ -195,11 +195,11 @@ export function CapexTab() {
 
       {/* Legacy banner */}
       {isLegacy && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300/60 bg-amber-50 px-4 py-3">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--amber)]/30 bg-[var(--amber-m)] px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-[var(--amber)] mt-0.5" />
           <div className="text-sm">
-            <p className="font-medium text-amber-900">Старая модель CAPEX</p>
-            <p className="text-amber-700/80 mt-0.5">
+            <p className="font-medium text-[var(--amber)]">Старая модель CAPEX</p>
+            <p className="text-[var(--amber)] opacity-80 mt-0.5">
               Проект рассчитан до обновления методики. Редактирование появится после пересчёта во вкладке «Параметры».
             </p>
           </div>
@@ -322,7 +322,7 @@ export function CapexTab() {
                           key={item.code}
                           className={`border-b border-border/20 transition-colors hover:bg-muted/20
                             ${!included ? 'opacity-35' : ''}
-                            ${isModified && included ? 'bg-blue-50/30' : ''}`}
+                            ${isModified && included ? 'bg-[var(--blue-m)]' : ''}`}
                         >
                           <td className="py-1.5 pl-3">
                             <Checkbox
@@ -400,7 +400,7 @@ export function CapexTab() {
                               !included
                                 ? 'text-muted-foreground line-through'
                                 : isModified
-                                  ? 'text-blue-600 font-medium'
+                                  ? 'text-[var(--blue)] font-medium'
                                   : ''
                             }`}>
                               {fmt(previewCost)}
