@@ -50,14 +50,14 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     if (!validateContact()) return
     setIsSending(true)
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: `+7${formData.phone}`,
+      const { data, error } = await supabase.functions.invoke('bird-otp', {
+        body: { action: 'send', phone: `+7${formData.phone}` },
       })
-      if (error) {
-        toast.error(error.message || 'Ошибка отправки кода')
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || 'Ошибка отправки кода')
         return
       }
-      onChange({ otp_sent: true })
+      onChange({ otp_sent: true, verification_id: data.verificationId })
       setCountdown(60)
     } catch {
       toast.error('Ошибка отправки кода')
@@ -70,12 +70,14 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     if (token.length < 6) return
     setIsVerifying(true)
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        phone: `+7${formData.phone}`,
-        token,
-        type: 'sms',
+      const { data, error } = await supabase.functions.invoke('bird-otp', {
+        body: {
+          action: 'check',
+          verificationId: formData.verification_id,
+          code: token,
+        },
       })
-      if (error) {
+      if (error || data?.error || !data?.verified) {
         toast.error('Неверный код — попробуйте ещё раз')
         setOtpValue('')
         return
@@ -93,10 +95,11 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
     if (countdown > 0 || isSending) return
     setIsSending(true)
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: `+7${formData.phone}`,
+      const { data, error } = await supabase.functions.invoke('bird-otp', {
+        body: { action: 'send', phone: `+7${formData.phone}` },
       })
-      if (error) { toast.error(error.message); return }
+      if (error || data?.error) { toast.error(data?.error || error?.message); return }
+      onChange({ verification_id: data.verificationId })
       setOtpValue('')
       setCountdown(60)
     } catch {

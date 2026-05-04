@@ -7,6 +7,7 @@ import { ProgressBar } from './components/ProgressBar'
 import { RoleSelect } from './steps/RoleSelect'
 import { Contact } from './steps/Contact'
 import { BenefitScreen } from './steps/BenefitScreen'
+import { CreatePin } from './steps/CreatePin'
 import { FarmerDetails } from './steps/FarmerDetails'
 import { MpkDetails } from './steps/MpkDetails'
 import { ServicesDetails } from './steps/ServicesDetails'
@@ -21,6 +22,7 @@ const STORAGE_KEY = 'agos_reg_form'
 type Step =
   | 'role_select'
   | 'contact'
+  | 'create_pin'
   | 'benefit_1'
   | 'role_details'
   | 'benefit_2'
@@ -30,6 +32,7 @@ type Step =
 const STEP_ORDER: Step[] = [
   'role_select',
   'contact',
+  'create_pin',
   'benefit_1',
   'role_details',
   'benefit_2',
@@ -68,8 +71,8 @@ export function Registration() {
   // Persist form to sessionStorage
   useEffect(() => {
     try {
-      // Never persist password to storage (security)
-      const { password: _, ...safeData } = formData
+      // Never persist sensitive auth fields to storage
+      const { password: _p, verification_id: _v, ...safeData } = formData
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeData))
     } catch { /* ignore */ }
   }, [formData])
@@ -218,6 +221,14 @@ export function Registration() {
       case 'contact':
         return (
           <Contact
+            formData={formData}
+            onChange={updateForm}
+            onNext={() => goTo('create_pin')}
+          />
+        )
+      case 'create_pin':
+        return (
+          <CreatePin
             formData={formData}
             onChange={updateForm}
             onNext={() => goTo('benefit_1')}

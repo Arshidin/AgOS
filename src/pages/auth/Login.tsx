@@ -1,22 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Loader2, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { toast } from 'sonner'
-import { OtpInput } from '@/pages/registration/components/OtpInput'
+import { PinInput } from '@/pages/registration/components/PinInput'
 
 export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const [phone, setPhone] = useState('+7')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpValue, setOtpValue] = useState('')
-  const [isSending, setIsSending] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [countdown, setCountdown] = useState(0)
+  const [pin, setPin] = useState('')
+  const [step, setStep] = useState<'phone' | 'pin'>('phone')
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const phoneDigits = phone.replace(/\D/g, '').slice(1) // remove leading 7, get 10 digits
+  const phoneDigits = phone.replace(/\D/g, '').slice(1)
   const maskedPhone = phoneDigits.length >= 7
     ? `+7 (${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-••-••`
     : phone
@@ -33,76 +32,38 @@ export function Login() {
     return formatted
   }
 
-  useEffect(() => {
-    if (countdown <= 0) return
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [countdown])
-
-  const handleSendOtp = async () => {
+  const handlePhoneSubmit = () => {
     const digits = phone.replace(/\D/g, '')
     if (digits.length !== 11) {
       setError('Введите номер телефона полностью')
       return
     }
     setError(null)
-    setIsSending(true)
-    try {
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        phone: `+7${digits.slice(1)}`,
-      })
-      if (authError) {
-        setError(authError.message || 'Ошибка отправки кода')
-        return
-      }
-      setOtpSent(true)
-      setCountdown(60)
-    } catch {
-      setError('Ошибка отправки кода')
-    } finally {
-      setIsSending(false)
-    }
+    setStep('pin')
   }
 
-  const handleVerifyOtp = async (token: string) => {
-    if (token.length < 6) return
+  const handlePinSubmit = async (value: string) => {
+    if (value.length < 6) return
     setError(null)
-    setIsVerifying(true)
+    setIsLoading(true)
     try {
-      const { error: authError } = await supabase.auth.verifyOtp({
-        phone: `+7${phoneDigits}`,
-        token,
-        type: 'sms',
+      const email = phoneToFakeEmail(`+7${phoneDigits}`)
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password: value,
       })
       if (authError) {
-        setError('Неверный код — попробуйте ещё раз')
-        setOtpValue('')
+        setError('Неверный PIN — попробуйте ещё раз')
+        setPin('')
         return
       }
       toast.success('Вход выполнен')
       const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/cabinet'
       navigate(from, { replace: true })
     } catch {
-      setError('Ошибка проверки кода')
+      setError('Ошибка входа')
     } finally {
-      setIsVerifying(false)
-    }
-  }
-
-  const handleResend = async () => {
-    if (countdown > 0 || isSending) return
-    setIsSending(true)
-    try {
-      const { error: authError } = await supabase.auth.signInWithOtp({
-        phone: `+7${phoneDigits}`,
-      })
-      if (authError) { setError(authError.message); return }
-      setOtpValue('')
-      setCountdown(60)
-    } catch {
-      setError('Ошибка отправки')
-    } finally {
-      setIsSending(false)
+      setIsLoading(false)
     }
   }
 
@@ -114,7 +75,7 @@ export function Login() {
           <p className="text-sm text-[#6b5744] mt-1">Вход в личный кабинет</p>
         </div>
 
-        {!otpSent ? (
+        {step === 'phone' ? (
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-[#2B180A] mb-1.5">
@@ -126,6 +87,7 @@ export function Login() {
                   type="tel"
                   value={phone}
                   onChange={(e) => { setPhone(formatPhone(e.target.value)); setError(null) }}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePhoneSubmit()}
                   placeholder="+7 (___) ___-__-__"
                   className="w-full pl-10 pr-4 py-2.5 border border-[#e8ddd0] rounded-xl bg-white text-[#2B180A] focus:outline-none focus:ring-2 focus:ring-[hsl(24,73%,54%)]/30 focus:border-[hsl(24,73%,54%)]"
                 />
@@ -137,62 +99,55 @@ export function Login() {
             )}
 
             <button
-              onClick={handleSendOtp}
-              disabled={isSending}
-              className="w-full py-2.5 bg-[hsl(24,73%,54%)] text-white rounded-xl font-medium hover:bg-[hsl(24,73%,44%)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              onClick={handlePhoneSubmit}
+              className="w-full py-2.5 bg-[hsl(24,73%,54%)] text-white rounded-xl font-medium hover:bg-[hsl(24,73%,44%)] transition-colors"
             >
-              {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSending ? 'Отправка…' : 'Получить код'}
+              Продолжить
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="text-center space-y-1">
-              <p className="text-sm font-medium text-[#2B180A]">Код из SMS</p>
-              <p className="text-sm text-[#6b5744]">Отправили на {maskedPhone}</p>
+              <p className="text-sm font-medium text-[#2B180A]">Введите PIN-код</p>
+              <p className="text-sm text-[#6b5744]">{maskedPhone}</p>
             </div>
 
-            <OtpInput
-              value={otpValue}
-              onChange={setOtpValue}
-              onComplete={handleVerifyOtp}
-              disabled={isVerifying}
+            <PinInput
+              value={pin}
+              onChange={setPin}
+              onComplete={handlePinSubmit}
+              label="Ваш 6-значный PIN"
+              disabled={isLoading}
             />
 
             <button
-              onClick={() => handleVerifyOtp(otpValue)}
-              disabled={otpValue.length < 6 || isVerifying}
+              onClick={() => handlePinSubmit(pin)}
+              disabled={pin.length < 6 || isLoading}
               className="w-full py-2.5 bg-[hsl(24,73%,54%)] text-white rounded-xl font-medium hover:bg-[hsl(24,73%,44%)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
-              {isVerifying && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isVerifying ? 'Проверка…' : 'Войти'}
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isLoading ? 'Проверка…' : 'Войти'}
             </button>
 
             {error && (
               <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
             )}
 
-            <p className="text-center text-sm text-[#6b5744]">
-              Не пришло?{' '}
-              {countdown > 0 ? (
-                <span className="text-[#6b5744]/50">через {countdown} сек.</span>
-              ) : (
-                <button
-                  onClick={handleResend}
-                  disabled={isSending}
-                  className="text-[hsl(24,73%,54%)] font-medium hover:underline"
-                >
-                  {isSending ? 'Отправка…' : 'Отправить снова'}
-                </button>
-              )}
-            </p>
-
-            <button
-              onClick={() => { setOtpSent(false); setOtpValue(''); setError(null) }}
-              className="w-full text-center text-sm text-[#6b5744]/50 hover:text-[#6b5744] transition-colors"
-            >
-              ← Изменить номер
-            </button>
+            <div className="flex justify-between text-sm">
+              <button
+                onClick={() => { setStep('phone'); setPin(''); setError(null) }}
+                className="text-[#6b5744]/50 hover:text-[#6b5744] transition-colors"
+              >
+                ← Изменить номер
+              </button>
+              <Link
+                to="/forgot-pin"
+                state={{ phone: `+7${phoneDigits}` }}
+                className="text-[hsl(24,73%,54%)] hover:underline"
+              >
+                Забыл PIN
+              </Link>
+            </div>
           </div>
         )}
 

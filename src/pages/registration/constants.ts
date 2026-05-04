@@ -132,6 +132,7 @@ export interface RegistrationFormData {
   // Auth
   otp_sent: boolean
   otp_verified: boolean
+  verification_id: string
   password: string
   // Farmer
   farm_name: string
@@ -170,6 +171,7 @@ export const INITIAL_FORM_DATA: RegistrationFormData = {
   region_id: '',
   otp_sent: false,
   otp_verified: false,
+  verification_id: '',
   password: '',
   farm_name: '',
   bin_iin: '',
