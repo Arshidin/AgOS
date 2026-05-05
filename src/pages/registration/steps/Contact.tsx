@@ -77,8 +77,8 @@ export function Contact({ formData, onChange, onNext }: ContactProps) {
           code: token,
         },
       })
-      if (error || data?.error || !data?.verified) {
-        toast.error('Неверный код — попробуйте ещё раз')
+      if (error || !data?.verified) {
+        toast.error(data?.error || 'Неверный код — попробуйте ещё раз')
         setOtpValue('')
         return
       }

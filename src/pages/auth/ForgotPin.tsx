@@ -81,8 +81,8 @@ export function ForgotPin() {
       const { data, error: fnErr } = await supabase.functions.invoke('bird-otp', {
         body: { action: 'check', verificationId, code: token },
       })
-      if (fnErr || data?.error || !data?.verified) {
-        setError('Неверный код — попробуйте ещё раз')
+      if (fnErr || !data?.verified) {
+        setError(data?.error || 'Неверный код — попробуйте ещё раз')
         setOtp('')
         return
       }

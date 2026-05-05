@@ -132,7 +132,7 @@ serve(async (req) => {
         .single();
 
       if (dbErr || !row)
-        return json({ verified: false, error: "Код не найден" }, 400);
+        return json({ verified: false, error: "Код не найден — запросите новый" });
 
       // Истёк?
       if (new Date(row.expires_at) < new Date()) {
@@ -140,10 +140,7 @@ serve(async (req) => {
           .from("otp_codes")
           .delete()
           .eq("phone", targetPhone);
-        return json(
-          { verified: false, error: "Код истёк — запросите новый" },
-          400
-        );
+        return json({ verified: false, error: "Код истёк — запросите новый" });
       }
 
       // Превышены попытки?
@@ -152,10 +149,7 @@ serve(async (req) => {
           .from("otp_codes")
           .delete()
           .eq("phone", targetPhone);
-        return json(
-          { verified: false, error: "Превышено число попыток" },
-          400
-        );
+        return json({ verified: false, error: "Превышено число попыток — запросите новый код" });
       }
 
       // Неверный код?
@@ -164,7 +158,7 @@ serve(async (req) => {
           .from("otp_codes")
           .update({ attempts: row.attempts + 1 })
           .eq("phone", targetPhone);
-        return json({ verified: false }, 400);
+        return json({ verified: false, error: "Неверный код — попробуйте ещё раз" });
       }
 
       // Успех — удаляем использованный код
