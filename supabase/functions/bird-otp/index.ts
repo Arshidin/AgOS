@@ -187,14 +187,11 @@ serve(async (req) => {
           error.message.toLowerCase().includes("already") ||
           error.message.toLowerCase().includes("duplicate") ||
           (error as unknown as { status?: number }).status === 422;
-        return json(
-          {
-            error: alreadyExists
-              ? "Этот номер уже зарегистрирован"
-              : error.message,
-          },
-          400
-        );
+        return json({
+          error: alreadyExists
+            ? "Этот номер уже зарегистрирован"
+            : error.message,
+        });
       }
       return json({ success: true });
     }
@@ -203,7 +200,7 @@ serve(async (req) => {
     // OTP уже проверен на шаге ForgotPin. Обновляем пароль через admin.
     if (action === "reset_pin") {
       if (!phone || !newPin)
-        return json({ error: "phone and newPin required" }, 400);
+        return json({ error: "phone and newPin required" });
 
       const email = phoneToFakeEmail(phone);
       const {
@@ -214,20 +211,17 @@ serve(async (req) => {
 
       const user = users.find((u) => u.email === email);
       if (!user)
-        return json(
-          { error: "Пользователь с этим номером не найден" },
-          404
-        );
+        return json({ error: "Пользователь с этим номером не найден" });
 
       const { error: updateErr } =
         await supabaseAdmin.auth.admin.updateUserById(user.id, {
           password: newPin,
         });
-      if (updateErr) return json({ error: updateErr.message }, 400);
+      if (updateErr) return json({ error: updateErr.message });
       return json({ success: true });
     }
 
-    return json({ error: "Unknown action" }, 400);
+    return json({ error: "Unknown action" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Internal error";
     return json({ error: msg }, 500);
