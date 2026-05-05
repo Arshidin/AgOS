@@ -1,14 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const BIRD_API_URL = "https://api.bird.com";
-const BIRD_WORKSPACE_ID = Deno.env.get("BIRD_WORKSPACE_ID")!;
-const BIRD_CHANNEL_ID = Deno.env.get("BIRD_CHANNEL_ID")!;
-const BIRD_USE_NAVIGATOR = Deno.env.get("BIRD_USE_NAVIGATOR") === "true";
-const BIRD_ACCESS_KEY = Deno.env.get("BIRD_ACCESS_KEY")!;
+// ── Config ────────────────────────────────────────────────────────────────────
+const MOBIZON_API_KEY = Deno.env.get("MOBIZON_API_KEY")!;
+const MOBIZON_API_URL = "https://api.mobizon.kz/service";
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+const OTP_TTL_SECONDS = 300; // 5 минут
+const MAX_ATTEMPTS = 3;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -34,51 +37,46 @@ function phoneToFakeEmail(phone: string): string {
   return `${normalized}@phone.turan.kz`;
 }
 
-const birdHeaders = {
-  Authorization: `AccessKey ${BIRD_ACCESS_KEY}`,
-  "Content-Type": "application/json",
-};
+function generateCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
-async function sendOtp(phone: string): Promise<string> {
-  const step = BIRD_USE_NAVIGATOR
-    ? { navigatorId: BIRD_CHANNEL_ID }
-    : { channelId: BIRD_CHANNEL_ID };
+// ── SMS Transport (Mobizon.kz) ────────────────────────────────────────────────
+// To switch provider: replace only this function.
+async function sendSms(phone: string, code: string): Promise<void> {
+  // Mobizon expects digits only, no +
+  const recipient = phone.replace(/\D/g, "");
+  const text = `Код подтверждения TURAN: ${code}`;
+
+  const params = new URLSearchParams({
+    apiKey: MOBIZON_API_KEY,
+    recipient,
+    text,
+    output: "json",
+    api: "v1",
+  });
 
   const res = await fetch(
-    `${BIRD_API_URL}/workspaces/${BIRD_WORKSPACE_ID}/verify`,
+    `${MOBIZON_API_URL}/Message/SendSmsMessage`,
     {
       method: "POST",
-      headers: birdHeaders,
-      body: JSON.stringify({
-        identifier: { phonenumber: phone },
-        steps: [step],
-        locale: "ru",
-        codeLength: 6,
-        timeout: 300,
-        maxAttempts: 3,
-      }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
     }
   );
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Ошибка отправки кода");
+    throw new Error(`Mobizon HTTP error: ${res.status}`);
   }
+
   const data = await res.json();
-  return data.id as string;
+  // code: 0 = success, anything else = error
+  if (data.code !== 0) {
+    throw new Error(data.message || `Mobizon error code: ${data.code}`);
+  }
 }
 
-async function checkOtp(verificationId: string, code: string): Promise<boolean> {
-  const res = await fetch(
-    `${BIRD_API_URL}/workspaces/${BIRD_WORKSPACE_ID}/verify/${verificationId}`,
-    {
-      method: "POST",
-      headers: birdHeaders,
-      body: JSON.stringify({ code }),
-    }
-  );
-  return res.ok;
-}
-
+// ── Main handler ──────────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -92,32 +90,97 @@ serve(async (req) => {
   }
 
   const { action, phone, verificationId, code, pin, newPin } = body;
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   try {
-    // ── send ──────────────────────────────────────────────────────────────────
+    // ── send ────────────────────────────────────────────────────────────────
     if (action === "send") {
       if (!phone) return json({ error: "phone required" }, 400);
-      const id = await sendOtp(phone);
-      return json({ verificationId: id });
+
+      const otpCode = generateCode();
+      const expiresAt = new Date(
+        Date.now() + OTP_TTL_SECONDS * 1000
+      ).toISOString();
+
+      // Upsert: один активный код на номер
+      const { error: dbErr } = await supabaseAdmin
+        .from("otp_codes")
+        .upsert(
+          { phone, code: otpCode, expires_at: expiresAt, attempts: 0 },
+          { onConflict: "phone" }
+        );
+
+      if (dbErr) return json({ error: "Ошибка сохранения кода" }, 500);
+
+      await sendSms(phone, otpCode);
+
+      // verificationId = phone (провайдер не выдаёт внешний ID)
+      return json({ verificationId: phone });
     }
 
-    // ── check ─────────────────────────────────────────────────────────────────
+    // ── check ────────────────────────────────────────────────────────────────
     if (action === "check") {
       if (!verificationId || !code)
         return json({ error: "verificationId and code required" }, 400);
-      const verified = await checkOtp(verificationId, code);
-      if (!verified) return json({ verified: false }, 400);
+
+      const targetPhone = verificationId; // verificationId === phone
+
+      const { data: row, error: dbErr } = await supabaseAdmin
+        .from("otp_codes")
+        .select("*")
+        .eq("phone", targetPhone)
+        .single();
+
+      if (dbErr || !row)
+        return json({ verified: false, error: "Код не найден" }, 400);
+
+      // Истёк?
+      if (new Date(row.expires_at) < new Date()) {
+        await supabaseAdmin
+          .from("otp_codes")
+          .delete()
+          .eq("phone", targetPhone);
+        return json(
+          { verified: false, error: "Код истёк — запросите новый" },
+          400
+        );
+      }
+
+      // Превышены попытки?
+      if (row.attempts >= MAX_ATTEMPTS) {
+        await supabaseAdmin
+          .from("otp_codes")
+          .delete()
+          .eq("phone", targetPhone);
+        return json(
+          { verified: false, error: "Превышено число попыток" },
+          400
+        );
+      }
+
+      // Неверный код?
+      if (row.code !== code) {
+        await supabaseAdmin
+          .from("otp_codes")
+          .update({ attempts: row.attempts + 1 })
+          .eq("phone", targetPhone);
+        return json({ verified: false }, 400);
+      }
+
+      // Успех — удаляем использованный код
+      await supabaseAdmin
+        .from("otp_codes")
+        .delete()
+        .eq("phone", targetPhone);
       return json({ verified: true });
     }
 
-    // ── register ──────────────────────────────────────────────────────────────
-    // OTP already verified in Contact step. Creates Supabase user with PIN as password.
+    // ── register ─────────────────────────────────────────────────────────────
+    // OTP уже проверен на шаге Contact. Создаём Supabase пользователя с PIN.
     if (action === "register") {
       if (!phone || !pin) return json({ error: "phone and pin required" }, 400);
 
       const email = phoneToFakeEmail(phone);
-      const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
       const { error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: pin,
@@ -131,7 +194,11 @@ serve(async (req) => {
           error.message.toLowerCase().includes("duplicate") ||
           (error as unknown as { status?: number }).status === 422;
         return json(
-          { error: alreadyExists ? "Этот номер уже зарегистрирован" : error.message },
+          {
+            error: alreadyExists
+              ? "Этот номер уже зарегистрирован"
+              : error.message,
+          },
           400
         );
       }
@@ -139,21 +206,24 @@ serve(async (req) => {
     }
 
     // ── reset_pin ─────────────────────────────────────────────────────────────
-    // OTP already verified in ForgotPin step. Updates existing user's password.
+    // OTP уже проверен на шаге ForgotPin. Обновляем пароль через admin.
     if (action === "reset_pin") {
       if (!phone || !newPin)
         return json({ error: "phone and newPin required" }, 400);
 
       const email = phoneToFakeEmail(phone);
-      const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-      const { data: { users }, error: listErr } =
-        await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const {
+        data: { users },
+        error: listErr,
+      } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (listErr) return json({ error: listErr.message }, 500);
 
       const user = users.find((u) => u.email === email);
       if (!user)
-        return json({ error: "Пользователь с этим номером не найден" }, 404);
+        return json(
+          { error: "Пользователь с этим номером не найден" },
+          404
+        );
 
       const { error: updateErr } =
         await supabaseAdmin.auth.admin.updateUserById(user.id, {
