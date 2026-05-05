@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { PinInput } from '../components/PinInput'
 import type { RegistrationFormData } from '../constants'
 
@@ -50,9 +49,8 @@ export function CreatePin({ formData, onChange, onNext }: CreatePinProps) {
       }
 
       // Sign in immediately after account creation
-      const email = phoneToFakeEmail(phone)
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        phone,
         password: value,
       })
       if (signInError) {

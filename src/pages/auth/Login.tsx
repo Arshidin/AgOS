@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { Loader2, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { phoneToFakeEmail } from '@/lib/auth-utils'
 import { toast } from 'sonner'
 import { PinInput } from '@/pages/registration/components/PinInput'
 
@@ -47,9 +46,8 @@ export function Login() {
     setError(null)
     setIsLoading(true)
     try {
-      const email = phoneToFakeEmail(`+7${phoneDigits}`)
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        phone: `+7${phoneDigits}`,
         password: value,
       })
       if (authError) {
