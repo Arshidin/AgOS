@@ -203,18 +203,16 @@ serve(async (req) => {
         return json({ error: "phone and newPin required" });
 
       const email = phoneToFakeEmail(phone);
-      const {
-        data: { users },
-        error: listErr,
-      } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listErr) return json({ error: listErr.message }, 500);
 
-      const user = users.find((u) => u.email === email);
-      if (!user)
-        return json({ error: "Пользователь с этим номером не найден" });
+      // Ищем user_id по email через SQL RPC (надёжнее чем listUsers)
+      const { data: userId, error: rpcErr } = await supabaseAdmin
+        .rpc("get_auth_user_id_by_email", { p_email: email });
+
+      if (rpcErr) return json({ error: rpcErr.message });
+      if (!userId) return json({ error: "Пользователь с этим номером не найден" });
 
       const { error: updateErr } =
-        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        await supabaseAdmin.auth.admin.updateUserById(userId as string, {
           password: newPin,
         });
       if (updateErr) return json({ error: updateErr.message });
@@ -224,6 +222,6 @@ serve(async (req) => {
     return json({ error: "Unknown action" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Internal error";
-    return json({ error: msg }, 500);
+    return json({ error: msg });
   }
 });
