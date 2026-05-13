@@ -267,7 +267,7 @@ const MembershipPolicy: React.FC = () => {
         {/* CTA */}
         <div className="mt-16 text-center">
           <Link
-            to="/registration"
+            to="/register"
             className="inline-flex items-center justify-center h-14 px-10 rounded-xl bg-[hsl(var(--btn-dark))] text-primary-foreground font-medium text-base hover:opacity-90 transition-opacity"
           >
             {t('membershipPolicy.applyBtn')}

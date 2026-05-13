@@ -1,11 +1,25 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-04-18 (ADR-PRICES-01/02 + DEF-WEANING-01-P3 gate closed)
+> Last updated: 2026-05-13 (ADR-AUTH-CONSOLIDATE-01 — duplicate registration removed)
 
 ---
 
-## Current Phase: ✅ ADR-PRICES-01/02 + DEF-WEANING-01-P3 — CLOSED (2026-04-18)
+## Current Phase: ✅ ADR-AUTH-CONSOLIDATE-01 — CLOSED (2026-05-13)
+
+**Decision:** `/register` (AGOS-native, 348 lines) declared canonical registration. Imported `/join` flow (1750 lines, from turan-industry-catalyst merge ADR-MIGRATION-01) and parallel admin queue removed from UI. Landing page and all marketing components preserved; CTAs rewired to `/register` directly.
+
+**Removed:** 12 files (`public/Registration.tsx`, `admin/membership/Application{List,Detail}.tsx`, 6 hooks, 3 admin components). **Modified:** `App.tsx` (lazy imports + routes), `ApplicationsHub.tsx` (tab removed), 4 landing files (CTA hrefs).
+
+**Verification:** `npx tsc --noEmit` 0 errors · `npm run build` success (4.7s) · Preview confirms `/` lендинг работает, все 4 CTA → `/register`, `/registration` и `/join` редиректят на `/register`, 0 console errors.
+
+**Deferred to separate ADR:** schema cleanup of `registration_applications` table + trigger + counter function in `d10_public_site.sql` (requires prod-data audit). Orphaned `src/pages/landing/Index.tsx` — separate landing-canonicalization decision required.
+
+**Architect sign-off:** APPROVED. P4 violation closed; AGOS-native flow now sole canonical path. Anonymous visitors from `/` route correctly into `organizations`+`memberships` (Slice 1/2 architecture).
+
+---
+
+## Previous Phase: ✅ ADR-PRICES-01/02 + DEF-WEANING-01-P3 — CLOSED (2026-04-18)
 
 **Gate sign-off:** D-GATE-PRICES-01-FINAL. `cross_check.sh` 0/0/0. Tests: `test_price_resolver.py` 11/11 ✅, `test_molodnyak_nonzero_in_calving_months` 1/1 ✅. Prod Supabase verified: 7 seed rows (4 base + 3 age-specific), 3 RPCs deployed + registered. Railway/Vercel autodeploy from `main`.
 

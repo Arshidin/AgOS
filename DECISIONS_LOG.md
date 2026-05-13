@@ -10,6 +10,7 @@
 
 | ID | Date | Domain | Summary |
 |----|------|--------|---------|
+| ADR-AUTH-CONSOLIDATE-01 | 2026-05-13 | Auth/UI | Unify duplicate registration: `/register` canonical, `/join` flow removed, landing CTAs rewired |
 | D-AGENT-1 | pre-2026-03 | Organization | 12 agents → 6 consolidated agents |
 | D-NEW-A | pre-2026-03 | RPC Naming | SQL `rpc_name_registry` is canonical for RPC names |
 | L-NEW-2 | pre-2026-03 | Concurrency | SKIP LOCKED, not advisory locks |
@@ -2426,3 +2427,37 @@ Added `consulting_engine/conftest.py` (sys.path) + `pytest.ini` (pythonpath=.). 
 **Open follow-up (Minor, not blocking)**: 25 `rgba(43,24,10,X)` literals remain inside `style={{ color: ... }}` for secondary/tertiary text in the same 3 files. They render correctly in light theme (alpha tints of an old brand-brown that visually matches v12 `--fg`), but break in dark theme. Replacing them with `color-mix(in srgb, var(--fg) Y%, transparent)` is a separate sweep — defer until full dark-theme audit happens.
 
 **Verification**: dev-server (port 5173) running clean, zero console errors. `grep bg-white src/pages/admin/{membership,startups,news}` returns 0 hits.
+
+
+### 2026-05-13: ADR-AUTH-CONSOLIDATE-01 — Unify duplicate registration flow
+
+**What**: AGOS-native `/register` declared canonical. Imported `/join` flow (from `turan-industry-catalyst` merge ADR-MIGRATION-01) and its parallel admin application queue removed from UI/router. Landing page (`/`) and all marketing components (`src/components/public/*`, `src/pages/public/{news,finance,subsidies,startups,...}`) kept unchanged. Landing CTAs (Hero ×2, Navbar, CTASection, MembershipPolicy) rewired from `/registration` to `/register` directly.
+
+**Why**: Two parallel registration stacks existed in the codebase:
+- `/register` (AGOS-native, 348 lines, last touched 2026-05-04) → `rpc_register_organization` + `rpc_submit_membership_application` → canonical `organizations` + `memberships` (Slice 1/2 architecture).
+- `/join` (imported, 1750 lines, single commit on 2026-04-20) → `signUp` + non-existent `register_member` RPC → parallel `registration_applications` table. Users registering via `/join` never appeared as canonical AGOS organizations.
+
+Direct P4 violation (one source of truth) and HS-5 violation (additive-only — old flow should have been removed during the migration). Anonymous visitors hitting `/` went through the imported flow and were invisible to the AGOS platform.
+
+**Removed (12 files)**:
+- `src/pages/public/Registration.tsx`
+- `src/pages/admin/membership/ApplicationList.tsx` + `ApplicationDetail.tsx` (parallel admin queue reading `registration_applications`)
+- 6 hooks: `useApplications`, `useApplication`, `useApproveApplication`, `useRejectApplication`, `useDeleteApplication`, `useApplicantDocuments`
+- 3 components: `ApproveDialog`, `StatusBadge`, `RoleBadge` (only used by the deleted admin queue)
+- Empty dir `src/pages/admin/membership/`
+
+**Modified**:
+- `src/App.tsx`: removed lazy imports + routes `/join`/`/registration` now `<Navigate to="/register">`; `applications/membership` + `applications/membership/:id` removed; `applications/` index now navigates to `level` (was `membership`).
+- `src/pages/admin/applications/ApplicationsHub.tsx`: removed `Членство` tab.
+- 4 landing files: `to="/registration"` → `to="/register"` in Hero (×2), Navbar, CTASection, MembershipPolicy.
+
+**Kept (deferred to separate ADR after prod-data audit)**:
+- Schema: `registration_applications` table + `increment_registration_counter()` + trigger `on_new_registration` in `d10_public_site.sql`. Table becomes dormant after UI removal. Drop requires verification that no prod data needs migration into canonical `memberships`.
+- Orphaned new landing `src/pages/landing/Index.tsx` — kept as-is (separate decision required: which landing is canonical, that's outside this ADR's scope).
+
+**Consequences**:
+- Easy: anonymous visitors from `/` now go through canonical Slice 1/2 registration → `organizations` + `memberships`. Admin sees them in `/admin/applications/level` (`rpc_get_membership_queue`).
+- Easy: 12 fewer files, ~2200 fewer lines of duplicate UI.
+- Hard: `registration_applications` table still in prod and schema — needs follow-up ADR to drop. Any historical data must first be migrated/exported.
+
+**Verification**: `npx tsc --noEmit` → 0 errors. `npm run build` → success (4.7s). Preview (port 5173): `/` lendinger renders, all 4 CTAs link to `/register`, `/registration` → `/register` redirect works, `/join` → `/register` redirect works, `/register` renders 4-role select screen. 0 console errors.

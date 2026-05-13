@@ -13,7 +13,6 @@ import { ForgotPin } from '@/pages/auth/ForgotPin'
 import { Registration } from '@/pages/registration/Registration'
 
 // ── Public site (migrated from turan-industry-catalyst) ──────────────────────
-const PublicRegistration = lazy(() => import('@/pages/public/Registration'))
 const BusinessCard = lazy(() => import('@/pages/public/BusinessCard'))
 const NewsPage = lazy(() => import('@/pages/public/news/NewsPage'))
 const ArticlePage = lazy(() => import('@/pages/public/news/ArticlePage'))
@@ -47,8 +46,6 @@ const AdminProgramDepsPage = lazy(() => import('@/pages/admin/finance/AdminProgr
 const AdminFinanceRequestsPage = lazy(() => import('@/pages/admin/finance/AdminFinanceRequestsPage'))
 const AdminSubsidiesPage = lazy(() => import('@/pages/admin/subsidies/AdminSubsidiesPage'))
 const AdminPassportsPage = lazy(() => import('@/pages/admin/subsidies/AdminPassportsPage'))
-const ApplicationList = lazy(() => import('@/pages/admin/membership/ApplicationList'))
-const ApplicationDetail = lazy(() => import('@/pages/admin/membership/ApplicationDetail'))
 const ApplicationsHub = lazy(() => import('@/pages/admin/applications/ApplicationsHub').then(m => ({ default: m.ApplicationsHub })))
 const MembershipLevelTab = lazy(() => import('@/pages/admin/applications/MembershipLevelTab').then(m => ({ default: m.MembershipLevelTab })))
 const EducationTab = lazy(() => import('@/pages/admin/applications/EducationTab').then(m => ({ default: m.EducationTab })))
@@ -138,8 +135,9 @@ function App() {
             <Route path="/membership-policy" element={<Suspense fallback={null}><PublicMembershipPolicy /></Suspense>} />
 
             {/* ── Public site (migrated from turan-industry-catalyst) ─── */}
-            <Route path="/join" element={<Suspense fallback={null}><PublicRegistration /></Suspense>} />
-            <Route path="/registration" element={<Navigate to="/join" replace />} />
+            {/* Legacy registration paths redirect to canonical /register (ADR-AUTH-CONSOLIDATE-01) */}
+            <Route path="/join" element={<Navigate to="/register" replace />} />
+            <Route path="/registration" element={<Navigate to="/register" replace />} />
             <Route path="/card" element={<Suspense fallback={null}><BusinessCard /></Suspense>} />
             <Route path="/news" element={<Suspense fallback={null}><NewsPage /></Suspense>}>
               <Route path=":slug" element={<Suspense fallback={null}><ArticleDrawer /></Suspense>} />
@@ -259,9 +257,7 @@ function App() {
 
                     {/* ── Applications hub ── */}
                     <Route path="applications" element={<Suspense fallback={null}><ApplicationsHub /></Suspense>}>
-                      <Route index element={<Navigate to="membership" replace />} />
-                      <Route path="membership" element={<Suspense fallback={null}><ApplicationList /></Suspense>} />
-                      <Route path="membership/:id" element={<Suspense fallback={null}><ApplicationDetail /></Suspense>} />
+                      <Route index element={<Navigate to="level" replace />} />
                       <Route path="level" element={<Suspense fallback={null}><MembershipLevelTab /></Suspense>} />
                       <Route path="level/:applicationId" element={<MembershipDecision />} />
                       <Route path="finance" element={<Suspense fallback={null}><AdminFinanceRequestsPage /></Suspense>} />

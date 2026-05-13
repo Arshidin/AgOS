@@ -3,7 +3,6 @@ import { FileText } from 'lucide-react'
 import { useSetTopbar } from '@/components/layout/TopbarContext'
 
 const TABS = [
-  { label: 'Членство',      path: '/admin/applications/membership' },
   { label: 'Смена уровня',  path: '/admin/applications/level' },
   { label: 'Финансирование', path: '/admin/applications/finance' },
   { label: 'Обучение',      path: '/admin/applications/education' },
