@@ -1,11 +1,48 @@
 # SPRINT STATUS — AgOS
 
 > Maintained by: Architect (planning/sign-off), DB Agent (after SQL), Backend Agent (after code), UI Agent (after UI)
-> Last updated: 2026-05-13 (ADR-AUTH-CONSOLIDATE-01 — duplicate registration removed)
+> Last updated: 2026-05-13 (Slice 9 MPK Cabinet — Dok 6 draft, awaiting Gate)
 
 ---
 
-## Current Phase: ✅ ADR-AUTH-CONSOLIDATE-01 — CLOSED (2026-05-13)
+## Current Phase: 🚀 Slice 9 — MPK Cabinet — IN PROGRESS (2026-05-13)
+
+**ADR:** ADR-MPK-CABINET-01 (DECISIONS_LOG entry 2026-05-13)
+**Dok 6 file:** `Docs/AGOS-Dok6-Slice9-MpkCabinet.md` v1.0 — ✅ **APPROVED (Dok 6 Gate PASSED 2026-05-13)**
+
+### CEO decisions resolved (2026-05-13)
+| ID | Decision |
+|----|----------|
+| Q-A | Separate layout `/cabinet/mpk/*` with own `RequireMpk` guard, sidebar, dashboard |
+| Q-B | Full UX wizard for B02 (5 steps) — volume/categories/premium/preferences/review |
+| Q-C | Delete dead `useMpkProfile.ts` (D39 forbids separate mpk_profiles table) |
+| Q-D | Dok 6 first, then DB → UI phases |
+
+### Plan (5 phases, ~5–7 days estimated)
+| Phase | Owner | Status | Deliverable |
+|-------|-------|--------|-------------|
+| Phase 1 — DB | DB Agent | 🟢 **READY TO START** | `pool_requests.preferences jsonb` column ADD; auth extension on RPC-12/13; 3 new RPCs (`rpc_get_my_pool_requests`, `rpc_get_pool_detail_for_mpk`, `rpc_close_pool_request`) |
+| Phase 2 — Layout | UI Agent | 🟢 **READY TO START (parallel)** | `RequireMpk` guard, `/cabinet/mpk/*` routes, `MpkSidebar`, `MpkLayout`. Delete `useMpkProfile.ts`. |
+| Phase 3 — Screens | UI Agent | ⬜ Blocked by Phase 1+2 | B01 MpkDashboard, B02 CreatePoolRequest (5-step wizard), B03 MyPoolsList, B04 PoolDetail (MPK-view) |
+| Phase 4 — QA | QA Agent | ⬜ Blocked by Phase 3 | 6 MPK-INV invariants: RLS isolation, D40 contact reveal, Article 171 disclaimer, RPC auth, math validation, sidebar isolation |
+| Phase 5 — Sign-off | Architect | ⬜ | `D-GATE-S9`, SPRINT_STATUS close, Dok 6 v1.0 → final |
+
+### Scope explicitly OUT (deferred)
+- B05 DeliveryRecord input (Q21 Dok 1 still open — separate ADR)
+- Migration of 43 legacy `registration_applications` (CEO Q1/Q2/Q3 still open)
+- Edit-draft pool_request RPC (MVP: close + recreate)
+- D1 dual-membership UX (one org = farmer + mpk) — sub-slice 9.5 if needed
+- Push notifications (reuse Dok 4 `pool.matched`)
+
+### Dok 6 Gate criteria — ✅ PASSED 2026-05-13
+- [x] CEO reviews Dok 6 wireframes (B01–B04)
+- [x] All 6 MPK-INV invariants agreed
+- [x] Phase 1 DB schema delta approved (preferences column + 3 RPCs + auth extension)
+- [x] No conflict with D39 / D40 / Q21 / D1
+
+---
+
+## Previous Phase: ✅ ADR-AUTH-CONSOLIDATE-01 — CLOSED (2026-05-13)
 
 **Decision:** `/register` (AGOS-native, 348 lines) declared canonical registration. Imported `/join` flow (1750 lines, from turan-industry-catalyst merge ADR-MIGRATION-01) and parallel admin queue removed from UI. Landing page and all marketing components preserved; CTAs rewired to `/register` directly.
 

@@ -10,6 +10,7 @@
 
 | ID | Date | Domain | Summary |
 |----|------|--------|---------|
+| ADR-MPK-CABINET-01 | 2026-05-13 | UI/RPC | Slice 9 plan: 4 MPK screens (B01–B04), separate /cabinet/mpk/* layout, Dok 6 draft |
 | ADR-AUTH-CONSOLIDATE-01 | 2026-05-13 | Auth/UI | Unify duplicate registration: `/register` canonical, `/join` flow removed, landing CTAs rewired |
 | D-AGENT-1 | pre-2026-03 | Organization | 12 agents → 6 consolidated agents |
 | D-NEW-A | pre-2026-03 | RPC Naming | SQL `rpc_name_registry` is canonical for RPC names |
@@ -2461,3 +2462,47 @@ Direct P4 violation (one source of truth) and HS-5 violation (additive-only — 
 - Hard: `registration_applications` table still in prod and schema — needs follow-up ADR to drop. Any historical data must first be migrated/exported.
 
 **Verification**: `npx tsc --noEmit` → 0 errors. `npm run build` → success (4.7s). Preview (port 5173): `/` lendinger renders, all 4 CTAs link to `/register`, `/registration` → `/register` redirect works, `/join` → `/register` redirect works, `/register` renders 4-role select screen. 0 console errors.
+
+
+### 2026-05-13: ADR-MPK-CABINET-01 — Slice 9 plan (MPK Cabinet)
+
+**What**: Initiated new vertical slice "MPK Cabinet" with 4 farmer-side screens (B01 MpkDashboard, B02 CreatePoolRequest wizard, B03 MyPoolsList, B04 PoolDetail MPK-view). Dok 6 draft written: `Docs/AGOS-Dok6-Slice9-MpkCabinet.md` (v1.0 DRAFT, awaiting Dok 6 Gate sign-off).
+
+**Why**: Architect review on 2026-05-13 identified that the system has full farmer cabinet (Slices 1, 3, 4, 5a) but zero MPK-facing UI despite MPK registration working since Slice 1. Pool requests currently can be created only by admin on behalf of MPK (via `/admin/pools` PoolQueue) — meaning MPK users register and then have no cabinet path to actually express demand. Pool schema (`pool_requests`, `pools`, `pool_matches`) and RLS are already complete (Slice 5b). The gap is purely on the MPK UI side.
+
+**CEO decisions resolved before drafting Dok 6**:
+- Q-A: **Separate layout `/cabinet/mpk/*`** with own `RequireMpk` guard, sidebar, dashboard. Farmer-only modules (Стадо/Корм/Рацион/План/Vet) hidden — they are semantically inapplicable to buyers. `CabinetIndex` redirects by `org_type`.
+- Q-B: **Full UX wizard** for B02 — 5 steps: volume+timing → accepted_categories (SKU multi-row) → premium capacity → soft preferences (target_weight, preferred_breeds, frequency) → notes+review. Maps all fields from legacy `registration_applications` MPK columns.
+- Q-C: **Delete** `src/hooks/cabinet/useMpkProfile.ts`. The dead hook tries to read non-existent `mpk_profiles` table — but D39 already fixes "MPK demand profile = JSONB on `pool_requests.accepted_categories`", so a separate `mpk_profiles` table is architecturally forbidden. Hook is dead and conceptually wrong.
+- Q-D: **Dok 6 first**, code after. P1 (Data Model First) + Dok 6 Gate before any RPC/UI work.
+
+**Architectural verification before plan**:
+- D39 already says "JSONB on pool_requests" — no new `mpk_profiles` table. Confirmed.
+- D40 contact reveal mechanism (`pools.mpk_contact_revealed_at`) already implemented in `rpc_advance_pool_status` (Slice 5b). MPK-side just reads it.
+- Q21 (DeliveryRecord — MPK or admin?) explicitly OUT of scope for Slice 9. Deferred to separate ADR.
+- D1 dual-membership (one org = farmer + mpk) deferred to optional sub-slice 9.5 after pilot data.
+
+**Phases planned (estimate ~5–7 days total)**:
+1. DB (1 day) — `pool_requests.preferences jsonb` column ADD; authorization extension in `rpc_create_pool_request` / `rpc_activate_pool_request` (additive — admin OR mpk org owner/manager); 3 new RPCs (`rpc_get_my_pool_requests`, `rpc_get_pool_detail_for_mpk`, `rpc_close_pool_request`).
+2. Layout (1 day) — `RequireMpk` guard, `/cabinet/mpk/*` route tree, MPK sidebar, delete dead useMpkProfile hook.
+3. Screens (2–3 days) — B01..B04 implementation.
+4. QA gate — 6 MPK-INV invariants (RLS, D40, Article 171, auth, math, sidebar isolation).
+5. Architect sign-off — DECISIONS_LOG `D-GATE-S9`, SPRINT_STATUS close.
+
+**Out of scope (explicit)**:
+- B05 DeliveryRecord input (waiting on Q21 ADR)
+- Migration of 43 legacy `registration_applications` rows (waiting on CEO Q1/Q2/Q3)
+- Edit-draft RPC (`rpc_update_draft_pool_request`) — MPK closes + recreates for MVP
+- D1 dual-membership UX (separate sub-slice if needed)
+- Push notifications on pool fill (reuse Dok 4 event `pool.matched`)
+- MPK document upload (NDA/DPA) — no entity exists yet
+
+**Consequences**:
+- Easy: MPK registration → MPK cabinet → pool request → match → contact reveal becomes complete end-to-end farmer-to-MPK flow in the platform. No admin manual intervention needed for typical purchase request.
+- Easy: All RPCs additive (P7) — existing admin pool flow unchanged.
+- Hard: Dual-membership case (one user = both farmer and MPK in same org) deferred; if pilot reveals this is common, requires separate UX.
+- Tech debt: B04 MPK-view duplicates ~50% of admin/pools/PoolDetail layout. Extraction of a shared `<PoolStatusCard>` component is a follow-up if maintenance cost rises.
+
+**Verification**: Dok 6 file exists at `Docs/AGOS-Dok6-Slice9-MpkCabinet.md`. Existing schema + RPCs verified read: `d02_tsp.sql:274-360` (pool_requests/pools), `d02_tsp.sql:1217-1255` (RPC-12/13), Dok 1 D39/D40 confirmed. Next action: CEO reviews Dok 6 → Dok 6 Gate decision → Phase 1 DB Agent.
+
+**Dok 6 Gate: ✅ PASSED (2026-05-13)** — CEO approved Dok 6 v1.0 same-day. All 5 acceptance criteria checked. DB Agent unblocked for Phase 1 implementation. UI Agent may start Phase 2 (routing/layout/dead-hook deletion) in parallel.
