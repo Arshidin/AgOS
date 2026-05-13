@@ -47,7 +47,7 @@ const CTASection = () => {
             <Reveal delay={200}>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3">
                 <Link
-                  to="/registration"
+                  to="/register"
                   className="w-full sm:w-auto text-center px-7 py-3 text-[15px] font-medium transition-all duration-300 hover:brightness-90"
                   style={{ backgroundColor: "#3f2407", color: "#fff", borderRadius: "13px" }}
                 >

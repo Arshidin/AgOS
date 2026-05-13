@@ -312,7 +312,7 @@ const Hero = () => {
         <Reveal>
           <div className="animate-bounce-in">
             <Link
-              to="/registration"
+              to="/register"
               className="inline-flex items-center gap-1.5 md:gap-2.5 rounded-full bg-background border border-border pl-1 md:pl-1.5 pr-3 md:pr-5 py-1 md:py-1.5 text-xs md:text-sm font-serif text-foreground hover:text-foreground mb-8 md:mb-10 shadow-sm hover:shadow-md hover:scale-[1.03] transition-[box-shadow,transform] duration-300"
             >
               <span className="inline-flex items-center gap-1 md:gap-1.5 rounded-full px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-semibold text-white" style={{ backgroundColor: "#2d2d2d" }}>
@@ -350,7 +350,7 @@ const Hero = () => {
         <Reveal delay={300}>
           <div className="flex flex-row items-center justify-center gap-3">
             <Link
-              to="/registration"
+              to="/register"
               className="group/btn inline-flex items-center gap-2 px-7 py-3 text-[15px] font-medium transition-all duration-300 hover:brightness-90"
               style={{ backgroundColor: "#3f2407", color: "#fff", borderRadius: "13px" }}
             >
